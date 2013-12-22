@@ -124,3 +124,16 @@ class TextBufferCore
 
     {characters} = @offsetIndex.totalTo(row, 'rows')
     characters + column
+
+  positionForOffset: (offset) ->
+    if offset < 0 or offset > @getMaxOffset()
+      throw new Error("Offset #{offset} is out of range")
+
+    {rows, characters} = @offsetIndex.totalTo(offset, 'characters')
+    if rows > @getLastRow()
+      @getLastPosition()
+    else
+      new Point(rows, offset - characters)
+
+  getMaxOffset: ->
+    @offsetIndex.totalTo(Infinity, 'rows').characters
