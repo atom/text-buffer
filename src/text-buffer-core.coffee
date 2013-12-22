@@ -1,3 +1,4 @@
+SpanSkipList = require 'span-skip-list'
 Point = require './point'
 Range = require './range'
 {spliceArray} = require './helpers'
@@ -7,7 +8,8 @@ class TextBufferCore
   constructor: (options) ->
     @lines = ['']
     @lineEndings = ['']
-    @setTextInRange([[0, 0], [0, 0]], options.text) if options?.text?
+    @offsetIndex = new SpanSkipList('rows', 'characters')
+    @setTextInRange([[0, 0], [0, 0]], options?.text ? '')
 
   getText: ->
     text = ''
@@ -57,6 +59,11 @@ class TextBufferCore
     # Replace lines in range with new lines
     spliceArray(@lines, startRow, rowCount, lines)
     spliceArray(@lineEndings, startRow, rowCount, lineEndings)
+
+    # Update the offset index for position <-> character offset translation
+    offsets = lines.map (line, index) ->
+      {rows: 1, characters: line.length + lineEndings[index].length}
+    @offsetIndex.spliceArray('rows', startRow, rowCount, offsets)
 
   getTextInRange: (range) ->
     range = Range.fromObject(range)
@@ -108,3 +115,12 @@ class TextBufferCore
   getLastPosition: ->
     lastRow = @getLastRow()
     new Point(lastRow, @lineLengthForRow(lastRow))
+
+  offsetForPosition: (position) ->
+    {row, column} = Point.fromObject(position)
+
+    if row < 0 or row > @getLastRow() or column < 0 or column > @lineLengthForRow(row)
+      throw new Error("Position #{position} is invalid")
+
+    {characters} = @offsetIndex.totalTo(row, 'rows')
+    characters + column

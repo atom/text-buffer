@@ -61,3 +61,25 @@ describe "TextBufferCore", ->
       expect(buffer.clipPosition([1, 20])).toEqual [1, 5]
       expect(buffer.clipPosition([10, 0])).toEqual [2, 18]
       expect(buffer.clipPosition([Infinity, 0])).toEqual [2, 18]
+
+  describe "::offsetForPosition(position)", ->
+    beforeEach ->
+      buffer = new TextBufferCore(text: "zero\none\r\ntwo\nthree")
+
+    it "returns the absolute character offset for the given position", ->
+      expect(buffer.offsetForPosition([0, 0])).toBe 0
+      expect(buffer.offsetForPosition([0, 1])).toBe 1
+      expect(buffer.offsetForPosition([0, 4])).toBe 4
+      expect(buffer.offsetForPosition([1, 0])).toBe 5
+      expect(buffer.offsetForPosition([1, 1])).toBe 6
+      expect(buffer.offsetForPosition([1, 3])).toBe 8
+      expect(buffer.offsetForPosition([2, 0])).toBe 10
+      expect(buffer.offsetForPosition([2, 1])).toBe 11
+      expect(buffer.offsetForPosition([3, 0])).toBe 14
+      expect(buffer.offsetForPosition([3, 5])).toBe 19
+
+    it "throws an exception if the position is out of bounds", ->
+      expect(-> buffer.offsetForPosition([-1, 0])).toThrow()
+      expect(-> buffer.offsetForPosition([0, -1])).toThrow()
+      expect(-> buffer.offsetForPosition([0, 5])).toThrow()
+      expect(-> buffer.offsetForPosition([4, 0])).toThrow()

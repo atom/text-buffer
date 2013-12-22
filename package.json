@@ -33,5 +33,8 @@
     "json-diff": "~0.3.1",
     "coffee-cache": "~0.2.0",
     "tantamount": "~0.8.0"
+  },
+  "dependencies": {
+    "span-skip-list": "~0.1.1"
   }
 }
