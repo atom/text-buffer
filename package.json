@@ -1,0 +1,37 @@
+{
+  "name": "text-buffer-core",
+  "version": "0.0.0",
+  "description": "A container for large mutable strings with annotated regions",
+  "main": "./lib/text-buffer-core",
+  "scripts": {
+    "prepublish": "grunt clean lint coffee",
+    "test": "grunt test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/atom/text-buffer-core.git"
+  },
+  "bugs": {
+    "url": "https://github.com/atom/text-buffer-core/issues"
+  },
+  "licenses": [
+    {
+      "type": "MIT",
+      "url": "http://github.com/atom/text-buffer-core/raw/master/LICENSE.md"
+    }
+  ],
+  "devDependencies": {
+    "coffee-script": "~1.6.3",
+    "jasmine-focused": "~0.12.0",
+    "jasmine-waits-for-callback": "~0.1.0",
+    "grunt-contrib-coffee": "~0.7.0",
+    "grunt-cli": "~0.1.8",
+    "grunt": "~0.4.1",
+    "grunt-shell": "~0.2.2",
+    "grunt-coffeelint": "0.0.6",
+    "rimraf": "~2.2.2",
+    "json-diff": "~0.3.1",
+    "coffee-cache": "~0.2.0",
+    "tantamount": "~0.8.0"
+  }
+}
