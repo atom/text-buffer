@@ -53,3 +53,24 @@ class TextBufferCore
     # Replace lines in range with new lines
     spliceArray(@lines, startRow, rowCount, lines)
     spliceArray(@lineEndings, startRow, rowCount, lineEndings)
+
+  getTextInRange: (range) ->
+    range = Range.fromObject(range)
+    startRow = range.start.row
+    endRow = range.end.row
+
+    if startRow is endRow
+      @lineForRow(startRow)[range.start.column...range.end.column]
+    else
+      text = ''
+      for row in [startRow..endRow]
+        line = @lineForRow(row)
+        if row is startRow
+          text += line[range.start.column...]
+        else if row is endRow
+          text += line[0...range.end.column]
+          continue
+        else
+          text += line
+        text += @lineEndingForRow(row)
+      text

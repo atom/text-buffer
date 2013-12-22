@@ -42,3 +42,10 @@ describe "TextBufferCore", ->
     it "can replace text in a region spanning multiple lines, ending with a carriage-return/newline", ->
       buffer.setTextInRange([[0, 2], [1, 3]], "y\nyou're o")
       expect(buffer.getText()).toEqual "hey\nyou're old\r\nhow are you doing?"
+
+  describe "::getTextInRange(range)", ->
+    it "returns the text in a given range", ->
+      buffer = new TextBufferCore(text: "hello\nworld\r\nhow are you doing?")
+      expect(buffer.getTextInRange([[1, 1], [1, 4]])).toBe "orl"
+      expect(buffer.getTextInRange([[0, 3], [2, 3]])).toBe "lo\nworld\r\nhow"
+      expect(buffer.getTextInRange([[0, 0], [2, 18]])).toBe buffer.getText()
