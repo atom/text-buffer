@@ -1,3 +1,4 @@
+Point = require './point'
 Range = require './range'
 {spliceArray} = require './helpers'
 
@@ -25,6 +26,9 @@ class TextBufferCore
 
   lineEndingForRow: (row) ->
     @lineEndings[row]
+
+  lineLengthForRow: (row) ->
+    @lines[row].length
 
   setTextInRange: (range, text) ->
     range = Range.fromObject(range)
@@ -74,3 +78,33 @@ class TextBufferCore
           text += line
         text += @lineEndingForRow(row)
       text
+
+  clipRange: (range) ->
+    range = Range.fromObject(range)
+    start = @clipPosition(range.start)
+    end = @clipPosition(range.end)
+    if range.start.isEqual(start) and range.end.isEqual(end)
+      range
+    else
+      new Range(start, end)
+
+  clipPosition: (position) ->
+    position = Point.fromObject(position)
+    {row, column} = position
+    if row < 0
+      @getFirstPosition()
+    else if row > @getLastRow()
+      @getLastPosition()
+    else
+      column = Math.min(Math.max(column, 0), @lineLengthForRow(row))
+      if column is position.column
+        position
+      else
+        new Point(row, column)
+
+  getFirstPosition: ->
+    new Point(0, 0)
+
+  getLastPosition: ->
+    lastRow = @getLastRow()
+    new Point(lastRow, @lineLengthForRow(lastRow))
