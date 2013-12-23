@@ -3,6 +3,7 @@ Transaction = require './transaction'
 module.exports =
 class History
   currentTransaction: null
+  transactionDepth: 0
 
   constructor: (@textBuffer) ->
     @undoStack = []
@@ -30,13 +31,16 @@ class History
       inverse.applyTo(@textBuffer)
 
   beginTransaction: ->
-    @currentTransaction = new Transaction()
+    if ++@transactionDepth is 1
+      @currentTransaction = new Transaction()
 
   commitTransaction: ->
-    @undoStack.push(@currentTransaction) if @currentTransaction.patches.length > 0
-    @currentTransaction = null
+    if --@transactionDepth is 0
+      @undoStack.push(@currentTransaction) if @currentTransaction.patches.length > 0
+      @currentTransaction = null
 
   abortTransaction: ->
     inverse = @currentTransaction.invert()
     @currentTransaction = null
+    @transactionDepth = 0
     inverse.applyTo(@textBuffer)

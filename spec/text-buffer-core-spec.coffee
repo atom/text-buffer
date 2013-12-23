@@ -174,6 +174,17 @@ describe "TextBufferCore", ->
         buffer.redo()
         expect(buffer.getText()).toBe "hello\nworld\r\nhow are you doing?"
 
+      it "combines nested transactions", ->
+        buffer.setTextInRange([[0, 2], [0, 5]], "y")
+        buffer.beginTransaction()
+        buffer.setTextInRange([[2, 13], [2, 14]], "igg")
+        buffer.commitTransaction()
+        buffer.commitTransaction()
+        expect(buffer.getText()).toBe "hey\nworms\r\nhow are you digging?"
+
+        buffer.undo()
+        expect(buffer.getText()).toBe "hello\nworms\r\nhow are you doing?"
+
   describe "::getTextInRange(range)", ->
     it "returns the text in a given range", ->
       buffer = new TextBufferCore(text: "hello\nworld\r\nhow are you doing?")
