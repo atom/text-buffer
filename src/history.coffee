@@ -13,7 +13,7 @@ class History
       @currentTransaction.push(patch)
     else
       @undoStack.push(patch)
-      @redoStack.length = 0
+    @redoStack.length = 0
 
   undo: ->
     if patch = @undoStack.pop()

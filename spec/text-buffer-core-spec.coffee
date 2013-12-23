@@ -149,6 +149,19 @@ describe "TextBufferCore", ->
           buffer.redo()
           expect(buffer.getText()).toBe "hello\nworms\r\nhow are you doing?"
 
+      it "still clears the redo stack when adding to a transaction", ->
+        buffer.abortTransaction()
+        buffer.undo()
+        expect(buffer.getText()).toBe "hello\nworld\r\nhow are you doing?"
+
+        buffer.beginTransaction()
+        buffer.setTextInRange([[0, 0], [0, 5]], "hey")
+        buffer.abortTransaction()
+
+        expect(buffer.getText()).toBe "hello\nworld\r\nhow are you doing?"
+        buffer.redo()
+        expect(buffer.getText()).toBe "hello\nworld\r\nhow are you doing?"
+
   describe "::getTextInRange(range)", ->
     it "returns the text in a given range", ->
       buffer = new TextBufferCore(text: "hello\nworld\r\nhow are you doing?")
