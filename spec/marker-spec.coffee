@@ -18,6 +18,14 @@ describe "Marker", ->
         expect(marker.hasTail()).toBe true
         expect(markerCreations).toEqual [marker]
 
+      it "allows a reversed marker to be created", ->
+        marker = buffer.markRange([[0, 3], [0, 6]], isReversed: true)
+        expect(marker.getRange()).toEqual [[0, 3], [0, 6]]
+        expect(marker.getHeadPosition()).toEqual [0, 3]
+        expect(marker.getTailPosition()).toEqual [0, 6]
+        expect(marker.isReversed()).toBe true
+        expect(marker.hasTail()).toBe true
+
       it "allows an invalidation strategy to be assigned", ->
         marker = buffer.markRange([[0, 3], [0, 6]], invalidate: 'inside')
         expect(marker.getInvalidationStrategy()).toBe 'inside'
