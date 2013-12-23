@@ -82,3 +82,7 @@ describe "Marker", ->
           oldTailPosition: [0, 6], newTailPosition: [0, 6]
           hasTail: true, isValid: true, bufferChanged: false
         }]
+
+      it "does not emit an event if the head position isn't actually changed", ->
+        marker.setHeadPosition(marker.getHeadPosition())
+        expect(changes.length).toBe 0

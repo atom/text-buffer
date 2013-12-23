@@ -22,6 +22,9 @@ class Marker
 
   setHeadPosition: (position) ->
     position = Point.fromObject(position, true)
+
+    return false if position.isEqual(@getHeadPosition())
+
     params = {}
     if @reversed
       if position.isLessThan(@range.end)
@@ -36,6 +39,7 @@ class Marker
       else
         params.range = new Range(@range.start, position)
     @update(params)
+    true
 
   getTailPosition: ->
     if @reversed
