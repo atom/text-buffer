@@ -1,4 +1,4 @@
-{omit} = require 'underscore'
+{omit, defaults} = require 'underscore'
 Marker = require './marker'
 Range = require './range'
 
@@ -25,3 +25,6 @@ class MarkerManager
     @markers[marker.id] = marker
     @textBuffer.emit 'marker-created', marker
     marker
+
+  markPosition: (position, options) ->
+    @markRange([position, position], defaults({hasTail: false}, options))

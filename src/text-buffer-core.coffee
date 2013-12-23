@@ -16,7 +16,7 @@ class TextBufferCore
   @delegatesMethods 'undo', 'redo', 'transact', 'beginTransaction', 'commitTransaction',
     'abortTransaction', toProperty: 'history'
 
-  @delegatesMethods 'markRange', toProperty: 'markers'
+  @delegatesMethods 'markRange', 'markPosition', toProperty: 'markers'
 
   constructor: (options) ->
     @lines = ['']

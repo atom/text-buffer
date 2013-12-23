@@ -17,3 +17,13 @@ describe "Marker", ->
         expect(marker.isReversed()).toBe false
         expect(marker.hasTail()).toBe true
         expect(markerCreations).toEqual [marker]
+
+    describe "TextBufferCore::markPosition(position, properties)", ->
+      it "creates a tail-less marker at the given position", ->
+        marker = buffer.markPosition([0, 6])
+        expect(marker.getRange()).toEqual [[0, 6], [0, 6]]
+        expect(marker.getHeadPosition()).toEqual [0, 6]
+        expect(marker.getTailPosition()).toEqual [0, 6]
+        expect(marker.isReversed()).toBe false
+        expect(marker.hasTail()).toBe false
+        expect(markerCreations).toEqual [marker]
