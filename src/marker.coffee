@@ -2,7 +2,8 @@ module.exports =
 class Marker
   constructor: (params) ->
     {@id, @range, @tailed, @reversed} = params
-    {@valid, @invalidate, @persistent, @attributes} = params
+    {@valid, @invalidate, @persistent, @state} = params
+    Object.freeze(@state)
 
   getRange: ->
     @range
@@ -24,3 +25,6 @@ class Marker
 
   hasTail: ->
     @tailed
+
+  getState: ->
+    @state

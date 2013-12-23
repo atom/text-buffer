@@ -20,7 +20,7 @@ class MarkerManager
       valid: true
       invalidate: options?.invalidate ? 'overlap'
       persistent: options?.persistent ? options?.persist ? true # The 'persist' key is deprecated
-      attributes: omit(options, 'isReversed', 'hasTail', 'invalidate', 'persistent', 'persist', 'undo')
+      state: omit(options, 'isReversed', 'hasTail', 'invalidate', 'persistent', 'persist', 'undo')
 
     @markers[marker.id] = marker
     @textBuffer.emit 'marker-created', marker
