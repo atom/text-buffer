@@ -2,11 +2,11 @@ Point = require './point'
 
 module.exports =
 class Range
-  @fromObject: (object) ->
+  @fromObject: (object, copy) ->
     if Array.isArray(object)
       new Range(object...)
     else if object instanceof Range
-      object
+      if copy then object.copy() else object
     else
       new Range(object.start, object.end)
 
