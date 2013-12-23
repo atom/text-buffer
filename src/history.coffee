@@ -1,9 +1,11 @@
 Transaction = require './transaction'
+TransactionAborted = new Error("Transaction Aborted")
 
 module.exports =
 class History
   currentTransaction: null
   transactionDepth: 0
+  transactCallDepth: 0
 
   constructor: (@textBuffer) ->
     @undoStack = []
@@ -30,6 +32,21 @@ class History
       @undoStack.push(inverse)
       inverse.applyTo(@textBuffer)
 
+  transact: (fn) ->
+    @beginTransaction()
+    try
+      ++@transactCallDepth
+      result = fn()
+      --@transactCallDepth
+      @commitTransaction()
+      result
+    catch error
+      if --@transactCallDepth is 0
+        @abortTransaction()
+        throw error unless error is TransactionAborted
+      else
+        throw error
+
   beginTransaction: ->
     if ++@transactionDepth is 1
       @currentTransaction = new Transaction()
@@ -40,7 +57,10 @@ class History
       @currentTransaction = null
 
   abortTransaction: ->
-    inverse = @currentTransaction.invert()
-    @currentTransaction = null
-    @transactionDepth = 0
-    inverse.applyTo(@textBuffer)
+    if @transactCallDepth is 0
+      inverse = @currentTransaction.invert()
+      @currentTransaction = null
+      @transactionDepth = 0
+      inverse.applyTo(@textBuffer)
+    else
+      throw TransactionAborted

@@ -10,7 +10,7 @@ module.exports =
 class TextBufferCore
   Delegator.includeInto(this)
 
-  @delegatesMethods 'undo', 'redo', 'beginTransaction', 'commitTransaction',
+  @delegatesMethods 'undo', 'redo', 'transact', 'beginTransaction', 'commitTransaction',
     'abortTransaction', toProperty: 'history'
 
   constructor: (options) ->

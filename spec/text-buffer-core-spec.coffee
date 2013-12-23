@@ -185,6 +185,36 @@ describe "TextBufferCore", ->
         buffer.undo()
         expect(buffer.getText()).toBe "hello\nworms\r\nhow are you doing?"
 
+    describe "::transact(fn)", ->
+      it "groups all operations in the given function in a single transaction", ->
+        buffer.setTextInRange([[1, 3], [1, 5]], 'ms')
+        buffer.transact ->
+          buffer.setTextInRange([[0, 2], [0, 5]], "y")
+          buffer.transact ->
+            buffer.setTextInRange([[2, 13], [2, 14]], "igg")
+
+        expect(buffer.getText()).toBe "hey\nworms\r\nhow are you digging?"
+        buffer.undo()
+        expect(buffer.getText()).toBe "hello\nworms\r\nhow are you doing?"
+        buffer.undo()
+        expect(buffer.getText()).toBe "hello\nworld\r\nhow are you doing?"
+
+      it "halts execution of the function if the transaction is aborted", ->
+        innerContinued = false
+        outerContinued = false
+
+        buffer.transact ->
+          buffer.setTextInRange([[0, 2], [0, 5]], "y")
+          buffer.transact ->
+            buffer.setTextInRange([[2, 13], [2, 14]], "igg")
+            buffer.abortTransaction()
+            innerContinued = true
+          outerContinued = true
+
+        expect(innerContinued).toBe false
+        expect(outerContinued).toBe false
+        expect(buffer.getText()).toBe "hello\nworld\r\nhow are you doing?"
+
   describe "::getTextInRange(range)", ->
     it "returns the text in a given range", ->
       buffer = new TextBufferCore(text: "hello\nworld\r\nhow are you doing?")
