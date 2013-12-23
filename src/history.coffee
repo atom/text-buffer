@@ -1,21 +1,40 @@
+Transaction = require './transaction'
+
 module.exports =
 class History
+  currentTransaction: null
+
   constructor: (@textBuffer) ->
     @undoStack = []
     @redoStack = []
 
   recordNewPatch: (patch) ->
-    @undoStack.push(patch)
-    @redoStack.length = 0
+    if @currentTransaction?
+      @currentTransaction.push(patch)
+    else
+      @undoStack.push(patch)
+      @redoStack.length = 0
 
   undo: ->
     if patch = @undoStack.pop()
-      inverse = @textBuffer.invertPatch(patch)
+      inverse = patch.invert()
       @redoStack.push(inverse)
-      @textBuffer.applyPatch(inverse)
+      inverse.applyTo(@textBuffer)
 
   redo: ->
     if patch = @redoStack.pop()
-      inverse = @textBuffer.invertPatch(patch)
+      inverse = patch.invert()
       @undoStack.push(inverse)
-      @textBuffer.applyPatch(inverse)
+      inverse.applyTo(@textBuffer)
+
+  beginTransaction: ->
+    @currentTransaction = new Transaction()
+
+  commitTransaction: ->
+    @undoStack.push(@currentTransaction)
+    @currentTransaction = null
+
+  abortTransaction: ->
+    inverse = @currentTransaction.invert()
+    @currentTransaction = null
+    inverse.applyTo(@textBuffer)

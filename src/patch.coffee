@@ -4,3 +4,6 @@ class Patch
 
   invert: ->
     new @constructor(@newRange, @oldRange, @newText, @oldText)
+
+  applyTo: (textBuffer) ->
+    textBuffer.applyPatch(this)

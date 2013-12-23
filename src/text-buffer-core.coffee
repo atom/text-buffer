@@ -1,3 +1,4 @@
+Delegator = require 'delegato'
 SpanSkipList = require 'span-skip-list'
 Point = require './point'
 Range = require './range'
@@ -7,6 +8,11 @@ Patch = require './patch'
 
 module.exports =
 class TextBufferCore
+  Delegator.includeInto(this)
+
+  @delegatesMethods 'undo', 'redo', 'beginTransaction', 'commitTransaction',
+    'abortTransaction', toProperty: 'history'
+
   constructor: (options) ->
     @lines = ['']
     @lineEndings = ['']
@@ -40,20 +46,11 @@ class TextBufferCore
     @history?.recordNewPatch(patch)
     @applyPatch(patch)
 
-  undo: ->
-    @history.undo()
-
-  redo: ->
-    @history.redo()
-
   buildNewPatch: (oldRange, newText) ->
     oldRange = Range.fromObject(oldRange)
     oldText = @getTextInRange(oldRange)
     newRange = Range.fromText(oldRange.start, newText)
     new Patch(oldRange, newRange, oldText, newText)
-
-  invertPatch: (patch) ->
-    patch.invert()
 
   applyPatch: ({oldRange, newText}) ->
     startRow = oldRange.start.row

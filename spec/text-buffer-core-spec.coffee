@@ -94,6 +94,61 @@ describe "TextBufferCore", ->
       buffer.undo()
       expect(buffer.getText()).toBe "hello\nworld\r\nhow are you doing?"
 
+  describe "transactions", ->
+    beforeEach ->
+      buffer = new TextBufferCore(text: "hello\nworld\r\nhow are you doing?")
+
+    describe "::beginTransaction()", ->
+      beforeEach ->
+        buffer.setTextInRange([[1, 3], [1, 5]], 'ms')
+        buffer.beginTransaction()
+
+      describe "when followed by ::commitTransaction()", ->
+        it "groups all operations since the beginning of the transaction into a single undo operation", ->
+          buffer.setTextInRange([[0, 2], [0, 5]], "y")
+          buffer.setTextInRange([[2, 13], [2, 14]], "igg")
+          buffer.commitTransaction()
+          expect(buffer.getText()).toBe "hey\nworms\r\nhow are you digging?"
+
+          # subsequent changes are not included in the transaction
+          buffer.setTextInRange([[1, 0], [1, 0]], "little ")
+          buffer.undo()
+          expect(buffer.getText()).toBe "hey\nworms\r\nhow are you digging?"
+
+          # this should undo all changes in the transaction
+          buffer.undo()
+          expect(buffer.getText()).toBe "hello\nworms\r\nhow are you doing?"
+
+          # previous changes are not included in the transaction
+          buffer.undo()
+          expect(buffer.getText()).toBe "hello\nworld\r\nhow are you doing?"
+          buffer.redo()
+          expect(buffer.getText()).toBe "hello\nworms\r\nhow are you doing?"
+
+          # this should redo all changes in the transaction
+          buffer.redo()
+          expect(buffer.getText()).toBe "hey\nworms\r\nhow are you digging?"
+
+          # this should redo the change following the transaction
+          buffer.redo()
+          expect(buffer.getText()).toBe "hey\nlittle worms\r\nhow are you digging?"
+
+      describe "when followed by ::abortTransaction()", ->
+        it "undoes all operations since the beginning of the transaction", ->
+          buffer.setTextInRange([[0, 2], [0, 5]], "y")
+          buffer.setTextInRange([[2, 13], [2, 14]], "igg")
+          buffer.abortTransaction()
+          expect(buffer.getText()).toBe "hello\nworms\r\nhow are you doing?"
+
+          buffer.undo()
+          expect(buffer.getText()).toBe "hello\nworld\r\nhow are you doing?"
+
+          buffer.redo()
+          expect(buffer.getText()).toBe "hello\nworms\r\nhow are you doing?"
+
+          buffer.redo()
+          expect(buffer.getText()).toBe "hello\nworms\r\nhow are you doing?"
+
   describe "::getTextInRange(range)", ->
     it "returns the text in a given range", ->
       buffer = new TextBufferCore(text: "hello\nworld\r\nhow are you doing?")

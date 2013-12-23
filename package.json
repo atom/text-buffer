@@ -35,6 +35,7 @@
     "tantamount": "~0.8.0"
   },
   "dependencies": {
-    "span-skip-list": "~0.1.1"
+    "span-skip-list": "~0.1.1",
+    "delegato": "~0.4.0"
   }
 }
