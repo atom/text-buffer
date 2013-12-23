@@ -33,7 +33,7 @@ class History
     @currentTransaction = new Transaction()
 
   commitTransaction: ->
-    @undoStack.push(@currentTransaction)
+    @undoStack.push(@currentTransaction) if @currentTransaction.patches.length > 0
     @currentTransaction = null
 
   abortTransaction: ->

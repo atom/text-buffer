@@ -133,6 +133,11 @@ describe "TextBufferCore", ->
           buffer.redo()
           expect(buffer.getText()).toBe "hey\nlittle worms\r\nhow are you digging?"
 
+        it "does not push the transaction to the undo stack if it is empty", ->
+          buffer.commitTransaction()
+          buffer.undo()
+          expect(buffer.getText()).toBe "hello\nworld\r\nhow are you doing?"
+
       describe "when followed by ::abortTransaction()", ->
         it "undoes all operations since the beginning of the transaction", ->
           buffer.setTextInRange([[0, 2], [0, 5]], "y")
