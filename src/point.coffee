@@ -24,6 +24,9 @@ class Point
   copy: ->
     new Point(@row, @column)
 
+  freeze: ->
+    Object.freeze(this)
+
   add: (other) ->
     other = Point.fromObject(other)
     row = @row + other.row

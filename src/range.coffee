@@ -45,6 +45,11 @@ class Range
   copy: ->
     new Range(@start.copy(), @end.copy())
 
+  freeze: ->
+    @start.freeze()
+    @end.freeze()
+    Object.freeze(this)
+
   isEqual: (other) ->
     if Array.isArray(other) and other.length == 2
       other = new Range(other...)
