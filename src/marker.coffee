@@ -26,5 +26,8 @@ class Marker
   hasTail: ->
     @tailed
 
+  getInvalidationStrategy: ->
+    @invalidate
+
   getState: ->
     @state

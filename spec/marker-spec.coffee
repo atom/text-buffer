@@ -18,6 +18,10 @@ describe "Marker", ->
         expect(marker.hasTail()).toBe true
         expect(markerCreations).toEqual [marker]
 
+      it "allows an invalidation strategy to be assigned", ->
+        marker = buffer.markRange([[0, 3], [0, 6]], invalidate: 'inside')
+        expect(marker.getInvalidationStrategy()).toBe 'inside'
+
       it "allows custom state to be assigned", ->
         marker = buffer.markRange([[0, 3], [0, 6]], foo: 1, bar: 2)
         expect(marker.getState()).toEqual {foo: 1, bar: 2}
