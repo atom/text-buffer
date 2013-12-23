@@ -1,6 +1,8 @@
 SpanSkipList = require 'span-skip-list'
 Point = require './point'
 Range = require './range'
+History = require './history'
+Patch = require './patch'
 {spliceArray} = require './helpers'
 
 module.exports =
@@ -10,6 +12,7 @@ class TextBufferCore
     @lineEndings = ['']
     @offsetIndex = new SpanSkipList('rows', 'characters')
     @setTextInRange([[0, 0], [0, 0]], options?.text ? '')
+    @history = new History(this)
 
   getText: ->
     text = ''
@@ -33,13 +36,32 @@ class TextBufferCore
     @lines[row].length
 
   setTextInRange: (range, text) ->
-    range = Range.fromObject(range)
-    startRow = range.start.row
-    endRow = range.end.row
+    patch = @buildNewPatch(range, text)
+    @history?.recordNewPatch(patch)
+    @applyPatch(patch)
+
+  undo: ->
+    @history.undo()
+
+  redo: ->
+    @history.redo()
+
+  buildNewPatch: (oldRange, newText) ->
+    oldRange = Range.fromObject(oldRange)
+    oldText = @getTextInRange(oldRange)
+    newRange = Range.fromText(oldRange.start, newText)
+    new Patch(oldRange, newRange, oldText, newText)
+
+  invertPatch: (patch) ->
+    patch.invert()
+
+  applyPatch: ({oldRange, newText}) ->
+    startRow = oldRange.start.row
+    endRow = oldRange.end.row
     rowCount = endRow - startRow + 1
 
     # Split inserted text into lines and line endings
-    lines = text.split('\n')
+    lines = newText.split('\n')
     lineEndings = []
     for line, index in lines
       if line[-1..] is '\r'
@@ -48,15 +70,15 @@ class TextBufferCore
       else
         lineEndings.push '\n'
 
-    # Update first and last line so replacement preserves existing prefix and suffix of range
+    # Update first and last line so replacement preserves existing prefix and suffix of oldRange
     lastIndex = lines.length - 1
-    prefix = @lineForRow(startRow)[0...range.start.column]
-    suffix = @lineForRow(endRow)[range.end.column...]
+    prefix = @lineForRow(startRow)[0...oldRange.start.column]
+    suffix = @lineForRow(endRow)[oldRange.end.column...]
     lines[0] = prefix + lines[0]
     lines[lastIndex] += suffix
     lineEndings[lastIndex] = @lineEndingForRow(endRow)
 
-    # Replace lines in range with new lines
+    # Replace lines in oldRange with new lines
     spliceArray(@lines, startRow, rowCount, lines)
     spliceArray(@lineEndings, startRow, rowCount, lineEndings)
 

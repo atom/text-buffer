@@ -43,6 +43,57 @@ describe "TextBufferCore", ->
       buffer.setTextInRange([[0, 2], [1, 3]], "y\nyou're o")
       expect(buffer.getText()).toEqual "hey\nyou're old\r\nhow are you doing?"
 
+  describe "::undo() and ::redo()", ->
+    beforeEach ->
+      buffer = new TextBufferCore(text: "hello\nworld\r\nhow are you doing?")
+
+    it "undoes and redoes multiple changes", ->
+      buffer.setTextInRange([[0, 5], [0, 5]], " there")
+      buffer.setTextInRange([[1, 0], [1, 5]], "friend")
+      expect(buffer.getText()).toBe "hello there\nfriend\r\nhow are you doing?"
+
+      buffer.undo()
+      expect(buffer.getText()).toBe "hello there\nworld\r\nhow are you doing?"
+
+      buffer.undo()
+      expect(buffer.getText()).toBe "hello\nworld\r\nhow are you doing?"
+
+      buffer.undo()
+      expect(buffer.getText()).toBe "hello\nworld\r\nhow are you doing?"
+
+      buffer.redo()
+      expect(buffer.getText()).toBe "hello there\nworld\r\nhow are you doing?"
+
+      buffer.undo()
+      expect(buffer.getText()).toBe "hello\nworld\r\nhow are you doing?"
+
+      buffer.redo()
+      buffer.redo()
+      expect(buffer.getText()).toBe "hello there\nfriend\r\nhow are you doing?"
+
+      buffer.redo()
+      expect(buffer.getText()).toBe "hello there\nfriend\r\nhow are you doing?"
+
+    it "clears the redo stack upon a fresh change", ->
+      buffer.setTextInRange([[0, 5], [0, 5]], " there")
+      buffer.setTextInRange([[1, 0], [1, 5]], "friend")
+      expect(buffer.getText()).toBe "hello there\nfriend\r\nhow are you doing?"
+
+      buffer.undo()
+      expect(buffer.getText()).toBe "hello there\nworld\r\nhow are you doing?"
+
+      buffer.setTextInRange([[1, 3], [1, 5]], "m")
+      expect(buffer.getText()).toBe "hello there\nworm\r\nhow are you doing?"
+
+      buffer.redo()
+      expect(buffer.getText()).toBe "hello there\nworm\r\nhow are you doing?"
+
+      buffer.undo()
+      expect(buffer.getText()).toBe "hello there\nworld\r\nhow are you doing?"
+
+      buffer.undo()
+      expect(buffer.getText()).toBe "hello\nworld\r\nhow are you doing?"
+
   describe "::getTextInRange(range)", ->
     it "returns the text in a given range", ->
       buffer = new TextBufferCore(text: "hello\nworld\r\nhow are you doing?")
