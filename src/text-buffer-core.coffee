@@ -1,4 +1,5 @@
 Delegator = require 'delegato'
+{Emitter} = require 'emissary'
 SpanSkipList = require 'span-skip-list'
 Point = require './point'
 Range = require './range'
@@ -9,6 +10,7 @@ Patch = require './patch'
 module.exports =
 class TextBufferCore
   Delegator.includeInto(this)
+  Emitter.includeInto(this)
 
   @delegatesMethods 'undo', 'redo', 'transact', 'beginTransaction', 'commitTransaction',
     'abortTransaction', toProperty: 'history'
@@ -52,7 +54,7 @@ class TextBufferCore
     newRange = Range.fromText(oldRange.start, newText)
     new Patch(oldRange, newRange, oldText, newText)
 
-  applyPatch: ({oldRange, newText}) ->
+  applyPatch: ({oldRange, newRange, oldText, newText}) ->
     startRow = oldRange.start.row
     endRow = oldRange.end.row
     rowCount = endRow - startRow + 1
@@ -83,6 +85,8 @@ class TextBufferCore
     offsets = lines.map (line, index) ->
       {rows: 1, characters: line.length + lineEndings[index].length}
     @offsetIndex.spliceArray('rows', startRow, rowCount, offsets)
+
+    @emit 'changed', {oldRange, newRange, oldText, newText}
 
   getTextInRange: (range) ->
     range = Range.fromObject(range)

@@ -43,6 +43,17 @@ describe "TextBufferCore", ->
       buffer.setTextInRange([[0, 2], [1, 3]], "y\nyou're o")
       expect(buffer.getText()).toEqual "hey\nyou're old\r\nhow are you doing?"
 
+    it "emits a 'changed' event with the relevant details after a change", ->
+      changes = []
+      buffer.on 'changed', (change) -> changes.push(change)
+      buffer.setTextInRange([[0, 2], [2, 3]], "y there\r\ncat\nwhat")
+      expect(changes).toEqual [{
+        oldRange: [[0, 2], [2, 3]]
+        newRange: [[0, 2], [2, 4]]
+        oldText: "llo\nworld\r\nhow"
+        newText: "y there\r\ncat\nwhat"
+      }]
+
   describe "::undo() and ::redo()", ->
     beforeEach ->
       buffer = new TextBufferCore(text: "hello\nworld\r\nhow are you doing?")
