@@ -4,6 +4,7 @@ SpanSkipList = require 'span-skip-list'
 Point = require './point'
 Range = require './range'
 History = require './history'
+MarkerManager = require './marker-manager'
 Patch = require './patch'
 {spliceArray} = require './helpers'
 
@@ -15,12 +16,15 @@ class TextBufferCore
   @delegatesMethods 'undo', 'redo', 'transact', 'beginTransaction', 'commitTransaction',
     'abortTransaction', toProperty: 'history'
 
+  @delegatesMethods 'markRange', toProperty: 'markers'
+
   constructor: (options) ->
     @lines = ['']
     @lineEndings = ['']
     @offsetIndex = new SpanSkipList('rows', 'characters')
     @setTextInRange([[0, 0], [0, 0]], options?.text ? '')
     @history = new History(this)
+    @markers = new MarkerManager(this)
 
   getText: ->
     text = ''

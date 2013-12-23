@@ -37,6 +37,7 @@
   "dependencies": {
     "span-skip-list": "~0.1.1",
     "delegato": "~0.4.0",
-    "emissary": "~0.28.0"
+    "emissary": "~0.28.0",
+    "underscore": "~1.5.2"
   }
 }
