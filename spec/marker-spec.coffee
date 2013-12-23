@@ -43,3 +43,42 @@ describe "Marker", ->
         expect(marker.isReversed()).toBe false
         expect(marker.hasTail()).toBe false
         expect(markerCreations).toEqual [marker]
+
+  describe "direct manipulation", ->
+    [marker, changes] = []
+
+    beforeEach ->
+      marker = buffer.markRange([[0, 6], [0, 9]])
+      changes = []
+      marker.on 'changed', (change) -> changes.push(change)
+
+    describe "::setHeadPosition(position, state)", ->
+      it "sets the head position of the marker, flipping its orientation if necessary", ->
+        marker.setHeadPosition([0, 12])
+        expect(marker.getRange()).toEqual [[0, 6], [0, 12]]
+        expect(marker.isReversed()).toBe false
+        expect(changes).toEqual [{
+          oldHeadPosition: [0, 9], newHeadPosition: [0, 12]
+          oldTailPosition: [0, 6], newTailPosition: [0, 6]
+          hasTail: true, isValid: true, bufferChanged: false
+        }]
+
+        changes = []
+        marker.setHeadPosition([0, 3])
+        expect(marker.getRange()).toEqual [[0, 3], [0, 6]]
+        expect(marker.isReversed()).toBe true
+        expect(changes).toEqual [{
+          oldHeadPosition: [0, 12], newHeadPosition: [0, 3]
+          oldTailPosition: [0, 6], newTailPosition: [0, 6]
+          hasTail: true, isValid: true, bufferChanged: false
+        }]
+
+        changes = []
+        marker.setHeadPosition([0, 9])
+        expect(marker.getRange()).toEqual [[0, 6], [0, 9]]
+        expect(marker.isReversed()).toBe false
+        expect(changes).toEqual [{
+          oldHeadPosition: [0, 3], newHeadPosition: [0, 9]
+          oldTailPosition: [0, 6], newTailPosition: [0, 6]
+          hasTail: true, isValid: true, bufferChanged: false
+        }]

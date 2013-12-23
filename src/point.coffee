@@ -1,8 +1,8 @@
 module.exports =
 class Point
-  @fromObject: (object) ->
+  @fromObject: (object, copy) ->
     if object instanceof Point
-      object
+      if copy then object.copy() else object
     else
       if Array.isArray(object)
         [row, column] = object
