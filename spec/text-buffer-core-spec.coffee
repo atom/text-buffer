@@ -149,6 +149,13 @@ describe "TextBufferCore", ->
           buffer.redo()
           expect(buffer.getText()).toBe "hello\nworms\r\nhow are you doing?"
 
+      describe "when followed by ::undo()", ->
+        it "aborts the transaction", ->
+          buffer.setTextInRange([[0, 2], [0, 5]], "y")
+          buffer.setTextInRange([[2, 13], [2, 14]], "igg")
+          buffer.undo()
+          expect(buffer.getText()).toBe "hello\nworms\r\nhow are you doing?"
+
       it "still clears the redo stack when adding to a transaction", ->
         buffer.abortTransaction()
         buffer.undo()

@@ -16,7 +16,9 @@ class History
     @redoStack.length = 0
 
   undo: ->
-    if patch = @undoStack.pop()
+    if @currentTransaction?
+      @abortTransaction()
+    else if patch = @undoStack.pop()
       inverse = patch.invert()
       @redoStack.push(inverse)
       inverse.applyTo(@textBuffer)
