@@ -23,7 +23,7 @@ class Marker
     params
 
   constructor: (params) ->
-    {@id, @range, @tailed, @reversed} = params
+    {@manager, @id, @range, @tailed, @reversed} = params
     {@valid, @invalidate, @persistent, @state} = params
     @tailed ?= true
     @reversed ?= false
@@ -129,6 +129,9 @@ class Marker
     params.state = extend({}, @state, params.state) if params.state?
     params
 
+  toParams: ->
+    {@id, @range, @reversed, @tailed, @invalidate, @persistent, @state}
+
   update: (params) ->
     oldHeadPosition = @getHeadPosition()
     oldTailPosition = @getTailPosition()
@@ -136,12 +139,14 @@ class Marker
     hadTail = @hasTail()
     oldState = @getState()
 
+    oldParams = @toParams()
     {range, reversed, tailed, state} = params
 
     @range = range.freeze() if range?
     @reversed = reversed if reversed?
     @tailed = tailed if tailed?
     @state = Object.freeze(state) if state?
+
 
     bufferChanged = false
     newHeadPosition = @getHeadPosition()
@@ -158,6 +163,7 @@ class Marker
     updated = true unless updated or isEqual(newState, oldState)
 
     if updated
+      @manager.markerUpdated(this, oldParams, @toParams())
       @emit 'changed', {
         oldHeadPosition, newHeadPosition, oldTailPosition, newTailPosition
         wasValid, isValid, hadTail, hasTail, oldState, newState, bufferChanged

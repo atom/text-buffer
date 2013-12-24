@@ -311,3 +311,23 @@ describe "Marker", ->
         marker.plantTail()
         expect(marker.getRange()).toEqual [12, 15]
         expect(changes).toEqual []
+
+    it "only allows direct manipulations to be undone if they are part of a transaction with other buffer changes", ->
+      # Can't undo standalone changes
+      marker.setRange([[0, 7], [0, 11]])
+      buffer.undo()
+      expect(marker.getRange()).toEqual [[0, 7], [0, 11]]
+
+      # Can't undo changes in a transaction without other buffer changes
+      buffer.transact -> marker.setRange([[0, 4], [0, 20]])
+      buffer.undo()
+      expect(marker.getRange()).toEqual [[0, 4], [0, 20]]
+
+      # Can undo changes in a transaction with other buffer changes
+      buffer.transact ->
+        marker.setRange([[0, 5], [0, 9]])
+        buffer.setTextInRange([[0, 2], [0, 3]], 'XYZ')
+        marker.setRange([[0, 8], [0, 12]])
+
+      buffer.undo()
+      expect(marker.getRange()).toEqual [[0, 4], [0, 20]]

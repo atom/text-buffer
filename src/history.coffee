@@ -53,7 +53,7 @@ class History
 
   commitTransaction: ->
     if --@transactionDepth is 0
-      @undoStack.push(@currentTransaction) if @currentTransaction.patches.length > 0
+      @undoStack.push(@currentTransaction) if @currentTransaction.hasBufferPatches()
       @currentTransaction = null
 
   abortTransaction: ->
@@ -64,3 +64,6 @@ class History
       inverse.applyTo(@textBuffer)
     else
       throw TransactionAborted
+
+  isTransacting: ->
+    @currentTransaction?

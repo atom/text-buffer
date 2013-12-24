@@ -1,5 +1,5 @@
 module.exports =
-class Patch
+class BufferPatch
   constructor: (@oldRange, @newRange, @oldText, @newText) ->
 
   invert: ->

@@ -1,3 +1,6 @@
+{find} = require 'underscore'
+BufferPatch = require './buffer-patch'
+
 module.exports =
 class Transaction
   constructor: (@patches=[]) ->
@@ -10,3 +13,6 @@ class Transaction
 
   applyTo: (textBuffer) ->
     patch.applyTo(textBuffer) for patch in @patches
+
+  hasBufferPatches: ->
+    find @patches, (patch) -> patch instanceof BufferPatch

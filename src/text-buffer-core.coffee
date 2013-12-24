@@ -5,7 +5,7 @@ Point = require './point'
 Range = require './range'
 History = require './history'
 MarkerManager = require './marker-manager'
-Patch = require './patch'
+BufferPatch = require './buffer-patch'
 {spliceArray} = require './helpers'
 
 module.exports =
@@ -14,9 +14,9 @@ class TextBufferCore
   Emitter.includeInto(this)
 
   @delegatesMethods 'undo', 'redo', 'transact', 'beginTransaction', 'commitTransaction',
-    'abortTransaction', toProperty: 'history'
+    'abortTransaction', 'isTransacting', toProperty: 'history'
 
-  @delegatesMethods 'markRange', 'markPosition', toProperty: 'markers'
+  @delegatesMethods 'markRange', 'markPosition', 'getMarker', toProperty: 'markers'
 
   constructor: (options) ->
     @lines = ['']
@@ -56,7 +56,7 @@ class TextBufferCore
     oldRange = Range.fromObject(oldRange)
     oldText = @getTextInRange(oldRange)
     newRange = Range.fromText(oldRange.start, newText)
-    new Patch(oldRange, newRange, oldText, newText)
+    new BufferPatch(oldRange, newRange, oldText, newText)
 
   applyPatch: ({oldRange, newRange, oldText, newText}) ->
     startRow = oldRange.start.row
