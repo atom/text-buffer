@@ -1,4 +1,4 @@
-{omit, defaults} = require 'underscore'
+{omit, defaults, values} = require 'underscore'
 Marker = require './marker'
 Range = require './range'
 
@@ -21,6 +21,9 @@ class MarkerManager
   getMarker: (id) ->
     @markers[id]
 
+  getMarkers: ->
+    values(@markers)
+
   createMarker: (params) ->
     params.manager = this
     params.id = @nextMarkerId++
@@ -32,3 +35,16 @@ class MarkerManager
   recordMarkerPatch: (patch) ->
     if @textBuffer.isTransacting()
       @textBuffer.history.recordNewPatch(patch)
+
+  handleBufferChange: (patch) ->
+    marker.handleBufferChange(patch) for id, marker of @markers
+
+  applyPatches: (markerPatches, bufferChanged) ->
+    for id, patch of markerPatches
+      @getMarker(id).applyPatch(patch, bufferChanged)
+
+  pauseChangeEvents: ->
+    marker.pauseEvents('changed') for marker in @getMarkers()
+
+  resumeChangeEvents: ->
+    marker.resumeEvents('changed') for marker in @getMarkers()

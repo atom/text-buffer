@@ -144,6 +144,50 @@ class Marker
     else
       false
 
+  handleBufferChange: (patch) ->
+    {oldRange, newRange} = patch
+    rowDelta = newRange.end.row - oldRange.end.row
+    columnDelta = newRange.end.column - oldRange.end.column
+    markerStart = @range.start
+    markerEnd = @range.end
+
+    return if markerEnd.isLessThan(oldRange.start)
+
+    valid = @valid
+    switch @getInvalidationStrategy()
+      when 'surround'
+        valid = markerStart.isLessThan(oldRange.start) or oldRange.end.isLessThanOrEqual(markerEnd)
+      when 'overlap'
+        valid = !oldRange.containsPoint(markerStart, true) and !oldRange.containsPoint(markerEnd, true)
+      when 'inside'
+        if @hasTail()
+          valid = oldRange.end.isLessThan(markerStart) or markerEnd.isLessThan(oldRange.start)
+
+    newMarkerRange = @range.copy()
+
+    # Calculate new marker start position
+    changeIsInsideMarker = @hasTail() and @range.containsRange(oldRange)
+    if oldRange.start.isLessThanOrEqual(markerStart) and not changeIsInsideMarker
+      if oldRange.end.isLessThanOrEqual(markerStart)
+        # Change precedes marker start position; shift position according to row/column delta
+        newMarkerRange.start.row += rowDelta
+        newMarkerRange.start.column += columnDelta if oldRange.end.row is markerStart.row
+      else
+        # Change surrounds marker start position; move position to the end of the change
+        newMarkerRange.start = newRange.end
+
+    # Calculate new marker end position
+    if oldRange.start.isLessThanOrEqual(markerEnd)
+      if oldRange.end.isLessThanOrEqual(markerEnd)
+        # Precedes marker end position; shift position according to row/column delta
+        newMarkerRange.end.row += rowDelta
+        newMarkerRange.end.column += columnDelta if oldRange.end.row is markerEnd.row
+      else if oldRange.start.isLessThan(markerEnd)
+        # Change surrounds marker end position; move position to the end of the change
+        newMarkerRange.end = newRange.end
+
+    patch.addMarkerPatch(@buildPatch({valid, range: newMarkerRange}))
+
   buildPatch: (newParams) ->
     oldParams = {}
     for name, value of newParams
@@ -155,7 +199,7 @@ class Marker
     if size(newParams)
       new MarkerPatch(@id, oldParams, newParams)
 
-  applyPatch: (patch) ->
+  applyPatch: (patch, bufferChanged=false) ->
     oldHeadPosition = @getHeadPosition()
     oldTailPosition = @getTailPosition()
     wasValid = @isValid()
@@ -183,7 +227,6 @@ class Marker
 
     return false unless updated
 
-    bufferChanged = false
     newHeadPosition = @getHeadPosition()
     newTailPosition = @getTailPosition()
     isValid = @isValid()

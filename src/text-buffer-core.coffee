@@ -56,9 +56,11 @@ class TextBufferCore
     oldRange = Range.fromObject(oldRange)
     oldText = @getTextInRange(oldRange)
     newRange = Range.fromText(oldRange.start, newText)
-    new BufferPatch(oldRange, newRange, oldText, newText)
+    patch = new BufferPatch(oldRange, newRange, oldText, newText)
+    @markers?.handleBufferChange(patch)
+    patch
 
-  applyPatch: ({oldRange, newRange, oldText, newText}) ->
+  applyPatch: ({oldRange, newRange, oldText, newText, markerPatches}) ->
     startRow = oldRange.start.row
     endRow = oldRange.end.row
     rowCount = endRow - startRow + 1
@@ -90,7 +92,10 @@ class TextBufferCore
       {rows: 1, characters: line.length + lineEndings[index].length}
     @offsetIndex.spliceArray('rows', startRow, rowCount, offsets)
 
+    @markers?.pauseChangeEvents()
+    @markers?.applyPatches(markerPatches, true)
     @emit 'changed', {oldRange, newRange, oldText, newText}
+    @markers?.resumeChangeEvents()
 
   getTextInRange: (range) ->
     range = Range.fromObject(range)
