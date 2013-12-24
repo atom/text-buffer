@@ -69,7 +69,7 @@ describe "Marker", ->
           oldHeadPosition: [0, 9], newHeadPosition: [0, 12]
           oldTailPosition: [0, 6], newTailPosition: [0, 6]
           hadTail: true, hasTail: true
-          wasValid: true, isValid: true,
+          wasValid: true, isValid: true
           oldState: {}, newState: {}
           bufferChanged: false
         }]
@@ -82,7 +82,7 @@ describe "Marker", ->
           oldHeadPosition: [0, 12], newHeadPosition: [0, 3]
           oldTailPosition: [0, 6], newTailPosition: [0, 6]
           hadTail: true, hasTail: true
-          wasValid: true, isValid: true,
+          wasValid: true, isValid: true
           oldState: {}, newState: {}
           bufferChanged: false
         }]
@@ -95,7 +95,7 @@ describe "Marker", ->
           oldHeadPosition: [0, 3], newHeadPosition: [0, 9]
           oldTailPosition: [0, 6], newTailPosition: [0, 6]
           hadTail: true, hasTail: true
-          wasValid: true, isValid: true,
+          wasValid: true, isValid: true
           oldState: {}, newState: {}
           bufferChanged: false
         }]
@@ -110,7 +110,7 @@ describe "Marker", ->
           oldHeadPosition: [0, 9], newHeadPosition: [0, 12]
           oldTailPosition: [0, 6], newTailPosition: [0, 6]
           hadTail: true, hasTail: true
-          wasValid: true, isValid: true,
+          wasValid: true, isValid: true
           oldState: {}, newState: {foo: 1}
           bufferChanged: false
         }]
@@ -122,7 +122,7 @@ describe "Marker", ->
           oldHeadPosition: [0, 12], newHeadPosition: [0, 12]
           oldTailPosition: [0, 6], newTailPosition: [0, 6]
           hadTail: true, hasTail: true
-          wasValid: true, isValid: true,
+          wasValid: true, isValid: true
           oldState: {foo: 1}, newState: {foo: 1, bar: 2}
           bufferChanged: false
         }]
@@ -136,7 +136,7 @@ describe "Marker", ->
           oldHeadPosition: [0, 9], newHeadPosition: [0, 9]
           oldTailPosition: [0, 6], newTailPosition: [0, 3]
           hadTail: true, hasTail: true
-          wasValid: true, isValid: true,
+          wasValid: true, isValid: true
           oldState: {}, newState: {}
           bufferChanged: false
         }]
@@ -149,7 +149,7 @@ describe "Marker", ->
           oldHeadPosition: [0, 9], newHeadPosition: [0, 9]
           oldTailPosition: [0, 3], newTailPosition: [0, 12]
           hadTail: true, hasTail: true
-          wasValid: true, isValid: true,
+          wasValid: true, isValid: true
           oldState: {}, newState: {}
           bufferChanged: false
         }]
@@ -162,7 +162,7 @@ describe "Marker", ->
           oldHeadPosition: [0, 9], newHeadPosition: [0, 9]
           oldTailPosition: [0, 12], newTailPosition: [0, 6]
           hadTail: true, hasTail: true
-          wasValid: true, isValid: true,
+          wasValid: true, isValid: true
           oldState: {}, newState: {}
           bufferChanged: false
         }]
@@ -177,7 +177,7 @@ describe "Marker", ->
           oldHeadPosition: [0, 9], newHeadPosition: [0, 9]
           oldTailPosition: [0, 6], newTailPosition: [0, 3]
           hadTail: true, hasTail: true
-          wasValid: true, isValid: true,
+          wasValid: true, isValid: true
           oldState: {}, newState: {foo: 1}
           bufferChanged: false
         }]
@@ -189,7 +189,7 @@ describe "Marker", ->
           oldHeadPosition: [0, 9], newHeadPosition: [0, 9]
           oldTailPosition: [0, 3], newTailPosition: [0, 3]
           hadTail: true, hasTail: true
-          wasValid: true, isValid: true,
+          wasValid: true, isValid: true
           oldState: {foo: 1}, newState: {foo: 1, bar: 2}
           bufferChanged: false
         }]
@@ -205,7 +205,7 @@ describe "Marker", ->
           oldHeadPosition: [0, 9], newHeadPosition: [0, 12]
           oldTailPosition: [0, 6], newTailPosition: [0, 8]
           hadTail: true, hasTail: true
-          wasValid: true, isValid: true,
+          wasValid: true, isValid: true
           oldState: {}, newState: {}
           bufferChanged: false
         }]
@@ -220,7 +220,7 @@ describe "Marker", ->
           oldHeadPosition: [0, 12], newHeadPosition: [0, 3]
           oldTailPosition: [0, 8], newTailPosition: [0, 9]
           hadTail: true, hasTail: true
-          wasValid: true, isValid: true,
+          wasValid: true, isValid: true
           oldState: {}, newState: {}
           bufferChanged: false
         }]
@@ -231,7 +231,7 @@ describe "Marker", ->
           oldHeadPosition: [0, 9], newHeadPosition: [0, 2]
           oldTailPosition: [0, 6], newTailPosition: [0, 1]
           hadTail: true, hasTail: true
-          wasValid: true, isValid: true,
+          wasValid: true, isValid: true
           oldState: {}, newState: {foo: 1}
           bufferChanged: false
         }]
@@ -243,7 +243,71 @@ describe "Marker", ->
           oldHeadPosition: [0, 2], newHeadPosition: [0, 6]
           oldTailPosition: [0, 1], newTailPosition: [0, 3]
           hadTail: true, hasTail: true
-          wasValid: true, isValid: true,
+          wasValid: true, isValid: true
           oldState: {foo: 1}, newState: {foo: 1, bar: 2}
           bufferChanged: false
         }]
+
+    describe "::clearTail() / ::plantTail()", ->
+      it "clears the tail / plants the tail at the current head position", ->
+        marker.setRange([[0, 6], [0, 9]], isReversed: true)
+
+        changes = []
+        marker.clearTail()
+        expect(marker.getRange()).toEqual [[0, 6], [0, 6]]
+        expect(marker.hasTail()).toBe false
+        expect(marker.isReversed()).toBe false
+
+        expect(changes).toEqual [{
+          oldHeadPosition: [0, 6], newHeadPosition: [0, 6]
+          oldTailPosition: [0, 9], newTailPosition: [0, 6]
+          hadTail: true, hasTail: false
+          wasValid: true, isValid: true
+          oldState: {}, newState: {}
+          bufferChanged: false
+        }]
+
+        return
+
+        changes = []
+        markerA.setHeadPosition([0, 12])
+        expect(marker.getRange()).toEqual [[0, 12], [0, 12]]
+        expect(changes).toEqual [{
+          oldHeadPosition: [0, 6], newHeadPosition: [0, 12]
+          oldTailPosition: [0, 6], newTailPosition: [0, 12]
+          hadTail: false, hasTail: false
+          wasValid: true, isValid: true
+          oldState: {}, newState: {}
+          bufferChanged: false
+        }]
+
+        changes = []
+        marker.plantTail()
+        expect(marker.hasTail()).toBe true
+        expect(marker.isReversed()).toBe false
+        expect(marker.getRange()).toEqual [12, 12]
+        expect(changes).toEqual [{
+          oldHeadPosition: [0, 12], newHeadPosition: [0, 12]
+          oldTailPosition: [0, 12], newTailPosition: [0, 12]
+          hadTail: false, hasTail: true
+          wasValid: true, isValid: true
+          oldState: {}, newState: {}
+          bufferChanged: false
+        }]
+
+        changes = []
+        markerA.setHeadPosition([0, 15])
+        expect(marker.getRange()).toEqual [[0, 12], [0, 15]]
+        expect(changes).toEqual [{
+          oldHeadPosition: [0, 12], newHeadPosition: [0, 15]
+          oldTailPosition: [0, 12], newTailPosition: [0, 12]
+          hadTail: true, hasTail: true
+          wasValid: true, isValid: true
+          oldState: {}, newState: {}
+          bufferChanged: false
+        }]
+
+        changes = []
+        marker.plantTail()
+        expect(marker.getRange()).toEqual [12, 15]
+        expect(changes).toEqual []

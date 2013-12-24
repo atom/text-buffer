@@ -34,7 +34,10 @@ class Marker
     Object.freeze(@state)
 
   getRange: ->
-    @range
+    if @hasTail()
+      @range
+    else
+      new Range(@getHeadPosition(), @getHeadPosition())
 
   setRange: (range, options) ->
     params = @paramsFromOptions(options)
@@ -67,10 +70,13 @@ class Marker
     @update(params)
 
   getTailPosition: ->
-    if @reversed
-      @range.end
+    if @hasTail()
+      if @reversed
+        @range.end
+      else
+        @range.start
     else
-      @range.start
+      @getHeadPosition()
 
   setTailPosition: (position, options) ->
     position = Point.fromObject(position, true)
@@ -89,6 +95,18 @@ class Marker
         params.reversed = true
         params.range = new Range(@range.end, position)
 
+    @update(params)
+
+  clearTail: (options) ->
+    params = @paramsFromOptions(options)
+    params.tailed = false
+    @update(params)
+
+  plantTail: (options) ->
+    params = @paramsFromOptions(options)
+    unless @hasTail()
+      params.tailed = true
+      params.range = new Range(@getHeadPosition(), @getHeadPosition())
     @update(params)
 
   isReversed: ->
@@ -118,9 +136,11 @@ class Marker
     hadTail = @hasTail()
     oldState = @getState()
 
-    {range, reversed, state} = params
+    {range, reversed, tailed, state} = params
+
     @range = range.freeze() if range?
     @reversed = reversed if reversed?
+    @tailed = tailed if tailed?
     @state = Object.freeze(state) if state?
 
     bufferChanged = false
