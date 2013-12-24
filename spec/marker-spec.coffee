@@ -341,17 +341,13 @@ describe "Marker", ->
       surroundMarker = overlapMarker.copy(invalidate: 'surround')
       insideMarker = overlapMarker.copy(invalidate: 'inside')
       allStrategies = [neverMarker, surroundMarker, overlapMarker, insideMarker]
-      clearMarkerChanges()
 
-    clearMarkerChanges = ->
+    it "defers marker 'changed' events until after the buffer 'changed' event", ->
       for marker in allStrategies
         do (marker) ->
-          marker.changeSubscription?.off()
           marker.changes = []
-          marker.changeSubscription =
-            marker.on 'changed', (change) -> marker.changes.push(change)
+          marker.on 'changed', (change) -> marker.changes.push(change)
 
-    it "enqueues marker 'changed' events until after the buffer 'changed' event", ->
       bufferChanges = []
       buffer.on 'changed', (change) ->
         bufferChanges.push(change)
@@ -364,7 +360,14 @@ describe "Marker", ->
 
       expect(bufferChanges.length).toBe 1
       for marker in allStrategies
-        expect(marker.changes.length).toBe 1
+        expect(marker.changes).toEqual [{
+          oldHeadPosition: [0, 9], newHeadPosition: [0, 11]
+          oldTailPosition: [0, 6], newTailPosition: [0, 8]
+          hadTail: true, hasTail: true
+          wasValid: true, isValid: true
+          oldState: {}, newState: {}
+          bufferChanged: true
+        }]
 
     describe "when a change precedes a marker", ->
       it "shifts the marker based on the characters inserted or removed by the change", ->
@@ -372,25 +375,15 @@ describe "Marker", ->
         for marker in allStrategies
           expect(marker.getRange()).toEqual [[0, 8], [0, 11]]
           expect(marker.isValid()).toBe true
-          expect(marker.changes).toEqual [{
-            oldHeadPosition: [0, 9], newHeadPosition: [0, 11]
-            oldTailPosition: [0, 6], newTailPosition: [0, 8]
-            hadTail: true, hasTail: true
-            wasValid: true, isValid: true
-            oldState: {}, newState: {}
-            bufferChanged: true
-          }]
 
-        clearMarkerChanges()
         buffer.setTextInRange([[0, 1], [0, 1]], '\nDEF')
         for marker in allStrategies
           expect(marker.getRange()).toEqual [[1, 10], [1, 13]]
           expect(marker.isValid()).toBe true
-          expect(marker.changes).toEqual [{
-            oldHeadPosition: [0, 11], newHeadPosition: [1, 13]
-            oldTailPosition: [0, 8], newTailPosition: [1, 10]
-            hadTail: true, hasTail: true
-            wasValid: true, isValid: true
-            oldState: {}, newState: {}
-            bufferChanged: true
-          }]
+
+    describe "when a change follows a marker", ->
+      it "does not shift the marker", ->
+        buffer.setTextInRange([[0, 10], [0, 12]], "ABC")
+        for marker in allStrategies
+          expect(marker.getRange()).toEqual [[0, 6], [0, 9]]
+          expect(marker.isValid()).toBe true
