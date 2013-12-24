@@ -216,3 +216,26 @@ describe "Marker", ->
           oldState: {}, newState: {}
           bufferChanged: false
         }]
+
+      it "allows new properties to be assigned to the state", ->
+        marker.setRange([[0, 1], [0, 2]], foo: 1)
+        expect(changes).toEqual [{
+          oldHeadPosition: [0, 9], newHeadPosition: [0, 2]
+          oldTailPosition: [0, 6], newTailPosition: [0, 1]
+          hadTail: true, hasTail: true
+          wasValid: true, isValid: true,
+          oldState: {}, newState: {foo: 1}
+          bufferChanged: false
+        }]
+
+        changes = []
+        marker.setRange([[0, 3], [0, 6]], bar: 2)
+        expect(marker.getState()).toEqual {foo: 1, bar: 2}
+        expect(changes).toEqual [{
+          oldHeadPosition: [0, 2], newHeadPosition: [0, 6]
+          oldTailPosition: [0, 1], newTailPosition: [0, 3]
+          hadTail: true, hasTail: true
+          wasValid: true, isValid: true,
+          oldState: {foo: 1}, newState: {foo: 1, bar: 2}
+          bufferChanged: false
+        }]
