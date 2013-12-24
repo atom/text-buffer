@@ -1,6 +1,5 @@
 {omit, defaults} = require 'underscore'
 Marker = require './marker'
-MarkerPatch = require './marker-patch'
 Range = require './range'
 
 module.exports =
@@ -27,6 +26,6 @@ class MarkerManager
   getMarker: (id) ->
     @markers[id]
 
-  markerUpdated: (marker, oldParams, newParams) ->
+  recordMarkerPatch: (patch) ->
     if @textBuffer.isTransacting()
-      @textBuffer.history.recordNewPatch(new MarkerPatch(marker.id, oldParams, newParams))
+      @textBuffer.history.recordNewPatch(patch)

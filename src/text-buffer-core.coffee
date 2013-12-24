@@ -48,11 +48,11 @@ class TextBufferCore
     @lines[row].length
 
   setTextInRange: (range, text) ->
-    patch = @buildNewPatch(range, text)
+    patch = @buildPatch(range, text)
     @history?.recordNewPatch(patch)
     @applyPatch(patch)
 
-  buildNewPatch: (oldRange, newText) ->
+  buildPatch: (oldRange, newText) ->
     oldRange = Range.fromObject(oldRange)
     oldText = @getTextInRange(oldRange)
     newRange = Range.fromText(oldRange.start, newText)

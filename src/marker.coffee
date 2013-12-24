@@ -1,5 +1,6 @@
 {isEqual, extend, omit, pick, size} = require 'underscore'
 {Emitter} = require 'emissary'
+MarkerPatch = require './marker-patch'
 Point = require './point'
 Range = require './range'
 
@@ -133,20 +134,51 @@ class Marker
     {@id, @range, @reversed, @tailed, @invalidate, @persistent, @state}
 
   update: (params) ->
+    if patch = @buildPatch(params)
+      @manager.recordMarkerPatch(patch)
+      @applyPatch(patch)
+      true
+    else
+      false
+
+  buildPatch: (newParams) ->
+    oldParams = {}
+    for name, value of newParams
+      if isEqual(@[name], value)
+        delete newParams[name]
+      else
+        oldParams[name] = @[name]
+
+    if size(newParams)
+      new MarkerPatch(@id, oldParams, newParams)
+
+  applyPatch: (patch) ->
     oldHeadPosition = @getHeadPosition()
     oldTailPosition = @getTailPosition()
     wasValid = @isValid()
     hadTail = @hasTail()
     oldState = @getState()
 
-    oldParams = @toParams()
-    {range, reversed, tailed, state} = params
+    updated = false
+    {range, reversed, tailed, state} = patch.newParams
 
-    @range = range.freeze() if range?
-    @reversed = reversed if reversed?
-    @tailed = tailed if tailed?
-    @state = Object.freeze(state) if state?
+    if range? and not range.isEqual(@range)
+      @range = range.freeze()
+      updated = true
 
+    if reversed? and reversed isnt @reversed
+      @reversed = reversed
+      updated = true
+
+    if tailed? and tailed isnt @tailed
+      @tailed = tailed
+      updated = true
+
+    if state? and not isEqual(state, @state)
+      @state = Object.freeze(state)
+      updated = true
+
+    return false unless updated
 
     bufferChanged = false
     newHeadPosition = @getHeadPosition()
@@ -155,19 +187,8 @@ class Marker
     hasTail = @hasTail()
     newState = @getState()
 
-    updated = false
-    updated = true unless isValid is wasValid
-    updated = true unless updated or hasTail is hadTail
-    updated = true unless updated or newHeadPosition.isEqual(oldHeadPosition)
-    updated = true unless updated or newTailPosition.isEqual(oldTailPosition)
-    updated = true unless updated or isEqual(newState, oldState)
-
-    if updated
-      @manager.markerUpdated(this, oldParams, @toParams())
-      @emit 'changed', {
-        oldHeadPosition, newHeadPosition, oldTailPosition, newTailPosition
-        wasValid, isValid, hadTail, hasTail, oldState, newState, bufferChanged
-      }
-      true
-    else
-      false
+    @emit 'changed', {
+      oldHeadPosition, newHeadPosition, oldTailPosition, newTailPosition
+      wasValid, isValid, hadTail, hasTail, oldState, newState, bufferChanged
+    }
+    true
