@@ -185,3 +185,34 @@ describe "Marker", ->
           oldState: {foo: 1}, newState: {foo: 1, bar: 2}
           bufferChanged: false
         }]
+
+    describe "::setRange(range, options)", ->
+      it "sets the head and tail position simultaneously, flipping the orientation if the 'isReversed' option is true", ->
+        marker.setRange([[0, 8], [0, 12]])
+        expect(marker.getRange()).toEqual [[0, 8], [0, 12]]
+        expect(marker.isReversed()).toBe false
+        expect(marker.getHeadPosition()).toEqual [0, 12]
+        expect(marker.getTailPosition()).toEqual [0, 8]
+        expect(changes).toEqual [{
+          oldHeadPosition: [0, 9], newHeadPosition: [0, 12]
+          oldTailPosition: [0, 6], newTailPosition: [0, 8]
+          hadTail: true, hasTail: true
+          wasValid: true, isValid: true,
+          oldState: {}, newState: {}
+          bufferChanged: false
+        }]
+
+        changes = []
+        marker.setRange([[0, 3], [0, 9]], isReversed: true)
+        expect(marker.getRange()).toEqual [[0, 3], [0, 9]]
+        expect(marker.isReversed()).toBe true
+        expect(marker.getHeadPosition()).toEqual [0, 3]
+        expect(marker.getTailPosition()).toEqual [0, 9]
+        expect(changes).toEqual [{
+          oldHeadPosition: [0, 12], newHeadPosition: [0, 3]
+          oldTailPosition: [0, 8], newTailPosition: [0, 9]
+          hadTail: true, hasTail: true
+          wasValid: true, isValid: true,
+          oldState: {}, newState: {}
+          bufferChanged: false
+        }]

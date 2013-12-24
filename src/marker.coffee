@@ -1,4 +1,4 @@
-{isEqual, extend} = require 'underscore'
+{isEqual, extend, omit, pick, size} = require 'underscore'
 {Emitter} = require 'emissary'
 Point = require './point'
 Range = require './range'
@@ -7,6 +7,21 @@ module.exports =
 class Marker
   Emitter.includeInto(this)
 
+  @reservedKeys: ['isReversed', 'hasTail', 'invalidate', 'persistent', 'persist']
+
+  @paramsFromOptions: (options) ->
+    params = {}
+    if options?
+      extend(params, pick(options, @reservedKeys))
+      params.reversed = options.isReversed if options.isReversed?
+      params.tailed = options.hasTail if options.hasTail?
+      params.invalidate = options.invalidate if options.invalidate?
+      params.persistent = options.persistent if options.persistent?
+      params.persistent = options.persist if options.persist?
+      state = omit(options, @reservedKeys)
+      params.state = state if size(state) > 0
+    params
+
   constructor: (params) ->
     {@id, @range, @tailed, @reversed} = params
     {@valid, @invalidate, @persistent, @state} = params
@@ -14,6 +29,11 @@ class Marker
 
   getRange: ->
     @range
+
+  setRange: (range, options) ->
+    params = @constructor.paramsFromOptions(options)
+    params.range = Range.fromObject(range, true)
+    @update(params)
 
   getHeadPosition: ->
     if @reversed
