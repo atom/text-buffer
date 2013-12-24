@@ -1,3 +1,4 @@
+{isEqual, extend} = require 'underscore'
 {Emitter} = require 'emissary'
 Point = require './point'
 Range = require './range'
@@ -20,10 +21,8 @@ class Marker
     else
       @range.end
 
-  setHeadPosition: (position) ->
+  setHeadPosition: (position, state) ->
     position = Point.fromObject(position, true)
-
-    return false if position.isEqual(@getHeadPosition())
 
     params = {}
     if @reversed
@@ -38,8 +37,10 @@ class Marker
         params.range = new Range(position, @range.start)
       else
         params.range = new Range(@range.start, position)
+
+    params.state = extend({}, @getState(), state) if state?
+
     @update(params)
-    true
 
   getTailPosition: ->
     if @reversed
@@ -67,18 +68,32 @@ class Marker
     oldTailPosition = @getTailPosition()
     wasValid = @isValid()
     hadTail = @hasTail()
+    oldState = @getState()
 
-    {range, reversed} = params
+    {range, reversed, state} = params
     @range = range.freeze() if range?
     @reversed = reversed if reversed?
+    @state = Object.freeze(state) if state?
 
     bufferChanged = false
     newHeadPosition = @getHeadPosition()
     newTailPosition = @getTailPosition()
     isValid = @isValid()
     hasTail = @hasTail()
+    newState = @getState()
 
-    @emit 'changed', {
-      oldHeadPosition, newHeadPosition, oldTailPosition, newTailPosition
-      isValid, hasTail, bufferChanged,
-    }
+    updated = false
+    updated = true unless isValid is wasValid
+    updated = true unless updated or hasTail is hadTail
+    updated = true unless updated or newHeadPosition.isEqual(oldHeadPosition)
+    updated = true unless updated or newTailPosition.isEqual(oldTailPosition)
+    updated = true unless updated or isEqual(newState, oldState)
+
+    if updated
+      @emit 'changed', {
+        oldHeadPosition, newHeadPosition, oldTailPosition, newTailPosition
+        wasValid, isValid, hadTail, hasTail, oldState, newState, bufferChanged
+      }
+      true
+    else
+      false

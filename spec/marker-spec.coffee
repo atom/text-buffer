@@ -60,7 +60,10 @@ describe "Marker", ->
         expect(changes).toEqual [{
           oldHeadPosition: [0, 9], newHeadPosition: [0, 12]
           oldTailPosition: [0, 6], newTailPosition: [0, 6]
-          hasTail: true, isValid: true, bufferChanged: false
+          hadTail: true, hasTail: true
+          wasValid: true, isValid: true,
+          oldState: {}, newState: {}
+          bufferChanged: false
         }]
 
         changes = []
@@ -70,7 +73,10 @@ describe "Marker", ->
         expect(changes).toEqual [{
           oldHeadPosition: [0, 12], newHeadPosition: [0, 3]
           oldTailPosition: [0, 6], newTailPosition: [0, 6]
-          hasTail: true, isValid: true, bufferChanged: false
+          hadTail: true, hasTail: true
+          wasValid: true, isValid: true,
+          oldState: {}, newState: {}
+          bufferChanged: false
         }]
 
         changes = []
@@ -80,9 +86,35 @@ describe "Marker", ->
         expect(changes).toEqual [{
           oldHeadPosition: [0, 3], newHeadPosition: [0, 9]
           oldTailPosition: [0, 6], newTailPosition: [0, 6]
-          hasTail: true, isValid: true, bufferChanged: false
+          hadTail: true, hasTail: true
+          wasValid: true, isValid: true,
+          oldState: {}, newState: {}
+          bufferChanged: false
         }]
 
-      it "does not emit an event if the head position isn't actually changed", ->
-        marker.setHeadPosition(marker.getHeadPosition())
+      it "does not emit an event and returns false if the head position isn't actually changed", ->
+        expect(marker.setHeadPosition(marker.getHeadPosition())).toBe false
         expect(changes.length).toBe 0
+
+      it "allows new properties to be assigned to the state", ->
+        marker.setHeadPosition([0, 12], foo: 1)
+        expect(changes).toEqual [{
+          oldHeadPosition: [0, 9], newHeadPosition: [0, 12]
+          oldTailPosition: [0, 6], newTailPosition: [0, 6]
+          hadTail: true, hasTail: true
+          wasValid: true, isValid: true,
+          oldState: {}, newState: {foo: 1}
+          bufferChanged: false
+        }]
+
+        changes = []
+        marker.setHeadPosition([0, 12], bar: 2)
+        expect(marker.getState()).toEqual {foo: 1, bar: 2}
+        expect(changes).toEqual [{
+          oldHeadPosition: [0, 12], newHeadPosition: [0, 12]
+          oldTailPosition: [0, 6], newTailPosition: [0, 6]
+          hadTail: true, hasTail: true
+          wasValid: true, isValid: true,
+          oldState: {foo: 1}, newState: {foo: 1, bar: 2}
+          bufferChanged: false
+        }]
