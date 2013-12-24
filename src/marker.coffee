@@ -25,13 +25,19 @@ class Marker
   constructor: (params) ->
     {@id, @range, @tailed, @reversed} = params
     {@valid, @invalidate, @persistent, @state} = params
+    @tailed ?= true
+    @reversed ?= false
+    @valid ?= true
+    @invalidate ?= 'surround'
+    @persistent ?= true
+    @state ?= {}
     Object.freeze(@state)
 
   getRange: ->
     @range
 
   setRange: (range, options) ->
-    params = @constructor.paramsFromOptions(options)
+    params = @paramsFromOptions(options)
     params.range = Range.fromObject(range, true)
     @update(params)
 
@@ -41,10 +47,10 @@ class Marker
     else
       @range.end
 
-  setHeadPosition: (position, state) ->
+  setHeadPosition: (position, options) ->
     position = Point.fromObject(position, true)
+    params = @paramsFromOptions(options)
 
-    params = {}
     if @reversed
       if position.isLessThan(@range.end)
         params.range = new Range(position, @range.end)
@@ -57,8 +63,6 @@ class Marker
         params.range = new Range(position, @range.start)
       else
         params.range = new Range(@range.start, position)
-
-    params.state = extend({}, @getState(), state) if state?
 
     @update(params)
 
@@ -68,10 +72,10 @@ class Marker
     else
       @range.start
 
-  setTailPosition: (position, state) ->
+  setTailPosition: (position, options) ->
     position = Point.fromObject(position, true)
+    params = @paramsFromOptions(options)
 
-    params = {}
     if @reversed
       if position.isLessThan(@range.start)
         params.reversed = false
@@ -84,8 +88,6 @@ class Marker
       else
         params.reversed = true
         params.range = new Range(@range.end, position)
-
-    params.state = extend({}, @getState(), state) if state?
 
     @update(params)
 
@@ -103,6 +105,11 @@ class Marker
 
   getState: ->
     @state
+
+  paramsFromOptions: (options) ->
+    params = @constructor.paramsFromOptions(options)
+    params.state = extend({}, @state, params.state) if params.state?
+    params
 
   update: (params) ->
     oldHeadPosition = @getHeadPosition()

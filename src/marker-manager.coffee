@@ -11,17 +11,10 @@ class MarkerManager
 
   markRange: (range, options) ->
     range = Range.fromObject(range, true).freeze()
-
-    marker = new Marker
-      id: @nextMarkerId++
-      range: range
-      tailed: options?.hasTail ? true
-      reversed: options?.isReversed ? false
-      valid: true
-      invalidate: options?.invalidate ? 'overlap'
-      persistent: options?.persistent ? options?.persist ? true # The 'persist' key is deprecated
-      state: omit(options, Marker.reservedKeys...)
-
+    params = Marker.paramsFromOptions(options)
+    params.id = @nextMarkerId++
+    params.range = range
+    marker = new Marker(params)
     @markers[marker.id] = marker
     @textBuffer.emit 'marker-created', marker
     marker
