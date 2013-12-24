@@ -48,6 +48,27 @@ class Marker
     else
       @range.start
 
+  setTailPosition: (position, state) ->
+    position = Point.fromObject(position, true)
+
+    params = {}
+    if @reversed
+      if position.isLessThan(@range.start)
+        params.reversed = false
+        params.range = new Range(position, @range.start)
+      else
+        params.range = new Range(@range.start, position)
+    else
+      if position.isLessThan(@range.end)
+        params.range = new Range(position, @range.end)
+      else
+        params.reversed = true
+        params.range = new Range(@range.end, position)
+
+    params.state = extend({}, @getState(), state) if state?
+
+    @update(params)
+
   isReversed: ->
     @tailed and @reversed
 

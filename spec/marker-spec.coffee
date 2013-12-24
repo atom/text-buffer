@@ -92,7 +92,7 @@ describe "Marker", ->
           bufferChanged: false
         }]
 
-      it "does not emit an event and returns false if the head position isn't actually changed", ->
+      it "does not emit an event and returns false if the position isn't actually changed", ->
         expect(marker.setHeadPosition(marker.getHeadPosition())).toBe false
         expect(changes.length).toBe 0
 
@@ -113,6 +113,73 @@ describe "Marker", ->
         expect(changes).toEqual [{
           oldHeadPosition: [0, 12], newHeadPosition: [0, 12]
           oldTailPosition: [0, 6], newTailPosition: [0, 6]
+          hadTail: true, hasTail: true
+          wasValid: true, isValid: true,
+          oldState: {foo: 1}, newState: {foo: 1, bar: 2}
+          bufferChanged: false
+        }]
+
+    describe "::setTailPosition(position, state)", ->
+      it "sets the head position of the marker, flipping its orientation if necessary", ->
+        marker.setTailPosition([0, 3])
+        expect(marker.getRange()).toEqual [[0, 3], [0, 9]]
+        expect(marker.isReversed()).toBe false
+        expect(changes).toEqual [{
+          oldHeadPosition: [0, 9], newHeadPosition: [0, 9]
+          oldTailPosition: [0, 6], newTailPosition: [0, 3]
+          hadTail: true, hasTail: true
+          wasValid: true, isValid: true,
+          oldState: {}, newState: {}
+          bufferChanged: false
+        }]
+
+        changes = []
+        marker.setTailPosition([0, 12])
+        expect(marker.getRange()).toEqual [[0, 9], [0, 12]]
+        expect(marker.isReversed()).toBe true
+        expect(changes).toEqual [{
+          oldHeadPosition: [0, 9], newHeadPosition: [0, 9]
+          oldTailPosition: [0, 3], newTailPosition: [0, 12]
+          hadTail: true, hasTail: true
+          wasValid: true, isValid: true,
+          oldState: {}, newState: {}
+          bufferChanged: false
+        }]
+
+        changes = []
+        marker.setTailPosition([0, 6])
+        expect(marker.getRange()).toEqual [[0, 6], [0, 9]]
+        expect(marker.isReversed()).toBe false
+        expect(changes).toEqual [{
+          oldHeadPosition: [0, 9], newHeadPosition: [0, 9]
+          oldTailPosition: [0, 12], newTailPosition: [0, 6]
+          hadTail: true, hasTail: true
+          wasValid: true, isValid: true,
+          oldState: {}, newState: {}
+          bufferChanged: false
+        }]
+
+      it "does not emit an event and returns false if the position isn't actually changed", ->
+        expect(marker.setTailPosition(marker.getTailPosition())).toBe false
+        expect(changes.length).toBe 0
+
+      it "allows new properties to be assigned to the state", ->
+        marker.setTailPosition([0, 3], foo: 1)
+        expect(changes).toEqual [{
+          oldHeadPosition: [0, 9], newHeadPosition: [0, 9]
+          oldTailPosition: [0, 6], newTailPosition: [0, 3]
+          hadTail: true, hasTail: true
+          wasValid: true, isValid: true,
+          oldState: {}, newState: {foo: 1}
+          bufferChanged: false
+        }]
+
+        changes = []
+        marker.setTailPosition([0, 3], bar: 2)
+        expect(marker.getState()).toEqual {foo: 1, bar: 2}
+        expect(changes).toEqual [{
+          oldHeadPosition: [0, 9], newHeadPosition: [0, 9]
+          oldTailPosition: [0, 3], newTailPosition: [0, 3]
           hadTail: true, hasTail: true
           wasValid: true, isValid: true,
           oldState: {foo: 1}, newState: {foo: 1, bar: 2}
