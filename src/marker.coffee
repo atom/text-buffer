@@ -125,6 +125,9 @@ class Marker
   getState: ->
     @state
 
+  copy: (options) ->
+    @manager.createMarker(extend(@toParams(), @paramsFromOptions(options)))
+
   paramsFromOptions: (options) ->
     params = @constructor.paramsFromOptions(options)
     params.state = extend({}, @state, params.state) if params.state?
