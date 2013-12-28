@@ -593,3 +593,16 @@ describe "Marker", ->
         buffer.redo()
         expect(marker1.getRange()).toEqual [[0, 5], [0, 6]]
         expect(marker2.getRange()).toEqual [[0, 9], [0, 11]]
+
+  describe "destruction", ->
+    it "removes the marker from the buffer, marks it destroyed and invalid, and emits a 'destroyed' event", ->
+      marker = buffer.markRange([[0, 3], [0, 6]])
+      expect(buffer.getMarker(marker.id)).toBe marker
+      marker.on 'destroyed', destroyedHandler = jasmine.createSpy("destroyedHandler")
+
+      marker.destroy()
+
+      expect(destroyedHandler.callCount).toBe 1
+      expect(buffer.getMarker(marker.id)).toBeUndefined()
+      expect(marker.isDestroyed()).toBe true
+      expect(marker.isValid()).toBe false

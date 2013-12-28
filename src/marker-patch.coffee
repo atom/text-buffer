@@ -6,4 +6,4 @@ class MarkerPatch
     new @constructor(@id, @newParams, @oldParams)
 
   applyTo: (textBuffer) ->
-    textBuffer.getMarker(@id).update(@newParams)
+    textBuffer.getMarker(@id)?.update(@newParams)

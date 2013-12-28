@@ -32,6 +32,7 @@ class Marker
     @invalidate ?= 'surround'
     @persistent ?= true
     @state ?= {}
+    @destroyed = false
     Object.freeze(@state)
 
   getRange: ->
@@ -117,7 +118,10 @@ class Marker
     @tailed
 
   isValid: ->
-    @valid
+    not @isDestroyed() and @valid
+
+  isDestroyed: ->
+    @destroyed
 
   getInvalidationStrategy: ->
     @invalidate
@@ -127,6 +131,11 @@ class Marker
 
   copy: (options) ->
     @manager.createMarker(extend(@toParams(), @paramsFromOptions(options)))
+
+  destroy: ->
+    @destroyed = true
+    @manager.removeMarker(@id)
+    @emit 'destroyed'
 
   paramsFromOptions: (options) ->
     params = @constructor.paramsFromOptions(options)

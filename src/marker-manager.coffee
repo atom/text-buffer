@@ -32,6 +32,9 @@ class MarkerManager
     @textBuffer.emit 'marker-created', marker
     marker
 
+  removeMarker: (id) ->
+    delete @markers[id]
+
   recordMarkerPatch: (patch) ->
     if @textBuffer.isTransacting()
       @textBuffer.history.recordNewPatch(patch)
@@ -41,7 +44,7 @@ class MarkerManager
 
   applyPatches: (markerPatches, bufferChanged) ->
     for id, patch of markerPatches
-      @getMarker(id).applyPatch(patch, bufferChanged)
+      @getMarker(id)?.applyPatch(patch, bufferChanged)
 
   pauseChangeEvents: ->
     marker.pauseEvents('changed') for marker in @getMarkers()
