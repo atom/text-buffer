@@ -527,3 +527,21 @@ describe "Marker", ->
         for marker in allStrategies
           expect(marker.getRange()).toEqual [[0, 6], [0, 9]]
           expect(marker.isValid()).toBe true
+
+    describe "when a change is inside a marker", ->
+      it "adjusts the marker's end position and invalidates markers with an 'inside' strategy", ->
+        buffer.setTextInRange([[0, 7], [0, 8]], "AB")
+
+        for marker in allStrategies
+          expect(marker.getRange()).toEqual [[0, 6], [0, 10]]
+
+        for marker in difference(allStrategies, [insideMarker])
+          expect(marker.isValid()).toBe true
+
+        expect(insideMarker.isValid()).toBe false
+
+        buffer.undo()
+
+        for marker in allStrategies
+          expect(marker.getRange()).toEqual [[0, 6], [0, 9]]
+          expect(marker.isValid()).toBe true
