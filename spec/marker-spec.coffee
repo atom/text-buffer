@@ -606,3 +606,16 @@ describe "Marker", ->
       expect(buffer.getMarker(marker.id)).toBeUndefined()
       expect(marker.isDestroyed()).toBe true
       expect(marker.isValid()).toBe false
+
+  describe "TextBufferCore::findMarkers(properties)", ->
+    [marker1, marker2, marker3, marker4] = []
+
+    beforeEach ->
+      marker1 = buffer.markRange([[0, 0], [0, 3]], class: 'a')
+      marker2 = buffer.markRange([[0, 0], [0, 5]], class: 'a', invalidate: 'surround')
+      marker3 = buffer.markRange([[0, 4], [0, 7]], class: 'a')
+      marker4 = buffer.markRange([[0, 0], [0, 7]], class: 'b', invalidate: 'never')
+
+    it "can find markers based on custom properties", ->
+      expect(buffer.findMarkers(class: 'a')).toEqual [marker2, marker1, marker3]
+      expect(buffer.findMarkers(class: 'b')).toEqual [marker4]

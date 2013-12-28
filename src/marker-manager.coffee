@@ -24,6 +24,10 @@ class MarkerManager
   getMarkers: ->
     values(@markers)
 
+  findMarkers: (params) ->
+    markers = @getMarkers().filter (marker) -> marker.matchesParams(params)
+    markers.sort (a, b) -> a.compare(b)
+
   createMarker: (params) ->
     params.manager = this
     params.id = @nextMarkerId++

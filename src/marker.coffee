@@ -1,4 +1,5 @@
-{isEqual, extend, omit, pick, size} = require 'underscore'
+{extend, omit, pick, size} = require 'underscore'
+isEqual = require 'tantamount'
 {Emitter} = require 'emissary'
 MarkerPatch = require './marker-patch'
 Point = require './point'
@@ -150,6 +151,14 @@ class Marker
     params = @constructor.extractParams(params)
     params.properties = extend({}, @properties, params.properties) if params.properties?
     params
+
+  compare: (other) ->
+    @getRange().compare(other.getRange())
+
+  matchesParams: (params) ->
+    for key, value of @extractParams(params)
+      return false unless isEqual(@[key], value)
+    true
 
   toParams: ->
     {@id, @range, @reversed, @tailed, @invalidate, @persistent, @properties}

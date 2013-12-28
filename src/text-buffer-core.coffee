@@ -17,7 +17,7 @@ class TextBufferCore
     'abortTransaction', 'isTransacting', toProperty: 'history'
 
   @delegatesMethods 'markRange', 'markPosition', 'getMarker', 'getMarkers',
-    toProperty: 'markers'
+    'findMarkers', toProperty: 'markers'
 
   constructor: (options) ->
     @lines = ['']
