@@ -350,7 +350,7 @@ describe "Marker", ->
           marker.on 'changed', (change) -> marker.changes.push(change)
 
       bufferChanges = []
-      buffer.on 'changed', (change) ->
+      buffer.once 'changed', (change) ->
         bufferChanges.push(change)
         for marker in allStrategies
           expect(marker.getRange()).toEqual [[0, 8], [0, 11]]
@@ -370,6 +370,28 @@ describe "Marker", ->
           bufferChanged: true
         }]
 
+      marker.changes = [] for marker in allStrategies
+      bufferChanges = []
+      buffer.once 'changed', (change) ->
+        bufferChanges.push(change)
+        for marker in allStrategies
+          expect(marker.getRange()).toEqual [[0, 6], [0, 9]]
+          expect(marker.isValid()).toBe true
+          expect(marker.changes.length).toBe 0
+
+      buffer.undo()
+      expect(bufferChanges.length).toBe 1
+
+      for marker in allStrategies
+        expect(marker.changes).toEqual [{
+          oldHeadPosition: [0, 11], newHeadPosition: [0, 9]
+          oldTailPosition: [0, 8], newTailPosition: [0, 6]
+          hadTail: true, hasTail: true
+          wasValid: true, isValid: true
+          oldState: {}, newState: {}
+          bufferChanged: true
+        }]
+
     describe "when a change precedes a marker", ->
       it "shifts the marker based on the characters inserted or removed by the change", ->
         buffer.setTextInRange([[0, 1], [0, 2]], "ABC")
@@ -380,6 +402,16 @@ describe "Marker", ->
         buffer.setTextInRange([[0, 1], [0, 1]], '\nDEF')
         for marker in allStrategies
           expect(marker.getRange()).toEqual [[1, 10], [1, 13]]
+          expect(marker.isValid()).toBe true
+
+        buffer.undo()
+        for marker in allStrategies
+          expect(marker.getRange()).toEqual [[0, 8], [0, 11]]
+          expect(marker.isValid()).toBe true
+
+        buffer.undo()
+        for marker in allStrategies
+          expect(marker.getRange()).toEqual [[0, 6], [0, 9]]
           expect(marker.isValid()).toBe true
 
     describe "when a change follows a marker", ->
