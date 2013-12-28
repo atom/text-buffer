@@ -509,3 +509,21 @@ describe "Marker", ->
           for marker in allStrategies
             expect(marker.getRange()).toEqual [[0, 6], [0, 9]]
             expect(marker.isValid()).toBe true
+
+    describe "when a change surrounds a marker", ->
+      it "truncates the marker to the end of the change and invalidates every invalidation strategy except 'never'", ->
+        buffer.setTextInRange([[0, 5], [0, 10]], "ABC")
+
+        for marker in allStrategies
+          expect(marker.getRange()).toEqual [[0, 8], [0, 8]]
+
+        for marker in difference(allStrategies, [neverMarker])
+          expect(marker.isValid()).toBe false
+
+        expect(neverMarker.isValid()).toBe true
+
+        buffer.undo()
+
+        for marker in allStrategies
+          expect(marker.getRange()).toEqual [[0, 6], [0, 9]]
+          expect(marker.isValid()).toBe true
