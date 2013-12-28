@@ -545,3 +545,39 @@ describe "Marker", ->
         for marker in allStrategies
           expect(marker.getRange()).toEqual [[0, 6], [0, 9]]
           expect(marker.isValid()).toBe true
+
+    describe "when a change overlaps the start of a marker", ->
+      it "moves the start of the marker to the end of the change and invalidates the marker if its stategy is 'overlap' or 'inside'", ->
+        buffer.setTextInRange([[0, 5], [0, 7]], "ABC")
+
+        for marker in allStrategies
+          expect(marker.getRange()).toEqual [[0, 8], [0, 10]]
+
+        expect(neverMarker.isValid()).toBe true
+        expect(surroundMarker.isValid()).toBe true
+        expect(overlapMarker.isValid()).toBe false
+        expect(insideMarker.isValid()).toBe false
+
+        buffer.undo()
+
+        for marker in allStrategies
+          expect(marker.getRange()).toEqual [[0, 6], [0, 9]]
+          expect(marker.isValid()).toBe true
+
+    describe "when a change overlaps the end of a marker", ->
+      it "moves the end of the marker to the end of the change and invalidates the marker if its stategy is 'overlap' or 'inside'", ->
+        buffer.setTextInRange([[0, 8], [0, 10]], "ABC")
+
+        for marker in allStrategies
+          expect(marker.getRange()).toEqual [[0, 6], [0, 11]]
+
+        expect(neverMarker.isValid()).toBe true
+        expect(surroundMarker.isValid()).toBe true
+        expect(overlapMarker.isValid()).toBe false
+        expect(insideMarker.isValid()).toBe false
+
+        buffer.undo()
+
+        for marker in allStrategies
+          expect(marker.getRange()).toEqual [[0, 6], [0, 9]]
+          expect(marker.isValid()).toBe true
