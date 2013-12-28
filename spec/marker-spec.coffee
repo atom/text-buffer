@@ -20,7 +20,7 @@ describe "Marker", ->
         expect(markerCreations).toEqual [marker]
 
       it "allows a reversed marker to be created", ->
-        marker = buffer.markRange([[0, 3], [0, 6]], isReversed: true)
+        marker = buffer.markRange([[0, 3], [0, 6]], reversed: true)
         expect(marker.getRange()).toEqual [[0, 3], [0, 6]]
         expect(marker.getHeadPosition()).toEqual [0, 3]
         expect(marker.getTailPosition()).toEqual [0, 6]
@@ -33,7 +33,7 @@ describe "Marker", ->
 
       it "allows custom state to be assigned", ->
         marker = buffer.markRange([[0, 3], [0, 6]], foo: 1, bar: 2)
-        expect(marker.getState()).toEqual {foo: 1, bar: 2}
+        expect(marker.getProperties()).toEqual {foo: 1, bar: 2}
 
     describe "TextBufferCore::markPosition(position, properties)", ->
       it "creates a tail-less marker at the given position", ->
@@ -51,7 +51,7 @@ describe "Marker", ->
 
       it "allows custom state to be assigned", ->
         marker = buffer.markPosition([0, 3], foo: 1, bar: 2)
-        expect(marker.getState()).toEqual {foo: 1, bar: 2}
+        expect(marker.getProperties()).toEqual {foo: 1, bar: 2}
 
   describe "direct updates", ->
     [marker, changes] = []
@@ -71,7 +71,7 @@ describe "Marker", ->
           oldTailPosition: [0, 6], newTailPosition: [0, 6]
           hadTail: true, hasTail: true
           wasValid: true, isValid: true
-          oldState: {}, newState: {}
+          oldProperties: {}, newProperties: {}
           bufferChanged: false
         }]
 
@@ -84,7 +84,7 @@ describe "Marker", ->
           oldTailPosition: [0, 6], newTailPosition: [0, 6]
           hadTail: true, hasTail: true
           wasValid: true, isValid: true
-          oldState: {}, newState: {}
+          oldProperties: {}, newProperties: {}
           bufferChanged: false
         }]
 
@@ -97,7 +97,7 @@ describe "Marker", ->
           oldTailPosition: [0, 6], newTailPosition: [0, 6]
           hadTail: true, hasTail: true
           wasValid: true, isValid: true
-          oldState: {}, newState: {}
+          oldProperties: {}, newProperties: {}
           bufferChanged: false
         }]
 
@@ -112,19 +112,19 @@ describe "Marker", ->
           oldTailPosition: [0, 6], newTailPosition: [0, 6]
           hadTail: true, hasTail: true
           wasValid: true, isValid: true
-          oldState: {}, newState: {foo: 1}
+          oldProperties: {}, newProperties: {foo: 1}
           bufferChanged: false
         }]
 
         changes = []
         marker.setHeadPosition([0, 12], bar: 2)
-        expect(marker.getState()).toEqual {foo: 1, bar: 2}
+        expect(marker.getProperties()).toEqual {foo: 1, bar: 2}
         expect(changes).toEqual [{
           oldHeadPosition: [0, 12], newHeadPosition: [0, 12]
           oldTailPosition: [0, 6], newTailPosition: [0, 6]
           hadTail: true, hasTail: true
           wasValid: true, isValid: true
-          oldState: {foo: 1}, newState: {foo: 1, bar: 2}
+          oldProperties: {foo: 1}, newProperties: {foo: 1, bar: 2}
           bufferChanged: false
         }]
 
@@ -138,7 +138,7 @@ describe "Marker", ->
           oldTailPosition: [0, 6], newTailPosition: [0, 3]
           hadTail: true, hasTail: true
           wasValid: true, isValid: true
-          oldState: {}, newState: {}
+          oldProperties: {}, newProperties: {}
           bufferChanged: false
         }]
 
@@ -151,7 +151,7 @@ describe "Marker", ->
           oldTailPosition: [0, 3], newTailPosition: [0, 12]
           hadTail: true, hasTail: true
           wasValid: true, isValid: true
-          oldState: {}, newState: {}
+          oldProperties: {}, newProperties: {}
           bufferChanged: false
         }]
 
@@ -164,7 +164,7 @@ describe "Marker", ->
           oldTailPosition: [0, 12], newTailPosition: [0, 6]
           hadTail: true, hasTail: true
           wasValid: true, isValid: true
-          oldState: {}, newState: {}
+          oldProperties: {}, newProperties: {}
           bufferChanged: false
         }]
 
@@ -179,19 +179,19 @@ describe "Marker", ->
           oldTailPosition: [0, 6], newTailPosition: [0, 3]
           hadTail: true, hasTail: true
           wasValid: true, isValid: true
-          oldState: {}, newState: {foo: 1}
+          oldProperties: {}, newProperties: {foo: 1}
           bufferChanged: false
         }]
 
         changes = []
         marker.setTailPosition([0, 3], bar: 2)
-        expect(marker.getState()).toEqual {foo: 1, bar: 2}
+        expect(marker.getProperties()).toEqual {foo: 1, bar: 2}
         expect(changes).toEqual [{
           oldHeadPosition: [0, 9], newHeadPosition: [0, 9]
           oldTailPosition: [0, 3], newTailPosition: [0, 3]
           hadTail: true, hasTail: true
           wasValid: true, isValid: true
-          oldState: {foo: 1}, newState: {foo: 1, bar: 2}
+          oldProperties: {foo: 1}, newProperties: {foo: 1, bar: 2}
           bufferChanged: false
         }]
 
@@ -207,12 +207,12 @@ describe "Marker", ->
           oldTailPosition: [0, 6], newTailPosition: [0, 8]
           hadTail: true, hasTail: true
           wasValid: true, isValid: true
-          oldState: {}, newState: {}
+          oldProperties: {}, newProperties: {}
           bufferChanged: false
         }]
 
         changes = []
-        marker.setRange([[0, 3], [0, 9]], isReversed: true)
+        marker.setRange([[0, 3], [0, 9]], reversed: true)
         expect(marker.getRange()).toEqual [[0, 3], [0, 9]]
         expect(marker.isReversed()).toBe true
         expect(marker.getHeadPosition()).toEqual [0, 3]
@@ -222,7 +222,7 @@ describe "Marker", ->
           oldTailPosition: [0, 8], newTailPosition: [0, 9]
           hadTail: true, hasTail: true
           wasValid: true, isValid: true
-          oldState: {}, newState: {}
+          oldProperties: {}, newProperties: {}
           bufferChanged: false
         }]
 
@@ -233,25 +233,25 @@ describe "Marker", ->
           oldTailPosition: [0, 6], newTailPosition: [0, 1]
           hadTail: true, hasTail: true
           wasValid: true, isValid: true
-          oldState: {}, newState: {foo: 1}
+          oldProperties: {}, newProperties: {foo: 1}
           bufferChanged: false
         }]
 
         changes = []
         marker.setRange([[0, 3], [0, 6]], bar: 2)
-        expect(marker.getState()).toEqual {foo: 1, bar: 2}
+        expect(marker.getProperties()).toEqual {foo: 1, bar: 2}
         expect(changes).toEqual [{
           oldHeadPosition: [0, 2], newHeadPosition: [0, 6]
           oldTailPosition: [0, 1], newTailPosition: [0, 3]
           hadTail: true, hasTail: true
           wasValid: true, isValid: true
-          oldState: {foo: 1}, newState: {foo: 1, bar: 2}
+          oldProperties: {foo: 1}, newProperties: {foo: 1, bar: 2}
           bufferChanged: false
         }]
 
     describe "::clearTail() / ::plantTail()", ->
       it "clears the tail / plants the tail at the current head position", ->
-        marker.setRange([[0, 6], [0, 9]], isReversed: true)
+        marker.setRange([[0, 6], [0, 9]], reversed: true)
 
         changes = []
         marker.clearTail()
@@ -264,7 +264,7 @@ describe "Marker", ->
           oldTailPosition: [0, 9], newTailPosition: [0, 6]
           hadTail: true, hasTail: false
           wasValid: true, isValid: true
-          oldState: {}, newState: {}
+          oldProperties: {}, newProperties: {}
           bufferChanged: false
         }]
 
@@ -278,7 +278,7 @@ describe "Marker", ->
           oldTailPosition: [0, 6], newTailPosition: [0, 12]
           hadTail: false, hasTail: false
           wasValid: true, isValid: true
-          oldState: {}, newState: {}
+          oldProperties: {}, newProperties: {}
           bufferChanged: false
         }]
 
@@ -292,7 +292,7 @@ describe "Marker", ->
           oldTailPosition: [0, 12], newTailPosition: [0, 12]
           hadTail: false, hasTail: true
           wasValid: true, isValid: true
-          oldState: {}, newState: {}
+          oldProperties: {}, newProperties: {}
           bufferChanged: false
         }]
 
@@ -304,7 +304,7 @@ describe "Marker", ->
           oldTailPosition: [0, 12], newTailPosition: [0, 12]
           hadTail: true, hasTail: true
           wasValid: true, isValid: true
-          oldState: {}, newState: {}
+          oldProperties: {}, newProperties: {}
           bufferChanged: false
         }]
 
@@ -366,7 +366,7 @@ describe "Marker", ->
           oldTailPosition: [0, 6], newTailPosition: [0, 8]
           hadTail: true, hasTail: true
           wasValid: true, isValid: true
-          oldState: {}, newState: {}
+          oldProperties: {}, newProperties: {}
           bufferChanged: true
         }]
 
@@ -388,7 +388,7 @@ describe "Marker", ->
           oldTailPosition: [0, 8], newTailPosition: [0, 6]
           hadTail: true, hasTail: true
           wasValid: true, isValid: true
-          oldState: {}, newState: {}
+          oldProperties: {}, newProperties: {}
           bufferChanged: true
         }]
 
@@ -442,7 +442,7 @@ describe "Marker", ->
       describe "when the marker has no tail", ->
         it "interprets the change as being outside the marker for all invalidation strategies", ->
           for marker in allStrategies
-            marker.setRange([[0, 6], [0, 11]], isReversed: true)
+            marker.setRange([[0, 6], [0, 11]], reversed: true)
             marker.clearTail()
             expect(marker.getRange()).toEqual [[0, 6], [0, 6]]
 
@@ -459,7 +459,7 @@ describe "Marker", ->
             expect(marker.isValid()).toBe true
 
           for marker in allStrategies
-            marker.setRange([[0, 6], [0, 6]], isReversed: false)
+            marker.setRange([[0, 6], [0, 6]], reversed: false)
             marker.clearTail()
             expect(marker.getRange()).toEqual [[0, 6], [0, 6]]
 

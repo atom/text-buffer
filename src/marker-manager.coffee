@@ -9,9 +9,9 @@ class MarkerManager
   constructor: (@textBuffer) ->
     @markers = {}
 
-  markRange: (range, options) ->
+  markRange: (range, params) ->
     range = Range.fromObject(range, true).freeze()
-    params = Marker.paramsFromOptions(options)
+    params = Marker.extractParams(params)
     params.range = range
     @createMarker(params)
 

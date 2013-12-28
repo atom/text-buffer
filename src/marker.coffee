@@ -4,36 +4,45 @@ MarkerPatch = require './marker-patch'
 Point = require './point'
 Range = require './range'
 
+OptionKeys = ['reversed', 'tailed', 'invalidate', 'persistent']
+
 module.exports =
 class Marker
   Emitter.includeInto(this)
 
-  @reservedKeys: ['isReversed', 'hasTail', 'invalidate', 'persistent', 'persist']
+  @extractParams: (inputParams) ->
+    outputParams = {}
+    if inputParams?
+      @handleDeprecatedParams(inputParams)
+      extend(outputParams, pick(inputParams, OptionKeys))
+      properties = omit(inputParams, OptionKeys)
+      outputParams.properties = properties if size(properties) > 0
+    outputParams
 
-  @paramsFromOptions: (options) ->
-    params = {}
-    if options?
-      extend(params, pick(options, @reservedKeys))
-      params.reversed = options.isReversed if options.isReversed?
-      params.tailed = options.hasTail if options.hasTail?
-      params.invalidate = options.invalidate if options.invalidate?
-      params.persistent = options.persistent if options.persistent?
-      params.persistent = options.persist if options.persist?
-      state = omit(options, @reservedKeys)
-      params.state = state if size(state) > 0
-    params
+  @handleDeprecatedParams: (params) ->
+    if params.isReversed?
+      params.reversed = params.isReversed
+      delete params.isReversed
+
+    if params.hasTail?
+      params.tailed = params.hasTail
+      delete params.hasTail
+
+    if params.persist?
+      params.persistent = params.persist
+      delete params.persist
 
   constructor: (params) ->
     {@manager, @id, @range, @tailed, @reversed} = params
-    {@valid, @invalidate, @persistent, @state} = params
+    {@valid, @invalidate, @persistent, @properties} = params
     @tailed ?= true
     @reversed ?= false
     @valid ?= true
     @invalidate ?= 'surround'
     @persistent ?= true
-    @state ?= {}
+    @properties ?= {}
     @destroyed = false
-    Object.freeze(@state)
+    Object.freeze(@properties)
 
   getRange: ->
     if @hasTail()
@@ -41,8 +50,8 @@ class Marker
     else
       new Range(@getHeadPosition(), @getHeadPosition())
 
-  setRange: (range, options) ->
-    params = @paramsFromOptions(options)
+  setRange: (range, params) ->
+    params = @extractParams(params)
     params.range = Range.fromObject(range, true)
     @update(params)
 
@@ -52,9 +61,9 @@ class Marker
     else
       @range.end
 
-  setHeadPosition: (position, options) ->
+  setHeadPosition: (position, params) ->
     position = Point.fromObject(position, true)
-    params = @paramsFromOptions(options)
+    params = @extractParams(params)
 
     if @reversed
       if position.isLessThan(@range.end)
@@ -80,9 +89,9 @@ class Marker
     else
       @getHeadPosition()
 
-  setTailPosition: (position, options) ->
+  setTailPosition: (position, params) ->
     position = Point.fromObject(position, true)
-    params = @paramsFromOptions(options)
+    params = @extractParams(params)
 
     if @reversed
       if position.isLessThan(@range.start)
@@ -99,13 +108,13 @@ class Marker
 
     @update(params)
 
-  clearTail: (options) ->
-    params = @paramsFromOptions(options)
+  clearTail: (params) ->
+    params = @extractParams(params)
     params.tailed = false
     @update(params)
 
-  plantTail: (options) ->
-    params = @paramsFromOptions(options)
+  plantTail: (params) ->
+    params = @extractParams(params)
     unless @hasTail()
       params.tailed = true
       params.range = new Range(@getHeadPosition(), @getHeadPosition())
@@ -126,24 +135,24 @@ class Marker
   getInvalidationStrategy: ->
     @invalidate
 
-  getState: ->
-    @state
+  getProperties: ->
+    @properties
 
-  copy: (options) ->
-    @manager.createMarker(extend(@toParams(), @paramsFromOptions(options)))
+  copy: (params) ->
+    @manager.createMarker(extend(@toParams(), @extractParams(params)))
 
   destroy: ->
     @destroyed = true
     @manager.removeMarker(@id)
     @emit 'destroyed'
 
-  paramsFromOptions: (options) ->
-    params = @constructor.paramsFromOptions(options)
-    params.state = extend({}, @state, params.state) if params.state?
+  extractParams: (params) ->
+    params = @constructor.extractParams(params)
+    params.properties = extend({}, @properties, params.properties) if params.properties?
     params
 
   toParams: ->
-    {@id, @range, @reversed, @tailed, @invalidate, @persistent, @state}
+    {@id, @range, @reversed, @tailed, @invalidate, @persistent, @properties}
 
   update: (params) ->
     if patch = @buildPatch(params)
@@ -214,10 +223,10 @@ class Marker
     oldTailPosition = @getTailPosition()
     wasValid = @isValid()
     hadTail = @hasTail()
-    oldState = @getState()
+    oldProperties = @getProperties()
 
     updated = false
-    {range, reversed, tailed, valid, state} = patch.newParams
+    {range, reversed, tailed, valid, properties} = patch.newParams
 
     if range? and not range.isEqual(@range)
       @range = range.freeze()
@@ -235,8 +244,8 @@ class Marker
       @valid = valid
       updated = true
 
-    if state? and not isEqual(state, @state)
-      @state = Object.freeze(state)
+    if properties? and not isEqual(properties, @properties)
+      @properties = Object.freeze(properties)
       updated = true
 
     return false unless updated
@@ -245,10 +254,10 @@ class Marker
     newTailPosition = @getTailPosition()
     isValid = @isValid()
     hasTail = @hasTail()
-    newState = @getState()
+    newProperties = @getProperties()
 
     @emit 'changed', {
       oldHeadPosition, newHeadPosition, oldTailPosition, newTailPosition
-      wasValid, isValid, hadTail, hasTail, oldState, newState, bufferChanged
+      wasValid, isValid, hadTail, hasTail, oldProperties, newProperties, bufferChanged
     }
     true
