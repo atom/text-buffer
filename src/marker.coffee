@@ -117,7 +117,7 @@ class Marker
     @tailed
 
   isValid: ->
-    true
+    @valid
 
   getInvalidationStrategy: ->
     @invalidate
@@ -207,7 +207,7 @@ class Marker
     oldState = @getState()
 
     updated = false
-    {range, reversed, tailed, state} = patch.newParams
+    {range, reversed, tailed, valid, state} = patch.newParams
 
     if range? and not range.isEqual(@range)
       @range = range.freeze()
@@ -219,6 +219,10 @@ class Marker
 
     if tailed? and tailed isnt @tailed
       @tailed = tailed
+      updated = true
+
+    if valid? and valid isnt @valid
+      @valid = valid
       updated = true
 
     if state? and not isEqual(state, @state)
