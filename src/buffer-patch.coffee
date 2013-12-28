@@ -2,10 +2,14 @@ module.exports =
 class BufferPatch
   constructor: (@oldRange, @newRange, @oldText, @newText, @markerPatches={}) ->
 
-  invert: ->
+  invert: (textBuffer) ->
     markerPatches = {}
     markerPatches[id] = patch.invert() for id, patch of @markerPatches
-    new @constructor(@newRange, @oldRange, @newText, @oldText, markerPatches)
+    invertedPatch = new @constructor(@newRange, @oldRange, @newText, @oldText, markerPatches)
+    for marker in textBuffer.getMarkers()
+      unless @markerPatches[marker.id]?
+        marker.handleBufferChange(invertedPatch)
+    invertedPatch
 
   applyTo: (textBuffer) ->
     textBuffer.applyPatch(this)

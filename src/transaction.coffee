@@ -8,8 +8,8 @@ class Transaction
   push: (patch) ->
     @patches.push(patch)
 
-  invert: ->
-    new @constructor(@patches.map((patch) -> patch.invert()).reverse())
+  invert: (textBuffer) ->
+    new @constructor(@patches.map((patch) -> patch.invert(textBuffer)).reverse())
 
   applyTo: (textBuffer) ->
     patch.applyTo(textBuffer) for patch in @patches

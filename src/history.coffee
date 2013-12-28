@@ -22,13 +22,13 @@ class History
     if @currentTransaction?
       @abortTransaction()
     else if patch = @undoStack.pop()
-      inverse = patch.invert()
+      inverse = patch.invert(@textBuffer)
       @redoStack.push(inverse)
       inverse.applyTo(@textBuffer)
 
   redo: ->
     if patch = @redoStack.pop()
-      inverse = patch.invert()
+      inverse = patch.invert(@textBuffer)
       @undoStack.push(inverse)
       inverse.applyTo(@textBuffer)
 
@@ -58,7 +58,7 @@ class History
 
   abortTransaction: ->
     if @transactCallDepth is 0
-      inverse = @currentTransaction.invert()
+      inverse = @currentTransaction.invert(@textBuffer)
       @currentTransaction = null
       @transactionDepth = 0
       inverse.applyTo(@textBuffer)

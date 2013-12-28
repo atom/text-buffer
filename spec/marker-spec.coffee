@@ -581,3 +581,15 @@ describe "Marker", ->
         for marker in allStrategies
           expect(marker.getRange()).toEqual [[0, 6], [0, 9]]
           expect(marker.isValid()).toBe true
+
+    describe "when a change precedes the creation of a marker", ->
+      it "updates the marker as normal when undoing / redoing the change", ->
+        buffer.setTextInRange([[0, 1], [0, 2]], "ABC")
+        marker1 = buffer.markRange([[0, 5], [0, 6]])
+        buffer.undo()
+        expect(marker1.getRange()).toEqual [[0, 3], [0, 4]]
+
+        marker2 = buffer.markRange([[0, 7], [0, 9]])
+        buffer.redo()
+        expect(marker1.getRange()).toEqual [[0, 5], [0, 6]]
+        expect(marker2.getRange()).toEqual [[0, 9], [0, 11]]
