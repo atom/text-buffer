@@ -474,3 +474,38 @@ describe "Marker", ->
           for marker in allStrategies
             expect(marker.getRange()).toEqual [[0, 6], [0, 6]]
             expect(marker.isValid()).toBe true
+
+    describe "when a change starts at a marker's end position", ->
+      describe "when the change is an insertion", ->
+        it "interprets the change as being inside the marker for all invalidation strategies", ->
+          buffer.setTextInRange([[0, 9], [0, 9]], "ABC")
+
+          for marker in difference(allStrategies, [insideMarker])
+            expect(marker.getRange()).toEqual [[0, 6], [0, 12]]
+            expect(marker.isValid()).toBe true
+
+          expect(insideMarker.getRange()).toEqual [[0, 6], [0, 12]]
+          expect(insideMarker.isValid()).toBe false
+
+          buffer.undo()
+
+          for marker in allStrategies
+            expect(marker.getRange()).toEqual [[0, 6], [0, 9]]
+            expect(marker.isValid()).toBe true
+
+      describe "when the change replaces some existing text", ->
+        it "interprets the change as being outside the marker for all invalidation strategies", ->
+          buffer.setTextInRange([[0, 9], [0, 11]], "ABC")
+
+          for marker in difference(allStrategies, [insideMarker])
+            expect(marker.getRange()).toEqual [[0, 6], [0, 9]]
+            expect(marker.isValid()).toBe true
+
+          expect(insideMarker.getRange()).toEqual [[0, 6], [0, 9]]
+          expect(insideMarker.isValid()).toBe false
+
+          buffer.undo()
+
+          for marker in allStrategies
+            expect(marker.getRange()).toEqual [[0, 6], [0, 9]]
+            expect(marker.isValid()).toBe true

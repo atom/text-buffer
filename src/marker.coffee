@@ -186,7 +186,8 @@ class Marker
         # Change surrounds marker end position; move position to the end of the change
         newMarkerRange.end = newRange.end
 
-    patch.addMarkerPatch(@buildPatch({valid, range: newMarkerRange}))
+    if markerPatch = @buildPatch({valid, range: newMarkerRange})
+      patch.addMarkerPatch(markerPatch)
 
   buildPatch: (newParams) ->
     oldParams = {}
