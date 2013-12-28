@@ -1,3 +1,4 @@
+{difference} = require 'underscore'
 TextBufferCore = require '../src/text-buffer-core'
 
 describe "Marker", ->
@@ -387,3 +388,57 @@ describe "Marker", ->
         for marker in allStrategies
           expect(marker.getRange()).toEqual [[0, 6], [0, 9]]
           expect(marker.isValid()).toBe true
+
+    describe "when a change starts at a marker's start position", ->
+      describe "when the marker has a tail", ->
+        it "interprets the change as being inside the marker for all invalidation strategies", ->
+          buffer.setTextInRange([[0, 6], [0, 7]], "ABC")
+
+          for marker in difference(allStrategies, [insideMarker])
+            expect(marker.getRange()).toEqual [[0, 6], [0, 11]]
+            expect(marker.isValid()).toBe true
+
+          expect(insideMarker.getRange()).toEqual [[0, 6], [0, 11]]
+          expect(insideMarker.isValid()).toBe false
+
+          buffer.undo()
+
+          for marker in allStrategies
+            expect(marker.getRange()).toEqual [[0, 6], [0, 9]]
+            expect(marker.isValid()).toBe true
+
+      describe "when the marker has no tail", ->
+        it "interprets the change as being outside the marker for all invalidation strategies", ->
+          for marker in allStrategies
+            marker.setRange([[0, 6], [0, 11]], isReversed: true)
+            marker.clearTail()
+            expect(marker.getRange()).toEqual [[0, 6], [0, 6]]
+
+          buffer.setTextInRange([[0, 6], [0, 6]], "ABC")
+
+          for marker in allStrategies
+            expect(marker.getRange()).toEqual [[0, 9], [0, 9]]
+            expect(marker.isValid()).toBe true
+
+          buffer.undo()
+
+          for marker in allStrategies
+            expect(marker.getRange()).toEqual [[0, 6], [0 ,6]]
+            expect(marker.isValid()).toBe true
+
+          for marker in allStrategies
+            marker.setRange([[0, 6], [0, 6]], isReversed: false)
+            marker.clearTail()
+            expect(marker.getRange()).toEqual [[0, 6], [0, 6]]
+
+          buffer.setTextInRange([[0, 6], [0, 6]], "DEF")
+
+          for marker in allStrategies
+            expect(marker.getRange()).toEqual [[0, 9], [0, 9]]
+            expect(marker.isValid()).toBe true
+
+          buffer.undo()
+
+          for marker in allStrategies
+            expect(marker.getRange()).toEqual [[0, 6], [0, 6]]
+            expect(marker.isValid()).toBe true
