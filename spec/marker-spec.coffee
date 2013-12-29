@@ -637,3 +637,9 @@ describe "Marker", ->
       expect(buffer.findMarkers(containsPosition: [0, 0])).toEqual [marker4, marker2, marker1]
       expect(buffer.findMarkers(containsPosition: [0, 1], class: 'a')).toEqual [marker2, marker1]
       expect(buffer.findMarkers(containsPosition: [0, 4])).toEqual [marker4, marker2, marker3]
+
+    it "can find markers that contain a range", ->
+      expect(buffer.findMarkers(containsRange: [[0, 1], [0, 4]])).toEqual [marker4, marker2]
+      expect(buffer.findMarkers(containsRange: [[0, 4], [0, 1]])).toEqual [marker4, marker2]
+      expect(buffer.findMarkers(containsRange: [[0, 1], [0, 3]])).toEqual [marker4, marker2, marker1]
+      expect(buffer.findMarkers(containsRange: [[0, 6], [0, 7]])).toEqual [marker4, marker3]

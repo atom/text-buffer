@@ -167,8 +167,11 @@ class Marker
   compare: (other) ->
     @getRange().compare(other.getRange())
 
-  containsPosition: (position) ->
+  containsPoint: (position) ->
     @getRange().containsPoint(position)
+
+  containsRange: (range) ->
+    @getRange().containsRange(range)
 
   matchesParams: (params) ->
     for key, value of params
@@ -181,8 +184,10 @@ class Marker
         @getStartPosition().isEqual(value)
       when 'endPosition'
         @getEndPosition().isEqual(value)
-      when 'containsPosition'
-        @containsPosition(value)
+      when 'containsPoint', 'containsPosition'
+        @containsPoint(value)
+      when 'containsRange'
+        @containsRange(value)
       when 'invalidate', 'reversed', 'tailed', 'persistent'
         isEqual(@[key], value)
       else
