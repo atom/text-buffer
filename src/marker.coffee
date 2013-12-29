@@ -48,6 +48,7 @@ class Marker
     @properties ?= {}
     @destroyed = false
     Object.freeze(@properties)
+    @updateIntervals()
 
   getRange: ->
     if @hasTail()
@@ -276,6 +277,7 @@ class Marker
 
     if range? and not range.isEqual(@range)
       @range = range.freeze()
+      @updateIntervals()
       updated = true
 
     if reversed? and reversed isnt @reversed
@@ -307,3 +309,6 @@ class Marker
       wasValid, isValid, hadTail, hasTail, oldProperties, newProperties, bufferChanged
     }
     true
+
+  updateIntervals: ->
+    @manager.intervals.update(@id, @range.start, @range.end)

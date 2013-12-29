@@ -1,5 +1,7 @@
-{omit, defaults, values} = require 'underscore'
+IntervalSkipList = require 'interval-skip-list'
+{omit, defaults, values, clone, compact, intersection} = require 'underscore'
 Marker = require './marker'
+Point = require './point'
 Range = require './range'
 
 module.exports =
@@ -8,6 +10,10 @@ class MarkerManager
 
   constructor: (@textBuffer) ->
     @markers = {}
+    @intervals = new IntervalSkipList
+      compare: (a, b) -> a.compare(b)
+      minIndex: new Point(-Infinity, -Infinity)
+      maxIndex: new Point(Infinity, Infinity)
 
   markRange: (range, params) ->
     range = Range.fromObject(range, true).freeze()
@@ -25,7 +31,38 @@ class MarkerManager
     values(@markers)
 
   findMarkers: (params) ->
-    markers = @getMarkers().filter (marker) -> marker.matchesParams(params)
+    params = clone(params)
+    candidateIds = []
+    for key, value of params
+      switch key
+        when 'startPosition'
+          candidateIds.push(@intervals.findStartingAt(Point.fromObject(value)))
+          delete params[key]
+        when 'endPosition'
+          candidateIds.push(@intervals.findEndingAt(Point.fromObject(value)))
+          delete params[key]
+        when 'containsPoint'
+          candidateIds.push(@intervals.findContaining(Point.fromObject(value)))
+          delete params[key]
+        when 'containsRange'
+          range = Range.fromObject(value)
+          candidateIds.push(@intervals.findContaining(range.start, range.end))
+          delete params[key]
+        when 'startRow'
+          candidateIds.push(@intervals.findStartingIn(new Point(value, 0), new Point(value, Infinity)))
+          delete params[key]
+        when 'endRow'
+          candidateIds.push(@intervals.findEndingIn(new Point(value, 0), new Point(value, Infinity)))
+          delete params[key]
+        when 'intersectsRow'
+          candidateIds.push(@intervals.findIntersecting(new Point(value, 0), new Point(value, Infinity)))
+          delete params[key]
+
+    if candidateIds.length > 0
+      candidates = compact(intersection(candidateIds...).map((id) => @getMarker(id)))
+    else
+      candidates = @getMarkers()
+    markers = candidates.filter (marker) -> marker.matchesParams(params)
     markers.sort (a, b) -> a.compare(b)
 
   createMarker: (params) ->

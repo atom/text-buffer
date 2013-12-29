@@ -38,6 +38,7 @@
     "delegato": "~0.4.0",
     "emissary": "~0.28.0",
     "underscore": "~1.5.2",
-    "tantamount": "~0.8.0"
+    "tantamount": "~0.8.0",
+    "interval-skip-list": "~0.3.0"
   }
 }
