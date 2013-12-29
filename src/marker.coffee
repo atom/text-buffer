@@ -1,6 +1,7 @@
 {extend, omit, pick, size} = require 'underscore'
 isEqual = require 'tantamount'
 {Emitter} = require 'emissary'
+Delegator = require 'delegato'
 MarkerPatch = require './marker-patch'
 Point = require './point'
 Range = require './range'
@@ -10,6 +11,7 @@ OptionKeys = ['reversed', 'tailed', 'invalidate', 'persistent']
 module.exports =
 class Marker
   Emitter.includeInto(this)
+  Delegator.includeInto(this)
 
   @extractParams: (inputParams) ->
     outputParams = {}
@@ -32,6 +34,8 @@ class Marker
     if params.persist?
       params.persistent = params.persist
       delete params.persist
+
+  @delegatesMethods 'containsPoint', 'containsRange', 'intersectsRow', toProperty: 'range'
 
   constructor: (params) ->
     {@manager, @id, @range, @tailed, @reversed} = params
@@ -165,13 +169,7 @@ class Marker
     params
 
   compare: (other) ->
-    @getRange().compare(other.getRange())
-
-  containsPoint: (position) ->
-    @getRange().containsPoint(position)
-
-  containsRange: (range) ->
-    @getRange().containsRange(range)
+    @range.compare(other.range)
 
   matchesParams: (params) ->
     for key, value of params
@@ -192,6 +190,8 @@ class Marker
         @getStartPosition().row is value
       when 'endRow'
         @getEndPosition().row is value
+      when 'intersectsRow'
+        @intersectsRow(value)
       when 'invalidate', 'reversed', 'tailed', 'persistent'
         isEqual(@[key], value)
       else
