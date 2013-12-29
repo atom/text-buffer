@@ -4,16 +4,16 @@ module.exports =
 class Range
   @fromObject: (object, copy) ->
     if Array.isArray(object)
-      new Range(object...)
-    else if object instanceof Range
+      new this(object...)
+    else if object instanceof this
       if copy then object.copy() else object
     else
-      new Range(object.start, object.end)
+      new this(object.start, object.end)
 
   @fromPointWithDelta: (pointA, rowDelta, columnDelta) ->
     pointA = Point.fromObject(pointA)
     pointB = new Point(pointA.row + rowDelta, pointA.column + columnDelta)
-    new Range(pointA, pointB)
+    new this(pointA, pointB)
 
   @fromText: (args...) ->
     if args.length > 1
@@ -29,7 +29,7 @@ class Range
       endPoint.column = lines[lastIndex].length
     else
       endPoint.column += lines[0].length
-    new Range(startPoint, endPoint)
+    new this(startPoint, endPoint)
 
   constructor: (pointA = new Point(0, 0), pointB = new Point(0, 0)) ->
     pointA = Point.fromObject(pointA)
@@ -42,8 +42,11 @@ class Range
       @start = pointB
       @end = pointA
 
+  serialize: ->
+    [@start.serialize(), @end.serialize()]
+
   copy: ->
-    new Range(@start.copy(), @end.copy())
+    new @constructor(@start.copy(), @end.copy())
 
   freeze: ->
     @start.freeze()
@@ -52,12 +55,12 @@ class Range
 
   isEqual: (other) ->
     if Array.isArray(other) and other.length == 2
-      other = new Range(other...)
+      other = new @constructor(other...)
 
     other.start.isEqual(@start) and other.end.isEqual(@end)
 
   compare: (other) ->
-    other = Range.fromObject(other)
+    other = @constructor.fromObject(other)
     if value = @start.compare(other.start)
       value
     else
@@ -70,10 +73,10 @@ class Range
     @start.row == other.start.row && @end.row == other.end.row
 
   add: (point) ->
-    new Range(@start.add(point), @end.add(point))
+    new @constructor(@start.add(point), @end.add(point))
 
   translate: (startPoint, endPoint=startPoint) ->
-    new Range(@start.translate(startPoint), @end.translate(endPoint))
+    new @constructor(@start.translate(startPoint), @end.translate(endPoint))
 
   intersectsWith: (otherRange) ->
     if @start.isLessThanOrEqual(otherRange.start)
@@ -82,7 +85,7 @@ class Range
       otherRange.intersectsWith(this)
 
   containsRange: (otherRange, exclusive) ->
-    {start, end} = Range.fromObject(otherRange)
+    {start, end} = @constructor.fromObject(otherRange)
     @containsPoint(start, exclusive) and @containsPoint(end, exclusive)
 
   containsPoint: (point, exclusive) ->
@@ -102,7 +105,7 @@ class Range
   union: (otherRange) ->
     start = if @start.isLessThan(otherRange.start) then @start else otherRange.start
     end = if @end.isGreaterThan(otherRange.end) then @end else otherRange.end
-    new Range(start, end)
+    new @constructor(start, end)
 
   isEmpty: ->
     @start.isEqual(@end)
