@@ -188,6 +188,10 @@ class Marker
         @containsPoint(value)
       when 'containsRange'
         @containsRange(value)
+      when 'startRow'
+        @getStartPosition().row is value
+      when 'endRow'
+        @getEndPosition().row is value
       when 'invalidate', 'reversed', 'tailed', 'persistent'
         isEqual(@[key], value)
       else
