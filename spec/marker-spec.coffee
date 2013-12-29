@@ -633,10 +633,10 @@ describe "Marker", ->
       expect(buffer.findMarkers(endPosition: [0, 7])).toEqual [marker4, marker3]
       expect(buffer.findMarkers(endPosition: [0, 7], class: 'b')).toEqual [marker4]
 
-    it "can find markers that contain a position", ->
-      expect(buffer.findMarkers(containsPosition: [0, 0])).toEqual [marker4, marker2, marker1]
-      expect(buffer.findMarkers(containsPosition: [0, 1], class: 'a')).toEqual [marker2, marker1]
-      expect(buffer.findMarkers(containsPosition: [0, 4])).toEqual [marker4, marker2, marker3]
+    it "can find markers that contain a point", ->
+      expect(buffer.findMarkers(containsPoint: [0, 0])).toEqual [marker4, marker2, marker1]
+      expect(buffer.findMarkers(containsPoint: [0, 1], class: 'a')).toEqual [marker2, marker1]
+      expect(buffer.findMarkers(containsPoint: [0, 4])).toEqual [marker4, marker2, marker3]
 
     it "can find markers that contain a range", ->
       expect(buffer.findMarkers(containsRange: [[0, 1], [0, 4]])).toEqual [marker4, marker2]
