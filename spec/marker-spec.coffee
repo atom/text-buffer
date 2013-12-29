@@ -633,18 +633,18 @@ describe "Marker", ->
       expect(buffer.findMarkers(endPosition: [0, 7])).toEqual [marker4, marker3]
       expect(buffer.findMarkers(endPosition: [0, 7], class: 'b')).toEqual [marker4]
 
-    it "can find markers that contain a point", ->
+    it "can find markers that contain a given point", ->
       expect(buffer.findMarkers(containsPoint: [0, 0])).toEqual [marker4, marker2, marker1]
       expect(buffer.findMarkers(containsPoint: [0, 1], class: 'a')).toEqual [marker2, marker1]
       expect(buffer.findMarkers(containsPoint: [0, 4])).toEqual [marker4, marker2, marker3]
 
-    it "can find markers that contain a range", ->
+    it "can find markers that contain a given range", ->
       expect(buffer.findMarkers(containsRange: [[0, 1], [0, 4]])).toEqual [marker4, marker2]
       expect(buffer.findMarkers(containsRange: [[0, 4], [0, 1]])).toEqual [marker4, marker2]
       expect(buffer.findMarkers(containsRange: [[0, 1], [0, 3]])).toEqual [marker4, marker2, marker1]
       expect(buffer.findMarkers(containsRange: [[0, 6], [0, 7]])).toEqual [marker4, marker3]
 
-    it "can find markers that start or end at a certain row", ->
+    it "can find markers that start or end at a given row", ->
       buffer.setTextInRange([[0, 7], [0, 7]], '\n')
       buffer.setTextInRange([[0, 3], [0, 4]], ' \n')
       expect(buffer.findMarkers(startRow: 0)).toEqual [marker4, marker2, marker1]
@@ -652,7 +652,7 @@ describe "Marker", ->
       expect(buffer.findMarkers(endRow: 2)).toEqual [marker4, marker3]
       expect(buffer.findMarkers(startRow: 0, endRow: 2)).toEqual [marker4]
 
-    it "can find markers that intersect a certain row", ->
+    it "can find markers that intersect a given row", ->
       buffer.setTextInRange([[0, 7], [0, 7]], '\n')
       buffer.setTextInRange([[0, 3], [0, 4]], ' \n')
       expect(buffer.findMarkers(intersectsRow: 0)).toEqual [marker4, marker2, marker1]
