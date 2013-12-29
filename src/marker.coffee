@@ -2,6 +2,7 @@
 isEqual = require 'tantamount'
 {Emitter} = require 'emissary'
 Delegator = require 'delegato'
+Serializable = require 'nostalgia'
 MarkerPatch = require './marker-patch'
 Point = require './point'
 Range = require './range'
@@ -12,6 +13,7 @@ module.exports =
 class Marker
   Emitter.includeInto(this)
   Delegator.includeInto(this)
+  Serializable.includeInto(this)
 
   @extractParams: (inputParams) ->
     outputParams = {}
@@ -49,6 +51,14 @@ class Marker
     @destroyed = false
     Object.freeze(@properties)
     @updateIntervals()
+
+  serializeParams: ->
+    range = @range.serialize()
+    {@id, range, @tailed, @reversed, @valid, @invalidate, @persistent, @properties}
+
+  deserializeParams: (state) ->
+    state.range = Range.deserialize(state.range)
+    state
 
   getRange: ->
     if @hasTail()

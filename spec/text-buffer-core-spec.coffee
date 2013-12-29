@@ -286,3 +286,28 @@ describe "TextBufferCore", ->
     it "throws an exception if the offset is out of bounds", ->
       expect(-> buffer.positionForOffset(-1)).toThrow()
       expect(-> buffer.positionForOffset(20)).toThrow()
+
+  describe "serialization", ->
+    it "can serialize / deserialize the buffer along with its history and markers", ->
+      bufferA = new TextBufferCore(text: "hello\nworld\r\nhow are you doing?")
+      bufferA.setTextInRange([[0, 5], [0, 5]], " there")
+      bufferA.transact -> bufferA.setTextInRange([[1, 0], [1, 5]], "friend")
+      marker1A = bufferA.markRange([[0, 1], [1, 2]], reversed: true, foo: 1)
+      marker2A = bufferA.markPosition([2, 2], bar: 2)
+
+      bufferB = TextBufferCore.deserialize(bufferA.serialize())
+
+      expect(bufferB.getText()).toBe "hello there\nfriend\r\nhow are you doing?"
+
+      marker1B = bufferB.getMarker(marker1A.id)
+      marker2B = bufferB.getMarker(marker2A.id)
+      expect(marker1B.getRange()).toEqual [[0, 1], [1, 2]]
+      expect(marker1B.isReversed()).toBe true
+      expect(marker1B.getProperties()).toEqual {foo: 1}
+      expect(marker2B.getHeadPosition()).toEqual [2, 2]
+      expect(marker2B.hasTail()).toBe false
+      expect(marker2B.getProperties()).toEqual {bar: 2}
+
+      bufferB.undo()
+      bufferB.undo()
+      expect(bufferB.getText()).toBe "hello\nworld\r\nhow are you doing?"

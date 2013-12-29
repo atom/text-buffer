@@ -2,6 +2,9 @@ Point = require './point'
 
 module.exports =
 class Range
+  @deserialize: (array) ->
+    new this(array...)
+
   @fromObject: (object, copy) ->
     if Array.isArray(object)
       new this(object...)

@@ -1,19 +1,35 @@
 IntervalSkipList = require 'interval-skip-list'
+Serializable = require 'nostalgia'
 {omit, defaults, values, clone, compact, intersection} = require 'underscore'
 Marker = require './marker'
 Point = require './point'
 Range = require './range'
 
 module.exports =
-class MarkerManager
+class MarkerManager extends Serializable
   nextMarkerId: 1
 
-  constructor: (@textBuffer) ->
-    @markers = {}
-    @intervals = new IntervalSkipList
+  constructor: (@buffer, @markers) ->
+    @intervals ?= @buildIntervals()
+    @markers ?= {}
+
+  buildIntervals: ->
+    new IntervalSkipList
       compare: (a, b) -> a.compare(b)
       minIndex: new Point(-Infinity, -Infinity)
       maxIndex: new Point(Infinity, Infinity)
+
+  serializeParams: ->
+    markers = {}
+    for id, marker of @markers
+      markers[id] = marker.serialize()
+    {markers}
+
+  deserializeParams: (state) ->
+    @intervals = @buildIntervals()
+    for id, markerState of state.markers
+      state.markers[id] = Marker.deserialize(markerState, manager: this)
+    state
 
   markRange: (range, params) ->
     range = Range.fromObject(range, true).freeze()
@@ -70,15 +86,15 @@ class MarkerManager
     params.id = @nextMarkerId++
     marker = new Marker(params)
     @markers[marker.id] = marker
-    @textBuffer.emit 'marker-created', marker
+    @buffer.emit 'marker-created', marker
     marker
 
   removeMarker: (id) ->
     delete @markers[id]
 
   recordMarkerPatch: (patch) ->
-    if @textBuffer.isTransacting()
-      @textBuffer.history.recordNewPatch(patch)
+    if @buffer.isTransacting()
+      @buffer.history.recordNewPatch(patch)
 
   handleBufferChange: (patch) ->
     marker.handleBufferChange(patch) for id, marker of @markers

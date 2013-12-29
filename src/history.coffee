@@ -1,15 +1,27 @@
+Serializable = require 'nostalgia'
 Transaction = require './transaction'
+BufferPatch = require './buffer-patch'
+
 TransactionAborted = new Error("Transaction Aborted")
 
 module.exports =
-class History
+class History extends Serializable
+  @registerDeserializers(Transaction, BufferPatch)
+
   currentTransaction: null
   transactionDepth: 0
   transactCallDepth: 0
 
-  constructor: (@textBuffer) ->
-    @undoStack = []
-    @redoStack = []
+  constructor: (@buffer, @undoStack=[], @redoStack=[]) ->
+
+  serializeParams: ->
+    undoStack: @undoStack.map (patch) -> patch.serialize()
+    redoStack: @redoStack.map (patch) -> patch.serialize()
+
+  deserializeParams: (params) ->
+    params.undoStack = params.undoStack.map (patchState) => @constructor.deserialize(patchState)
+    params.redoStack = params.redoStack.map (patchState) => @constructor.deserialize(patchState)
+    params
 
   recordNewPatch: (patch) ->
     if @currentTransaction?
@@ -22,15 +34,15 @@ class History
     if @currentTransaction?
       @abortTransaction()
     else if patch = @undoStack.pop()
-      inverse = patch.invert(@textBuffer)
+      inverse = patch.invert(@buffer)
       @redoStack.push(inverse)
-      inverse.applyTo(@textBuffer)
+      inverse.applyTo(@buffer)
 
   redo: ->
     if patch = @redoStack.pop()
-      inverse = patch.invert(@textBuffer)
+      inverse = patch.invert(@buffer)
       @undoStack.push(inverse)
-      inverse.applyTo(@textBuffer)
+      inverse.applyTo(@buffer)
 
   transact: (fn) ->
     @beginTransaction()
@@ -58,10 +70,10 @@ class History
 
   abortTransaction: ->
     if @transactCallDepth is 0
-      inverse = @currentTransaction.invert(@textBuffer)
+      inverse = @currentTransaction.invert(@buffer)
       @currentTransaction = null
       @transactionDepth = 0
-      inverse.applyTo(@textBuffer)
+      inverse.applyTo(@buffer)
     else
       throw TransactionAborted
 

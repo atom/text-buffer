@@ -1,4 +1,5 @@
 Delegator = require 'delegato'
+Serializable = require 'nostalgia'
 {Emitter} = require 'emissary'
 SpanSkipList = require 'span-skip-list'
 Point = require './point'
@@ -12,6 +13,7 @@ module.exports =
 class TextBufferCore
   Delegator.includeInto(this)
   Emitter.includeInto(this)
+  Serializable.includeInto(this)
 
   @delegatesMethods 'undo', 'redo', 'transact', 'beginTransaction', 'commitTransaction',
     'abortTransaction', 'isTransacting', toProperty: 'history'
@@ -19,13 +21,23 @@ class TextBufferCore
   @delegatesMethods 'markRange', 'markPosition', 'getMarker', 'getMarkers',
     'findMarkers', toProperty: 'markers'
 
-  constructor: (options) ->
+  constructor: (params) ->
     @lines = ['']
     @lineEndings = ['']
     @offsetIndex = new SpanSkipList('rows', 'characters')
-    @setTextInRange([[0, 0], [0, 0]], options?.text ? '')
-    @history = new History(this)
-    @markers = new MarkerManager(this)
+    @setTextInRange([[0, 0], [0, 0]], params?.text ? '')
+    @history = params?.history ? new History(this)
+    @markers = params?.markers ? new MarkerManager(this)
+
+  deserializeParams: (params) ->
+    params.markers = MarkerManager.deserialize(params.markers, buffer: this)
+    params.history = History.deserialize(params.history, buffer: this)
+    params
+
+  serializeParams: ->
+    text: @getText()
+    markers: @markers.serialize()
+    history: @history.serialize()
 
   getText: ->
     text = ''

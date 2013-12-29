@@ -1,18 +1,26 @@
 {find} = require 'underscore'
+Serializable = require 'nostalgia'
 BufferPatch = require './buffer-patch'
 
 module.exports =
-class Transaction
+class Transaction extends Serializable
   constructor: (@patches=[]) ->
+
+  serializeParams: ->
+    patches: @patches.map (patch) -> patch.serialize()
+
+  deserializeParams: (params) ->
+    params.patches = params.patches.map (patchState) -> BufferPatch.deserialize(patchState)
+    params
 
   push: (patch) ->
     @patches.push(patch)
 
-  invert: (textBuffer) ->
-    new @constructor(@patches.map((patch) -> patch.invert(textBuffer)).reverse())
+  invert: (buffer) ->
+    new @constructor(@patches.map((patch) -> patch.invert(buffer)).reverse())
 
-  applyTo: (textBuffer) ->
-    patch.applyTo(textBuffer) for patch in @patches
+  applyTo: (buffer) ->
+    patch.applyTo(buffer) for patch in @patches
 
   hasBufferPatches: ->
     find @patches, (patch) -> patch instanceof BufferPatch
