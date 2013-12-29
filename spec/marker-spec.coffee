@@ -612,10 +612,15 @@ describe "Marker", ->
 
     beforeEach ->
       marker1 = buffer.markRange([[0, 0], [0, 3]], class: 'a')
-      marker2 = buffer.markRange([[0, 0], [0, 5]], class: 'a', invalidate: 'surround')
+      marker2 = buffer.markRange([[0, 0], [0, 5]], class: 'a', invalidate: 'overlap')
       marker3 = buffer.markRange([[0, 4], [0, 7]], class: 'a')
       marker4 = buffer.markRange([[0, 0], [0, 7]], class: 'b', invalidate: 'never')
 
     it "can find markers based on custom properties", ->
       expect(buffer.findMarkers(class: 'a')).toEqual [marker2, marker1, marker3]
       expect(buffer.findMarkers(class: 'b')).toEqual [marker4]
+
+    it "can find markers based on their invalidation strategy", ->
+      expect(buffer.findMarkers(invalidate: 'surround')).toEqual [marker1, marker3]
+      expect(buffer.findMarkers(invalidate: 'overlap')).toEqual [marker2]
+      expect(buffer.findMarkers(invalidate: 'never')).toEqual [marker4]
