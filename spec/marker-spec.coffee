@@ -624,3 +624,11 @@ describe "Marker", ->
       expect(buffer.findMarkers(invalidate: 'surround')).toEqual [marker1, marker3]
       expect(buffer.findMarkers(invalidate: 'overlap')).toEqual [marker2]
       expect(buffer.findMarkers(invalidate: 'never')).toEqual [marker4]
+
+    it "can find markers that start or end at a given position", ->
+      expect(buffer.findMarkers(startPosition: [0, 0])).toEqual [marker4, marker2, marker1]
+      expect(buffer.findMarkers(startPosition: [0, 0], class: 'a')).toEqual [marker2, marker1]
+      expect(buffer.findMarkers(startPosition: [0, 0], endPosition: [0, 3], class: 'a')).toEqual [marker1]
+      expect(buffer.findMarkers(startPosition: [0, 4], endPosition: [0, 7])).toEqual [marker3]
+      expect(buffer.findMarkers(endPosition: [0, 7])).toEqual [marker4, marker3]
+      expect(buffer.findMarkers(endPosition: [0, 7], class: 'b')).toEqual [marker4]

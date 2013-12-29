@@ -109,6 +109,18 @@ class Marker
 
     @update(params)
 
+  getStartPosition: ->
+    if @reversed
+      @getHeadPosition()
+    else
+      @getTailPosition()
+
+  getEndPosition: ->
+    if @reversed
+      @getTailPosition()
+    else
+      @getHeadPosition()
+
   clearTail: (params) ->
     params = @extractParams(params)
     params.tailed = false
@@ -156,9 +168,20 @@ class Marker
     @getRange().compare(other.getRange())
 
   matchesParams: (params) ->
-    for key, value of @extractParams(params)
-      return false unless isEqual(@[key], value)
+    for key, value of params
+      return false unless @matchesParam(key, value)
     true
+
+  matchesParam: (key, value) ->
+    switch key
+      when 'startPosition'
+        @getStartPosition().isEqual(value)
+      when 'endPosition'
+        @getEndPosition().isEqual(value)
+      when 'invalidate', 'reversed', 'tailed', 'persistent'
+        isEqual(@[key], value)
+      else
+        isEqual(@properties[key], value)
 
   toParams: ->
     {@id, @range, @reversed, @tailed, @invalidate, @persistent, @properties}
