@@ -109,6 +109,7 @@ class TextBufferCore
     @markers?.applyPatches(markerPatches, true)
     @emit 'changed', {oldRange, newRange, oldText, newText}
     @markers?.resumeChangeEvents()
+    @emit 'markers-updated'
 
   getTextInRange: (range) ->
     range = Range.fromObject(range)

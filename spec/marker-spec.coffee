@@ -349,17 +349,22 @@ describe "Marker", ->
           marker.changes = []
           marker.on 'changed', (change) -> marker.changes.push(change)
 
-      bufferChanges = []
-      buffer.once 'changed', (change) ->
-        bufferChanges.push(change)
-        for marker in allStrategies
-          expect(marker.getRange()).toEqual [[0, 8], [0, 11]]
-          expect(marker.isValid()).toBe true
-          expect(marker.changes.length).toBe 0
+      markersUpdatedCount = 0
+      buffer.on 'markers-updated', -> markersUpdatedCount++
+
+      changedCount = 0
+      changeSubscription =
+        buffer.on 'changed', (change) ->
+          changedCount++
+          expect(markersUpdatedCount).toBe 0
+          for marker in allStrategies
+            expect(marker.getRange()).toEqual [[0, 8], [0, 11]]
+            expect(marker.isValid()).toBe true
+            expect(marker.changes.length).toBe 0
 
       buffer.setTextInRange([[0, 1], [0, 2]], "ABC")
 
-      expect(bufferChanges.length).toBe 1
+      expect(changedCount).toBe 1
       for marker in allStrategies
         expect(marker.changes).toEqual [{
           oldHeadPosition: [0, 9], newHeadPosition: [0, 11]
@@ -369,19 +374,23 @@ describe "Marker", ->
           oldProperties: {}, newProperties: {}
           bufferChanged: true
         }]
+      expect(markersUpdatedCount).toBe 1
 
       marker.changes = [] for marker in allStrategies
-      bufferChanges = []
-      buffer.once 'changed', (change) ->
-        bufferChanges.push(change)
+      changeSubscription.off()
+      changedCount = 0
+      markersUpdatedCount = 0
+      buffer.on 'changed', (change) ->
+        changedCount++
+        expect(markersUpdatedCount).toBe 0
         for marker in allStrategies
           expect(marker.getRange()).toEqual [[0, 6], [0, 9]]
           expect(marker.isValid()).toBe true
           expect(marker.changes.length).toBe 0
 
       buffer.undo()
-      expect(bufferChanges.length).toBe 1
 
+      expect(changedCount).toBe 1
       for marker in allStrategies
         expect(marker.changes).toEqual [{
           oldHeadPosition: [0, 11], newHeadPosition: [0, 9]
@@ -391,6 +400,7 @@ describe "Marker", ->
           oldProperties: {}, newProperties: {}
           bufferChanged: true
         }]
+      expect(markersUpdatedCount).toBe 1
 
     describe "when a change precedes a marker", ->
       it "shifts the marker based on the characters inserted or removed by the change", ->
