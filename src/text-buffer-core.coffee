@@ -16,7 +16,7 @@ class TextBufferCore
   Serializable.includeInto(this)
 
   @delegatesMethods 'undo', 'redo', 'transact', 'beginTransaction', 'commitTransaction',
-    'abortTransaction', 'isTransacting', toProperty: 'history'
+    'abortTransaction', 'isTransacting', 'clearUndoStack', toProperty: 'history'
 
   @delegatesMethods 'markRange', 'markPosition', 'getMarker', 'getMarkers',
     'findMarkers', toProperty: 'markers'

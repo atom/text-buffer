@@ -28,7 +28,7 @@ class History extends Serializable
       @currentTransaction.push(patch)
     else
       @undoStack.push(patch)
-    @redoStack.length = 0
+    @clearRedoStack()
 
   undo: ->
     if @currentTransaction?
@@ -79,3 +79,9 @@ class History extends Serializable
 
   isTransacting: ->
     @currentTransaction?
+
+  clearUndoStack: ->
+    @undoStack.length = 0
+
+  clearRedoStack: ->
+    @redoStack.length = 0
