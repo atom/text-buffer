@@ -268,11 +268,10 @@ describe "TextBuffer", ->
       expect(buffer.characterIndexForPosition([3, 0])).toBe 14
       expect(buffer.characterIndexForPosition([3, 5])).toBe 19
 
-    it "throws an exception if the position is out of bounds", ->
-      expect(-> buffer.characterIndexForPosition([-1, 0])).toThrow()
-      expect(-> buffer.characterIndexForPosition([0, -1])).toThrow()
-      expect(-> buffer.characterIndexForPosition([0, 5])).toThrow()
-      expect(-> buffer.characterIndexForPosition([4, 0])).toThrow()
+    it "clips the given position before translating", ->
+      expect(buffer.characterIndexForPosition([-1, -1])).toBe 0
+      expect(buffer.characterIndexForPosition([1, 100])).toBe 8
+      expect(buffer.characterIndexForPosition([100, 100])).toBe 19
 
   describe "::positionForCharacterIndex(offset)", ->
     beforeEach ->

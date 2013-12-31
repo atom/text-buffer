@@ -173,7 +173,7 @@ class TextBuffer
     new Point(lastRow, @lineLengthForRow(lastRow))
 
   characterIndexForPosition: (position) ->
-    {row, column} = Point.fromObject(position)
+    {row, column} = @clipPosition(Point.fromObject(position))
 
     if row < 0 or row > @getLastRow() or column < 0 or column > @lineLengthForRow(row)
       throw new Error("Position #{position} is invalid")
