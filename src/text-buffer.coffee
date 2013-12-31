@@ -172,7 +172,7 @@ class TextBuffer
     lastRow = @getLastRow()
     new Point(lastRow, @lineLengthForRow(lastRow))
 
-  offsetForPosition: (position) ->
+  characterIndexForPosition: (position) ->
     {row, column} = Point.fromObject(position)
 
     if row < 0 or row > @getLastRow() or column < 0 or column > @lineLengthForRow(row)
@@ -181,7 +181,7 @@ class TextBuffer
     {characters} = @offsetIndex.totalTo(row, 'rows')
     characters + column
 
-  positionForOffset: (offset) ->
+  positionForCharacterIndex: (offset) ->
     if offset < 0 or offset > @getMaxOffset()
       throw new Error("Offset #{offset} is out of range")
 
