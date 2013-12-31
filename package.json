@@ -2,7 +2,7 @@
   "name": "text-buffer-core",
   "version": "0.0.0",
   "description": "A container for large mutable strings with annotated regions",
-  "main": "./lib/text-buffer-core",
+  "main": "./lib/main",
   "scripts": {
     "prepublish": "grunt clean lint coffee",
     "test": "grunt test"
