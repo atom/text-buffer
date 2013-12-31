@@ -38,7 +38,7 @@ class Range
     pointA = Point.fromObject(pointA)
     pointB = Point.fromObject(pointB)
 
-    if pointA.compare(pointB) <= 0
+    if pointA.isLessThanOrEqual(pointB)
       @start = pointA
       @end = pointB
     else
