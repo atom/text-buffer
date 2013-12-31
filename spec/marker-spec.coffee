@@ -317,6 +317,13 @@ describe "Marker", ->
         expect(marker.getRange()).toEqual [12, 15]
         expect(changes).toEqual []
 
+    describe "::setProperties(properties)", ->
+      it "merges the given properties into the current properties", ->
+        marker.setProperties(foo: 1)
+        expect(marker.getProperties()).toEqual {foo: 1}
+        marker.setProperties(bar: 2)
+        expect(marker.getProperties()).toEqual {foo: 1, bar: 2}
+
     it "only allows direct manipulations to be undone if they are part of a transaction with other buffer changes", ->
       # Can't undo standalone changes
       marker.setRange([[0, 7], [0, 11]])

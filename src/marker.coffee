@@ -169,6 +169,9 @@ class Marker
   getProperties: ->
     @properties
 
+  setProperties: (properties) ->
+    @update(properties: extend({}, @getProperties(), properties))
+
   copy: (params) ->
     @manager.createMarker(extend(@toParams(), @extractParams(params)))
 
