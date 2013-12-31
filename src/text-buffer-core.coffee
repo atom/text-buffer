@@ -45,6 +45,12 @@ class TextBufferCore
       text += (@lineForRow(row) + @lineEndingForRow(row))
     text
 
+  getLines: ->
+    @lines.slice()
+
+  isEmpty: ->
+    @getLastRow() is 0 and @lineLengthForRow(0) is 0
+
   getLineCount: ->
     @lines.length
 
