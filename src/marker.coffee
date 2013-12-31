@@ -166,6 +166,14 @@ class Marker
   getInvalidationStrategy: ->
     @invalidate
 
+  # Deprecated: Use ::getProperties instead
+  getAttributes: ->
+    @getProperties()
+
+  # Deprecated: Use ::setProperties instead
+  setAttributes: (args...) ->
+    @setProperties(args...)
+
   getProperties: ->
     @properties
 
@@ -187,6 +195,10 @@ class Marker
 
   compare: (other) ->
     @range.compare(other.range)
+
+  # Deprecated: Use ::matchesParams instead
+  matchesAttributes: (args...) ->
+    @matchesParams(args...)
 
   matchesParams: (params) ->
     for key, value of params
