@@ -122,7 +122,7 @@ class TextBuffer
     @emit 'markers-updated'
 
   getTextInRange: (range) ->
-    range = Range.fromObject(range)
+    range = @clipRange(Range.fromObject(range))
     startRow = range.start.row
     endRow = range.end.row
 

@@ -236,6 +236,10 @@ describe "TextBuffer", ->
       expect(buffer.getTextInRange([[0, 3], [2, 3]])).toBe "lo\nworld\r\nhow"
       expect(buffer.getTextInRange([[0, 0], [2, 18]])).toBe buffer.getText()
 
+    it "clips the given range", ->
+      buffer = new TextBuffer(text: "hello\nworld\r\nhow are you doing?")
+      expect(buffer.getTextInRange([[-100, -100], [100, 100]])).toBe buffer.getText()
+
   describe "::clipPosition(position)", ->
     it "returns a valid position closest to the given position", ->
       buffer = new TextBuffer(text: "hello\nworld\r\nhow are you doing?")
