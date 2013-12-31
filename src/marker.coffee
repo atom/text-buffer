@@ -160,6 +160,9 @@ class Marker
   isDestroyed: ->
     @destroyed
 
+  isEqual: (other) ->
+    isEqual(@toParams(true), other.toParams(true))
+
   getInvalidationStrategy: ->
     @invalidate
 
@@ -208,8 +211,10 @@ class Marker
       else
         isEqual(@properties[key], value)
 
-  toParams: ->
-    {@id, @range, @reversed, @tailed, @invalidate, @persistent, @properties}
+  toParams: (omitId) ->
+    params = {@range, @reversed, @tailed, @invalidate, @persistent, @properties}
+    params.id = @id unless omitId
+    params
 
   update: (params) ->
     if patch = @buildPatch(params)
