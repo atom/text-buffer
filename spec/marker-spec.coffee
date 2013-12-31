@@ -76,7 +76,7 @@ describe "Marker", ->
           hadTail: true, hasTail: true
           wasValid: true, isValid: true
           oldProperties: {}, newProperties: {}
-          bufferChanged: false
+          textChanged: false
         }]
 
         changes = []
@@ -89,7 +89,7 @@ describe "Marker", ->
           hadTail: true, hasTail: true
           wasValid: true, isValid: true
           oldProperties: {}, newProperties: {}
-          bufferChanged: false
+          textChanged: false
         }]
 
         changes = []
@@ -102,7 +102,7 @@ describe "Marker", ->
           hadTail: true, hasTail: true
           wasValid: true, isValid: true
           oldProperties: {}, newProperties: {}
-          bufferChanged: false
+          textChanged: false
         }]
 
       it "does not emit an event and returns false if the position isn't actually changed", ->
@@ -117,7 +117,7 @@ describe "Marker", ->
           hadTail: true, hasTail: true
           wasValid: true, isValid: true
           oldProperties: {}, newProperties: {foo: 1}
-          bufferChanged: false
+          textChanged: false
         }]
 
         changes = []
@@ -129,7 +129,7 @@ describe "Marker", ->
           hadTail: true, hasTail: true
           wasValid: true, isValid: true
           oldProperties: {foo: 1}, newProperties: {foo: 1, bar: 2}
-          bufferChanged: false
+          textChanged: false
         }]
 
     describe "::setTailPosition(position, state)", ->
@@ -143,7 +143,7 @@ describe "Marker", ->
           hadTail: true, hasTail: true
           wasValid: true, isValid: true
           oldProperties: {}, newProperties: {}
-          bufferChanged: false
+          textChanged: false
         }]
 
         changes = []
@@ -156,7 +156,7 @@ describe "Marker", ->
           hadTail: true, hasTail: true
           wasValid: true, isValid: true
           oldProperties: {}, newProperties: {}
-          bufferChanged: false
+          textChanged: false
         }]
 
         changes = []
@@ -169,7 +169,7 @@ describe "Marker", ->
           hadTail: true, hasTail: true
           wasValid: true, isValid: true
           oldProperties: {}, newProperties: {}
-          bufferChanged: false
+          textChanged: false
         }]
 
       it "does not emit an event and returns false if the position isn't actually changed", ->
@@ -184,7 +184,7 @@ describe "Marker", ->
           hadTail: true, hasTail: true
           wasValid: true, isValid: true
           oldProperties: {}, newProperties: {foo: 1}
-          bufferChanged: false
+          textChanged: false
         }]
 
         changes = []
@@ -196,7 +196,7 @@ describe "Marker", ->
           hadTail: true, hasTail: true
           wasValid: true, isValid: true
           oldProperties: {foo: 1}, newProperties: {foo: 1, bar: 2}
-          bufferChanged: false
+          textChanged: false
         }]
 
     describe "::setRange(range, options)", ->
@@ -212,7 +212,7 @@ describe "Marker", ->
           hadTail: true, hasTail: true
           wasValid: true, isValid: true
           oldProperties: {}, newProperties: {}
-          bufferChanged: false
+          textChanged: false
         }]
 
         changes = []
@@ -227,7 +227,7 @@ describe "Marker", ->
           hadTail: true, hasTail: true
           wasValid: true, isValid: true
           oldProperties: {}, newProperties: {}
-          bufferChanged: false
+          textChanged: false
         }]
 
       it "allows new properties to be assigned to the state", ->
@@ -238,7 +238,7 @@ describe "Marker", ->
           hadTail: true, hasTail: true
           wasValid: true, isValid: true
           oldProperties: {}, newProperties: {foo: 1}
-          bufferChanged: false
+          textChanged: false
         }]
 
         changes = []
@@ -250,7 +250,7 @@ describe "Marker", ->
           hadTail: true, hasTail: true
           wasValid: true, isValid: true
           oldProperties: {foo: 1}, newProperties: {foo: 1, bar: 2}
-          bufferChanged: false
+          textChanged: false
         }]
 
     describe "::clearTail() / ::plantTail()", ->
@@ -269,7 +269,7 @@ describe "Marker", ->
           hadTail: true, hasTail: false
           wasValid: true, isValid: true
           oldProperties: {}, newProperties: {}
-          bufferChanged: false
+          textChanged: false
         }]
 
         return
@@ -283,7 +283,7 @@ describe "Marker", ->
           hadTail: false, hasTail: false
           wasValid: true, isValid: true
           oldProperties: {}, newProperties: {}
-          bufferChanged: false
+          textChanged: false
         }]
 
         changes = []
@@ -297,7 +297,7 @@ describe "Marker", ->
           hadTail: false, hasTail: true
           wasValid: true, isValid: true
           oldProperties: {}, newProperties: {}
-          bufferChanged: false
+          textChanged: false
         }]
 
         changes = []
@@ -309,7 +309,7 @@ describe "Marker", ->
           hadTail: true, hasTail: true
           wasValid: true, isValid: true
           oldProperties: {}, newProperties: {}
-          bufferChanged: false
+          textChanged: false
         }]
 
         changes = []
@@ -383,7 +383,7 @@ describe "Marker", ->
           hadTail: true, hasTail: true
           wasValid: true, isValid: true
           oldProperties: {}, newProperties: {}
-          bufferChanged: true
+          textChanged: true
         }]
       expect(markersUpdatedCount).toBe 1
 
@@ -409,7 +409,7 @@ describe "Marker", ->
           hadTail: true, hasTail: true
           wasValid: true, isValid: true
           oldProperties: {}, newProperties: {}
-          bufferChanged: true
+          textChanged: true
         }]
       expect(markersUpdatedCount).toBe 1
 

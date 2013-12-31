@@ -283,7 +283,7 @@ class Marker
     if size(newParams)
       new MarkerPatch(@id, oldParams, newParams)
 
-  applyPatch: (patch, bufferChanged=false) ->
+  applyPatch: (patch, textChanged=false) ->
     oldHeadPosition = @getHeadPosition()
     oldTailPosition = @getTailPosition()
     wasValid = @isValid()
@@ -324,7 +324,7 @@ class Marker
 
     @emit 'changed', {
       oldHeadPosition, newHeadPosition, oldTailPosition, newTailPosition
-      wasValid, isValid, hadTail, hasTail, oldProperties, newProperties, bufferChanged
+      wasValid, isValid, hadTail, hasTail, oldProperties, newProperties, textChanged
     }
     true
 

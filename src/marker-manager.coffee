@@ -99,9 +99,9 @@ class MarkerManager extends Serializable
   handleBufferChange: (patch) ->
     marker.handleBufferChange(patch) for id, marker of @markers
 
-  applyPatches: (markerPatches, bufferChanged) ->
+  applyPatches: (markerPatches, textChanged) ->
     for id, patch of markerPatches
-      @getMarker(id)?.applyPatch(patch, bufferChanged)
+      @getMarker(id)?.applyPatch(patch, textChanged)
 
   pauseChangeEvents: ->
     marker.pauseEvents('changed') for marker in @getMarkers()
