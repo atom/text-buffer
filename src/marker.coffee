@@ -45,7 +45,7 @@ class Marker
     @tailed ?= true
     @reversed ?= false
     @valid ?= true
-    @invalidate ?= 'surround'
+    @invalidate ?= 'overlap'
     @persistent ?= true
     @properties ?= {}
     @destroyed = false
