@@ -57,6 +57,8 @@ class Range
     Object.freeze(this)
 
   isEqual: (other) ->
+    return false unless other?
+
     if Array.isArray(other) and other.length == 2
       other = new @constructor(other...)
 
