@@ -132,6 +132,10 @@ describe "Marker", ->
           textChanged: false
         }]
 
+      it "clips the assigned position", ->
+        marker.setHeadPosition([100, 100])
+        expect(marker.getHeadPosition()).toEqual [0, 26]
+
     describe "::setTailPosition(position, state)", ->
       it "sets the head position of the marker, flipping its orientation if necessary", ->
         marker.setTailPosition([0, 3])
@@ -199,6 +203,10 @@ describe "Marker", ->
           textChanged: false
         }]
 
+      it "clips the assigned position", ->
+        marker.setTailPosition([100, 100])
+        expect(marker.getTailPosition()).toEqual [0, 26]
+
     describe "::setRange(range, options)", ->
       it "sets the head and tail position simultaneously, flipping the orientation if the 'isReversed' option is true", ->
         marker.setRange([[0, 8], [0, 12]])
@@ -252,6 +260,10 @@ describe "Marker", ->
           oldProperties: {foo: 1}, newProperties: {foo: 1, bar: 2}
           textChanged: false
         }]
+
+      it "clips the assigned range", ->
+        marker.setRange([[-100, -100], [100, 100]])
+        expect(marker.getRange()).toEqual [[0, 0], [0, 26]]
 
     describe "::clearTail() / ::plantTail()", ->
       it "clears the tail / plants the tail at the current head position", ->

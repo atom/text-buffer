@@ -38,6 +38,7 @@ class Marker
       delete params.persist
 
   @delegatesMethods 'containsPoint', 'containsRange', 'intersectsRow', toProperty: 'range'
+  @delegatesMethods 'clipPosition', 'clipRange', toProperty: 'manager'
 
   constructor: (params) ->
     {@manager, @id, @range, @tailed, @reversed} = params
@@ -68,7 +69,7 @@ class Marker
 
   setRange: (range, params) ->
     params = @extractParams(params)
-    params.range = Range.fromObject(range, true)
+    params.range = @clipRange(Range.fromObject(range, true))
     @update(params)
 
   getHeadPosition: ->
@@ -78,7 +79,7 @@ class Marker
       @range.end
 
   setHeadPosition: (position, params) ->
-    position = Point.fromObject(position, true)
+    position = @clipPosition(Point.fromObject(position, true))
     params = @extractParams(params)
 
     if @reversed
@@ -106,7 +107,7 @@ class Marker
       @getHeadPosition()
 
   setTailPosition: (position, params) ->
-    position = Point.fromObject(position, true)
+    position = @clipPosition(Point.fromObject(position, true))
     params = @extractParams(params)
 
     if @reversed

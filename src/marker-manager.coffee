@@ -1,12 +1,18 @@
 IntervalSkipList = require 'interval-skip-list'
 Serializable = require 'nostalgia'
+Delegator = require 'delegato'
 {omit, defaults, values, clone, compact, intersection} = require 'underscore'
 Marker = require './marker'
 Point = require './point'
 Range = require './range'
 
 module.exports =
-class MarkerManager extends Serializable
+class MarkerManager
+  Serializable.includeInto(this)
+  Delegator.includeInto(this)
+
+  @delegatesMethods 'clipPosition', 'clipRange', toProperty: 'buffer'
+
   nextMarkerId: 1
 
   constructor: (@buffer, @markers) ->
@@ -32,13 +38,13 @@ class MarkerManager extends Serializable
     state
 
   markRange: (range, params) ->
-    range = @buffer.clipRange(Range.fromObject(range, true)).freeze()
+    range = @clipRange(Range.fromObject(range, true)).freeze()
     params = Marker.extractParams(params)
     params.range = range
     @createMarker(params)
 
   markPosition: (position, options) ->
-    @markRange([position, position], defaults({hasTail: false}, options))
+    @markRange(new Range(position, position), defaults({hasTail: false}, options))
 
   getMarker: (id) ->
     @markers[id]
