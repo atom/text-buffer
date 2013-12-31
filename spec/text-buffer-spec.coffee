@@ -289,9 +289,9 @@ describe "TextBuffer", ->
       expect(buffer.positionForCharacterIndex(14)).toEqual [3, 0]
       expect(buffer.positionForCharacterIndex(19)).toEqual [3, 5]
 
-    it "throws an exception if the offset is out of bounds", ->
-      expect(-> buffer.positionForCharacterIndex(-1)).toThrow()
-      expect(-> buffer.positionForCharacterIndex(20)).toThrow()
+    it "clips the given offset before translating", ->
+      expect(buffer.positionForCharacterIndex(-1)).toEqual [0, 0]
+      expect(buffer.positionForCharacterIndex(20)).toEqual [3, 5]
 
   describe "serialization", ->
     it "can serialize / deserialize the buffer along with its history and markers", ->

@@ -182,8 +182,8 @@ class TextBuffer
     characters + column
 
   positionForCharacterIndex: (offset) ->
-    if offset < 0 or offset > @getMaxOffset()
-      throw new Error("Offset #{offset} is out of range")
+    offset = Math.max(0, offset)
+    offset = Math.min(@getMaxCharacterIndex(), offset)
 
     {rows, characters} = @offsetIndex.totalTo(offset, 'characters')
     if rows > @getLastRow()
@@ -191,5 +191,5 @@ class TextBuffer
     else
       new Point(rows, offset - characters)
 
-  getMaxOffset: ->
+  getMaxCharacterIndex: ->
     @offsetIndex.totalTo(Infinity, 'rows').characters
