@@ -11,6 +11,9 @@ BufferPatch = require './buffer-patch'
 
 module.exports =
 class TextBuffer
+  @Point: Point
+  @Range: Range
+
   Delegator.includeInto(this)
   Emitter.includeInto(this)
   Serializable.includeInto(this)
