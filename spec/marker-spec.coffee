@@ -105,6 +105,13 @@ describe "Marker", ->
           textChanged: false
         }]
 
+      it "does not give the marker a tail if it doesn't have one already", ->
+        marker.clearTail()
+        expect(marker.hasTail()).toBe false
+        marker.setHeadPosition([0, 15])
+        expect(marker.hasTail()).toBe false
+        expect(marker.getRange()).toEqual [[0, 15], [0, 15]]
+
       it "does not emit an event and returns false if the position isn't actually changed", ->
         expect(marker.setHeadPosition(marker.getHeadPosition())).toBe false
         expect(changes.length).toBe 0
@@ -176,6 +183,13 @@ describe "Marker", ->
           textChanged: false
         }]
 
+      it "plants the tail of the marker if it does not have a tail", ->
+        marker.clearTail()
+        expect(marker.hasTail()).toBe false
+        marker.setTailPosition([0, 0])
+        expect(marker.hasTail()).toBe true
+        expect(marker.getRange()).toEqual [[0, 0], [0, 9]]
+
       it "does not emit an event and returns false if the position isn't actually changed", ->
         expect(marker.setTailPosition(marker.getTailPosition())).toBe false
         expect(changes.length).toBe 0
@@ -237,6 +251,13 @@ describe "Marker", ->
           oldProperties: {}, newProperties: {}
           textChanged: false
         }]
+
+      it "plants the tail of the marker if it does not have a tail", ->
+        marker.clearTail()
+        expect(marker.hasTail()).toBe false
+        marker.setRange([[0, 1], [0, 10]])
+        expect(marker.hasTail()).toBe true
+        expect(marker.getRange()).toEqual [[0, 1], [0, 10]]
 
       it "allows new properties to be assigned to the state", ->
         marker.setRange([[0, 1], [0, 2]], foo: 1)

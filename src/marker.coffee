@@ -62,13 +62,11 @@ class Marker
     state
 
   getRange: ->
-    if @hasTail()
-      @range
-    else
-      new Range(@getHeadPosition(), @getHeadPosition())
+    @range
 
   setRange: (range, params) ->
     params = @extractParams(params)
+    params.tailed = true
     params.range = @clipRange(Range.fromObject(range, true))
     @update(params)
 
@@ -82,18 +80,22 @@ class Marker
     position = @clipPosition(Point.fromObject(position, true))
     params = @extractParams(params)
 
-    if @reversed
-      if position.isLessThan(@range.end)
-        params.range = new Range(position, @range.end)
+    if @hasTail()
+      if @isReversed()
+        if position.isLessThan(@range.end)
+          params.range = new Range(position, @range.end)
+        else
+          params.reversed = false
+          params.range = new Range(@range.end, position)
       else
-        params.reversed = false
-        params.range = new Range(@range.end, position)
+        if position.isLessThan(@range.start)
+          params.reversed = true
+          params.range = new Range(position, @range.start)
+        else
+          params.range = new Range(@range.start, position)
     else
-      if position.isLessThan(@range.start)
-        params.reversed = true
-        params.range = new Range(position, @range.start)
-      else
-        params.range = new Range(@range.start, position)
+      params.range = new Range(position, position)
+
 
     @update(params)
 
@@ -109,6 +111,7 @@ class Marker
   setTailPosition: (position, params) ->
     position = @clipPosition(Point.fromObject(position, true))
     params = @extractParams(params)
+    params.tailed = true
 
     if @reversed
       if position.isLessThan(@range.start)
@@ -140,6 +143,8 @@ class Marker
   clearTail: (params) ->
     params = @extractParams(params)
     params.tailed = false
+    headPosition = @getHeadPosition()
+    params.range = new Range(headPosition, headPosition)
     @update(params)
 
   plantTail: (params) ->
