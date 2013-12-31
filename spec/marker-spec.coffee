@@ -1,15 +1,15 @@
 {difference} = require 'underscore'
-TextBufferCore = require '../src/text-buffer-core'
+TextBuffer = require '../src/text-buffer'
 
 describe "Marker", ->
   [buffer, markerCreations] = []
   beforeEach ->
-    buffer = new TextBufferCore(text: "abcdefghijklmnopqrstuvwxyz")
+    buffer = new TextBuffer(text: "abcdefghijklmnopqrstuvwxyz")
     markerCreations = []
     buffer.on 'marker-created', (marker) -> markerCreations.push(marker)
 
   describe "creation", ->
-    describe "TextBufferCore::markRange(range, properties)", ->
+    describe "TextBuffer::markRange(range, properties)", ->
       it "creates a marker for the given range with the given properties", ->
         marker = buffer.markRange([[0, 3], [0, 6]])
         expect(marker.getRange()).toEqual [[0, 3], [0, 6]]
@@ -39,7 +39,7 @@ describe "Marker", ->
         marker = buffer.markRange([[-100, -100], [100, 100]])
         expect(marker.getRange()).toEqual [[0, 0], [0, 26]]
 
-    describe "TextBufferCore::markPosition(position, properties)", ->
+    describe "TextBuffer::markPosition(position, properties)", ->
       it "creates a tail-less marker at the given position", ->
         marker = buffer.markPosition([0, 6])
         expect(marker.getRange()).toEqual [[0, 6], [0, 6]]
@@ -661,7 +661,7 @@ describe "Marker", ->
       expect(marker.isDestroyed()).toBe true
       expect(marker.isValid()).toBe false
 
-  describe "TextBufferCore::findMarkers(properties)", ->
+  describe "TextBuffer::findMarkers(properties)", ->
     [marker1, marker2, marker3, marker4] = []
 
     beforeEach ->

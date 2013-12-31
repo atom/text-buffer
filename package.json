@@ -1,5 +1,5 @@
 {
-  "name": "text-buffer-core",
+  "name": "text-buffer",
   "version": "0.0.0",
   "description": "A container for large mutable strings with annotated regions",
   "main": "./lib/main",
@@ -9,15 +9,15 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/atom/text-buffer-core.git"
+    "url": "https://github.com/atom/text-buffer.git"
   },
   "bugs": {
-    "url": "https://github.com/atom/text-buffer-core/issues"
+    "url": "https://github.com/atom/text-buffer/issues"
   },
   "licenses": [
     {
       "type": "MIT",
-      "url": "http://github.com/atom/text-buffer-core/raw/master/LICENSE.md"
+      "url": "http://github.com/atom/text-buffer/raw/master/LICENSE.md"
     }
   ],
   "devDependencies": {

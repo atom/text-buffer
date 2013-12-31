@@ -10,7 +10,7 @@ BufferPatch = require './buffer-patch'
 {spliceArray} = require './helpers'
 
 module.exports =
-class TextBufferCore
+class TextBuffer
   Delegator.includeInto(this)
   Emitter.includeInto(this)
   Serializable.includeInto(this)

@@ -1,11 +1,11 @@
-TextBufferCore = require '../src/text-buffer-core'
+TextBuffer = require '../src/text-buffer'
 
-describe "TextBufferCore", ->
+describe "TextBuffer", ->
   buffer = null
 
   describe "construction", ->
     it "can be constructed empty", ->
-      buffer = new TextBufferCore
+      buffer = new TextBuffer
       expect(buffer.getLineCount()).toBe 1
       expect(buffer.getText()).toBe ''
       expect(buffer.lineForRow(0)).toBe ''
@@ -13,7 +13,7 @@ describe "TextBufferCore", ->
 
     it "can be constructed with initial text", ->
       text = "hello\nworld\r\nhow are you doing?"
-      buffer = new TextBufferCore({text})
+      buffer = new TextBuffer({text})
       expect(buffer.getLineCount()).toBe 3
       expect(buffer.getText()).toBe text
       expect(buffer.lineForRow(0)).toBe 'hello'
@@ -25,7 +25,7 @@ describe "TextBufferCore", ->
 
   describe "::setTextInRange(range, text)", ->
     beforeEach ->
-      buffer = new TextBufferCore(text: "hello\nworld\r\nhow are you doing?")
+      buffer = new TextBuffer(text: "hello\nworld\r\nhow are you doing?")
 
     it "can replace text on a single line with a standard newline", ->
       buffer.setTextInRange([[0, 2], [0, 4]], "y y")
@@ -59,7 +59,7 @@ describe "TextBufferCore", ->
 
   describe "::undo() and ::redo()", ->
     beforeEach ->
-      buffer = new TextBufferCore(text: "hello\nworld\r\nhow are you doing?")
+      buffer = new TextBuffer(text: "hello\nworld\r\nhow are you doing?")
 
     it "undoes and redoes multiple changes", ->
       buffer.setTextInRange([[0, 5], [0, 5]], " there")
@@ -110,7 +110,7 @@ describe "TextBufferCore", ->
 
   describe "transactions", ->
     beforeEach ->
-      buffer = new TextBufferCore(text: "hello\nworld\r\nhow are you doing?")
+      buffer = new TextBuffer(text: "hello\nworld\r\nhow are you doing?")
 
     describe "::beginTransaction()", ->
       beforeEach ->
@@ -231,14 +231,14 @@ describe "TextBufferCore", ->
 
   describe "::getTextInRange(range)", ->
     it "returns the text in a given range", ->
-      buffer = new TextBufferCore(text: "hello\nworld\r\nhow are you doing?")
+      buffer = new TextBuffer(text: "hello\nworld\r\nhow are you doing?")
       expect(buffer.getTextInRange([[1, 1], [1, 4]])).toBe "orl"
       expect(buffer.getTextInRange([[0, 3], [2, 3]])).toBe "lo\nworld\r\nhow"
       expect(buffer.getTextInRange([[0, 0], [2, 18]])).toBe buffer.getText()
 
   describe "::clipPosition(position)", ->
     it "returns a valid position closest to the given position", ->
-      buffer = new TextBufferCore(text: "hello\nworld\r\nhow are you doing?")
+      buffer = new TextBuffer(text: "hello\nworld\r\nhow are you doing?")
       expect(buffer.clipPosition([-1, -1])).toEqual [0, 0]
       expect(buffer.clipPosition([-1, 2])).toEqual [0, 0]
       expect(buffer.clipPosition([0, -1])).toEqual [0, 0]
@@ -250,7 +250,7 @@ describe "TextBufferCore", ->
 
   describe "::offsetForPosition(position)", ->
     beforeEach ->
-      buffer = new TextBufferCore(text: "zero\none\r\ntwo\nthree")
+      buffer = new TextBuffer(text: "zero\none\r\ntwo\nthree")
 
     it "returns the absolute character offset for the given position", ->
       expect(buffer.offsetForPosition([0, 0])).toBe 0
@@ -272,7 +272,7 @@ describe "TextBufferCore", ->
 
   describe "::positionForOffset(offset)", ->
     beforeEach ->
-      buffer = new TextBufferCore(text: "zero\none\r\ntwo\nthree")
+      buffer = new TextBuffer(text: "zero\none\r\ntwo\nthree")
 
     it "returns the position for the given absolute character offset", ->
       expect(buffer.positionForOffset(0)).toEqual [0, 0]
@@ -292,13 +292,13 @@ describe "TextBufferCore", ->
 
   describe "serialization", ->
     it "can serialize / deserialize the buffer along with its history and markers", ->
-      bufferA = new TextBufferCore(text: "hello\nworld\r\nhow are you doing?")
+      bufferA = new TextBuffer(text: "hello\nworld\r\nhow are you doing?")
       bufferA.setTextInRange([[0, 5], [0, 5]], " there")
       bufferA.transact -> bufferA.setTextInRange([[1, 0], [1, 5]], "friend")
       marker1A = bufferA.markRange([[0, 1], [1, 2]], reversed: true, foo: 1)
       marker2A = bufferA.markPosition([2, 2], bar: 2)
 
-      bufferB = TextBufferCore.deserialize(bufferA.serialize())
+      bufferB = TextBuffer.deserialize(bufferA.serialize())
 
       expect(bufferB.getText()).toBe "hello there\nfriend\r\nhow are you doing?"
 

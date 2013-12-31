@@ -1,4 +1,4 @@
 module.exports =
-  TextBufferCore: require './text-buffer-core'
+  TextBuffer: require './text-buffer'
   Point: require './point'
   Range: require './range'
