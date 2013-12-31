@@ -261,26 +261,22 @@ class Marker
 
     newMarkerRange = @range.copy()
 
-    # Calculate new marker start position
-    changeIsInsideMarker = @hasTail() and @range.containsRange(oldRange)
-    if oldRange.start.isLessThanOrEqual(markerStart) and not changeIsInsideMarker
-      if oldRange.end.isLessThanOrEqual(markerStart)
-        # Change precedes marker start position; shift position according to row/column delta
-        newMarkerRange.start.row += rowDelta
-        newMarkerRange.start.column += columnDelta if oldRange.end.row is markerStart.row
-      else
-        # Change surrounds marker start position; move position to the end of the change
-        newMarkerRange.start = newRange.end
+    changePrecedesMarkerStart = oldRange.end.isLessThan(markerStart) or (not @hasTail() and oldRange.end.isLessThanOrEqual(markerStart))
+    changeSurroundsMarkerStart = not changePrecedesMarkerStart and oldRange.start.isLessThan(markerStart)
+    changePrecedesMarkerEnd = oldRange.end.isLessThanOrEqual(markerEnd)
+    changeSurroundsMarkerEnd = not changePrecedesMarkerEnd and oldRange.start.isLessThan(markerEnd)
 
-    # Calculate new marker end position
-    if oldRange.start.isLessThanOrEqual(markerEnd)
-      if oldRange.end.isLessThanOrEqual(markerEnd)
-        # Precedes marker end position; shift position according to row/column delta
-        newMarkerRange.end.row += rowDelta
-        newMarkerRange.end.column += columnDelta if oldRange.end.row is markerEnd.row
-      else if oldRange.start.isLessThan(markerEnd)
-        # Change surrounds marker end position; move position to the end of the change
-        newMarkerRange.end = newRange.end
+    if changePrecedesMarkerStart
+      newMarkerRange.start.row += rowDelta
+      newMarkerRange.start.column += columnDelta if oldRange.end.row is markerStart.row
+    else if changeSurroundsMarkerStart
+      newMarkerRange.start = newRange.end
+
+    if changePrecedesMarkerEnd
+      newMarkerRange.end.row += rowDelta
+      newMarkerRange.end.column += columnDelta if oldRange.end.row is markerEnd.row
+    else if changeSurroundsMarkerEnd
+      newMarkerRange.end = newRange.end
 
     if markerPatch = @buildPatch({valid, range: newMarkerRange})
       patch.addMarkerPatch(markerPatch)
