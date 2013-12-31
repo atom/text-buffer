@@ -70,6 +70,7 @@ class TextBufferCore
     patch = @buildPatch(range, text)
     @history?.recordNewPatch(patch)
     @applyPatch(patch)
+    patch.newRange
 
   buildPatch: (oldRange, newText) ->
     oldRange = Range.fromObject(oldRange)

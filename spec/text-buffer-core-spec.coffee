@@ -54,6 +54,9 @@ describe "TextBufferCore", ->
         newText: "y there\r\ncat\nwhat"
       }]
 
+    it "returns the newRange of the change", ->
+      expect(buffer.setTextInRange([[0, 2], [2, 3]], "y there\r\ncat\nwhat")).toEqual [[0, 2], [2, 4]]
+
   describe "::undo() and ::redo()", ->
     beforeEach ->
       buffer = new TextBufferCore(text: "hello\nworld\r\nhow are you doing?")
