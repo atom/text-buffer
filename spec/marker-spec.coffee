@@ -35,6 +35,10 @@ describe "Marker", ->
         marker = buffer.markRange([[0, 3], [0, 6]], foo: 1, bar: 2)
         expect(marker.getProperties()).toEqual {foo: 1, bar: 2}
 
+      it "clips the range before creating a marker with it", ->
+        marker = buffer.markRange([[-100, -100], [100, 100]])
+        expect(marker.getRange()).toEqual [[0, 0], [0, 26]]
+
     describe "TextBufferCore::markPosition(position, properties)", ->
       it "creates a tail-less marker at the given position", ->
         marker = buffer.markPosition([0, 6])

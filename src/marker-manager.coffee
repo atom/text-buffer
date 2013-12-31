@@ -32,7 +32,7 @@ class MarkerManager extends Serializable
     state
 
   markRange: (range, params) ->
-    range = Range.fromObject(range, true).freeze()
+    range = @buffer.clipRange(Range.fromObject(range, true)).freeze()
     params = Marker.extractParams(params)
     params.range = range
     @createMarker(params)
