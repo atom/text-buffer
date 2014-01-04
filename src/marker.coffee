@@ -37,6 +37,10 @@ class Marker
       params.persistent = params.persist
       delete params.persist
 
+    if params.invalidation
+      params.invalidate = params.invalidation
+      delete params.invalidation
+
   @delegatesMethods 'containsPoint', 'containsRange', 'intersectsRow', toProperty: 'range'
   @delegatesMethods 'clipPosition', 'clipRange', toProperty: 'manager'
 
