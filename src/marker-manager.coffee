@@ -1,5 +1,5 @@
 IntervalSkipList = require 'interval-skip-list'
-Serializable = require 'nostalgia'
+Serializable = require 'serializable'
 Delegator = require 'delegato'
 {omit, defaults, values, clone, compact, intersection} = require 'underscore'
 Marker = require './marker'

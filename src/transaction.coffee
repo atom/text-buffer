@@ -1,5 +1,5 @@
 {find} = require 'underscore'
-Serializable = require 'nostalgia'
+Serializable = require 'serializable'
 BufferPatch = require './buffer-patch'
 
 module.exports =

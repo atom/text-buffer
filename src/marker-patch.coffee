@@ -1,5 +1,5 @@
 {clone} = require 'underscore'
-Serializable = require 'nostalgia'
+Serializable = require 'serializable'
 Range = require './range'
 
 module.exports =

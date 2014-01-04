@@ -1,4 +1,4 @@
-Serializable = require 'nostalgia'
+Serializable = require 'serializable'
 Transaction = require './transaction'
 BufferPatch = require './buffer-patch'
 

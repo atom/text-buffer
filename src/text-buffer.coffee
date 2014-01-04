@@ -1,5 +1,5 @@
 Delegator = require 'delegato'
-Serializable = require 'nostalgia'
+Serializable = require 'serializable'
 {Emitter} = require 'emissary'
 SpanSkipList = require 'span-skip-list'
 Point = require './point'
