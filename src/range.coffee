@@ -190,5 +190,5 @@ class Range
     [@start.row..@end.row]
 
   # Public: Returns a string representation of the range.
-  inspect: ->
-    "[#{@start.inspect()} - #{@end.inspect()}]"
+  toString: ->
+    "[#{@start} - #{@end}]"

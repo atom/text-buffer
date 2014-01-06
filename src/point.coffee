@@ -69,6 +69,3 @@ class Point
 
   toString: ->
     "(#{@row}, #{@column})"
-
-  inspect: ->
-    @toString()
