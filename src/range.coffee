@@ -85,7 +85,8 @@ class Range
     @end.freeze()
     Object.freeze(this)
 
-  # Public: Determines equality with another Range or range-compatible {Array}.
+  # Public: Returns a {Boolean} indicating whether this range has the same start
+  # and end points as the given {Range} or range-compatible {Array}.
   isEqual: (other) ->
     return false unless other?
 
