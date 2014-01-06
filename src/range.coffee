@@ -72,8 +72,8 @@ class Range
   coversSameRows: (other) ->
     @start.row == other.start.row && @end.row == other.end.row
 
-  translate: (startPoint, endPoint=startPoint) ->
-    new @constructor(@start.translate(startPoint), @end.translate(endPoint))
+  translate: (delta) ->
+    new @constructor(@start.translate(delta), @end.translate(delta))
 
   intersectsWith: (otherRange) ->
     if @start.isLessThanOrEqual(otherRange.start)
