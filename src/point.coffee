@@ -27,27 +27,9 @@ class Point
   freeze: ->
     Object.freeze(this)
 
-  add: (other) ->
-    other = Point.fromObject(other)
-    row = @row + other.row
-    if other.row == 0
-      column = @column + other.column
-    else
-      column = other.column
-
-    new Point(row, column)
-
   translate: (other) ->
     other = Point.fromObject(other)
     new Point(@row + other.row, @column + other.column)
-
-  splitAt: (column) ->
-    if @row == 0
-      rightColumn = @column - column
-    else
-      rightColumn = @column
-
-    [new Point(0, column), new Point(@row, rightColumn)]
 
   compare: (other) ->
     if @row > other.row
