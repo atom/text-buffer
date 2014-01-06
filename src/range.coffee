@@ -13,11 +13,6 @@ class Range
     else
       new this(object.start, object.end)
 
-  @fromPointWithDelta: (pointA, rowDelta, columnDelta) ->
-    pointA = Point.fromObject(pointA)
-    pointB = new Point(pointA.row + rowDelta, pointA.column + columnDelta)
-    new this(pointA, pointB)
-
   @fromText: (args...) ->
     if args.length > 1
       startPoint = Point.fromObject(args.shift())
@@ -77,9 +72,6 @@ class Range
   coversSameRows: (other) ->
     @start.row == other.start.row && @end.row == other.end.row
 
-  add: (point) ->
-    new @constructor(@start.add(point), @end.add(point))
-
   translate: (startPoint, endPoint=startPoint) ->
     new @constructor(@start.translate(startPoint), @end.translate(endPoint))
 
@@ -114,14 +106,6 @@ class Range
 
   isEmpty: ->
     @start.isEqual(@end)
-
-  toDelta: ->
-    rows = @end.row - @start.row
-    if rows == 0
-      columns = @end.column - @start.column
-    else
-      columns = @end.column
-    new Point(rows, columns)
 
   getRowCount: ->
     @end.row - @start.row + 1
