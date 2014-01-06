@@ -314,6 +314,9 @@ describe "TextBuffer", ->
       expect(marker2B.hasTail()).toBe false
       expect(marker2B.getProperties()).toEqual {bar: 2}
 
+      # Accounts for deserialized markers when selecting the next marker's id
+      expect(bufferB.markRange([[0, 1], [2, 3]]).id).toBe marker2B.id + 1
+
       bufferB.undo()
       bufferB.undo()
       expect(bufferB.getText()).toBe "hello\nworld\r\nhow are you doing?"

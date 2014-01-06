@@ -1,7 +1,7 @@
 IntervalSkipList = require 'interval-skip-list'
 Serializable = require 'serializable'
 Delegator = require 'delegato'
-{omit, defaults, values, clone, compact, intersection} = require 'underscore'
+{omit, defaults, values, clone, compact, intersection, keys, max} = require 'underscore'
 Marker = require './marker'
 Point = require './point'
 Range = require './range'
@@ -19,7 +19,10 @@ class MarkerManager
 
   constructor: (@buffer, @markers) ->
     @intervals ?= @buildIntervals()
-    @markers ?= {}
+    if @markers?
+      @nextMarkerId = parseInt(max(keys(@markers))) + 1
+    else
+      @markers = {}
 
   # Private: Builds the ::intervals indexing structure, which allows for quick
   # retrieval based on location.
