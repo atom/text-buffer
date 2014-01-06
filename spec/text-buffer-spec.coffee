@@ -13,7 +13,7 @@ describe "TextBuffer", ->
 
     it "can be constructed with initial text", ->
       text = "hello\nworld\r\nhow are you doing?"
-      buffer = new TextBuffer({text})
+      buffer = new TextBuffer(text)
       expect(buffer.getLineCount()).toBe 3
       expect(buffer.getText()).toBe text
       expect(buffer.lineForRow(0)).toBe 'hello'

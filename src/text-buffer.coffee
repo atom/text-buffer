@@ -25,10 +25,11 @@ class TextBuffer
     'findMarkers', toProperty: 'markers'
 
   constructor: (params) ->
+    text = params if typeof params is 'string'
     @lines = ['']
     @lineEndings = ['']
     @offsetIndex = new SpanSkipList('rows', 'characters')
-    @setTextInRange([[0, 0], [0, 0]], params?.text ? '')
+    @setTextInRange([[0, 0], [0, 0]], text ? params?.text ? '')
     @history = params?.history ? new History(this)
     @markers = params?.markers ? new MarkerManager(this)
 
