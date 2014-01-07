@@ -9,12 +9,60 @@ Range = require './range'
 
 OptionKeys = ['reversed', 'tailed', 'invalidate', 'persistent']
 
+# Public: Reprents a buffer annotation that remains logically stationary even
+# as the buffer changes. This is used to represent cursors, folds, snippet
+# targets, misspelled words, and anything else that needs to track a logical
+# location in the buffer over time.
+#
+# Head and Tail:
+# Markers always have a *head* and sometimes have a *tail*. If you think of a
+# marker as an editor selection, the head is the part that's stationary and the
+# tail is the part that moves when the mouse is moved. A marker without a tail
+# always reports an empty range at the head position. A marker with a head position
+# greater than the tail is in a "normal" orientation. If the head precedes the
+# tail the marker is in a "reversed" orientation.
+#
+# Validity:
+# Markers are considered *valid* when they are first created. Depending on the
+# invalidation strategy you choose, certain changes to the buffer can cause a
+# marker to become invalid, for example if the text surrounding the marker is
+# deleted.
+#
+# Change events:
+# When markers change in position for any reason, the emit a 'changed' event with
+# the following properties:
+#
+# * oldHeadPosition:
+#     A {Point} representing the former head position
+# * newHeadPosition:
+#     A {Point} representing the new head position
+# * oldTailPosition:
+#     A {Point} representing the former tail position
+# * newTailPosition:
+#     A {Point} representing the new tail position
+# * wasValid:
+#     A {Boolean} indicating whether the marker was valid before the change
+# * isValid:
+#     A {Boolean} indicating whether the marker is now valid
+# * hadTail:
+#     A {Boolean} indicating whether the marker had a tail before the change
+# * hasTail:
+#     A {Boolean} indicating whether the marker now has a tail
+# * oldProperties:
+#     An {Object} containing the marker's custom properties before the change.
+# * newProperties:
+#     An {Object} containing the marker's custom properties after the change.
+# * textChanged:
+#     A {Boolean} indicating whether this change was caused by a textual change
+#     to the buffer or whether the marker was manipulated directly via its public
+#     API.
 module.exports =
 class Marker
   Emitter.includeInto(this)
   Delegator.includeInto(this)
   Serializable.includeInto(this)
 
+  # Private:
   @extractParams: (inputParams) ->
     outputParams = {}
     if inputParams?
@@ -24,6 +72,7 @@ class Marker
       outputParams.properties = properties if size(properties) > 0
     outputParams
 
+  # Private:
   @handleDeprecatedParams: (params) ->
     if params.isReversed?
       params.reversed = params.isReversed
@@ -44,6 +93,7 @@ class Marker
   @delegatesMethods 'containsPoint', 'containsRange', 'intersectsRow', toProperty: 'range'
   @delegatesMethods 'clipPosition', 'clipRange', toProperty: 'manager'
 
+  # Private:
   constructor: (params) ->
     {@manager, @id, @range, @tailed, @reversed} = params
     {@valid, @invalidate, @persistent, @properties} = params
@@ -57,32 +107,52 @@ class Marker
     Object.freeze(@properties)
     @updateIntervals()
 
+  # Private: Used by {Serializable} during serialization.
   serializeParams: ->
     range = @range.serialize()
     {@id, range, @tailed, @reversed, @valid, @invalidate, @persistent, @properties}
 
+  # Private: Used by {Serializable} during deserialization.
   deserializeParams: (state) ->
     state.range = Range.deserialize(state.range)
     state
 
+  # Public: Returns the current {Range} of the marker. The range is immutable.
   getRange: ->
     @range
 
-  setRange: (range, params) ->
-    params = @extractParams(params)
+  # Public: Sets the range of the marker.
+  #
+  # * range:
+  #     A {Range} or range-compatible {Array}. The range will be clipped before.
+  #     it is assigned.
+  # * properties:
+  #     An optional hash of properties to associate with the marker. The 'reversed'
+  #     property is reserved and if true, will cause the marker to be in a reversed
+  #     orientation.
+  setRange: (range, properties) ->
+    params = @extractParams(properties)
     params.tailed = true
     params.range = @clipRange(Range.fromObject(range, true))
     @update(params)
 
+  # Public: Returns a {Point} representing the marker's current head position.
   getHeadPosition: ->
     if @reversed
       @range.start
     else
       @range.end
 
-  setHeadPosition: (position, params) ->
+  # Public: Sets the head position of the marker.
+  #
+  # * position:
+  #     A {Point} or point-compatible {Array}. The position will be clipped
+  #     before it is assigned.
+  # * properties:
+  #     An optional hash of properties to associate with the marker.
+  setHeadPosition: (position, properties) ->
     position = @clipPosition(Point.fromObject(position, true))
-    params = @extractParams(params)
+    params = @extractParams(properties)
 
     if @hasTail()
       if @isReversed()
@@ -103,6 +173,8 @@ class Marker
 
     @update(params)
 
+  # Public: Returns a {Point} representing the marker's current tail position.
+  # If the marker has no tail, the head position will be returned instead.
   getTailPosition: ->
     if @hasTail()
       if @reversed
@@ -112,9 +184,17 @@ class Marker
     else
       @getHeadPosition()
 
-  setTailPosition: (position, params) ->
+  # Public: Sets the head position of the marker. If the marker doesn't have a
+  # tail, it will after calling this method.
+  #
+  # * position:
+  #     A {Point} or point-compatible {Array}. The position will be clipped
+  #     before it is assigned.
+  # * properties:
+  #     An optional hash of properties to associate with the marker.
+  setTailPosition: (position, properties) ->
     position = @clipPosition(Point.fromObject(position, true))
-    params = @extractParams(params)
+    params = @extractParams(properties)
     params.tailed = true
 
     if @reversed
@@ -132,47 +212,68 @@ class Marker
 
     @update(params)
 
+  # Public: Returns a {Point} representing the start position of the marker,
+  # which could be the head or tail position, depending on its orientation.
   getStartPosition: ->
     if @reversed
       @getHeadPosition()
     else
       @getTailPosition()
 
+  # Public: Returns a {Point} representing the end position of the marker,
+  # which could be the head or tail position, depending on its orientation.
   getEndPosition: ->
     if @reversed
       @getTailPosition()
     else
       @getHeadPosition()
 
-  clearTail: (params) ->
-    params = @extractParams(params)
+  # Public: Removes the marker's tail. After calling the marker's head position
+  # will be reported as its current tail position until the tail is planted
+  # again.
+  #
+  # * properties: An optional hash of properties to associate with the marker.
+  clearTail: (properties) ->
+    params = @extractParams(properties)
     params.tailed = false
     headPosition = @getHeadPosition()
     params.range = new Range(headPosition, headPosition)
     @update(params)
 
-  plantTail: (params) ->
-    params = @extractParams(params)
+  # Public: Plants the marker's tail at the current head position. After calling
+  # the marker's tail position will be its head position at the time of the
+  # call, regardless of where the marker's head is moved.
+  #
+  # * properties: An optional hash of properties to associate with the marker.
+  plantTail: (properties) ->
+    params = @extractParams(properties)
     unless @hasTail()
       params.tailed = true
       params.range = new Range(@getHeadPosition(), @getHeadPosition())
     @update(params)
 
+  # Public: Returns a {Boolean} indicating whether the head precedes the tail.
   isReversed: ->
     @tailed and @reversed
 
+  # Public: Returns a {Boolean} indicating whether the marker has a tail.
   hasTail: ->
     @tailed
 
+  # Public:
   isValid: ->
     not @isDestroyed() and @valid
 
+  # Public:
   isDestroyed: ->
     @destroyed
 
+  # Public: Returns a {Boolean} indicating whether this marker is equivalent to
+  # another marker, meaning they have the same range and options.
   isEqual: (other) ->
     isEqual(@toParams(true), other.toParams(true))
 
+  # Public:
   getInvalidationStrategy: ->
     @invalidate
 
@@ -184,25 +285,35 @@ class Marker
   setAttributes: (args...) ->
     @setProperties(args...)
 
+  # Public: Returns an {Object} containing any custom properties associated with
+  # the marker.
   getProperties: ->
     @properties
 
+  # Public: Merges an {Object} containing new properties into the marker's
+  # existing properties.
   setProperties: (properties) ->
     @update(properties: extend({}, @getProperties(), properties))
 
+  # Public: Creates and returns a new {Marker} with the same properties as this
+  # marker.
   copy: (params) ->
     @manager.createMarker(extend(@toParams(), @extractParams(params)))
 
+  # Public: Destroys the marker, causing it to emit the 'destroyed' event. Once
+  # destroyed, a marker cannot be restored by undo/redo operations.
   destroy: ->
     @destroyed = true
     @manager.removeMarker(@id)
     @emit 'destroyed'
 
+  # Private:
   extractParams: (params) ->
     params = @constructor.extractParams(params)
     params.properties = extend({}, @properties, params.properties) if params.properties?
     params
 
+  # Public: Compares this marker to another based on their ranges.
   compare: (other) ->
     @range.compare(other.range)
 
@@ -210,11 +321,15 @@ class Marker
   matchesAttributes: (args...) ->
     @matchesParams(args...)
 
+  # Returns whether this marker matches the given parameters. The parameters
+  # are the same as {MarkerManager::findMarkers}.
   matchesParams: (params) ->
     for key, value of params
       return false unless @matchesParam(key, value)
     true
 
+  # Returns whether this marker matches the given parameter name and value.
+  # The parameters are the same as {MarkerManager::findMarkers}.
   matchesParam: (key, value) ->
     switch key
       when 'startPosition'
@@ -236,11 +351,13 @@ class Marker
       else
         isEqual(@properties[key], value)
 
+  # Private:
   toParams: (omitId) ->
     params = {@range, @reversed, @tailed, @invalidate, @persistent, @properties}
     params.id = @id unless omitId
     params
 
+  # Private:
   update: (params) ->
     if patch = @buildPatch(params)
       @manager.recordMarkerPatch(patch)
@@ -249,6 +366,8 @@ class Marker
     else
       false
 
+  # Private: Adjusts the marker's start and end positions and possibly its
+  # validity based on the given {BufferPatch}.
   handleBufferChange: (patch) ->
     {oldRange, newRange} = patch
     rowDelta = newRange.end.row - oldRange.end.row
@@ -290,6 +409,7 @@ class Marker
     if markerPatch = @buildPatch({valid, range: newMarkerRange})
       patch.addMarkerPatch(markerPatch)
 
+  # Private:
   buildPatch: (newParams) ->
     oldParams = {}
     for name, value of newParams
@@ -301,6 +421,7 @@ class Marker
     if size(newParams)
       new MarkerPatch(@id, oldParams, newParams)
 
+  # Private:
   applyPatch: (patch, textChanged=false) ->
     oldHeadPosition = @getHeadPosition()
     oldTailPosition = @getTailPosition()
@@ -346,5 +467,7 @@ class Marker
     }
     true
 
+  # Private: Updates the interval index on the marker manager with the marker's
+  # current range.
   updateIntervals: ->
     @manager.intervals.update(@id, @range.start, @range.end)
