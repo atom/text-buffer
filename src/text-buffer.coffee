@@ -25,7 +25,7 @@ class TextBuffer
     'abortTransaction', 'isTransacting', 'clearUndoStack', toProperty: 'history'
 
   @delegatesMethods 'markRange', 'markPosition', 'getMarker', 'getMarkers',
-    'findMarkers', toProperty: 'markers'
+    'findMarkers', 'getMarkerCount', toProperty: 'markers'
 
   cachedText: null
 

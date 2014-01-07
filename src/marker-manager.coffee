@@ -1,7 +1,7 @@
 IntervalSkipList = require 'interval-skip-list'
 Serializable = require 'serializable'
 Delegator = require 'delegato'
-{omit, defaults, values, clone, compact, intersection, keys, max} = require 'underscore'
+{omit, defaults, values, clone, compact, intersection, keys, max, size} = require 'underscore'
 Marker = require './marker'
 Point = require './point'
 Range = require './range'
@@ -98,6 +98,10 @@ class MarkerManager
   # Public: Returns an {Array} of all {Marker}s on the buffer.
   getMarkers: ->
     values(@markers)
+
+  # Public: Returns the number of markers on the buffer
+  getMarkerCount: ->
+    size(@markers)
 
   # Finds markers conforming to the given parameters.
   #
