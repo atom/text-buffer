@@ -197,6 +197,12 @@ class TextBuffer
   deleteText: (range) ->
     @setTextInRange(range, '')
 
+  # Public: Deletes the line associated with the specified row.
+  #
+  # Returns the {Range} of the deleted text.
+  deleteRow: (row) ->
+    @deleteRows(row, row)
+
   # Public: Deletes the specified lines associated with the specified row range.
   # If the row range is out of bounds, it will be clipped. If the startRow is
   # greater than the end row, they will be reordered.
