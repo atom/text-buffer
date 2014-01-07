@@ -87,6 +87,10 @@ class TextBuffer
   lineForRow: (row) ->
     @lines[row]
 
+  # Public: Returns a {String} representing the last line of the buffer
+  getLastLine: ->
+    @lineForRow(@getLastRow())
+
   # Public: Returns a {String} representing the line ending for the given row.
   #
   # * row - A {Number} indicating the row.
