@@ -201,6 +201,17 @@ describe "TextBuffer", ->
       buffer.insertText([0, 5], "\r\nthere\r\nlittle", false)
       expect(buffer.getText()).toBe "hello\r\nthere\r\nlittle\nworld"
 
+  describe "::appendText(text, normalizeNewlines)", ->
+    it "appends text to the end of the buffer", ->
+      buffer = new TextBuffer("hello world")
+      buffer.appendText(", how are you?")
+      expect(buffer.getText()).toBe "hello world, how are you?"
+
+    it "honors the normalizeNewlines option", ->
+      buffer = new TextBuffer("hello\nworld")
+      buffer.appendText("\r\nhow\r\nare\nyou?", false)
+      expect(buffer.getText()).toBe "hello\nworld\r\nhow\r\nare\nyou?"
+
   describe "::getText()", ->
     it "returns the contents of the buffer as a single string", ->
       buffer = new TextBuffer("hello\nworld\r\nhow are you?")

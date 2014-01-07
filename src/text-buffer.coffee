@@ -181,6 +181,14 @@ class TextBuffer
   insertText: (position, text, normalizeLineEndings) ->
     @setTextInRange(new Range(position, position), text, normalizeLineEndings)
 
+  # Public: Appends the given text to the end of the buffer
+  #
+  # * text: A {String} representing the text text to append
+  #
+  # Returns the {Range} of the inserted text
+  appendText: (text, normalizeLineEndings) ->
+    @insertText(@getLastPosition(), text, normalizeLineEndings)
+
   # Private: Builds a {BufferPatch}, which is used to modify the buffer and is
   # also pushed into the undo history so it can be undone.
   buildPatch: (oldRange, newText, normalizeLineEndings) ->
