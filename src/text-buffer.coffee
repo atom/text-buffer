@@ -102,6 +102,10 @@ class TextBuffer
   lineLengthForRow: (row) ->
     @lines[row].length
 
+  # Public: Replaces the entire contents of the buffer with the given {String}
+  setText: (text) ->
+    @setTextInRange(@getRange(), text, false)
+
   # Public: Replaces the current buffer contents by applying a diff against
   # the given contents.
   #

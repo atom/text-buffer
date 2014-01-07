@@ -114,6 +114,14 @@ describe "TextBuffer", ->
         expect(buffer.lineEndingForRow(4)).toBe '\r\n'
         expect(buffer.lineEndingForRow(5)).toBe ''
 
+  describe "::setText(text)", ->
+    it "replaces the contents of the buffer with the given text", ->
+      buffer = new TextBuffer("hello\nworld\r\nyou are cool")
+      buffer.setText("goodnight\r\nmoon\nit's been good")
+      expect(buffer.getText()).toBe "goodnight\r\nmoon\nit's been good"
+      buffer.undo()
+      expect(buffer.getText()).toBe "hello\nworld\r\nyou are cool"
+
   describe "::setTextViaDiff(text)", ->
     describe "when the buffer contains no newlines", ->
       beforeEach ->
