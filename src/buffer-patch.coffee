@@ -7,14 +7,14 @@ Range = require './range'
 # this also contains a hash of {MarkerPatch} objects.
 module.exports =
 class BufferPatch extends Serializable
-  constructor: (@oldRange, @newRange, @oldText, @newText, @markerPatches={}) ->
+  constructor: (@oldRange, @newRange, @oldText, @newText, @normalizeLineEndings, @markerPatches={}) ->
 
   serializeParams: ->
     oldRange = @oldRange.serialize()
     newRange = @newRange.serialize()
     markerPatches = {}
     markerPatches[id] = patch.serialize() for id, patch in @markerPatches
-    {oldRange, newRange, @oldText, @newText, markerPatches}
+    {oldRange, newRange, @oldText, @newText, @normalizeLineEndings, markerPatches}
 
   deserializeParams: (params) ->
     params.oldRange = Range.deserialize(params.oldRange)
@@ -26,7 +26,7 @@ class BufferPatch extends Serializable
   invert: (buffer) ->
     markerPatches = {}
     markerPatches[id] = patch.invert() for id, patch of @markerPatches
-    invertedPatch = new @constructor(@newRange, @oldRange, @newText, @oldText, markerPatches)
+    invertedPatch = new @constructor(@newRange, @oldRange, @newText, @oldText, @normalizeLineEndings, markerPatches)
     for marker in buffer.getMarkers()
       unless @markerPatches[marker.id]?
         marker.handleBufferChange(invertedPatch)

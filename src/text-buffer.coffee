@@ -36,7 +36,7 @@ class TextBuffer
     @lines = ['']
     @lineEndings = ['']
     @offsetIndex = new SpanSkipList('rows', 'characters')
-    @setTextInRange([[0, 0], [0, 0]], text ? params?.text ? '')
+    @setTextInRange([[0, 0], [0, 0]], text ? params?.text ? '', false)
     @history = params?.history ? new History(this)
     @markers = params?.markers ? new MarkerManager(this)
 
@@ -155,30 +155,39 @@ class TextBuffer
   # * text: A {String}
   #
   # Returns the {Range} of the inserted text.
-  setTextInRange: (range, text) ->
-    patch = @buildPatch(range, text)
+  setTextInRange: (range, text, normalizeLineEndings=true) ->
+    patch = @buildPatch(range, text, normalizeLineEndings)
     @history?.recordNewPatch(patch)
     @applyPatch(patch)
     patch.newRange
 
   # Private: Builds a {BufferPatch}, which is used to modify the buffer and is
   # also pushed into the undo history so it can be undone.
-  buildPatch: (oldRange, newText) ->
+  buildPatch: (oldRange, newText, normalizeLineEndings) ->
     oldRange = @clipRange(oldRange)
     oldText = @getTextInRange(oldRange)
     newRange = Range.fromText(oldRange.start, newText)
-    patch = new BufferPatch(oldRange, newRange, oldText, newText)
+    patch = new BufferPatch(oldRange, newRange, oldText, newText, normalizeLineEndings)
     @markers?.handleBufferChange(patch)
     patch
 
   # Private: Applies a {BufferPatch} to the buffer based on its old range and
   # new text. Also applies any {MarkerPatch}es associated with the {BufferPatch}.
-  applyPatch: ({oldRange, newRange, oldText, newText, markerPatches}) ->
+  applyPatch: ({oldRange, newRange, oldText, newText, normalizeLineEndings, markerPatches}) ->
     @cachedText = null
 
     startRow = oldRange.start.row
     endRow = oldRange.end.row
     rowCount = endRow - startRow + 1
+
+    # Determine how to normalize the line endings of inserted text if enabled
+    if normalizeLineEndings
+      normalizedEnding = @lineEndingForRow(startRow)
+      if normalizedEnding is ''
+        if startRow > 0
+          normalizedEnding = @lineEndingForRow(startRow - 1)
+        else
+          normalizedEnding = null
 
     # Split inserted text into lines and line endings
     lines = newText.split('\n')
@@ -186,9 +195,9 @@ class TextBuffer
     for line, index in lines
       if line[-1..] is '\r'
         lines[index] = line[0...-1]
-        lineEndings.push '\r\n'
+        lineEndings.push(normalizedEnding ? '\r\n')
       else
-        lineEndings.push '\n'
+        lineEndings.push(normalizedEnding ? '\n')
 
     # Update first and last line so replacement preserves existing prefix and suffix of oldRange
     lastIndex = lines.length - 1
@@ -196,7 +205,9 @@ class TextBuffer
     suffix = @lineForRow(endRow)[oldRange.end.column...]
     lines[0] = prefix + lines[0]
     lines[lastIndex] += suffix
-    lineEndings[lastIndex] = @lineEndingForRow(endRow)
+    lastLineEnding = @lineEndingForRow(endRow)
+    lastLineEnding = normalizedEnding if lastLineEnding isnt '' and normalizedEnding?
+    lineEndings[lastIndex] = lastLineEnding
 
     # Replace lines in oldRange with new lines
     spliceArray(@lines, startRow, rowCount, lines)

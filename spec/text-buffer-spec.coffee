@@ -28,7 +28,7 @@ describe "TextBuffer", ->
 
   describe "::setTextInRange(range, text)", ->
     beforeEach ->
-      buffer = new TextBuffer(text: "hello\nworld\r\nhow are you doing?")
+      buffer = new TextBuffer("hello\nworld\r\nhow are you doing?")
 
     it "can replace text on a single line with a standard newline", ->
       buffer.setTextInRange([[0, 2], [0, 4]], "y y")
@@ -39,17 +39,17 @@ describe "TextBuffer", ->
       expect(buffer.getText()).toEqual "hello\nworms\r\nhow are you doing?"
 
     it "can replace text in a region spanning multiple lines, ending on the last line", ->
-      buffer.setTextInRange([[0, 2], [2, 3]], "y there\r\ncat\nwhat")
+      buffer.setTextInRange([[0, 2], [2, 3]], "y there\r\ncat\nwhat", false)
       expect(buffer.getText()).toEqual "hey there\r\ncat\nwhat are you doing?"
 
     it "can replace text in a region spanning multiple lines, ending with a carriage-return/newline", ->
-      buffer.setTextInRange([[0, 2], [1, 3]], "y\nyou're o")
+      buffer.setTextInRange([[0, 2], [1, 3]], "y\nyou're o", false)
       expect(buffer.getText()).toEqual "hey\nyou're old\r\nhow are you doing?"
 
     it "emits a 'changed' event with the relevant details after a change", ->
       changes = []
       buffer.on 'changed', (change) -> changes.push(change)
-      buffer.setTextInRange([[0, 2], [2, 3]], "y there\r\ncat\nwhat")
+      buffer.setTextInRange([[0, 2], [2, 3]], "y there\r\ncat\nwhat", false)
       expect(changes).toEqual [{
         oldRange: [[0, 2], [2, 3]]
         newRange: [[0, 2], [2, 4]]
@@ -58,12 +58,61 @@ describe "TextBuffer", ->
       }]
 
     it "returns the newRange of the change", ->
-      expect(buffer.setTextInRange([[0, 2], [2, 3]], "y there\r\ncat\nwhat")).toEqual [[0, 2], [2, 4]]
+      expect(buffer.setTextInRange([[0, 2], [2, 3]], "y there\r\ncat\nwhat"), false).toEqual [[0, 2], [2, 4]]
 
     it "clips the given range", ->
       buffer.setTextInRange([[-1, -1], [0, 1]], "y")
       buffer.setTextInRange([[0, 10], [0, 100]], "w")
       expect(buffer.lineForRow(0)).toBe "yellow"
+
+    it "preserves the line endings of existing lines", ->
+      buffer.setTextInRange([[0, 1], [0, 2]], 'o')
+      expect(buffer.lineEndingForRow(0)).toBe '\n'
+      buffer.setTextInRange([[1, 1], [1, 3]], 'i')
+      expect(buffer.lineEndingForRow(1)).toBe '\r\n'
+
+    describe "when the normalizeLineEndings argument is true (the default)", ->
+      describe "when the range's start row has a line ending", ->
+        it "normalizes inserted line endings to match the line ending of the range's start row", ->
+          expect(buffer.lineEndingForRow(0)).toBe '\n'
+          buffer.setTextInRange([[0, 2], [0, 5]], "y\r\nthere\r\ncrazy")
+          expect(buffer.lineEndingForRow(0)).toBe '\n'
+          expect(buffer.lineEndingForRow(1)).toBe '\n'
+          expect(buffer.lineEndingForRow(2)).toBe '\n'
+
+          expect(buffer.lineEndingForRow(3)).toBe '\r\n'
+          buffer.setTextInRange([[3, 3], [4, Infinity]], "ms\ndo you\r\nlike\ndirt")
+          expect(buffer.lineEndingForRow(3)).toBe '\r\n'
+          expect(buffer.lineEndingForRow(4)).toBe '\r\n'
+          expect(buffer.lineEndingForRow(5)).toBe '\r\n'
+          expect(buffer.lineEndingForRow(6)).toBe ''
+
+      describe "when the range's start row has no line ending (because it's the last line of the buffer)", ->
+        describe "when the buffer contains no newlines", ->
+          it "honors the newlines in the inserted text", ->
+            buffer = new TextBuffer("hello")
+            buffer.setTextInRange([[0, 2], [0, Infinity]], "hey\r\nthere\nworld")
+            expect(buffer.lineEndingForRow(0)).toBe '\r\n'
+            expect(buffer.lineEndingForRow(1)).toBe '\n'
+            expect(buffer.lineEndingForRow(2)).toBe ''
+
+        describe "when the buffer contains newlines", ->
+          it "normalizes inserted line endings to match the line ending of the penultimate row", ->
+            expect(buffer.lineEndingForRow(1)).toBe '\r\n'
+            buffer.setTextInRange([[2, 0], [2, Infinity]], "what\ndo\r\nyou\nwant?")
+            expect(buffer.lineEndingForRow(2)).toBe '\r\n'
+            expect(buffer.lineEndingForRow(3)).toBe '\r\n'
+            expect(buffer.lineEndingForRow(4)).toBe '\r\n'
+            expect(buffer.lineEndingForRow(5)).toBe ''
+
+    describe "when the normalizeLineEndings argument is false", ->
+      it "honors the newlines in the inserted text", ->
+        buffer.setTextInRange([[1, 0], [1, 5]], "moon\norbiting\r\nhappily\nthere", false)
+        expect(buffer.lineEndingForRow(1)).toBe '\n'
+        expect(buffer.lineEndingForRow(2)).toBe '\r\n'
+        expect(buffer.lineEndingForRow(3)).toBe '\n'
+        expect(buffer.lineEndingForRow(4)).toBe '\r\n'
+        expect(buffer.lineEndingForRow(5)).toBe ''
 
   describe "::setTextViaDiff(text)", ->
     describe "when the buffer contains no newlines", ->
