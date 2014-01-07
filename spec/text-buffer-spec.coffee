@@ -1,4 +1,7 @@
+{readFileSync} = require 'fs'
+{join} = require 'path'
 TextBuffer = require '../src/text-buffer'
+SampleText = readFileSync(join(__dirname, 'fixtures', 'sample.js'), 'utf8')
 
 describe "TextBuffer", ->
   buffer = null
@@ -56,6 +59,74 @@ describe "TextBuffer", ->
 
     it "returns the newRange of the change", ->
       expect(buffer.setTextInRange([[0, 2], [2, 3]], "y there\r\ncat\nwhat")).toEqual [[0, 2], [2, 4]]
+
+  describe "::setTextViaDiff(text)", ->
+    describe "when the buffer contains no newlines", ->
+      beforeEach ->
+        buffer = new TextBuffer('original content')
+
+      it "can change the contents of the buffer", ->
+        newText = 'new text'
+        buffer.setTextViaDiff(newText)
+        expect(buffer.getText()).toBe newText
+
+    describe "when the buffer contains standard newlines", ->
+      beforeEach ->
+        buffer = new TextBuffer(SampleText)
+
+      it "can replace the contents of the buffer with text that doesn't end in a newline", ->
+        newText = "I know you are.\nBut what am I?"
+        buffer.setTextViaDiff(newText)
+        expect(buffer.getText()).toBe newText
+
+      it "can replace the contents of the buffer with text that ends in a newline", ->
+        newText = "I know you are.\nBut what am I?\n"
+        buffer.setTextViaDiff(newText)
+        expect(buffer.getText()).toBe newText
+
+      it "can change a few lines at the beginning in the buffer", ->
+        newText = buffer.getText().replace(/function/g, 'omgwow')
+        buffer.setTextViaDiff(newText)
+        expect(buffer.getText()).toBe newText
+
+      it "can change a few lines in the middle of the buffer", ->
+        newText = buffer.getText().replace(/shift/g, 'omgwow')
+        buffer.setTextViaDiff(newText)
+        expect(buffer.getText()).toBe newText
+
+      it "can add a newline to the end of the buffer", ->
+        newText = buffer.getText() + '\n'
+        buffer.setTextViaDiff(newText)
+        expect(buffer.getText()).toBe newText
+
+    describe "when the buffer contains windows newlines", ->
+      beforeEach ->
+        buffer = new TextBuffer(SampleText.replace(/\n/g, '\r\n'))
+
+      it "can replace the contents of the buffer with shorter text that doesn't end in a newline", ->
+        newText = "I know you are.\r\nBut what am I?"
+        buffer.setTextViaDiff(newText)
+        expect(buffer.getText()).toBe newText
+
+      it "can replace the contents of the buffer with shorter text that doesn't end in a newline", ->
+        newText = "I know you are.\r\nBut what am I?\r\n"
+        buffer.setTextViaDiff(newText)
+        expect(buffer.getText()).toBe newText
+
+      it "can change a few lines at the beginning in the buffer", ->
+        newText = buffer.getText().replace(/function/g, 'omgwow')
+        buffer.setTextViaDiff(newText)
+        expect(buffer.getText()).toBe newText
+
+      it "can change a few lines in the middle of the buffer", ->
+        newText = buffer.getText().replace(/shift/g, 'omgwow')
+        buffer.setTextViaDiff(newText)
+        expect(buffer.getText()).toBe newText
+
+      it "can add a newline at the end of the buffer", ->
+        newText = buffer.getText() + '\r\n'
+        buffer.setTextViaDiff(newText)
+        expect(buffer.getText()).toBe newText
 
   describe "::undo() and ::redo()", ->
     beforeEach ->

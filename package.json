@@ -36,6 +36,7 @@
   "dependencies": {
     "span-skip-list": "~0.1.1",
     "delegato": "~0.4.0",
+    "diff": "git://github.com/benogle/jsdiff.git",
     "emissary": "~0.28.0",
     "underscore": "~1.5.2",
     "tantamount": "~0.8.0",

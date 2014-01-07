@@ -2,6 +2,7 @@ Delegator = require 'delegato'
 Serializable = require 'serializable'
 {Emitter} = require 'emissary'
 SpanSkipList = require 'span-skip-list'
+diff = require 'diff'
 Point = require './point'
 Range = require './range'
 History = require './history'
@@ -95,6 +96,53 @@ class TextBuffer
   # row - A {Number} indicating the row.
   lineLengthForRow: (row) ->
     @lines[row].length
+
+  # Public: Replaces the current buffer contents by applying a diff against
+  # the given contents.
+  #
+  # * text: A {String} containing the new buffer contents.
+  setTextViaDiff: (text) ->
+    currentText = @getText()
+    return if currentText == text
+
+    endsWithNewline = (str) ->
+      /[\r\n]+$/g.test(str)
+
+    computeBufferColumn = (str) ->
+      newlineIndex = Math.max(str.lastIndexOf('\n'), str.lastIndexOf('\r'))
+      if endsWithNewline(str)
+        0
+      else if newlineIndex == -1
+        str.length
+      else
+        str.length - newlineIndex - 1
+
+    @transact =>
+      row = 0
+      column = 0
+      currentPosition = [0, 0]
+
+      lineDiff = diff.diffLines(currentText, text)
+      changeOptions = normalizeLineEndings: false
+
+      for change in lineDiff
+        lineCount = change.value.match(/\n/g)?.length ? 0
+        currentPosition[0] = row
+        currentPosition[1] = column
+
+        if change.added
+          @setTextInRange([currentPosition, currentPosition], change.value, changeOptions)
+          row += lineCount
+          column = computeBufferColumn(change.value)
+
+        else if change.removed
+          endRow = row + lineCount
+          endColumn = column + computeBufferColumn(change.value)
+          @setTextInRange([currentPosition, [endRow, endColumn]], '', changeOptions)
+
+        else
+          row += lineCount
+          column = computeBufferColumn(change.value)
 
   # Public: Sets the text in the given range.
   #
