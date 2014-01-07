@@ -169,6 +169,18 @@ class TextBuffer
     @applyPatch(patch)
     patch.newRange
 
+  # Public: Inserts the given text at the given position
+  #
+  # * position:
+  #     A {Point} representing the insertion location. The position is clipped
+  #     before insertion.
+  # * text:
+  #     A {String} representing the text to insert
+  #
+  # Returns the {Range} of the inserted text
+  insertText: (position, text, normalizeLineEndings) ->
+    @setTextInRange(new Range(position, position), text, normalizeLineEndings)
+
   # Private: Builds a {BufferPatch}, which is used to modify the buffer and is
   # also pushed into the undo history so it can be undone.
   buildPatch: (oldRange, newText, normalizeLineEndings) ->

@@ -190,6 +190,17 @@ describe "TextBuffer", ->
         buffer.setTextViaDiff(newText)
         expect(buffer.getText()).toBe newText
 
+  describe "::insertText(position, text, normalizeNewlinesn)", ->
+    it "inserts text at the given position", ->
+      buffer = new TextBuffer("hello world")
+      buffer.insertText([0, 5], " there")
+      expect(buffer.getText()).toBe "hello there world"
+
+    it "honors the normalizeNewlines option", ->
+      buffer = new TextBuffer("hello\nworld")
+      buffer.insertText([0, 5], "\r\nthere\r\nlittle", false)
+      expect(buffer.getText()).toBe "hello\r\nthere\r\nlittle\nworld"
+
   describe "::getText()", ->
     it "returns the contents of the buffer as a single string", ->
       buffer = new TextBuffer("hello\nworld\r\nhow are you?")
