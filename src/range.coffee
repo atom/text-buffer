@@ -148,6 +148,12 @@ class Range
   translate: (delta) ->
     new @constructor(@start.translate(delta), @end.translate(delta))
 
+  add: (delta) ->
+    new @constructor(@start.add(delta), @end.add(delta))
+
+  translate: (startPoint, endPoint=startPoint) ->
+    new @constructor(@start.translate(startPoint), @end.translate(endPoint))
+
   # Public: Determines whether this range intersects with the argument.
   intersectsWith: (otherRange) ->
     if @start.isLessThanOrEqual(otherRange.start)
@@ -198,6 +204,14 @@ class Range
   # Public:
   isEmpty: ->
     @start.isEqual(@end)
+
+  toDelta: ->
+    rows = @end.row - @start.row
+    if rows == 0
+      columns = @end.column - @start.column
+    else
+      columns = @end.column
+    new Point(rows, columns)
 
   # Public:
   getRowCount: ->
