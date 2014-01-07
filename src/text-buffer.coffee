@@ -159,7 +159,7 @@ class TextBuffer
   # Private: Builds a {BufferPatch}, which is used to modify the buffer and is
   # also pushed into the undo history so it can be undone.
   buildPatch: (oldRange, newText) ->
-    oldRange = Range.fromObject(oldRange)
+    oldRange = @clipRange(oldRange)
     oldText = @getTextInRange(oldRange)
     newRange = Range.fromText(oldRange.start, newText)
     patch = new BufferPatch(oldRange, newRange, oldText, newText)

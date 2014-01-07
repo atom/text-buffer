@@ -60,6 +60,11 @@ describe "TextBuffer", ->
     it "returns the newRange of the change", ->
       expect(buffer.setTextInRange([[0, 2], [2, 3]], "y there\r\ncat\nwhat")).toEqual [[0, 2], [2, 4]]
 
+    it "clips the given range", ->
+      buffer.setTextInRange([[-1, -1], [0, 1]], "y")
+      buffer.setTextInRange([[0, 10], [0, 100]], "w")
+      expect(buffer.lineForRow(0)).toBe "yellow"
+
   describe "::setTextViaDiff(text)", ->
     describe "when the buffer contains no newlines", ->
       beforeEach ->
