@@ -465,3 +465,19 @@ describe "TextBuffer", ->
     it "returns the range of the entire buffer text", ->
       buffer = new TextBuffer("abc\ndef\nghi")
       expect(buffer.getRange()).toEqual [[0, 0], [2, 3]]
+
+  describe "::rangeForRow(row, includeNewline)", ->
+    beforeEach ->
+      buffer = new TextBuffer("this\nis a test\r\ntesting")
+
+    describe "if includeNewline is false (the default)", ->
+      it "returns a range from the beginning of the line to the end of the line", ->
+        expect(buffer.rangeForRow(0)).toEqual([[0, 0], [0, 4]])
+        expect(buffer.rangeForRow(1)).toEqual([[1, 0], [1, 9]])
+        expect(buffer.rangeForRow(2)).toEqual([[2, 0], [2, 7]])
+
+    describe "if includeNewline is true", ->
+      it "returns a range from the beginning of the line to the beginning of the next (if it exists)", ->
+        expect(buffer.rangeForRow(0, true)).toEqual([[0, 0], [1, 0]])
+        expect(buffer.rangeForRow(1, true)).toEqual([[1, 0], [2, 0]])
+        expect(buffer.rangeForRow(2, true)).toEqual([[2, 0], [2, 7]])

@@ -299,6 +299,24 @@ class TextBuffer
   getRange: ->
     new Range(@getFirstPosition(), @getLastPosition())
 
+  # Public: Returns the range for the given row
+  #
+  # * row: A {Number}
+  # * includeNewline:
+  #     Whether or not to include the newline, resulting in a range that extends
+  #     to the start of the next line.
+  #
+  # Returns a {Range}.
+  rangeForRow: (row, includeNewline) ->
+    # Handle deprecated options hash
+    if typeof includeNewline is 'object'
+      {includeNewline} = includeNewline
+
+    if includeNewline and row < @getLastRow()
+      new Range(new Point(row, 0), new Point(row + 1, 0))
+    else
+      new Range(new Point(row, 0), new Point(row, @lineLengthForRow(row)))
+
   # Public: Given a {Point} representing a position in the buffer, returns a
   # {Number} representing the absolute character offset of that location in the
   # buffer, inclusive of newlines. The position is clipped prior to translating.
