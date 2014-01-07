@@ -2,6 +2,9 @@
 Serializable = require 'serializable'
 Range = require './range'
 
+# Private: Represents changes to a {Marker}. These patches are thrown away for
+# standalone marker updates, but we reify marker changes into objects so they
+# can be stored within {BufferPatch}es and {Transaction}s.
 module.exports =
 class MarkerPatch extends Serializable
   constructor: (@id, @oldParams, @newParams) ->

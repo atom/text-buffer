@@ -1,6 +1,10 @@
 Serializable = require 'serializable'
 Range = require './range'
 
+# Private: Represents a single change to {TextBuffer}. We reify the change into
+# an object so it can be stored in the undo/redo stack of {History}. Changes to
+# the buffer can be associated with changes to markers in addition to text, so
+# this also contains a hash of {MarkerPatch} objects.
 module.exports =
 class BufferPatch extends Serializable
   constructor: (@oldRange, @newRange, @oldText, @newText, @markerPatches={}) ->
