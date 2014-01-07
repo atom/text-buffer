@@ -218,6 +218,39 @@ describe "TextBuffer", ->
       buffer.deleteText([[0, 5], [0, 11]])
       expect(buffer.getText()).toBe "hello"
 
+  describe "::deleteRows(startRow, endRow)", ->
+    beforeEach ->
+      buffer = new TextBuffer("first\nsecond\nthird\nlast")
+
+    describe "when the endRow is less than the last row of the buffer", ->
+      it "deletes the specified rows", ->
+        buffer.deleteRows(1, 2)
+        expect(buffer.getText()).toBe "first\nlast"
+        buffer.deleteRows(0, 0)
+        expect(buffer.getText()).toBe "last"
+
+    describe "when the endRow is the last row of the buffer", ->
+      it "deletes the specified rows", ->
+        buffer.deleteRows(2, 3)
+        expect(buffer.getText()).toBe "first\nsecond"
+        buffer.deleteRows(0, 1)
+        expect(buffer.getText()).toBe ""
+
+    it "clips the given row range", ->
+      buffer.deleteRows(-1, 0)
+      expect(buffer.getText()).toBe "second\nthird\nlast"
+      buffer.deleteRows(1, 5)
+      expect(buffer.getText()).toBe "second"
+
+      buffer.deleteRows(-2, -1)
+      expect(buffer.getText()).toBe "second"
+      buffer.deleteRows(1, 2)
+      expect(buffer.getText()).toBe "second"
+
+    it "handles out of order row ranges", ->
+      buffer.deleteRows(2, 1)
+      expect(buffer.getText()).toBe "first\nlast"
+
   describe "::getText()", ->
     it "returns the contents of the buffer as a single string", ->
       buffer = new TextBuffer("hello\nworld\r\nhow are you?")

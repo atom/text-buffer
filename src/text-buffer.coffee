@@ -197,6 +197,37 @@ class TextBuffer
   deleteText: (range) ->
     @setTextInRange(range, '')
 
+  # Public: Deletes the specified lines associated with the specified row range.
+  # If the row range is out of bounds, it will be clipped. If the startRow is
+  # greater than the end row, they will be reordered.
+  #
+  # Returns the {Range} of the deleted text.
+  deleteRows: (startRow, endRow) ->
+    lastRow = @getLastRow()
+
+    [startRow, endRow] = [endRow, startRow] if startRow > endRow
+
+    if endRow < 0
+      return new Range(@getFirstPosition(), @getFirstPosition())
+
+    if startRow > lastRow
+      return new Range(@getLastPosition(), @getLastPosition())
+
+    startRow = Math.max(0, startRow)
+    endRow = Math.min(lastRow, endRow)
+
+    if endRow < lastRow
+      startPoint = new Point(startRow, 0)
+      endPoint = new Point(endRow + 1, 0)
+    else
+      if startRow is 0
+        startPoint = new Point(startRow, 0)
+      else
+        startPoint = new Point(startRow - 1, @lineLengthForRow(startRow - 1))
+      endPoint = new Point(endRow, @lineLengthForRow(endRow))
+
+    @deleteText(new Range(startPoint, endPoint))
+
   # Private: Builds a {BufferPatch}, which is used to modify the buffer and is
   # also pushed into the undo history so it can be undone.
   buildPatch: (oldRange, newText, normalizeLineEndings) ->
