@@ -138,16 +138,6 @@ class Range
   coversSameRows: (other) ->
     @start.row == other.start.row && @end.row == other.end.row
 
-  # Public: Returns a new range, shifted by the given delta.
-  #
-  # * delta:
-  #   A {Point} indicating the number of rows and columns by which to translate
-  #   this range.
-  #
-  # Returns: The translated {Range}
-  translate: (delta) ->
-    new @constructor(@start.translate(delta), @end.translate(delta))
-
   add: (delta) ->
     new @constructor(@start.add(delta), @end.add(delta))
 
