@@ -55,6 +55,24 @@ class Point
     {row, column} = Point.fromObject(delta)
     new Point(@row + row, @column + column)
 
+  add: (other) ->
+    other = Point.fromObject(other)
+    row = @row + other.row
+    if other.row == 0
+      column = @column + other.column
+    else
+      column = other.column
+
+    new Point(row, column)
+
+  splitAt: (column) ->
+    if @row == 0
+      rightColumn = @column - column
+    else
+      rightColumn = @column
+
+    [new Point(0, column), new Point(@row, rightColumn)]
+
   # Public:
   #
   # * other: A {Point} or point-compatible {Array}.
