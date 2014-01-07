@@ -59,6 +59,24 @@ class Range
       endPoint.column += lines[0].length
     new this(startPoint, endPoint)
 
+  # Public: Returns a {Range} that starts at the given point and ends at the
+  # start point plus the given row and column deltas.
+  #
+  # * startPoint:
+  #     A {Point} or point-compatible {Array}
+  # * rowDelta:
+  #     A {Number} indicating how many rows to add to the start point to get the
+  #     end point.
+  # * columnDelta:
+  #     A {Number} indicating how many rows to columns to the start point to get
+  #     the end point.
+  #
+  # Returns a {Range}
+  @fromPointWithDelta: (startPoint, rowDelta, columnDelta) ->
+    startPoint = Point.fromObject(startPoint)
+    endPoint = new Point(startPoint.row + rowDelta, startPoint.column + columnDelta)
+    new this(startPoint, endPoint)
+
   constructor: (pointA = new Point(0, 0), pointB = new Point(0, 0)) ->
     pointA = Point.fromObject(pointA)
     pointB = Point.fromObject(pointB)
