@@ -224,6 +224,11 @@ class TextBuffer
     lastRow = @getLastRow()
     new Point(lastRow, @lineLengthForRow(lastRow))
 
+  # Public: Returns a {Range} associated with the text of the entire buffer,
+  # from its first position to its last position.
+  getRange: ->
+    new Range(@getFirstPosition(), @getLastPosition())
+
   # Public: Given a {Point} representing a position in the buffer, returns a
   # {Number} representing the absolute character offset of that location in the
   # buffer, inclusive of newlines. The position is clipped prior to translating.

@@ -320,3 +320,8 @@ describe "TextBuffer", ->
       bufferB.undo()
       bufferB.undo()
       expect(bufferB.getText()).toBe "hello\nworld\r\nhow are you doing?"
+
+  describe "::getRange()", ->
+    it "returns the range of the entire buffer text", ->
+      buffer = new TextBuffer("abc\ndef\nghi")
+      expect(buffer.getRange()).toEqual [[0, 0], [2, 3]]
