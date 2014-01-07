@@ -189,6 +189,14 @@ class TextBuffer
   appendText: (text, normalizeLineEndings) ->
     @insertText(@getLastPosition(), text, normalizeLineEndings)
 
+  # Public: Deletes the text in the given range
+  #
+  # range - A {Range} in which to delete. The range is clipped before deleting.
+  #
+  # Returns an empty {Range} starting at the start of deleted range.
+  deleteText: (range) ->
+    @setTextInRange(range, '')
+
   # Private: Builds a {BufferPatch}, which is used to modify the buffer and is
   # also pushed into the undo history so it can be undone.
   buildPatch: (oldRange, newText, normalizeLineEndings) ->

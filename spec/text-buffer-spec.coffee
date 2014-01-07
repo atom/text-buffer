@@ -212,6 +212,12 @@ describe "TextBuffer", ->
       buffer.appendText("\r\nhow\r\nare\nyou?", false)
       expect(buffer.getText()).toBe "hello\nworld\r\nhow\r\nare\nyou?"
 
+  describe "::deleteText(range)", ->
+    it "deletes text in the given range", ->
+      buffer = new TextBuffer("hello world")
+      buffer.deleteText([[0, 5], [0, 11]])
+      expect(buffer.getText()).toBe "hello"
+
   describe "::getText()", ->
     it "returns the contents of the buffer as a single string", ->
       buffer = new TextBuffer("hello\nworld\r\nhow are you?")
