@@ -27,6 +27,8 @@ class TextBuffer
   @delegatesMethods 'markRange', 'markPosition', 'getMarker', 'getMarkers',
     'findMarkers', toProperty: 'markers'
 
+  cachedText: null
+
   # Public:
   # * text: An optional string of Text with which to initialize the buffer.
   constructor: (params) ->
@@ -52,10 +54,13 @@ class TextBuffer
 
   # Public: Returns a {String} representing the entire contents of the buffer.
   getText: ->
-    text = ''
-    for row in [0..@getLastRow()]
-      text += (@lineForRow(row) + @lineEndingForRow(row))
-    text
+    if @cachedText?
+      @cachedText
+    else
+      text = ''
+      for row in [0..@getLastRow()]
+        text += (@lineForRow(row) + @lineEndingForRow(row))
+      @cachedText = text
 
   # Public: Returns an {Array} of {String}s representing all the lines in the
   # buffer, without line endings.
@@ -169,6 +174,8 @@ class TextBuffer
   # Private: Applies a {BufferPatch} to the buffer based on its old range and
   # new text. Also applies any {MarkerPatch}es associated with the {BufferPatch}.
   applyPatch: ({oldRange, newRange, oldText, newText, markerPatches}) ->
+    @cachedText = null
+
     startRow = oldRange.start.row
     endRow = oldRange.end.row
     rowCount = endRow - startRow + 1
