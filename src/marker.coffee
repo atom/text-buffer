@@ -305,6 +305,7 @@ class Marker
   destroy: ->
     @destroyed = true
     @manager.removeMarker(@id)
+    @manager.intervals.remove(@id)
     @emit 'destroyed'
 
   # Private:
