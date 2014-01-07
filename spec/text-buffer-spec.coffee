@@ -133,6 +133,13 @@ describe "TextBuffer", ->
         buffer.setTextViaDiff(newText)
         expect(buffer.getText()).toBe newText
 
+  describe "::getText()", ->
+    it "returns the contents of the buffer as a single string", ->
+      buffer = new TextBuffer("hello\nworld\r\nhow are you?")
+      expect(buffer.getText()).toBe "hello\nworld\r\nhow are you?"
+      buffer.setTextInRange([[1, 0], [1, 5]], "mom")
+      expect(buffer.getText()).toBe "hello\nmom\r\nhow are you?"
+
   describe "::undo() and ::redo()", ->
     beforeEach ->
       buffer = new TextBuffer(text: "hello\nworld\r\nhow are you doing?")
