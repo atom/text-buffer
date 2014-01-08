@@ -190,32 +190,32 @@ describe "TextBuffer", ->
         buffer.setTextViaDiff(newText)
         expect(buffer.getText()).toBe newText
 
-  describe "::insertText(position, text, normalizeNewlinesn)", ->
+  describe "::insert(position, text, normalizeNewlinesn)", ->
     it "inserts text at the given position", ->
       buffer = new TextBuffer("hello world")
-      buffer.insertText([0, 5], " there")
+      buffer.insert([0, 5], " there")
       expect(buffer.getText()).toBe "hello there world"
 
     it "honors the normalizeNewlines option", ->
       buffer = new TextBuffer("hello\nworld")
-      buffer.insertText([0, 5], "\r\nthere\r\nlittle", false)
+      buffer.insert([0, 5], "\r\nthere\r\nlittle", false)
       expect(buffer.getText()).toBe "hello\r\nthere\r\nlittle\nworld"
 
-  describe "::appendText(text, normalizeNewlines)", ->
+  describe "::append(text, normalizeNewlines)", ->
     it "appends text to the end of the buffer", ->
       buffer = new TextBuffer("hello world")
-      buffer.appendText(", how are you?")
+      buffer.append(", how are you?")
       expect(buffer.getText()).toBe "hello world, how are you?"
 
     it "honors the normalizeNewlines option", ->
       buffer = new TextBuffer("hello\nworld")
-      buffer.appendText("\r\nhow\r\nare\nyou?", false)
+      buffer.append("\r\nhow\r\nare\nyou?", false)
       expect(buffer.getText()).toBe "hello\nworld\r\nhow\r\nare\nyou?"
 
-  describe "::deleteText(range)", ->
+  describe "::delete(range)", ->
     it "deletes text in the given range", ->
       buffer = new TextBuffer("hello world")
-      buffer.deleteText([[0, 5], [0, 11]])
+      buffer.delete([[0, 5], [0, 11]])
       expect(buffer.getText()).toBe "hello"
 
   describe "::deleteRows(startRow, endRow)", ->

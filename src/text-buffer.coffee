@@ -178,7 +178,7 @@ class TextBuffer
   #     A {String} representing the text to insert
   #
   # Returns the {Range} of the inserted text
-  insertText: (position, text, normalizeLineEndings) ->
+  insert: (position, text, normalizeLineEndings) ->
     @setTextInRange(new Range(position, position), text, normalizeLineEndings)
 
   # Public: Appends the given text to the end of the buffer
@@ -186,15 +186,15 @@ class TextBuffer
   # * text: A {String} representing the text text to append
   #
   # Returns the {Range} of the inserted text
-  appendText: (text, normalizeLineEndings) ->
-    @insertText(@getEndPosition(), text, normalizeLineEndings)
+  append: (text, normalizeLineEndings) ->
+    @insert(@getEndPosition(), text, normalizeLineEndings)
 
   # Public: Deletes the text in the given range
   #
   # range - A {Range} in which to delete. The range is clipped before deleting.
   #
   # Returns an empty {Range} starting at the start of deleted range.
-  deleteText: (range) ->
+  delete: (range) ->
     @setTextInRange(range, '')
 
   # Public: Deletes the line associated with the specified row.
@@ -232,7 +232,7 @@ class TextBuffer
         startPoint = new Point(startRow - 1, @lineLengthForRow(startRow - 1))
       endPoint = new Point(endRow, @lineLengthForRow(endRow))
 
-    @deleteText(new Range(startPoint, endPoint))
+    @delete(new Range(startPoint, endPoint))
 
   # Private: Builds a {BufferPatch}, which is used to modify the buffer and is
   # also pushed into the undo history so it can be undone.
