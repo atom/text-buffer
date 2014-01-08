@@ -187,7 +187,7 @@ class TextBuffer
   #
   # Returns the {Range} of the inserted text
   appendText: (text, normalizeLineEndings) ->
-    @insertText(@getLastPosition(), text, normalizeLineEndings)
+    @insertText(@getEndPosition(), text, normalizeLineEndings)
 
   # Public: Deletes the text in the given range
   #
@@ -217,7 +217,7 @@ class TextBuffer
       return new Range(@getFirstPosition(), @getFirstPosition())
 
     if startRow > lastRow
-      return new Range(@getLastPosition(), @getLastPosition())
+      return new Range(@getEndPosition(), @getEndPosition())
 
     startRow = Math.max(0, startRow)
     endRow = Math.min(lastRow, endRow)
@@ -346,7 +346,7 @@ class TextBuffer
     if row < 0
       @getFirstPosition()
     else if row > @getLastRow()
-      @getLastPosition()
+      @getEndPosition()
     else
       column = Math.min(Math.max(column, 0), @lineLengthForRow(row))
       if column is position.column
@@ -359,14 +359,14 @@ class TextBuffer
     new Point(0, 0)
 
   # Public: Returns a {Point} representing the maximal position in the buffer.
-  getLastPosition: ->
+  getEndPosition: ->
     lastRow = @getLastRow()
     new Point(lastRow, @lineLengthForRow(lastRow))
 
   # Public: Returns a {Range} associated with the text of the entire buffer,
   # from its first position to its last position.
   getRange: ->
-    new Range(@getFirstPosition(), @getLastPosition())
+    new Range(@getFirstPosition(), @getEndPosition())
 
   # Public: Returns the range for the given row
   #
@@ -408,7 +408,7 @@ class TextBuffer
 
     {rows, characters} = @offsetIndex.totalTo(offset, 'characters')
     if rows > @getLastRow()
-      @getLastPosition()
+      @getEndPosition()
     else
       new Point(rows, offset - characters)
 
