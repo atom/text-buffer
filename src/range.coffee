@@ -185,6 +185,12 @@ class Range
   intersectsRow: (row) ->
     @start.row <= row <= @end.row
 
+  # Public: Returns a {Boolean} indicating whether this range intersects the
+  # row range indicated by the given startRow and endRow {Number}s.
+  intersectsRowRange: (startRow, endRow) ->
+    [startRow, endRow] = [endRow, startRow] if startRow > endRow
+    @end.row >= startRow and endRow >= @start.row
+
   # Public: Returns a new range that contains this range and the given range.
   union: (otherRange) ->
     start = if @start.isLessThan(otherRange.start) then @start else otherRange.start
