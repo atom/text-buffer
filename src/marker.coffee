@@ -1,5 +1,4 @@
-{extend, omit, pick, size} = require 'underscore'
-isEqual = require 'tantamount'
+{extend, isEqual, omit, pick, size} = require 'underscore'
 {Emitter} = require 'emissary'
 Delegator = require 'delegato'
 Serializable = require 'serializable'

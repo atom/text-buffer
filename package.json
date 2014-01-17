@@ -38,8 +38,7 @@
     "delegato": "1.x",
     "diff": "git://github.com/benogle/jsdiff.git",
     "emissary": "1.x",
-    "underscore": "~1.5.2",
-    "tantamount": "~0.8.0",
+    "underscore-plus": "1.x",
     "interval-skip-list": "~0.4.0",
     "serializable": "~0.2.0"
   }
