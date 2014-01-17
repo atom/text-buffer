@@ -1,4 +1,4 @@
-{difference} = require 'underscore'
+{difference} = require 'underscore-plus'
 TextBuffer = require '../src/text-buffer'
 
 describe "Marker", ->

@@ -1,4 +1,4 @@
-{find} = require 'underscore'
+{find} = require 'underscore-plus'
 Serializable = require 'serializable'
 BufferPatch = require './buffer-patch'
 

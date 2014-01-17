@@ -1,4 +1,4 @@
-{clone} = require 'underscore'
+{clone} = require 'underscore-plus'
 Serializable = require 'serializable'
 Range = require './range'
 
