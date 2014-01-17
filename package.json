@@ -37,7 +37,7 @@
     "span-skip-list": "~0.1.1",
     "delegato": "1.x",
     "diff": "git://github.com/benogle/jsdiff.git",
-    "emissary": "~0.28.0",
+    "emissary": "1.x",
     "underscore": "~1.5.2",
     "tantamount": "~0.8.0",
     "interval-skip-list": "~0.4.0",
