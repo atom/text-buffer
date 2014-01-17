@@ -40,6 +40,6 @@
     "emissary": "1.x",
     "underscore-plus": "1.x",
     "interval-skip-list": "~0.4.0",
-    "serializable": "~0.2.0"
+    "serializable": "1.x"
   }
 }
