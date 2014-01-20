@@ -21,7 +21,7 @@ class Range
   #
   # * object:
   #     This can be an object that's already a {Range}, in which case it's
-  #     simply returned, or an array containing two {Points} or point-compatible
+  #     simply returned, or an array containing two {Point}s or point-compatible
   #     arrays.
   # * copy:
   #     An optional boolean indicating whether to force the copying of objects
