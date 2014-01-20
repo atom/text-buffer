@@ -11,7 +11,7 @@ class Point
   #
   # * object:
   #     This can be an object that's already a {Point}, in which case it's
-  #     simply returned, or an array containing two {Numbers} representing the
+  #     simply returned, or an array containing two {Number}s representing the
   #     row and column.
   #
   # * copy:
