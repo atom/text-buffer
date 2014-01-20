@@ -1,9 +1,10 @@
 Point = require './point'
 
-# Public: Represents a region in a buffer in row/column coordinates. Every public
-# method that takes a range also accepts a *range-compatible* {Array}. This means
-# a 2-element array containing {Point}s or point-compatible arrays. So the
-# following are equivalent:
+# Public: Represents a region in a buffer in row/column coordinates.
+#
+# Every public method that takes a range also accepts a *range-compatible*
+# {Array}. This means a 2-element array containing {Point}s or point-compatible
+# arrays. So the following are equivalent:
 #
 # ```coffee
 # new Range(new Point(0, 1), new Point(2, 3))
