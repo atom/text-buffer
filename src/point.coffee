@@ -3,8 +3,10 @@
 # a 2-element array containing {Number}s representing the row and column. So the
 # following are equivalent:
 #
+# ```coffee
 # new Point(1, 2)
 # [1, 2]
+# ```
 module.exports =
 class Point
   # Public: Convert any point-compatible object to a {Point}.

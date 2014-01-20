@@ -5,9 +5,11 @@ Point = require './point'
 # a 2-element array containing {Point}s or point-compatible arrays. So the
 # following are equivalent:
 #
+# ```coffee
 # new Range(new Point(0, 1), new Point(2, 3))
 # new Range([0, 1], [2, 3])
 # [[0, 1], [2, 3]]
+# ```
 module.exports =
 class Range
   # Public: Call this with the result of {::serialize} to construct a new Range.
