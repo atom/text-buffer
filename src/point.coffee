@@ -132,6 +132,6 @@ class Point
   serialize: ->
     @toArray()
 
-  # Public:
+  # Public: Returns a string representation of the point.
   toString: ->
     "(#{@row}, #{@column})"
