@@ -259,11 +259,15 @@ class Marker
   hasTail: ->
     @tailed
 
-  # Public:
+  # Public: Is the marker valid?
+  #
+  # Returns a {Boolean}.
   isValid: ->
     not @isDestroyed() and @valid
 
-  # Public:
+  # Public: Is the marker destroyed?
+  #
+  # Returns a {Boolean}.
   isDestroyed: ->
     @destroyed
 
@@ -272,7 +276,11 @@ class Marker
   isEqual: (other) ->
     isEqual(@toParams(true), other.toParams(true))
 
-  # Public:
+  # Public: Get the invalidation strategy for this marker.
+  #
+  # Valid values include: `inside`, `never`, `overlap`, and `surround`.
+  #
+  # Returns a {String}.
   getInvalidationStrategy: ->
     @invalidate
 
