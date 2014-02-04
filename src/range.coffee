@@ -200,7 +200,9 @@ class Range
     end = if @end.isGreaterThan(otherRange.end) then @end else otherRange.end
     new @constructor(start, end)
 
-  # Public:
+  # Public: Is the start position of this range equal to the end position?
+  #
+  # Returns a {Boolean}.
   isEmpty: ->
     @start.isEqual(@end)
 
@@ -212,7 +214,9 @@ class Range
       columns = @end.column
     new Point(rows, columns)
 
-  # Public:
+  # Public: Get the number of rows in this range.
+  #
+  # Returns a {Number}.
   getRowCount: ->
     @end.row - @start.row + 1
 
