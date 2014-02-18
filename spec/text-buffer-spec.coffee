@@ -686,3 +686,60 @@ describe "TextBuffer", ->
 
         runs ->
           expect(handler.callCount).toBe 1
+
+  describe "when the buffer's file is deleted (via another process)", ->
+    [filePath, bufferToDelete] = []
+
+    beforeEach ->
+      filePath = join(temp.dir, 'atom-file-to-delete.txt')
+      fs.writeFileSync(filePath, 'delete me')
+      bufferToDelete = new TextBuffer({filePath, load: true})
+      filePath = bufferToDelete.getPath() # symlinks may have been converted
+      expect(bufferToDelete.getPath()).toBe filePath
+
+      waitsFor ->
+        bufferToDelete.loaded
+
+    afterEach ->
+      bufferToDelete.destroy()
+
+    describe "when the file is modified", ->
+      beforeEach ->
+        bufferToDelete.setText("I WAS MODIFIED")
+        expect(bufferToDelete.isModified()).toBeTruthy()
+
+        removeHandler = jasmine.createSpy('removeHandler')
+        bufferToDelete.file.on 'removed', removeHandler
+        fs.removeSync(filePath)
+        waitsFor "file to be removed", ->
+          removeHandler.callCount > 0
+
+      it "retains its path and reports the buffer as modified", ->
+        expect(bufferToDelete.getPath()).toBe filePath
+        expect(bufferToDelete.isModified()).toBeTruthy()
+
+    describe "when the file is not modified", ->
+      beforeEach ->
+        expect(bufferToDelete.isModified()).toBeFalsy()
+
+        removeHandler = jasmine.createSpy('removeHandler')
+        bufferToDelete.file.on 'removed', removeHandler
+        fs.removeSync(filePath)
+        waitsFor "file to be removed", ->
+          removeHandler.callCount > 0
+
+      it "retains its path and reports the buffer as not modified", ->
+        expect(bufferToDelete.getPath()).toBe filePath
+        expect(bufferToDelete.isModified()).toBeFalsy()
+
+    it "resumes watching of the file when it is re-saved", ->
+      bufferToDelete.save()
+      expect(fs.existsSync(bufferToDelete.getPath())).toBeTruthy()
+      expect(bufferToDelete.isInConflict()).toBeFalsy()
+
+      fs.writeFileSync(filePath, 'moo')
+
+      changeHandler = jasmine.createSpy('changeHandler')
+      bufferToDelete.on 'changed', changeHandler
+      waitsFor 'change event', ->
+        changeHandler.callCount > 0
