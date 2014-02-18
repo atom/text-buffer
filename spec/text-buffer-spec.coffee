@@ -572,3 +572,36 @@ describe "TextBuffer", ->
         expect(buffer.rangeForRow(0, true)).toEqual([[0, 0], [1, 0]])
         expect(buffer.rangeForRow(1, true)).toEqual([[1, 0], [2, 0]])
         expect(buffer.rangeForRow(2, true)).toEqual([[2, 0], [2, 7]])
+
+  describe "path-changed event", ->
+    [filePath, newPath, bufferToChange, eventHandler] = []
+
+    beforeEach ->
+      filePath = join(__dirname, "fixtures", "manipulate-me")
+      newPath = "#{filePath}-i-moved"
+      fs.writeFileSync(filePath, "")
+      bufferToChange = new TextBuffer({filePath, load: true})
+      eventHandler = jasmine.createSpy('eventHandler')
+      bufferToChange.on 'path-changed', eventHandler
+
+      waitsFor ->
+        bufferToChange.loaded
+
+    afterEach ->
+      bufferToChange.destroy()
+      fs.removeSync(filePath) if fs.existsSync(filePath)
+      fs.removeSync(newPath) if fs.existsSync(newPath)
+
+    it "triggers a `path-changed` event when path is changed", ->
+      bufferToChange.saveAs(newPath)
+      expect(eventHandler).toHaveBeenCalledWith(bufferToChange)
+
+    it "triggers a `path-changed` event when the file is moved", ->
+      fs.removeSync(newPath) if fs.existsSync(newPath)
+      fs.moveSync(filePath, newPath)
+
+      waitsFor "buffer path change", ->
+        eventHandler.callCount > 0
+
+      runs ->
+        expect(eventHandler).toHaveBeenCalledWith(bufferToChange)
