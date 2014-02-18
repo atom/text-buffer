@@ -1,4 +1,5 @@
-{readFileSync} = require 'fs'
+fs = require 'fs-plus'
+{readFileSync} = fs
 {join} = require 'path'
 TextBuffer = require '../src/text-buffer'
 SampleText = readFileSync(join(__dirname, 'fixtures', 'sample.js'), 'utf8')
@@ -25,6 +26,35 @@ describe "TextBuffer", ->
       expect(buffer.lineEndingForRow(1)).toBe '\r\n'
       expect(buffer.lineForRow(2)).toBe 'how are you doing?'
       expect(buffer.lineEndingForRow(2)).toBe ''
+
+    describe "when a file path is given", ->
+      [filePath, buffer] = []
+
+      beforeEach ->
+        filePath = require.resolve('./fixtures/sample.js')
+        buffer = new TextBuffer({filePath, load: true})
+
+        waitsFor ->
+          buffer.loaded
+
+      afterEach ->
+        buffer?.destroy()
+
+      describe "when a file exists for the path", ->
+        it "loads the contents of that file", ->
+          expect(buffer.getText()).toBe fs.readFileSync(filePath, 'utf8')
+
+        it "does not allow the initial state of the buffer to be undone", ->
+          buffer.undo()
+          expect(buffer.getText()).toBe fs.readFileSync(filePath, 'utf8')
+
+      describe "when no file exists for the path", ->
+        it "is not modified and is initially empty", ->
+          filePath = "does-not-exist.txt"
+          expect(fs.existsSync(filePath)).toBeFalsy()
+          buffer = new TextBuffer({filePath, load: true})
+          expect(buffer.isModified()).not.toBeTruthy()
+          expect(buffer.getText()).toBe ''
 
   describe "::setTextInRange(range, text)", ->
     beforeEach ->
