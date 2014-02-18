@@ -1,6 +1,7 @@
 fs = require 'fs-plus'
 {readFileSync} = fs
 {join} = require 'path'
+temp = require 'temp'
 TextBuffer = require '../src/text-buffer'
 SampleText = readFileSync(join(__dirname, 'fixtures', 'sample.js'), 'utf8')
 
@@ -605,3 +606,83 @@ describe "TextBuffer", ->
 
       runs ->
         expect(eventHandler).toHaveBeenCalledWith(bufferToChange)
+
+  describe "when the buffer's on-disk contents change", ->
+    filePath = null
+
+    beforeEach ->
+      filePath = temp.openSync('atom').path
+      fs.writeFileSync(filePath, "first")
+      buffer = new TextBuffer({filePath, load: true})
+
+      waitsFor ->
+        buffer.loaded
+
+    afterEach ->
+      buffer.destroy()
+
+    it "does not trigger a change event when Atom modifies the file", ->
+      buffer.insert([0,0], "HELLO!")
+      changeHandler = jasmine.createSpy("buffer changed")
+      buffer.on "changed", changeHandler
+      buffer.save()
+
+      waits 30
+      runs ->
+        expect(changeHandler).not.toHaveBeenCalled()
+
+    describe "when the buffer is in an unmodified state before the on-disk change", ->
+      it "changes the memory contents of the buffer to match the new disk contents and triggers a 'changed' event", ->
+        changeHandler = jasmine.createSpy('changeHandler')
+        buffer.on 'changed', changeHandler
+        fs.writeFileSync(filePath, "second")
+
+        expect(changeHandler.callCount).toBe 0
+        waitsFor "file to trigger change event", ->
+          changeHandler.callCount > 0
+
+        runs ->
+          [event] = changeHandler.argsForCall[0]
+          expect(event.oldRange).toEqual [[0, 0], [0, 0]]
+          expect(event.newRange).toEqual [[0, 0], [0, 6]]
+          expect(event.oldText).toBe ""
+          expect(event.newText).toBe "second"
+
+          [event] = changeHandler.argsForCall[1]
+          expect(event.oldRange).toEqual [[0, 6], [0, 11]]
+          expect(event.newRange).toEqual [[0, 6], [0, 6]]
+          expect(event.oldText).toBe "first"
+          expect(event.newText).toBe ""
+
+          expect(buffer.isModified()).toBeFalsy()
+
+    describe "when the buffer's memory contents differ from the *previous* disk contents", ->
+      it "leaves the buffer in a modified state (does not update its memory contents)", ->
+        fileChangeHandler = jasmine.createSpy('fileChange')
+        buffer.file.on 'contents-changed', fileChangeHandler
+
+        buffer.insert([0, 0], "a change")
+        fs.writeFileSync(filePath, "second")
+
+        expect(fileChangeHandler.callCount).toBe 0
+        waitsFor "file to trigger 'contents-changed' event", ->
+          fileChangeHandler.callCount > 0
+
+        runs ->
+          expect(buffer.isModified()).toBeTruthy()
+
+      it "fires a single contents-conflicted event", ->
+        buffer.setText("a change")
+        buffer.save()
+        buffer.insert([0, 0], "a second change")
+
+        handler = jasmine.createSpy('fileChange')
+        fs.writeFileSync(filePath, "a disk change")
+        buffer.on 'contents-conflicted', handler
+
+        expect(handler.callCount).toBe 0
+        waitsFor ->
+          handler.callCount > 0
+
+        runs ->
+          expect(handler.callCount).toBe 1
