@@ -38,6 +38,7 @@
     "emissary": "1.x",
     "underscore-plus": "1.x",
     "interval-skip-list": "~0.4.0",
-    "serializable": "1.x"
+    "serializable": "1.x",
+    "pathwatcher": "~0.15.0"
   }
 }
