@@ -29,7 +29,8 @@
     "grunt-shell": "~0.2.2",
     "grunt-coffeelint": "0.0.6",
     "rimraf": "~2.2.2",
-    "coffee-cache": "~0.2.0"
+    "coffee-cache": "~0.2.0",
+    "temp": "~0.6.0"
   },
   "dependencies": {
     "span-skip-list": "~0.1.1",
@@ -38,6 +39,9 @@
     "emissary": "1.x",
     "underscore-plus": "1.x",
     "interval-skip-list": "~0.4.0",
-    "serializable": "1.x"
+    "serializable": "1.x",
+    "pathwatcher": "~0.15.0",
+    "q": "~1.0.0",
+    "fs-plus": "2.x"
   }
 }
