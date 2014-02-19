@@ -743,3 +743,175 @@ describe "TextBuffer", ->
       bufferToDelete.on 'changed', changeHandler
       waitsFor 'change event', ->
         changeHandler.callCount > 0
+
+  describe "modified status", ->
+    [filePath, buffer] = []
+
+    beforeEach ->
+      filePath = join(temp.dir, 'atom-tmp-file')
+      fs.writeFileSync(filePath, '')
+      buffer = new TextBuffer({filePath, load: true})
+
+      waitsFor ->
+        buffer.loaded
+
+    afterEach ->
+      buffer?.destroy()
+
+    it "reports the modified status changing to true or false after the user changes buffer", ->
+      modifiedHandler = jasmine.createSpy("modifiedHandler")
+      buffer.on 'modified-status-changed', modifiedHandler
+
+      expect(buffer.isModified()).toBeFalsy()
+      buffer.insert([0,0], "hi")
+      expect(buffer.isModified()).toBe true
+
+      waitsFor ->
+        modifiedHandler.callCount is 1
+
+      runs ->
+        expect(modifiedHandler).toHaveBeenCalledWith(true)
+
+        modifiedHandler.reset()
+        buffer.insert([0,2], "ho")
+
+      waits buffer.stoppedChangingDelay * 2
+
+      runs ->
+        expect(modifiedHandler).not.toHaveBeenCalled()
+
+        modifiedHandler.reset()
+        buffer.undo()
+        buffer.undo()
+
+      waitsFor ->
+        modifiedHandler.callCount is 1
+
+      runs ->
+        expect(modifiedHandler).toHaveBeenCalledWith(false)
+
+    it "reports the modified status changing to false after a modified buffer is saved", ->
+      modifiedHandler = jasmine.createSpy("modifiedHandler")
+      buffer.on 'modified-status-changed', modifiedHandler
+      buffer.insert([0,0], "hi")
+
+      waitsFor ->
+        modifiedHandler.callCount is 1
+
+      runs ->
+        expect(buffer.isModified()).toBe true
+
+        modifiedHandler.reset()
+        buffer.save()
+
+        expect(modifiedHandler).toHaveBeenCalledWith(false)
+        expect(buffer.isModified()).toBe false
+        modifiedHandler.reset()
+
+        buffer.insert([0, 0], 'x')
+
+      waitsFor ->
+        modifiedHandler.callCount is 1
+
+      runs ->
+        expect(modifiedHandler).toHaveBeenCalledWith(true)
+        expect(buffer.isModified()).toBe true
+
+    it "reports the modified status changing to false after a modified buffer is reloaded", ->
+      modifiedHandler = jasmine.createSpy("modifiedHandler")
+      buffer.on 'modified-status-changed', modifiedHandler
+      buffer.insert([0,0], "hi")
+
+      waitsFor ->
+        modifiedHandler.callCount is 1
+
+      runs ->
+        expect(buffer.isModified()).toBe true
+
+        modifiedHandler.reset()
+        buffer.reload()
+
+        expect(modifiedHandler).toHaveBeenCalledWith(false)
+        expect(buffer.isModified()).toBe false
+
+        modifiedHandler.reset()
+        buffer.insert([0, 0], 'x')
+
+      waitsFor ->
+        modifiedHandler.callCount is 1
+
+      runs ->
+        expect(modifiedHandler).toHaveBeenCalledWith(true)
+        expect(buffer.isModified()).toBe true
+
+    it "reports the modified status changing to false after a buffer to a non-existent file is saved", ->
+      buffer.destroy()
+      fs.removeSync(filePath)
+      expect(fs.existsSync(filePath)).toBeFalsy()
+
+      buffer = new TextBuffer({filePath, load: true})
+      modifiedHandler = jasmine.createSpy("modifiedHandler")
+
+      waitsFor ->
+        buffer.loaded
+
+      runs ->
+        buffer.on 'modified-status-changed', modifiedHandler
+        buffer.insert([0,0], "hi")
+
+      waitsFor ->
+        modifiedHandler.callCount is 1
+
+      runs ->
+        expect(buffer.isModified()).toBe true
+
+        modifiedHandler.reset()
+        buffer.save()
+
+        expect(fs.existsSync(filePath)).toBeTruthy()
+        expect(modifiedHandler).toHaveBeenCalledWith(false)
+        expect(buffer.isModified()).toBe false
+
+        modifiedHandler.reset()
+        buffer.insert([0, 0], 'x')
+
+      waitsFor ->
+        modifiedHandler.callCount is 1
+
+      runs ->
+        expect(modifiedHandler).toHaveBeenCalledWith(true)
+        expect(buffer.isModified()).toBe true
+
+    it "returns false for an empty buffer with no path", ->
+      buffer.destroy()
+      buffer = new TextBuffer({load: true})
+
+      waitsFor ->
+        buffer.loaded
+
+      runs ->
+        expect(buffer.isModified()).toBeFalsy()
+
+    it "returns true for a non-empty buffer with no path", ->
+      buffer.destroy()
+      buffer = new TextBuffer({load: true})
+
+      waitsFor ->
+        buffer.loaded
+
+      runs ->
+        buffer.setText('a')
+        expect(buffer.isModified()).toBeTruthy()
+        buffer.setText('\n')
+        expect(buffer.isModified()).toBeTruthy()
+
+    it "returns false until the buffer is fully loaded", ->
+      buffer.destroy()
+      buffer = new TextBuffer({filePath, load: true})
+      expect(buffer.isModified()).toBeFalsy()
+
+      waitsFor ->
+        buffer.loaded
+
+      runs ->
+        expect(buffer.isModified()).toBeFalsy()
