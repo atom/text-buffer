@@ -3,4 +3,4 @@ language: objective_c
 notifications:
   email: false
 
-script: "./script/cibuild"
+script: ./script/cibuild
