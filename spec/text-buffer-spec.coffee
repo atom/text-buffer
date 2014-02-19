@@ -32,7 +32,7 @@ describe "TextBuffer", ->
       expect(buffer.lineEndingForRow(2)).toBe ''
 
     describe "when a file path is given", ->
-      [filePath, buffer] = []
+      [filePath] = []
 
       beforeEach ->
         filePath = require.resolve('./fixtures/sample.js')
@@ -821,7 +821,7 @@ describe "TextBuffer", ->
         changeHandler.callCount > 0
 
   describe "modified status", ->
-    [filePath, buffer] = []
+    [filePath] = []
 
     beforeEach ->
       filePath = join(temp.dir, 'atom-tmp-file')
