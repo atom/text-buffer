@@ -91,7 +91,8 @@ class TextBuffer
   getLines: ->
     @lines.slice()
 
-  # Public:
+  # Public: Returns a {Boolean}, `true` if this buffer has no text, `false`
+  # otherwise.
   isEmpty: ->
     @getLastRow() is 0 and @lineLengthForRow(0) is 0
 
