@@ -63,14 +63,14 @@ class TextBuffer
     @setPath(params.filePath) if params?.filePath
     @load() if params?.load
 
-  # Private: Called by {Serializable} mixin during deserialization.
+  # Called by {Serializable} mixin during deserialization.
   deserializeParams: (params) ->
     params.markers = MarkerManager.deserialize(params.markers, buffer: this)
     params.history = History.deserialize(params.history, buffer: this)
     params.load = true
     params
 
-  # Private: Called by {Serializable} mixin during serialization.
+  # Called by {Serializable} mixin during serialization.
   serializeParams: ->
     text: @getText()
     markers: @markers.serialize()
@@ -260,8 +260,8 @@ class TextBuffer
 
     @delete(new Range(startPoint, endPoint))
 
-  # Private: Builds a {BufferPatch}, which is used to modify the buffer and is
-  # also pushed into the undo history so it can be undone.
+  # Builds a {BufferPatch}, which is used to modify the buffer and is also
+  # pushed into the undo history so it can be undone.
   buildPatch: (oldRange, newText, normalizeLineEndings) ->
     oldRange = @clipRange(oldRange)
     oldText = @getTextInRange(oldRange)
@@ -270,8 +270,8 @@ class TextBuffer
     @markers?.handleBufferChange(patch)
     patch
 
-  # Private: Applies a {BufferPatch} to the buffer based on its old range and
-  # new text. Also applies any {MarkerPatch}es associated with the {BufferPatch}.
+  # Applies a {BufferPatch} to the buffer based on its old range and new text.
+  # Also applies any {MarkerPatch}es associated with the {BufferPatch}.
   applyPatch: ({oldRange, newRange, oldText, newText, normalizeLineEndings, markerPatches}) ->
     @cachedText = null
 
