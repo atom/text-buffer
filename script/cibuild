@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/env sh
 
 echo "Downloading node v0.10.22..."
 curl -s -O http://nodejs.org/dist/v0.10.22/node-v0.10.22-darwin-x64.tar.gz
