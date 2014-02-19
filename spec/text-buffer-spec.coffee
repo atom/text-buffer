@@ -1,5 +1,4 @@
-fs = require 'fs-plus'
-{readFileSync} = fs
+{existsSync, moveSync, readFileSync, removeSync, writeFileSync} = require 'fs-plus'
 {join} = require 'path'
 temp = require 'temp'
 {File} = require 'pathwatcher'
@@ -47,16 +46,16 @@ describe "TextBuffer", ->
 
       describe "when a file exists for the path", ->
         it "loads the contents of that file", ->
-          expect(buffer.getText()).toBe fs.readFileSync(filePath, 'utf8')
+          expect(buffer.getText()).toBe readFileSync(filePath, 'utf8')
 
         it "does not allow the initial state of the buffer to be undone", ->
           buffer.undo()
-          expect(buffer.getText()).toBe fs.readFileSync(filePath, 'utf8')
+          expect(buffer.getText()).toBe readFileSync(filePath, 'utf8')
 
       describe "when no file exists for the path", ->
         it "is not modified and is initially empty", ->
           filePath = "does-not-exist.txt"
-          expect(fs.existsSync(filePath)).toBeFalsy()
+          expect(existsSync(filePath)).toBeFalsy()
           buffer = new TextBuffer({filePath, load: true})
           expect(buffer.isModified()).not.toBeTruthy()
           expect(buffer.getText()).toBe ''
@@ -562,7 +561,7 @@ describe "TextBuffer", ->
 
       beforeEach ->
         filePath = temp.openSync('atom').path
-        fs.writeFileSync(filePath, "words")
+        writeFileSync(filePath, "words")
         buffer = new TextBuffer({filePath, load: true})
 
         waitsFor ->
@@ -589,7 +588,7 @@ describe "TextBuffer", ->
         describe "when the disk contents were changed since serialization", ->
           it "loads the disk contents instead of the previous unsaved state", ->
             buffer.setText("BUFFER CHANGE")
-            fs.writeFileSync(filePath, "DISK CHANGE")
+            writeFileSync(filePath, "DISK CHANGE")
 
             buffer2 = buffer.testSerialization()
 
@@ -657,7 +656,7 @@ describe "TextBuffer", ->
     beforeEach ->
       filePath = join(__dirname, "fixtures", "manipulate-me")
       newPath = "#{filePath}-i-moved"
-      fs.writeFileSync(filePath, "")
+      writeFileSync(filePath, "")
       bufferToChange = new TextBuffer({filePath, load: true})
       eventHandler = jasmine.createSpy('eventHandler')
       bufferToChange.on 'path-changed', eventHandler
@@ -667,16 +666,16 @@ describe "TextBuffer", ->
 
     afterEach ->
       bufferToChange.destroy()
-      fs.removeSync(filePath) if fs.existsSync(filePath)
-      fs.removeSync(newPath) if fs.existsSync(newPath)
+      removeSync(filePath)
+      removeSync(newPath)
 
     it "triggers a `path-changed` event when path is changed", ->
       bufferToChange.saveAs(newPath)
       expect(eventHandler).toHaveBeenCalledWith(bufferToChange)
 
     it "triggers a `path-changed` event when the file is moved", ->
-      fs.removeSync(newPath) if fs.existsSync(newPath)
-      fs.moveSync(filePath, newPath)
+      removeSync(newPath)
+      moveSync(filePath, newPath)
 
       waitsFor "buffer path change", ->
         eventHandler.callCount > 0
@@ -689,7 +688,7 @@ describe "TextBuffer", ->
 
     beforeEach ->
       filePath = temp.openSync('atom').path
-      fs.writeFileSync(filePath, "first")
+      writeFileSync(filePath, "first")
       buffer = new TextBuffer({filePath, load: true})
 
       waitsFor ->
@@ -712,7 +711,7 @@ describe "TextBuffer", ->
       it "changes the memory contents of the buffer to match the new disk contents and triggers a 'changed' event", ->
         changeHandler = jasmine.createSpy('changeHandler')
         buffer.on 'changed', changeHandler
-        fs.writeFileSync(filePath, "second")
+        writeFileSync(filePath, "second")
 
         expect(changeHandler.callCount).toBe 0
         waitsFor "file to trigger change event", ->
@@ -739,7 +738,7 @@ describe "TextBuffer", ->
         buffer.file.on 'contents-changed', fileChangeHandler
 
         buffer.insert([0, 0], "a change")
-        fs.writeFileSync(filePath, "second")
+        writeFileSync(filePath, "second")
 
         expect(fileChangeHandler.callCount).toBe 0
         waitsFor "file to trigger 'contents-changed' event", ->
@@ -754,7 +753,7 @@ describe "TextBuffer", ->
         buffer.insert([0, 0], "a second change")
 
         handler = jasmine.createSpy('fileChange')
-        fs.writeFileSync(filePath, "a disk change")
+        writeFileSync(filePath, "a disk change")
         buffer.on 'contents-conflicted', handler
 
         expect(handler.callCount).toBe 0
@@ -769,7 +768,7 @@ describe "TextBuffer", ->
 
     beforeEach ->
       filePath = join(temp.dir, 'atom-file-to-delete.txt')
-      fs.writeFileSync(filePath, 'delete me')
+      writeFileSync(filePath, 'delete me')
       bufferToDelete = new TextBuffer({filePath, load: true})
       filePath = bufferToDelete.getPath() # symlinks may have been converted
       expect(bufferToDelete.getPath()).toBe filePath
@@ -787,7 +786,7 @@ describe "TextBuffer", ->
 
         removeHandler = jasmine.createSpy('removeHandler')
         bufferToDelete.file.on 'removed', removeHandler
-        fs.removeSync(filePath)
+        removeSync(filePath)
         waitsFor "file to be removed", ->
           removeHandler.callCount > 0
 
@@ -801,7 +800,7 @@ describe "TextBuffer", ->
 
         removeHandler = jasmine.createSpy('removeHandler')
         bufferToDelete.file.on 'removed', removeHandler
-        fs.removeSync(filePath)
+        removeSync(filePath)
         waitsFor "file to be removed", ->
           removeHandler.callCount > 0
 
@@ -811,10 +810,10 @@ describe "TextBuffer", ->
 
     it "resumes watching of the file when it is re-saved", ->
       bufferToDelete.save()
-      expect(fs.existsSync(bufferToDelete.getPath())).toBeTruthy()
+      expect(existsSync(bufferToDelete.getPath())).toBeTruthy()
       expect(bufferToDelete.isInConflict()).toBeFalsy()
 
-      fs.writeFileSync(filePath, 'moo')
+      writeFileSync(filePath, 'moo')
 
       changeHandler = jasmine.createSpy('changeHandler')
       bufferToDelete.on 'changed', changeHandler
@@ -826,7 +825,7 @@ describe "TextBuffer", ->
 
     beforeEach ->
       filePath = join(temp.dir, 'atom-tmp-file')
-      fs.writeFileSync(filePath, '')
+      writeFileSync(filePath, '')
       buffer = new TextBuffer({filePath, load: true})
 
       waitsFor ->
@@ -923,8 +922,8 @@ describe "TextBuffer", ->
 
     it "reports the modified status changing to false after a buffer to a non-existent file is saved", ->
       buffer.destroy()
-      fs.removeSync(filePath)
-      expect(fs.existsSync(filePath)).toBeFalsy()
+      removeSync(filePath)
+      expect(existsSync(filePath)).toBeFalsy()
 
       buffer = new TextBuffer({filePath, load: true})
       modifiedHandler = jasmine.createSpy("modifiedHandler")
@@ -945,7 +944,7 @@ describe "TextBuffer", ->
         modifiedHandler.reset()
         buffer.save()
 
-        expect(fs.existsSync(filePath)).toBeTruthy()
+        expect(existsSync(filePath)).toBeTruthy()
         expect(modifiedHandler).toHaveBeenCalledWith(false)
         expect(buffer.isModified()).toBe false
 
@@ -996,7 +995,7 @@ describe "TextBuffer", ->
   describe ".getLines()", ->
     it "returns an array of lines in the text contents", ->
       filePath = require.resolve('./fixtures/sample.js')
-      fileContents = fs.readFileSync(filePath, 'utf8')
+      fileContents = readFileSync(filePath, 'utf8')
       buffer = new TextBuffer({filePath, load: true})
 
       waitsFor ->
@@ -1011,7 +1010,7 @@ describe "TextBuffer", ->
 
     beforeEach ->
       filePath = require.resolve('./fixtures/sample.js')
-      fileContents = fs.readFileSync(filePath, 'utf8')
+      fileContents = readFileSync(filePath, 'utf8')
       buffer = new TextBuffer({filePath, load: true})
 
       waitsFor ->
@@ -1228,7 +1227,7 @@ describe "TextBuffer", ->
 
       beforeEach ->
         filePath = join(temp.dir, 'temp.txt')
-        fs.writeFileSync(filePath, "")
+        writeFileSync(filePath, "")
         saveBuffer = new TextBuffer({filePath, load: true})
 
         waitsFor ->
@@ -1240,9 +1239,9 @@ describe "TextBuffer", ->
       it "saves the contents of the buffer to the path", ->
         saveBuffer.setText 'Buffer contents!'
         saveBuffer.save()
-        expect(fs.readFileSync(filePath, 'utf8')).toEqual 'Buffer contents!'
+        expect(readFileSync(filePath, 'utf8')).toEqual 'Buffer contents!'
 
-      it "fires will-be-saved and saved events around the call to fs.writeFileSync", ->
+      it "fires will-be-saved and saved events around the call to File::write", ->
         events = []
         beforeSave1 = -> events.push('beforeSave1')
         beforeSave2 = -> events.push('beforeSave2')
@@ -1271,7 +1270,7 @@ describe "TextBuffer", ->
         saveBuffer.save()
         saveBuffer.setText('ab')
 
-        fs.writeFileSync(saveBuffer.getPath(), 'c')
+        writeFileSync(saveBuffer.getPath(), 'c')
         conflictHandler = jasmine.createSpy('conflictHandler')
         saveBuffer.on 'contents-conflicted', conflictHandler
 
@@ -1297,7 +1296,7 @@ describe "TextBuffer", ->
   describe "reload()", ->
     it "reloads current text from disk and clears any conflicts", ->
       filePath = require.resolve('./fixtures/sample.js')
-      fileContents = fs.readFileSync(filePath, 'utf8')
+      fileContents = readFileSync(filePath, 'utf8')
       buffer = new TextBuffer({filePath, load: true})
 
       waitsFor ->
@@ -1320,7 +1319,7 @@ describe "TextBuffer", ->
 
     it "saves the contents of the buffer to the path", ->
       filePath = join(temp.dir, 'temp.txt')
-      fs.removeSync(filePath)
+      removeSync(filePath)
 
       saveAsBuffer = new TextBuffer()
       eventHandler = jasmine.createSpy('eventHandler')
@@ -1328,7 +1327,7 @@ describe "TextBuffer", ->
 
       saveAsBuffer.setText 'Buffer contents!'
       saveAsBuffer.saveAs(filePath)
-      expect(fs.readFileSync(filePath, 'utf8')).toEqual 'Buffer contents!'
+      expect(readFileSync(filePath, 'utf8')).toEqual 'Buffer contents!'
 
       expect(eventHandler).toHaveBeenCalledWith(saveAsBuffer)
 
@@ -1336,7 +1335,7 @@ describe "TextBuffer", ->
       changeHandler = null
       originalPath = join(temp.dir, 'original.txt')
       newPath = join(temp.dir, 'new.txt')
-      fs.writeFileSync(originalPath, "")
+      writeFileSync(originalPath, "")
 
       saveAsBuffer = new TextBuffer({filePath: originalPath, load: true})
 
@@ -1349,13 +1348,13 @@ describe "TextBuffer", ->
         saveAsBuffer.saveAs(newPath)
         expect(changeHandler).not.toHaveBeenCalled()
 
-        fs.writeFileSync(originalPath, "should not trigger buffer event")
+        writeFileSync(originalPath, "should not trigger buffer event")
 
       waits 20
 
       runs ->
         expect(changeHandler).not.toHaveBeenCalled()
-        fs.writeFileSync(newPath, "should trigger buffer event")
+        writeFileSync(newPath, "should trigger buffer event")
 
       waitsFor ->
         changeHandler.callCount > 0
