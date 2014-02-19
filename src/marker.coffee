@@ -61,7 +61,6 @@ class Marker
   Delegator.includeInto(this)
   Serializable.includeInto(this)
 
-  # Private:
   @extractParams: (inputParams) ->
     outputParams = {}
     if inputParams?
@@ -71,7 +70,6 @@ class Marker
       outputParams.properties = properties if size(properties) > 0
     outputParams
 
-  # Private:
   @handleDeprecatedParams: (params) ->
     if params.isReversed?
       params.reversed = params.isReversed
@@ -92,7 +90,6 @@ class Marker
   @delegatesMethods 'containsPoint', 'containsRange', 'intersectsRow', toProperty: 'range'
   @delegatesMethods 'clipPosition', 'clipRange', toProperty: 'manager'
 
-  # Private:
   constructor: (params) ->
     {@manager, @id, @range, @tailed, @reversed} = params
     {@valid, @invalidate, @persistent, @properties} = params
@@ -106,12 +103,12 @@ class Marker
     Object.freeze(@properties)
     @updateIntervals()
 
-  # Private: Used by {Serializable} during serialization.
+  # Used by {Serializable} during serialization.
   serializeParams: ->
     range = @range.serialize()
     {@id, range, @tailed, @reversed, @valid, @invalidate, @persistent, @properties}
 
-  # Private: Used by {Serializable} during deserialization.
+  # Used by {Serializable} during deserialization.
   deserializeParams: (state) ->
     state.range = Range.deserialize(state.range)
     state
@@ -122,13 +119,10 @@ class Marker
 
   # Public: Sets the range of the marker.
   #
-  # * range:
-  #     A {Range} or range-compatible {Array}. The range will be clipped before.
-  #     it is assigned.
-  # * properties:
-  #     An optional hash of properties to associate with the marker. The 'reversed'
-  #     property is reserved and if true, will cause the marker to be in a reversed
-  #     orientation.
+  # range - A {Range} or range-compatible {Array}. The range will be clipped
+  #         before it is assigned.
+  # properties - An optional hash of properties to associate with the marker.
+  #   :reversed -  If true, the marker will to be in a reversed orientation.
   setRange: (range, properties) ->
     params = @extractParams(properties)
     params.tailed = true
@@ -144,11 +138,9 @@ class Marker
 
   # Public: Sets the head position of the marker.
   #
-  # * position:
-  #     A {Point} or point-compatible {Array}. The position will be clipped
-  #     before it is assigned.
-  # * properties:
-  #     An optional hash of properties to associate with the marker.
+  # position - A {Point} or point-compatible {Array}. The position will be
+  #            clipped before it is assigned.
+  # properties - An optional hash of properties to associate with the marker.
   setHeadPosition: (position, properties) ->
     position = @clipPosition(Point.fromObject(position, true))
     params = @extractParams(properties)
@@ -186,11 +178,9 @@ class Marker
   # Public: Sets the head position of the marker. If the marker doesn't have a
   # tail, it will after calling this method.
   #
-  # * position:
-  #     A {Point} or point-compatible {Array}. The position will be clipped
-  #     before it is assigned.
-  # * properties:
-  #     An optional hash of properties to associate with the marker.
+  # position - A {Point} or point-compatible {Array}. The position will be
+  #            clipped before it is assigned.
+  # properties - An optional hash of properties to associate with the marker.
   setTailPosition: (position, properties) ->
     position = @clipPosition(Point.fromObject(position, true))
     params = @extractParams(properties)
@@ -231,7 +221,7 @@ class Marker
   # will be reported as its current tail position until the tail is planted
   # again.
   #
-  # * properties: An optional hash of properties to associate with the marker.
+  # properties - An optional hash of properties to associate with the marker.
   clearTail: (properties) ->
     params = @extractParams(properties)
     params.tailed = false
@@ -243,7 +233,7 @@ class Marker
   # the marker's tail position will be its head position at the time of the
   # call, regardless of where the marker's head is moved.
   #
-  # * properties: An optional hash of properties to associate with the marker.
+  # properties - An optional hash of properties to associate with the marker.
   plantTail: (properties) ->
     params = @extractParams(properties)
     unless @hasTail()
@@ -315,7 +305,6 @@ class Marker
     @manager.intervals.remove(@id)
     @emit 'destroyed'
 
-  # Private:
   extractParams: (params) ->
     params = @constructor.extractParams(params)
     params.properties = extend({}, @properties, params.properties) if params.properties?
@@ -359,13 +348,11 @@ class Marker
       else
         isEqual(@properties[key], value)
 
-  # Private:
   toParams: (omitId) ->
     params = {@range, @reversed, @tailed, @invalidate, @persistent, @properties}
     params.id = @id unless omitId
     params
 
-  # Private:
   update: (params) ->
     if patch = @buildPatch(params)
       @manager.recordMarkerPatch(patch)
@@ -374,8 +361,8 @@ class Marker
     else
       false
 
-  # Private: Adjusts the marker's start and end positions and possibly its
-  # validity based on the given {BufferPatch}.
+  # Adjusts the marker's start and end positions and possibly its validity
+  # based on the given {BufferPatch}.
   handleBufferChange: (patch) ->
     {oldRange, newRange} = patch
     rowDelta = newRange.end.row - oldRange.end.row
@@ -417,7 +404,6 @@ class Marker
     if markerPatch = @buildPatch({valid, range: newMarkerRange})
       patch.addMarkerPatch(markerPatch)
 
-  # Private:
   buildPatch: (newParams) ->
     oldParams = {}
     for name, value of newParams
@@ -429,7 +415,6 @@ class Marker
     if size(newParams)
       new MarkerPatch(@id, oldParams, newParams)
 
-  # Private:
   applyPatch: (patch, textChanged=false) ->
     oldHeadPosition = @getHeadPosition()
     oldTailPosition = @getTailPosition()
@@ -475,7 +460,7 @@ class Marker
     }
     true
 
-  # Private: Updates the interval index on the marker manager with the marker's
-  # current range.
+  # Updates the interval index on the marker manager with the marker's current
+  # range.
   updateIntervals: ->
     @manager.intervals.update(@id, @range.start, @range.end)
