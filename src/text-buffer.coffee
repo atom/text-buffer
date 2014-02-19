@@ -52,6 +52,7 @@ class TextBuffer
     @markers = params?.markers ? new MarkerManager(this)
 
     @loaded = false
+    @digestWhenLastPersisted = params?.digestWhenLastPersisted ? false
     @modifiedWhenLastPersisted = params?.modifiedWhenLastPersisted ? false
     @useSerializedText = @modifiedWhenLastPersisted isnt false
     @subscribe this, 'changed', @handleTextChange
