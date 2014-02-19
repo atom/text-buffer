@@ -42,7 +42,8 @@ class TextBuffer
   # Public: Create a new buffer with the given params.
   #
   # params - A {String} of text or an {Object} with the following keys:
-  #   :load - A {Boolean}, `true` to call {.load} during initialization.
+  #   :load - A {Boolean}, `true` to asynchronously load the buffer from disk
+  #           after initialization.
   #   :text - The initial {String} text of the buffer.
   constructor: (params) ->
     text = params if typeof params is 'string'
