@@ -39,8 +39,11 @@ class TextBuffer
   file: null
   refcount: 0
 
-  # Public:
-  # * text: An optional string of Text with which to initialize the buffer.
+  # Public: Create a new buffer with the given params.
+  #
+  # params - A {String} of text or an {Object} with the following keys:
+  #   :load - A {Boolean}, `true` to call {.load} during initialization.
+  #   :text - The initial {String} text of the buffer.
   constructor: (params) ->
     text = params if typeof params is 'string'
 
@@ -108,7 +111,7 @@ class TextBuffer
   # Public: Returns a {String} representing the contents of the line at the
   # given row.
   #
-  # * row - A {Number} representing a zero-indexed row.
+  # row - A {Number} representing a zero-indexed row.
   lineForRow: (row) ->
     @lines[row]
 
@@ -118,7 +121,7 @@ class TextBuffer
 
   # Public: Returns a {String} representing the line ending for the given row.
   #
-  # * row - A {Number} indicating the row.
+  # row - A {Number} indicating the row.
   #
   # Returns '\n', '\r\n', or '' for the last line of the buffer.
   lineEndingForRow: (row) ->
@@ -138,7 +141,7 @@ class TextBuffer
   # Public: Replaces the current buffer contents by applying a diff against
   # the given contents.
   #
-  # * text: A {String} containing the new buffer contents.
+  # text - A {String} containing the new buffer contents.
   setTextViaDiff: (text) ->
     currentText = @getText()
     return if currentText == text
@@ -184,8 +187,8 @@ class TextBuffer
 
   # Public: Sets the text in the given range.
   #
-  # * range: A {Range}
-  # * text: A {String}
+  # range - A {Range}.
+  # text - A {String}.
   #
   # Returns the {Range} of the inserted text.
   setTextInRange: (range, text, normalizeLineEndings=true) ->
@@ -196,11 +199,9 @@ class TextBuffer
 
   # Public: Inserts the given text at the given position
   #
-  # * position:
-  #     A {Point} representing the insertion location. The position is clipped
-  #     before insertion.
-  # * text:
-  #     A {String} representing the text to insert
+  # position - A {Point} representing the insertion location. The position is
+  #            clipped before insertion.
+  # text - A {String} representing the text to insert.
   #
   # Returns the {Range} of the inserted text
   insert: (position, text, normalizeLineEndings) ->
@@ -208,7 +209,7 @@ class TextBuffer
 
   # Public: Appends the given text to the end of the buffer
   #
-  # * text: A {String} representing the text text to append
+  # text - A {String} representing the text text to append.
   #
   # Returns the {Range} of the inserted text
   append: (text, normalizeLineEndings) ->
@@ -349,9 +350,9 @@ class TextBuffer
   # out of bounds if the line at row 1 is only 10 characters long, and it would
   # be clipped to (1, 10).
   #
-  # * range: A {Range} to clip.
+  # range - A {Range} to clip.
   #
-  # Returns: The given {Range} if it is already in bounds, or a new clipped
+  # Returns the given {Range} if it is already in bounds, or a new clipped
   # {Range} if the given range is out-of-bounds.
   clipRange: (range) ->
     range = Range.fromObject(range)
@@ -395,10 +396,9 @@ class TextBuffer
 
   # Public: Returns the range for the given row
   #
-  # * row: A {Number}
-  # * includeNewline:
-  #     Whether or not to include the newline, resulting in a range that extends
-  #     to the start of the next line.
+  # row - A row {Number}.
+  # includeNewline - Whether or not to include the newline, resulting in a range
+  #                  that extends to the start of the next line.
   #
   # Returns a {Range}.
   rangeForRow: (row, includeNewline) ->
@@ -615,9 +615,9 @@ class TextBuffer
 
   # Identifies if a character sequence is within a certain range.
   #
-  # regex - The {RegExp} to check
-  # startIndex - The starting row {Number}
-  # endIndex - The ending row {Number}
+  # regex - The {RegExp} to check.
+  # startIndex - The starting row {Number}.
+  # endIndex - The ending row {Number}.
   #
   # Returns an {Array} of {RegExp}s, representing the matches.
   matchesInCharacterRange: (regex, startIndex, endIndex) ->
@@ -645,8 +645,8 @@ class TextBuffer
 
   # Scans for text in the buffer, calling a function on each match.
   #
-  # regex - A {RegExp} representing the text to find
-  # iterator - A {Function} that's called on each match
+  # regex - A {RegExp} representing the text to find.
+  # iterator - A {Function} that's called on each match.
   scan: (regex, iterator) ->
     @scanInRange regex, @getRange(), (result) =>
       result.lineText = @lineForRow(result.range.start.row)
@@ -655,8 +655,8 @@ class TextBuffer
 
   # Replace all matches of regex with replacementText
   #
-  # regex: A {RegExp} representing the text to find
-  # replacementText: A {String} representing the text to replace
+  # regex - A {RegExp} representing the text to find.
+  # replacementText - A {String} representing the text to replace.
   #
   # Returns the number of replacements made
   replace: (regex, replacementText) ->
@@ -674,10 +674,11 @@ class TextBuffer
 
   # Scans for text in a given range, calling a function on each match.
   #
-  # regex - A {RegExp} representing the text to find
-  # range - A {Range} in the buffer to search within
-  # iterator - A {Function} that's called on each match
-  # reverse - A {Boolean} indicating if the search should be backwards (default: `false`)
+  # regex - A {RegExp} representing the text to find.
+  # range - A {Range} in the buffer to search within.
+  # iterator - A {Function} that's called on each match.
+  # reverse - A {Boolean} indicating if the search should be backwards
+  #           (default: `false`).
   scanInRange: (regex, range, iterator, reverse=false) ->
     range = @clipRange(range)
     global = regex.global
@@ -718,15 +719,15 @@ class TextBuffer
 
   # Scans for text in a given range _backwards_, calling a function on each match.
   #
-  # regex - A {RegExp} representing the text to find
-  # range - A {Range} in the buffer to search within
-  # iterator - A {Function} that's called on each match
+  # regex - A {RegExp} representing the text to find.
+  # range - A {Range} in the buffer to search within.
+  # iterator - A {Function} that's called on each match.
   backwardsScanInRange: (regex, range, iterator) ->
     @scanInRange regex, range, iterator, true
 
   # Given a row, identifies if it is blank.
   #
-  # row - A row {Number} to check
+  # row - A row {Number} to check.
   #
   # Returns a {Boolean}.
   isRowBlank: (row) ->
@@ -734,10 +735,10 @@ class TextBuffer
 
   # Given a row, this finds the next row above it that's empty.
   #
-  # startRow - A {Number} identifying the row to start checking at
+  # startRow - A {Number} identifying the row to start checking at.
   #
-  # Returns the row {Number} of the first blank row.
-  # Returns `null` if there's no other blank row.
+  # Returns the row {Number} of the first blank row or `null` if there's no
+  #   other blank row.
   previousNonBlankRow: (startRow) ->
     return null if startRow == 0
 
@@ -750,8 +751,8 @@ class TextBuffer
   #
   # startRow - A row {Number} to check
   #
-  # Returns the row {Number} of the next blank row.
-  # Returns `null` if there's no other blank row.
+  # Returns the row {Number} of the next blank row or `null` if there's no other
+  #   blank row.
   nextNonBlankRow: (startRow) ->
     lastRow = @getLastRow()
     if startRow < lastRow
