@@ -992,7 +992,7 @@ describe "TextBuffer", ->
       runs ->
         expect(buffer.isModified()).toBeFalsy()
 
-  describe ".getLines()", ->
+  describe "::getLines()", ->
     it "returns an array of lines in the text contents", ->
       filePath = require.resolve('./fixtures/sample.js')
       fileContents = readFileSync(filePath, 'utf8')
@@ -1005,7 +1005,7 @@ describe "TextBuffer", ->
         expect(buffer.getLines().length).toBe fileContents.split("\n").length
         expect(buffer.getLines().join('\n')).toBe fileContents
 
-  describe ".change(range, string)", ->
+  describe "::change(range, string)", ->
     changeHandler = null
 
     beforeEach ->
@@ -1122,7 +1122,7 @@ describe "TextBuffer", ->
       buffer.change([0, 0], "hello")
       expect(buffer.lineForRow(0)).toBe "var quicksort = function () {"
 
-  describe ".setText(text)", ->
+  describe "::setText(text)", ->
     beforeEach ->
       filePath = require.resolve('./fixtures/sample.js')
       buffer = new TextBuffer({filePath, load: true})
@@ -1147,7 +1147,7 @@ describe "TextBuffer", ->
       expect(event.oldRange).toEqual expectedPreRange
       expect(event.newRange).toEqual [[0, 0], [1, 14]]
 
-  describe ".setTextViaDiff(text)", ->
+  describe "::setTextViaDiff(text)", ->
     beforeEach ->
       filePath = require.resolve('./fixtures/sample.js')
       buffer = new TextBuffer({filePath, load: true})
@@ -1216,7 +1216,7 @@ describe "TextBuffer", ->
         buffer.setTextViaDiff(newText)
         expect(buffer.getText()).toBe newText
 
-  describe ".save()", ->
+  describe "::save()", ->
     saveBuffer = null
 
     afterEach ->
@@ -1311,7 +1311,7 @@ describe "TextBuffer", ->
         expect(buffer.isInConflict()).toBeFalsy()
         expect(buffer.getText()).toBe(fileContents)
 
-  describe ".saveAs(path)", ->
+  describe "::saveAs(path)", ->
     [filePath, saveAsBuffer] = []
 
     afterEach ->
@@ -1359,7 +1359,7 @@ describe "TextBuffer", ->
       waitsFor ->
         changeHandler.callCount > 0
 
-  describe ".getTextInRange(range)", ->
+  describe "::getTextInRange(range)", ->
     beforeEach ->
       filePath = require.resolve('./fixtures/sample.js')
       buffer = new TextBuffer({filePath, load: true})
@@ -1439,7 +1439,7 @@ describe "TextBuffer", ->
       expect(matches[1].lineText).toBe '      current < pivot ? left.push(current) : right.push(current);'
       expect(matches[1].lineTextOffset).toBe 0
 
-  describe ".scanInRange(range, regex, fn)", ->
+  describe "::scanInRange(range, regex, fn)", ->
     beforeEach ->
       filePath = require.resolve('./fixtures/sample.js')
       buffer = new TextBuffer({filePath, load: true})
@@ -1557,7 +1557,7 @@ describe "TextBuffer", ->
 
         expect(ranges.length).toBe 2
 
-  describe ".backwardsScanInRange(range, regex, fn)", ->
+  describe "::backwardsScanInRange(range, regex, fn)", ->
     beforeEach ->
       filePath = require.resolve('./fixtures/sample.js')
       buffer = new TextBuffer({filePath, load: true})
@@ -1628,7 +1628,7 @@ describe "TextBuffer", ->
         expect(ranges[0]).toEqual [[6,34], [6,41]]
         expect(ranges[1]).toEqual [[6,6], [6,13]]
 
-  describe ".characterIndexForPosition(position)", ->
+  describe "::characterIndexForPosition(position)", ->
     beforeEach ->
       filePath = require.resolve('./fixtures/sample.js')
       buffer = new TextBuffer({filePath, load: true})
@@ -1652,7 +1652,7 @@ describe "TextBuffer", ->
         expect(buffer.characterIndexForPosition([2])).toBe 13
         expect(buffer.characterIndexForPosition([3])).toBe 20
 
-  describe ".positionForCharacterIndex(position)", ->
+  describe "::positionForCharacterIndex(position)", ->
     beforeEach ->
       filePath = require.resolve('./fixtures/sample.js')
       buffer = new TextBuffer({filePath, load: true})
@@ -1675,7 +1675,7 @@ describe "TextBuffer", ->
         expect(buffer.positionForCharacterIndex(13)).toEqual [2, 0]
         expect(buffer.positionForCharacterIndex(20)).toEqual [3, 0]
 
-  describe ".usesSoftTabs()", ->
+  describe "::usesSoftTabs()", ->
     beforeEach ->
       filePath = require.resolve('./fixtures/sample.js')
       buffer = new TextBuffer({filePath, load: true})
@@ -1691,7 +1691,7 @@ describe "TextBuffer", ->
       buffer.setText("")
       expect(buffer.usesSoftTabs()).toBeUndefined()
 
-  describe ".isEmpty()", ->
+  describe "::isEmpty()", ->
     beforeEach ->
       filePath = require.resolve('./fixtures/sample.js')
       buffer = new TextBuffer({filePath, load: true})
@@ -1752,7 +1752,7 @@ describe "TextBuffer", ->
       runs ->
         expect(contentsModifiedHandler).toHaveBeenCalledWith(false)
 
-  describe ".append(text)", ->
+  describe "::append(text)", ->
     beforeEach ->
       filePath = require.resolve('./fixtures/sample.js')
       buffer = new TextBuffer({filePath, load: true})
