@@ -1417,6 +1417,24 @@ describe "TextBuffer", ->
       expect(matches[0].lineText).toEqual '    var pivot = items.shift(), current, left = [], right = [];'
       expect(matches[0].lineTextOffset).toBe 0
 
+  describe ".backwardsScan(regex, fn)", ->
+    beforeEach ->
+      filePath = require.resolve('./fixtures/sample.js')
+      buffer = new TextBuffer({filePath, load: true})
+
+      waitsFor ->
+        buffer.loaded
+
+    it "returns lineText and lineTextOffset", ->
+      matches = []
+      buffer.backwardsScan /current/, (match) ->
+        matches.push(match)
+      expect(matches.length).toBe 1
+
+      expect(matches[0].matchText).toEqual 'current'
+      expect(matches[0].lineText).toEqual '      current < pivot ? left.push(current) : right.push(current);'
+      expect(matches[0].lineTextOffset).toBe 0
+
   describe ".scanInRange(range, regex, fn)", ->
     beforeEach ->
       filePath = require.resolve('./fixtures/sample.js')
