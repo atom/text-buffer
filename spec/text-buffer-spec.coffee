@@ -1399,41 +1399,45 @@ describe "TextBuffer", ->
       it "clips the range to the end of the buffer", ->
         expect(buffer.getTextInRange([[12], [13, Infinity]])).toBe buffer.lineForRow(12)
 
-  describe ".scan(regex, fn)", ->
+  describe "::scan(regex, fn)", ->
     beforeEach ->
-      filePath = require.resolve('./fixtures/sample.js')
-      buffer = new TextBuffer({filePath, load: true})
+      buffer = new TextBuffer(filePath: require.resolve('./fixtures/sample.js'))
+      buffer.loadSync()
 
-      waitsFor ->
-        buffer.loaded
-
-    it "returns lineText and lineTextOffset", ->
+    it "calls the given function with the information about each match", ->
       matches = []
-      buffer.scan /current/, (match) ->
-        matches.push(match)
-      expect(matches.length).toBe 1
+      buffer.scan /current/g, (match) -> matches.push(match)
+      expect(matches.length).toBe 5
 
-      expect(matches[0].matchText).toEqual 'current'
-      expect(matches[0].lineText).toEqual '    var pivot = items.shift(), current, left = [], right = [];'
+      expect(matches[0].matchText).toBe 'current'
+      expect(matches[0].range).toEqual [[3, 31], [3, 38]]
+      expect(matches[0].lineText).toBe '    var pivot = items.shift(), current, left = [], right = [];'
       expect(matches[0].lineTextOffset).toBe 0
 
-  describe ".backwardsScan(regex, fn)", ->
+      expect(matches[1].matchText).toBe 'current'
+      expect(matches[1].range).toEqual [[5, 6], [5, 13]]
+      expect(matches[1].lineText).toBe '      current = items.shift();'
+      expect(matches[1].lineTextOffset).toBe 0
+
+  describe "::backwardsScan(regex, fn)", ->
     beforeEach ->
-      filePath = require.resolve('./fixtures/sample.js')
-      buffer = new TextBuffer({filePath, load: true})
+      buffer = new TextBuffer(filePath: require.resolve('./fixtures/sample.js'))
+      buffer.loadSync()
 
-      waitsFor ->
-        buffer.loaded
-
-    it "returns lineText and lineTextOffset", ->
+    it "calls the given function with the information about each match in backwards order", ->
       matches = []
-      buffer.backwardsScan /current/, (match) ->
-        matches.push(match)
-      expect(matches.length).toBe 1
+      buffer.backwardsScan /current/g, (match) -> matches.push(match)
+      expect(matches.length).toBe 5
 
-      expect(matches[0].matchText).toEqual 'current'
-      expect(matches[0].lineText).toEqual '      current < pivot ? left.push(current) : right.push(current);'
+      expect(matches[0].matchText).toBe 'current'
+      expect(matches[0].range).toEqual [[6, 56], [6, 63]]
+      expect(matches[0].lineText).toBe '      current < pivot ? left.push(current) : right.push(current);'
       expect(matches[0].lineTextOffset).toBe 0
+
+      expect(matches[1].matchText).toBe 'current'
+      expect(matches[1].range).toEqual [[6, 34], [6, 41]]
+      expect(matches[1].lineText).toBe '      current < pivot ? left.push(current) : right.push(current);'
+      expect(matches[1].lineTextOffset).toBe 0
 
   describe ".scanInRange(range, regex, fn)", ->
     beforeEach ->
