@@ -654,6 +654,16 @@ class TextBuffer
       result.lineTextOffset = 0
       iterator(result)
 
+  # Scans for text in the buffer _backwards_, calling a function on each match.
+  #
+  # regex - A {RegExp} representing the text to find.
+  # iterator - A {Function} that's called on each match.
+  backwardsScan: (regex, iterator) ->
+    @backwardsScanInRange regex, @getRange(), (result) =>
+      result.lineText = @lineForRow(result.range.start.row)
+      result.lineTextOffset = 0
+      iterator(result)
+
   # Replace all matches of regex with replacementText
   #
   # regex - A {RegExp} representing the text to find.
