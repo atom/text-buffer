@@ -1407,7 +1407,7 @@ describe "TextBuffer", ->
       waitsFor ->
         buffer.loaded
 
-    it "retunrns lineText and lineTextOffset", ->
+    it "returns lineText and lineTextOffset", ->
       matches = []
       buffer.scan /current/, (match) ->
         matches.push(match)
