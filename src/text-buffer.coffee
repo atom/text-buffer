@@ -590,7 +590,10 @@ class TextBuffer
     @emitModifiedStatusChanged(false)
     @emit 'saved', this
 
-  # Identifies if the buffer was modified.
+  # Public: Determine if the in-memory contents of the buffer differ from its
+  # contents on disk.
+  #
+  # If the buffer is unsaved, always returns `true` unless the buffer is empty.
   #
   # Returns a {Boolean}.
   isModified: ->
