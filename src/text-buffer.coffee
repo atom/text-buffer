@@ -15,6 +15,55 @@ BufferPatch = require './buffer-patch'
 
 # Public: A mutable text container with undo/redo support and the ability to
 # annotate logical regions in the text.
+#
+# ## Events
+#
+# * `changed` -
+#      Emitted synchronously whenever the buffer changes. Binding a slow handler
+#      to this event has the potential to destroy typing performance. Consider
+#      using `contents-modified` instead and aim for extremely fast performance
+#      (< 2 ms) if you must bind to it. Your handler will be called with an
+#      object containing the following keys.
+#      * `oldRange` - The {Range} of the old text
+#      * `newRange` - The {Range} of the new text
+#      * `oldText` - A {String} containing the text that was replaced
+#      * `newText` - A {String} containing the text that was inserted
+#
+# * `markers-updated` -
+#      Emitted synchronously when the `changed` events of all markers have been
+#      fired for a change. The order of events is as follows:
+#      * The text of the buffer is changed
+#      * All markers are updated accordingly, but their `changed` events are not
+#        emited
+#      * The `changed` event is emitted
+#      * The `changed` events of all updated markers are emitted
+#      * The `markers-updated` event is emitted.
+#
+# * `contents-modified` -
+#      Emitted asynchronously 300ms (or `TextBuffer::stoppedChangingDelay`)
+#      after the last buffer change. This is a good place to handle changes to
+#      the buffer without compromising typing performance.
+#
+# * `modified-status-changed` -
+#      Emitted with a {Boolean} when the result of {::isModified} changes.
+#
+# * `contents-conflicted` -
+#      Emitted when the buffer's underlying file changes on disk at a moment
+#      when the result of {::isModified} is true.
+#
+# * `will-reload` -
+#      Emitted before the in-memory contents of the buffer are refreshed from
+#      the contents of the file on disk.
+#
+# * `reloaded` -
+#      Emitted after the in-memory contents of the buffer are refreshed from
+#      the contents of the file on disk.
+#
+# * `will-be-saved` - Emitted before the buffer is saved to disk.
+#
+# * `saved` - Emitted after the buffer is saved to disk.
+#
+# * `destroyed` - Emitted when the buffer is destroyed.
 module.exports =
 class TextBuffer
   @Point: Point
