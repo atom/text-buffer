@@ -4,7 +4,7 @@ BufferPatch = require './buffer-patch'
 
 TransactionAborted = new Error("Transaction Aborted")
 
-# Private: Manages undo/redo for {TextBuffer}
+# Manages undo/redo for {TextBuffer}
 module.exports =
 class History extends Serializable
   @registerDeserializers(Transaction, BufferPatch)

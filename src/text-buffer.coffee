@@ -123,7 +123,9 @@ class TextBuffer
     modifiedWhenLastPersisted: @isModified()
     digestWhenLastPersisted: @file?.getDigest()
 
-  # Public: Returns a {String} representing the entire contents of the buffer.
+  # Public: Get the entire text of the buffer.
+  #
+  # Returns a {String}.
   getText: ->
     if @cachedText?
       @cachedText
@@ -133,57 +135,75 @@ class TextBuffer
         text += (@lineForRow(row) + @lineEndingForRow(row))
       @cachedText = text
 
-  # Public: Returns an {Array} of {String}s representing all the lines in the
-  # buffer, without line endings.
+  # Public: Get the text of all lines in the buffer, without their line endings.
+  #
+  # Returns an {Array} of {String}s.
   getLines: ->
     @lines.slice()
 
-  # Public: Returns a {Boolean}, `true` if this buffer has no text, `false`
-  # otherwise.
+  # Public: Determine whether the buffer is empty.
+  #
+  # Returns a {Boolean}.
   isEmpty: ->
     @getLastRow() is 0 and @lineLengthForRow(0) is 0
 
-  # Public: Returns a {Number} representing the number of lines in the buffer.
+  # Public: Get the number of lines in the buffer.
+  #
+  # Returns a {Number}.
   getLineCount: ->
     @lines.length
 
-  # Public: Returns a {Number} representing the last zero-indexed row number of
-  # the buffer.
+  # Public: Get the last 0-indexed row in the buffer.
+  #
+  # Returns a {Number}.
   getLastRow: ->
     @getLineCount() - 1
 
-  # Public: Returns a {String} representing the contents of the line at the
-  # given row.
+  # Public: Get the text of the line at the given row, without its line ending.
   #
-  # row - A {Number} representing a zero-indexed row.
+  # row - A {Number} representing a 0-indexed row.
+  #
+  # Returns a {String}.
   lineForRow: (row) ->
     @lines[row]
 
-  # Public: Returns a {String} representing the last line of the buffer
+  # Public: Get the text of the last line of the buffer, without its line
+  # ending.
+  #
+  # Returns a {String}.
   getLastLine: ->
     @lineForRow(@getLastRow())
 
-  # Public: Returns a {String} representing the line ending for the given row.
+  # Public: Get the line ending for the given 0-indexed row.
   #
   # row - A {Number} indicating the row.
   #
-  # Returns '\n', '\r\n', or '' for the last line of the buffer.
+  # The returned newline is represented as a literal string: `'\n'`, `'\r\n'`,
+  # or `''` for the last line of the buffer, which doesn't end in a newline.
+  #
+  # Returns a {String}.
   lineEndingForRow: (row) ->
     @lineEndings[row]
 
-  # Public: Returns a {Number} representing the line length for the given row,
-  # exclusive of its line-ending character(s).
+  # Public: Get the length of the line for the given 0-indexed row, without its
+  # line ending.
   #
   # row - A {Number} indicating the row.
+  #
+  # Returns a {Number}.
   lineLengthForRow: (row) ->
     @lines[row].length
 
-  # Public: Replaces the entire contents of the buffer with the given {String}
+  # Public: Replace the entire contents of the buffer with the given text.
+  #
+  # text - A {String}
+  #
+  # Returns a {Range} spanning the new buffer contents.
   setText: (text) ->
     @setTextInRange(@getRange(), text, false)
 
-  # Public: Replaces the current buffer contents by applying a diff against
-  # the given contents.
+  # Public: Replace the current buffer contents by applying a diff based on the
+  # given text.
   #
   # text - A {String} containing the new buffer contents.
   setTextViaDiff: (text) ->
@@ -229,7 +249,7 @@ class TextBuffer
           row += lineCount
           column = computeBufferColumn(change.value)
 
-  # Public: Sets the text in the given range.
+  # Public: Set the text in the given range.
   #
   # range - A {Range}.
   # text - A {String}.
@@ -241,17 +261,17 @@ class TextBuffer
     @applyPatch(patch)
     patch.newRange
 
-  # Public: Inserts the given text at the given position
+  # Public: Insert text at the given position.
   #
   # position - A {Point} representing the insertion location. The position is
   #            clipped before insertion.
   # text - A {String} representing the text to insert.
   #
-  # Returns the {Range} of the inserted text
+  # Returns the {Range} of the inserted text.
   insert: (position, text, normalizeLineEndings) ->
     @setTextInRange(new Range(position, position), text, normalizeLineEndings)
 
-  # Public: Appends the given text to the end of the buffer
+  # Public: Append text to the end of the buffer.
   #
   # text - A {String} representing the text text to append.
   #
@@ -259,7 +279,7 @@ class TextBuffer
   append: (text, normalizeLineEndings) ->
     @insert(@getEndPosition(), text, normalizeLineEndings)
 
-  # Public: Deletes the text in the given range
+  # Public: Delete the text in the given range.
   #
   # range - A {Range} in which to delete. The range is clipped before deleting.
   #
@@ -267,13 +287,19 @@ class TextBuffer
   delete: (range) ->
     @setTextInRange(range, '')
 
-  # Public: Deletes the line associated with the specified row.
+  # Public: Delete the line associated with a specified row.
+  #
+  # row - A {Number} representing the 0-indexed row to delete.
   #
   # Returns the {Range} of the deleted text.
   deleteRow: (row) ->
     @deleteRows(row, row)
 
-  # Public: Deletes the specified lines associated with the specified row range.
+  # Public: Delete the lines associated with the specified row range.
+  #
+  # startRow - A {Number} representing the first row to delete.
+  # endRow - A {Number} representing the last row to delete, inclusive.
+  #
   # If the row range is out of bounds, it will be clipped. If the startRow is
   # greater than the end row, they will be reordered.
   #
@@ -367,7 +393,11 @@ class TextBuffer
     @markers?.resumeChangeEvents()
     @emit 'markers-updated'
 
-  # Public: Returns a {String} of text in the given {Range}.
+  # Public: Get the text in a range.
+  #
+  # range - A {Range}
+  #
+  # Returns a {String}
   getTextInRange: (range) ->
     range = @clipRange(Range.fromObject(range))
     startRow = range.start.row
@@ -389,12 +419,12 @@ class TextBuffer
         text += @lineEndingForRow(row)
       text
 
-  # Public: Clips the given range so it starts and ends at valid positions if
-  # its start or end are out of bounds. For example, the position [1, 100] is
-  # out of bounds if the line at row 1 is only 10 characters long, and it would
-  # be clipped to (1, 10).
+  # Public: Clip the given range so it starts and ends at valid positions.
   #
-  # range - A {Range} to clip.
+  # For example, the position [1, 100] is out of bounds if the line at row 1 is
+  # only 10 characters long, and it would be clipped to (1, 10).
+  #
+  # range - A {Range} or range-compatible {Array} to clip.
   #
   # Returns the given {Range} if it is already in bounds, or a new clipped
   # {Range} if the given range is out-of-bounds.
@@ -407,9 +437,15 @@ class TextBuffer
     else
       new Range(start, end)
 
-  # Public: Clips the given point so it is at a valid position in the buffer.
+  # Public: Clip the given point so it is at a valid position in the buffer.
+  #
   # For example, the position (1, 100) is out of bounds if the line at row 1 is
   # only 10 characters long, and it would be clipped to (1, 10)
+  #
+  # position - A {Point} or point-compatible {Array}.
+  #
+  # Returns a new {Point} if the given position is invalid, otherwise returns
+  # the given position.
   clipPosition: (position) ->
     position = Point.fromObject(position)
     {row, column} = position
@@ -424,25 +460,32 @@ class TextBuffer
       else
         new Point(row, column)
 
-  # Public: Returns a {Point} at [0, 0]
+  # Public: Get the first position in the buffer, which is always `[0, 0]`.
+  #
+  # Returns a {Point}.
   getFirstPosition: ->
     new Point(0, 0)
 
-  # Public: Returns a {Point} representing the maximal position in the buffer.
+  # Public: Get the maximal position in the buffer, where new text would be
+  # appended.
+  #
+  # Returns a {Point}.
   getEndPosition: ->
     lastRow = @getLastRow()
     new Point(lastRow, @lineLengthForRow(lastRow))
 
-  # Public: Returns a {Range} associated with the text of the entire buffer,
-  # from its first position to its last position.
+  # Public: Get the range spanning from `[0, 0]` to {::getEndPosition}.
+  #
+  # Returns a {Range}.
   getRange: ->
     new Range(@getFirstPosition(), @getEndPosition())
 
-  # Public: Returns the range for the given row
+  # Public: Get the range for the given row
   #
-  # row - A row {Number}.
-  # includeNewline - Whether or not to include the newline, resulting in a range
-  #                  that extends to the start of the next line.
+  # row - A {Number} representing a 0-indexed row.
+  # includeNewline - A {Boolean} indicating whether or not to include the
+  #                  newline, which results in a range that extends to the start
+  #                  of the next line.
   #
   # Returns a {Range}.
   rangeForRow: (row, includeNewline) ->
@@ -455,9 +498,14 @@ class TextBuffer
     else
       new Range(new Point(row, 0), new Point(row, @lineLengthForRow(row)))
 
-  # Public: Given a {Point} representing a position in the buffer, returns a
-  # {Number} representing the absolute character offset of that location in the
-  # buffer, inclusive of newlines. The position is clipped prior to translating.
+  # Public: Convert a position in the buffer in row/column coordinates to an
+  # absolute character offset, inclusive of line ending characters.
+  #
+  # The position is clipped prior to translating.
+  #
+  # position - A {Point}.
+  #
+  # Returns a {Number}.
   characterIndexForPosition: (position) ->
     {row, column} = @clipPosition(Point.fromObject(position))
 
@@ -467,10 +515,14 @@ class TextBuffer
     {characters} = @offsetIndex.totalTo(row, 'rows')
     characters + column
 
-  # Public: Given a {Number} represting an absolute offset in the buffer,
-  # inclusive of newlines, returns a {Point} representing that numbers
-  # corresponding position in row/column coordinates. The offset is clipped
-  # prior to translating.
+  # Public: Convert an absolute character offset, inclusive of newlines, to a
+  # position in the buffer in row/column coordinates.
+  #
+  # The offset is clipped prior to translating.
+  #
+  # offset - A {Number}.
+  #
+  # Returns a {Point}.
   positionForCharacterIndex: (offset) ->
     offset = Math.max(0, offset)
     offset = Math.min(@getMaxCharacterIndex(), offset)
@@ -481,7 +533,9 @@ class TextBuffer
     else
       new Point(rows, offset - characters)
 
-  # Public: Returns the length of the buffer in characters.
+  # Public: Get the length of the buffer in characters.
+  #
+  # Returns a {Number}.
   getMaxCharacterIndex: ->
     @offsetIndex.totalTo(Infinity, 'rows').characters
 
@@ -563,7 +617,7 @@ class TextBuffer
   # Returns a {Boolean}.
   hasMultipleEditors: -> @refcount > 1
 
-  # Reloads a file in the {Editor}.
+  # Public: Reload the buffer's contents from disk.
   #
   # Sets the buffer's content to the cached disk contents
   reload: ->
@@ -581,22 +635,28 @@ class TextBuffer
     Q(@file?.read() ? "").then (contents) =>
       @cachedDiskContents = contents
 
-  # Gets the file's basename--that is, the file without any directory information.
+  # Get the basename of the associated file.
+  #
+  # The basename is the name portion of the file's path, without the containing
+  # directories.
   #
   # Returns a {String}.
   getBaseName: ->
     @file?.getBaseName()
 
-  # Retrieves the path for the file.
+  # Pubilc: Get the path of the associated file.
   #
   # Returns a {String}.
   getPath: ->
     @file?.getPath()
 
+  # Public: Get the path of the associated file.
+  #
+  # Returns a {String}.
   getUri: ->
     @getPath()
 
-  # Sets the path for the file.
+  # Public: Set the path for the buffer's associated file.
   #
   # filePath - A {String} representing the new file path
   setPath: (filePath) ->
@@ -612,14 +672,14 @@ class TextBuffer
 
     @emit "path-changed", this
 
-  # Deprecated: Use ::getEndPosition instead
+  # Deprecated: Use {::getEndPosition} instead
   getEofPosition: -> @getEndPosition()
 
-  # Saves the buffer.
+  # Public: Save the buffer.
   save: ->
     @saveAs(@getPath()) if @isModified()
 
-  # Saves the buffer at a specific path.
+  # Public: Save the buffer at a specific path.
   #
   # filePath - The path to save at.
   saveAs: (filePath) ->
@@ -649,10 +709,8 @@ class TextBuffer
     else
       not @isEmpty()
 
-  # Is the buffer's text in conflict with the text on disk?
-  #
-  # This occurs when the buffer's file changes on disk while the buffer has
-  # unsaved changes.
+  # Public: Determine if the in-memory contents of the buffer conflict with the
+  # on-disk contents of its associated file.
   #
   # Returns a {Boolean}.
   isInConflict: -> @conflict
@@ -662,11 +720,11 @@ class TextBuffer
 
   # Identifies if a character sequence is within a certain range.
   #
-  # regex - The {RegExp} to check.
-  # startIndex - The starting row {Number}.
-  # endIndex - The ending row {Number}.
+  # regex - The {RegExp} to match.
+  # startIndex - A {Number} representing the starting character offset.
+  # endIndex - A {Number} representing the ending character offset.
   #
-  # Returns an {Array} of {RegExp}s, representing the matches.
+  # Returns an {Array} of matches for the given regex.
   matchesInCharacterRange: (regex, startIndex, endIndex) ->
     text = @getText()
     matches = []
@@ -690,32 +748,51 @@ class TextBuffer
 
     matches
 
-  # Scans for text in the buffer, calling a function on each match.
+  # Public: Scan regular expression matches in the entire buffer, calling the
+  # given iterator function on each match.
   #
-  # regex - A {RegExp} representing the text to find.
-  # iterator - A {Function} that's called on each match.
+  # If you're programmatically modifying the results, you may want to try
+  # {::backwardsScan} to avoid tripping over your own changes.
+  #
+  # regex - A {RegExp} to search for.
+  # iterator -
+  #   A {Function} that's called on each match with an {Object} containing the.
+  #   following keys:
+  #   :match - The current regular expression match.
+  #   :matchText - A {String} with the text of the match.
+  #   :range - The {Range} of the match.
+  #   :stop - Call this {Function} to terminate the scan.
+  #   :replace - Call this {Function} with a {String} to replace the match.
   scan: (regex, iterator) ->
     @scanInRange regex, @getRange(), (result) =>
       result.lineText = @lineForRow(result.range.start.row)
       result.lineTextOffset = 0
       iterator(result)
 
-  # Scans for text in the buffer _backwards_, calling a function on each match.
+  # Public: Scan regular expression matches in the entire buffer in reverse
+  # order, calling the given iterator function on each match.
   #
-  # regex - A {RegExp} representing the text to find.
-  # iterator - A {Function} that's called on each match.
+  # regex - A {RegExp} to search for.
+  # iterator -
+  #   A {Function} that's called on each match with an {Object} containing the.
+  #   following keys:
+  #   :match - The current regular expression match.
+  #   :matchText - A {String} with the text of the match.
+  #   :range - The {Range} of the match.
+  #   :stop - Call this {Function} to terminate the scan.
+  #   :replace - Call this {Function} with a {String} to replace the match.
   backwardsScan: (regex, iterator) ->
     @backwardsScanInRange regex, @getRange(), (result) =>
       result.lineText = @lineForRow(result.range.start.row)
       result.lineTextOffset = 0
       iterator(result)
 
-  # Replace all matches of regex with replacementText
+  # Public: Replace all regular expression matches in the entire buffer.
   #
-  # regex - A {RegExp} representing the text to find.
-  # replacementText - A {String} representing the text to replace.
+  # regex - A {RegExp} representing the matches to be replaced.
+  # replacementText - A {String} representing the text to replace each match.
   #
-  # Returns the number of replacements made
+  # Returns a {Number} representing the number of replacements made.
   replace: (regex, replacementText) ->
     doSave = !@isModified()
     replacements = 0
@@ -729,13 +806,19 @@ class TextBuffer
 
     replacements
 
-  # Scans for text in a given range, calling a function on each match.
+  # Public: Scan regular expression matches in a given range , calling the given
+  # iterator function on each match.
   #
-  # regex - A {RegExp} representing the text to find.
-  # range - A {Range} in the buffer to search within.
-  # iterator - A {Function} that's called on each match.
-  # reverse - A {Boolean} indicating if the search should be backwards
-  #           (default: `false`).
+  # regex - A {RegExp} to search for.
+  # range - A {Range} in which to search.
+  # iterator -
+  #   A {Function} that's called on each match with an {Object} containing the.
+  #   following keys:
+  #   :match - The current regular expression match.
+  #   :matchText - A {String} with the text of the match.
+  #   :range - The {Range} of the match.
+  #   :stop - Call this {Function} to terminate the scan.
+  #   :replace - Call this {Function} with a {String} to replace the match.
   scanInRange: (regex, range, iterator, reverse=false) ->
     range = @clipRange(range)
     global = regex.global
@@ -774,28 +857,35 @@ class TextBuffer
 
       break unless global and keepLooping
 
-  # Scans for text in a given range _backwards_, calling a function on each match.
+  # Public: Scan regular expression matches in a given range in reverse order,
+  # calling the given iterator function on each match.
   #
-  # regex - A {RegExp} representing the text to find.
-  # range - A {Range} in the buffer to search within.
-  # iterator - A {Function} that's called on each match.
+  # regex - A {RegExp} to search for.
+  # range - A {Range} in which to search.
+  # iterator -
+  #   A {Function} that's called on each match with an {Object} containing the.
+  #   following keys:
+  #   :match - The current regular expression match.
+  #   :matchText - A {String} with the text of the match.
+  #   :range - The {Range} of the match.
+  #   :stop - Call this {Function} to terminate the scan.
+  #   :replace - Call this {Function} with a {String} to replace the match.
   backwardsScanInRange: (regex, range, iterator) ->
     @scanInRange regex, range, iterator, true
 
-  # Given a row, identifies if it is blank.
+  # Public: Determine if the given row contains only whitespace.
   #
-  # row - A row {Number} to check.
+  # row - A {Number} representing a 0-indexed row.
   #
   # Returns a {Boolean}.
   isRowBlank: (row) ->
     not /\S/.test @lineForRow(row)
 
-  # Given a row, this finds the next row above it that's empty.
+  # Public: Given a row, find the first preceding row that's not blank.
   #
   # startRow - A {Number} identifying the row to start checking at.
   #
-  # Returns the row {Number} of the first blank row or `null` if there's no
-  #   other blank row.
+  # Returns a {Number} or `null` if there's no preceding non-blank row.
   previousNonBlankRow: (startRow) ->
     return null if startRow == 0
 
@@ -804,12 +894,11 @@ class TextBuffer
       return row unless @isRowBlank(row)
     null
 
-  # Given a row, this finds the next row that's blank.
+  # Public: Given a row, find the next row that's not blank.
   #
-  # startRow - A row {Number} to check
+  # startRow - A {Number} identifying the row to start checking at.
   #
-  # Returns the row {Number} of the next blank row or `null` if there's no other
-  #   blank row.
+  # Returns a {Number} or `null` if there's no next non-blank row.
   nextNonBlankRow: (startRow) ->
     lastRow = @getLastRow()
     if startRow < lastRow
@@ -817,7 +906,10 @@ class TextBuffer
         return row unless @isRowBlank(row)
     null
 
-  # Identifies if the buffer has soft tabs anywhere.
+  # Public: Determine if the buffer uses soft tabs.
+  #
+  # Returns `true` if the first line with leading whitespace starts with a
+  # space character. Returns `false` if it starts with a hard tab (`\t`).
   #
   # Returns a {Boolean},
   usesSoftTabs: ->
@@ -826,6 +918,7 @@ class TextBuffer
         return match[0][0] != '\t'
     undefined
 
+  # Deprecated: Call {::setTextInRange} instead.
   change: (oldRange, newText, options={}) ->
     @setTextInRange(oldRange, newText, options.normalizeLineEndings)
 

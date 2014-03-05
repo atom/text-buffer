@@ -6,7 +6,7 @@ Marker = require './marker'
 Point = require './point'
 Range = require './range'
 
-# Private: Manages the markers for a buffer.
+# Manages the markers for a buffer.
 module.exports =
 class MarkerManager
   Serializable.includeInto(this)

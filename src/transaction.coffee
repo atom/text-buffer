@@ -2,7 +2,7 @@
 Serializable = require 'serializable'
 BufferPatch = require './buffer-patch'
 
-# Private: Contains several patches that we want to undo/redo as a batch.
+# Contains several patches that we want to undo/redo as a batch.
 module.exports =
 class Transaction extends Serializable
   constructor: (@patches=[]) ->
