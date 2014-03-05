@@ -15,8 +15,8 @@ OptionKeys = ['reversed', 'tailed', 'invalidate', 'persistent']
 #
 # Head and Tail:
 # Markers always have a *head* and sometimes have a *tail*. If you think of a
-# marker as an editor selection, the head is the part that's stationary and the
-# tail is the part that moves when the mouse is moved. A marker without a tail
+# marker as an editor selection, the tail is the part that's stationary and the
+# head is the part that moves when the mouse is moved. A marker without a tail
 # always reports an empty range at the head position. A marker with a head position
 # greater than the tail is in a "normal" orientation. If the head precedes the
 # tail the marker is in a "reversed" orientation.
