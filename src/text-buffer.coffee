@@ -74,12 +74,6 @@ class TextBuffer
   Serializable.includeInto(this)
   Subscriber.includeInto(this)
 
-  @delegatesMethods 'undo', 'redo', 'transact', 'beginTransaction', 'commitTransaction',
-    'abortTransaction', 'isTransacting', 'clearUndoStack', toProperty: 'history'
-
-  @delegatesMethods 'markRange', 'markPosition', 'getMarker', 'getMarkers',
-    'findMarkers', 'getMarkerCount', toProperty: 'markers'
-
   cachedText: null
   stoppedChangingDelay: 300
   stoppedChangingTimeout: null
@@ -856,3 +850,120 @@ class TextBuffer
     for row in [start..end]
       line = @lineForRow(row)
       console.log row, line, line.length
+
+  @delegatesMethods 'undo', 'redo', 'transact', 'beginTransaction', 'commitTransaction',
+    'abortTransaction', 'isTransacting', 'clearUndoStack', toProperty: 'history'
+
+  # Public: Undo the last operation. If a transaction is in progress, aborts it.
+  undo: -> @history.undo()
+
+  # Public: Redo the last operation
+  redo: -> @history.redo()
+
+  # Public: Batch multiple operations as a single undo/redo step.
+  #
+  # Any group of operations that are logically grouped from the perspective of
+  # undoing and redoing should be performed in a transaction. If you want to
+  # abort the transaction, call {::abortTransaction} to terminate the function's
+  # execution and revert any changes performed up to the abortion.
+  #
+  # fn - A {Function} to call inside the transaction.
+  transact: (fn) -> @history.transact(fn)
+
+  # Public: Start an open-ended transaction.
+  #
+  # Call {::commitTransaction} or {::abortTransaction} to terminate the
+  # transaction. If you nest calls to transactions, only the outermost
+  # transaction is considered. You must match every begin with a matching
+  # commit, but a single call to abort will cancel all nested transactions.
+  beginTransaction: -> @history.beginTransaction()
+
+  # Public: Commit an open-ended transaction started with {::beginTransaction}
+  # and push it to the undo stack.
+  #
+  # If transactions are nested, only the outermost commit takes effect.
+  commitTransaction: -> @history.commitTransaction()
+
+  # Public: Abort an open transaction, undoing any operations performed so far
+  # within the transaction.
+  abortTransaction: -> @history.abortTransaction()
+
+  # Public: Clear the undo stack.
+  clearUndoStack: -> @history.clearUndoStack()
+
+  # Public: Create a marker with the given range. This marker will maintain
+  # its logical location as the buffer is changed, so if you mark a particular
+  # word, the marker will remain over that word even if the word's location in
+  # the buffer changes.
+  #
+  # * range: A {Range} or range-compatible {Array}
+  # * properties:
+  #     A hash of key-value pairs to associate with the marker. There are also
+  #     reserved property names that have marker-specific meaning:
+  #       :reversed -
+  #         Creates the marker in a reversed orientation. Defaults to false.
+  #       :persistent -
+  #         Whether to include this marker when serializing the buffer. Defaults
+  #         to true.
+  #       :invalidate -
+  #         Determines the rules by which changes to the buffer *invalidate* the
+  #         marker. Defaults to 'overlap', but can be any of the following:
+  #         * 'never':
+  #             The marker is never marked as invalid. This is a good choice for
+  #             markers representing selections in an editor.
+  #         * 'surround':
+  #             The marker is invalidated by changes that completely surround it.
+  #         * 'overlap':
+  #             The marker is invalidated by changes that surround the start or
+  #             end of the marker. This is the default.
+  #         * 'inside':
+  #             The marker is invalidated by a change that touches the marked
+  #             region in any way. This is the most fragile strategy.
+  #
+  # Returns a {Marker}.
+  markRange: (range, properties) -> @markers.markRange(range, properties)
+
+  # Public: Create a marker at the given position with no tail.
+  #
+  # :position - {Point} or point-compatible {Array}
+  # :properties - This is the same as the `properties` parameter in {::markRange}
+  #
+  # Returns a {Marker}.
+  markPosition: (position, properties) -> @markers.markPosition(position, properties)
+
+  # Public: Get an existing marker by its id.
+  #
+  # Returns a {Marker}.
+  getMarker: (id) -> @markers.getMarker(id)
+
+  # Public: Get all existing markers on the buffer.
+  #
+  # Returns an {Array} of {Marker}s.
+  getMarkers: -> @markers.getMarkers()
+
+  # Public: Find markers conforming to the given parameters.
+  #
+  # :params -
+  #   A hash of key-value pairs constraining the set of returned markers. You
+  #   can query against custom marker properties by listing the desired
+  #   key-value pairs here. In addition, the following keys are reserved and
+  #   have special semantics:
+  #   * 'startPosition': Only include markers that start at the given {Point}.
+  #   * 'endPosition': Only include markers that end at the given {Point}.
+  #   * 'containsPoint': Only include markers that contain the given {Point}, inclusive.
+  #   * 'containsRange': Only include markers that contain the given {Range}, inclusive.
+  #   * 'startRow': Only include markers that start at the given row {Number}.
+  #   * 'endRow': Only include markers that end at the given row {Number}.
+  #   * 'intersectsRow': Only include markers that intersect the given row {Number}.
+  #
+  # Finds markers that conform to all of the given parameters. Markers are
+  # sorted based on their position in the buffer. If two markers start at the
+  # same position, the larger marker comes first.
+  #
+  # Returns an {Array} of {Marker}s.
+  findMarkers: (params) -> @markers.findMarkers(params)
+
+  # Public: Get the number of markers in the buffer.
+  #
+  # Returns a {Number}.
+  getMarkerCount: -> @markers.getMarkerCount()
