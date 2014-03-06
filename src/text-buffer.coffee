@@ -677,7 +677,7 @@ class TextBuffer
 
   # Public: Save the buffer.
   save: ->
-    @saveAs(@getPath()) if @isModified()
+    @saveAs(@getPath())
 
   # Public: Save the buffer at a specific path.
   #
