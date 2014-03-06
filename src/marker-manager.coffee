@@ -82,6 +82,10 @@ class MarkerManager
           range = Range.fromObject(value)
           candidateIds.push(@intervals.findContaining(range.start, range.end))
           delete params[key]
+        when 'containedInRange'
+          range = Range.fromObject(value)
+          candidateIds.push(@intervals.findContainedIn(range.start, range.end))
+          delete params[key]
         when 'startRow'
           candidateIds.push(@intervals.findStartingIn(new Point(value, 0), new Point(value, Infinity)))
           delete params[key]
