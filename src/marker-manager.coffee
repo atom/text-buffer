@@ -36,7 +36,7 @@ class MarkerManager
   serializeParams: ->
     markers = {}
     for id, marker of @markers
-      markers[id] = marker.serialize()
+      markers[id] = marker.serialize() if marker.persistent
     {markers}
 
   # Called by {Serializable} during deserialization

@@ -556,6 +556,15 @@ describe "TextBuffer", ->
       bufferB.undo()
       expect(bufferB.getText()).toBe "hello\nworld\r\nhow are you doing?"
 
+    it "doesn't serialize markers with the 'persistent' option set to false", ->
+      bufferA = new TextBuffer(text: "hello\nworld\r\nhow are you doing?")
+      marker1A = bufferA.markRange([[0, 1], [1, 2]], persistent: false, foo: 1)
+      marker2A = bufferA.markPosition([2, 2], bar: 2)
+
+      bufferB = TextBuffer.deserialize(bufferA.serialize())
+      expect(bufferB.getMarker(marker1A.id)).toBeUndefined()
+      expect(bufferB.getMarker(marker2A.id)).toBeDefined()
+
     describe "when the buffer has a path", ->
       [filePath, buffer2] = []
 
