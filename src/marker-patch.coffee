@@ -11,14 +11,15 @@ class MarkerPatch extends Serializable
 
   serializeParams: ->
     oldParams = clone(@oldParams)
-    oldParams.range = @oldParams.range.serialize()
+    oldParams.range = @oldParams.range.serialize() if @oldParams.range?
     newParams = clone(@newParams)
-    newParams.range = @newParams.range.serialize()
+    newParams.range = @newParams.range.serialize() if @newParams.range?
     {@id, oldParams, newParams}
 
   deserializeParams: (params) ->
     params.oldParams.range = Range.deserialize(params.oldParams.range)
     params.newParams.range = Range.deserialize(params.newParams.range)
+    params
 
   invert: ->
     new @constructor(@id, @newParams, @oldParams)

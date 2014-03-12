@@ -535,10 +535,13 @@ describe "TextBuffer", ->
       bufferA.transact -> bufferA.setTextInRange([[1, 0], [1, 5]], "friend")
       marker1A = bufferA.markRange([[0, 1], [1, 2]], reversed: true, foo: 1)
       marker2A = bufferA.markPosition([2, 2], bar: 2)
+      bufferA.transact ->
+        bufferA.append("?")
+        marker2A.setProperties(bar: 3, baz: 4)
 
       bufferB = TextBuffer.deserialize(bufferA.serialize())
 
-      expect(bufferB.getText()).toBe "hello there\nfriend\r\nhow are you doing?"
+      expect(bufferB.getText()).toBe "hello there\nfriend\r\nhow are you doing??"
 
       marker1B = bufferB.getMarker(marker1A.id)
       marker2B = bufferB.getMarker(marker2A.id)
@@ -547,11 +550,13 @@ describe "TextBuffer", ->
       expect(marker1B.getProperties()).toEqual {foo: 1}
       expect(marker2B.getHeadPosition()).toEqual [2, 2]
       expect(marker2B.hasTail()).toBe false
-      expect(marker2B.getProperties()).toEqual {bar: 2}
+      expect(marker2B.getProperties()).toEqual {bar: 3, baz: 4}
 
       # Accounts for deserialized markers when selecting the next marker's id
       expect(bufferB.markRange([[0, 1], [2, 3]]).id).toBe marker2B.id + 1
 
+      bufferB.undo()
+      expect(marker2B.getProperties()).toEqual {bar: 2}
       bufferB.undo()
       bufferB.undo()
       expect(bufferB.getText()).toBe "hello\nworld\r\nhow are you doing?"
