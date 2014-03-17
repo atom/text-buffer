@@ -913,6 +913,7 @@ class TextBuffer
   #
   # Returns a {Boolean},
   usesSoftTabs: ->
+    return false unless atom.config.get("editor.softTabs")
     for row in [0..@getLastRow()]
       if match = @lineForRow(row).match(/^\s/)
         return match[0][0] != '\t'
