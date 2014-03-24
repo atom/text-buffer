@@ -372,10 +372,11 @@ class TextBuffer
     lines.push(newText[previousIndex..]) if newText.length > previousIndex
 
     # Update first and last line so replacement preserves existing prefix and suffix of oldRange
-    lastIndex = lines.length - 1
     prefix = @lineForRow(startRow)[0...oldRange.start.column]
-    suffix = @lineForRow(endRow)[oldRange.end.column...]
     lines[0] = prefix + lines[0]
+
+    suffix = @lineForRow(endRow)[oldRange.end.column...]
+    lastIndex = lines.length - 1
     lines[lastIndex] += suffix
     lastLineEnding = @lineEndingForRow(endRow)
     lastLineEnding = normalizedEnding if lastLineEnding isnt '' and normalizedEnding?
