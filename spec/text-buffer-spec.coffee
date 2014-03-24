@@ -38,10 +38,12 @@ describe "TextBuffer", ->
       it "can be constructed with initial text", ->
         text = "first\n"
         buffer = new TextBuffer(text)
-        expect(buffer.getLineCount()).toBe 1
+        expect(buffer.getLineCount()).toBe 2
         expect(buffer.getText()).toBe text
         expect(buffer.lineForRow(0)).toBe 'first'
         expect(buffer.lineEndingForRow(0)).toBe '\n'
+        expect(buffer.lineForRow(1)).toBe ''
+        expect(buffer.lineEndingForRow(1)).toBe ''
 
     describe "when a file path is given", ->
       [filePath] = []
