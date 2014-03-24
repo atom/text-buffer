@@ -57,8 +57,7 @@ describe "TextBuffer", ->
         buffer?.destroy()
 
       describe "when a file exists for the path", ->
-        fit "loads the contents of that file", ->
-          console.log "----"
+        it "loads the contents of that file", ->
           expect(buffer.getText()).toBe readFileSync(filePath, 'utf8')
 
         it "does not allow the initial state of the buffer to be undone", ->

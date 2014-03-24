@@ -364,19 +364,14 @@ class TextBuffer
     lines = []
     lineEndings = []
     lineStartIndex = 0
+    while result = lineEndingRegex.exec(newText)
+      lines.push(newText[lineStartIndex...result.index])
+      lineEndings.push(normalizedEnding ? result[0])
+      lineStartIndex = lineEndingRegex.lastIndex
 
-    if newText.length > 0
-      while result = lineEndingRegex.exec(newText)
-        lines.push(newText[lineStartIndex...result.index])
-        lineEndings.push(normalizedEnding ? result[0])
-        lineStartIndex = lineEndingRegex.lastIndex
-
-      if newText.length > lineStartIndex
-        lines.push(newText[lineStartIndex..])
-        lineEndings.push('')
-    else
-      lines.push ''
-      lineEndings.push ''
+    if newText.length > lineStartIndex
+      lines.push(newText[lineStartIndex..])
+      lineEndings.push('')
 
     # Update first and last line so replacement preserves existing prefix and suffix of oldRange
     prefix = @lineForRow(startRow)[0...oldRange.start.column]
