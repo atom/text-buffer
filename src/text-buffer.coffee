@@ -363,13 +363,13 @@ class TextBuffer
     lineEndingRegex = /\r\n|\r|\n/g
     lines = []
     lineEndings = []
-    lastIndex = 0
+    previousIndex = 0
     while result = lineEndingRegex.exec(newText)
-      lines.push(newText[lastIndex...result.index])
+      lines.push(newText[previousIndex...result.index])
       lineEndings.push(normalizedEnding ? result[0])
-      lastIndex = lineEndingRegex.lastIndex
+      previousIndex = lineEndingRegex.lastIndex
 
-    lines.push(newText[lastIndex..]) if newText.length > lastIndex
+    lines.push(newText[previousIndex..]) if newText.length > previousIndex
 
     # Update first and last line so replacement preserves existing prefix and suffix of oldRange
     lastIndex = lines.length - 1
