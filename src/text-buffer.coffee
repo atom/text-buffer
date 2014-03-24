@@ -359,14 +359,16 @@ class TextBuffer
           normalizedEnding = null
 
     # Split inserted text into lines and line endings
-    lines = newText.split('\n')
+    lineEndingRegex = /\r\n|\r|\n/g
+    lines = []
     lineEndings = []
-    for line, index in lines
-      if line[-1..] is '\r'
-        lines[index] = line[0...-1]
-        lineEndings.push(normalizedEnding ? '\r\n')
-      else
-        lineEndings.push(normalizedEnding ? '\n')
+    lastIndex = 0
+    while result = lineEndingRegex.exec(newText)
+      lines.push(newText[lastIndex...result.index])
+      lineEndings.push(normalizedEnding ? result[0])
+      lastIndex = lineEndingRegex.lastIndex
+
+    lines.push(newText[lastIndex..]) if newText.length > lastIndex
 
     # Update first and last line so replacement preserves existing prefix and suffix of oldRange
     lastIndex = lines.length - 1
