@@ -359,10 +359,9 @@ class TextBuffer
         else
           normalizedEnding = null
 
+    # Split inserted text into lines and line endings
     lines = []
     lineEndings = []
-
-    # Split inserted text into lines and line endings
     if newText.length > 0
       lineEndingRegex = /\r\n|\r|\n/g
       lineStartIndex = 0
@@ -383,12 +382,11 @@ class TextBuffer
     lines[0] = prefix + lines[0]
 
     suffix = @lineForRow(endRow)[oldRange.end.column...]
-    if suffix.length > 0
-      lastIndex = lines.length - 1
-      lines[lastIndex] += suffix
-      lastLineEnding = @lineEndingForRow(endRow)
-      lastLineEnding = normalizedEnding if lastLineEnding isnt '' and normalizedEnding?
-      lineEndings[lastIndex] = lastLineEnding
+    lastIndex = lines.length - 1
+    lines[lastIndex] += suffix
+    lastLineEnding = @lineEndingForRow(endRow)
+    lastLineEnding = normalizedEnding if lastLineEnding isnt '' and normalizedEnding?
+    lineEndings[lastIndex] = lastLineEnding
 
     # Replace lines in oldRange with new lines
     spliceArray(@lines, startRow, rowCount, lines)
