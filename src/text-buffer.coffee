@@ -394,7 +394,6 @@ class TextBuffer
     spliceArray(@lines, startRow, rowCount, lines)
     spliceArray(@lineEndings, startRow, rowCount, lineEndings)
 
-
     # Update the offset index for position <-> character offset translation
     offsets = lines.map (line, index) ->
       {rows: 1, characters: line.length + lineEndings[index].length}
