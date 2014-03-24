@@ -369,7 +369,9 @@ class TextBuffer
       lineEndings.push(normalizedEnding ? result[0])
       lineStartIndex = lineEndingRegex.lastIndex
 
-    lines.push(newText[lineStartIndex..]) if newText.length > lineStartIndex
+    if newText.length > lineStartIndex
+      lines.push(newText[lineStartIndex..])
+      lineEndings.push('')
 
     # Update first and last line so replacement preserves existing prefix and suffix of oldRange
     prefix = @lineForRow(startRow)[0...oldRange.start.column]
@@ -386,6 +388,7 @@ class TextBuffer
     # Replace lines in oldRange with new lines
     spliceArray(@lines, startRow, rowCount, lines)
     spliceArray(@lineEndings, startRow, rowCount, lineEndings)
+
 
     # Update the offset index for position <-> character offset translation
     offsets = lines.map (line, index) ->

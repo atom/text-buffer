@@ -19,19 +19,29 @@ describe "TextBuffer", ->
       expect(buffer.lineForRow(0)).toBe ''
       expect(buffer.lineEndingForRow(0)).toBe ''
 
-    it "can be constructed with initial text", ->
-      text = "hello\nworld\r\nhow are you doing?\rlast"
-      buffer = new TextBuffer(text)
-      expect(buffer.getLineCount()).toBe 4
-      expect(buffer.getText()).toBe text
-      expect(buffer.lineForRow(0)).toBe 'hello'
-      expect(buffer.lineEndingForRow(0)).toBe '\n'
-      expect(buffer.lineForRow(1)).toBe 'world'
-      expect(buffer.lineEndingForRow(1)).toBe '\r\n'
-      expect(buffer.lineForRow(2)).toBe 'how are you doing?'
-      expect(buffer.lineEndingForRow(2)).toBe '\r'
-      expect(buffer.lineForRow(3)).toBe 'last'
-      expect(buffer.lineEndingForRow(3)).toBe ''
+    describe "when the last line does not contains a newline", ->
+      it "can be constructed with initial text", ->
+        text = "hello\nworld\r\nhow are you doing?\rlast"
+        buffer = new TextBuffer(text)
+        expect(buffer.getLineCount()).toBe 4
+        expect(buffer.getText()).toBe text
+        expect(buffer.lineForRow(0)).toBe 'hello'
+        expect(buffer.lineEndingForRow(0)).toBe '\n'
+        expect(buffer.lineForRow(1)).toBe 'world'
+        expect(buffer.lineEndingForRow(1)).toBe '\r\n'
+        expect(buffer.lineForRow(2)).toBe 'how are you doing?'
+        expect(buffer.lineEndingForRow(2)).toBe '\r'
+        expect(buffer.lineForRow(3)).toBe 'last'
+        expect(buffer.lineEndingForRow(3)).toBe ''
+
+    describe "when the last line contains a newline", ->
+      it "can be constructed with initial text", ->
+        text = "first\n"
+        buffer = new TextBuffer(text)
+        expect(buffer.getLineCount()).toBe 1
+        expect(buffer.getText()).toBe text
+        expect(buffer.lineForRow(0)).toBe 'first'
+        expect(buffer.lineEndingForRow(0)).toBe '\n'
 
     describe "when a file path is given", ->
       [filePath] = []
@@ -47,7 +57,8 @@ describe "TextBuffer", ->
         buffer?.destroy()
 
       describe "when a file exists for the path", ->
-        it "loads the contents of that file", ->
+        fit "loads the contents of that file", ->
+          console.log "----"
           expect(buffer.getText()).toBe readFileSync(filePath, 'utf8')
 
         it "does not allow the initial state of the buffer to be undone", ->
