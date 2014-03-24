@@ -363,24 +363,25 @@ class TextBuffer
     lineEndingRegex = /\r\n|\r|\n/g
     lines = []
     lineEndings = []
-    previousIndex = 0
+    lineStartIndex = 0
     while result = lineEndingRegex.exec(newText)
-      lines.push(newText[previousIndex...result.index])
+      lines.push(newText[lineStartIndex...result.index])
       lineEndings.push(normalizedEnding ? result[0])
-      previousIndex = lineEndingRegex.lastIndex
+      lineStartIndex = lineEndingRegex.lastIndex
 
-    lines.push(newText[previousIndex..]) if newText.length > previousIndex
+    lines.push(newText[lineStartIndex..]) if newText.length > lineStartIndex
 
     # Update first and last line so replacement preserves existing prefix and suffix of oldRange
     prefix = @lineForRow(startRow)[0...oldRange.start.column]
     lines[0] = prefix + lines[0]
 
     suffix = @lineForRow(endRow)[oldRange.end.column...]
-    lastIndex = lines.length - 1
-    lines[lastIndex] += suffix
-    lastLineEnding = @lineEndingForRow(endRow)
-    lastLineEnding = normalizedEnding if lastLineEnding isnt '' and normalizedEnding?
-    lineEndings[lastIndex] = lastLineEnding
+    if suffix.length > 0
+      lastIndex = lines.length - 1
+      lines[lastIndex] += suffix
+      lastLineEnding = @lineEndingForRow(endRow)
+      lastLineEnding = normalizedEnding if lastLineEnding isnt '' and normalizedEnding?
+      lineEndings[lastIndex] = lastLineEnding
 
     # Replace lines in oldRange with new lines
     spliceArray(@lines, startRow, rowCount, lines)
