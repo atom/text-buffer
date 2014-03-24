@@ -178,8 +178,9 @@ class TextBuffer
   #
   # row - A {Number} indicating the row.
   #
-  # The returned newline is represented as a literal string: `'\n'`, `'\r\n'`,
-  # or `''` for the last line of the buffer, which doesn't end in a newline.
+  # The returned newline is represented as a literal string: `'\n'`, `'\r'`,
+  # `'\r\n'`, or `''` for the last line of the buffer, which doesn't end in a
+  # newline.
   #
   # Returns a {String}.
   lineEndingForRow: (row) ->
