@@ -19,17 +19,29 @@ describe "TextBuffer", ->
       expect(buffer.lineForRow(0)).toBe ''
       expect(buffer.lineEndingForRow(0)).toBe ''
 
-    it "can be constructed with initial text", ->
-      text = "hello\nworld\r\nhow are you doing?"
+    it "can be constructed with initial text containing no trailing newline", ->
+      text = "hello\nworld\r\nhow are you doing?\rlast"
       buffer = new TextBuffer(text)
-      expect(buffer.getLineCount()).toBe 3
+      expect(buffer.getLineCount()).toBe 4
       expect(buffer.getText()).toBe text
       expect(buffer.lineForRow(0)).toBe 'hello'
       expect(buffer.lineEndingForRow(0)).toBe '\n'
       expect(buffer.lineForRow(1)).toBe 'world'
       expect(buffer.lineEndingForRow(1)).toBe '\r\n'
       expect(buffer.lineForRow(2)).toBe 'how are you doing?'
-      expect(buffer.lineEndingForRow(2)).toBe ''
+      expect(buffer.lineEndingForRow(2)).toBe '\r'
+      expect(buffer.lineForRow(3)).toBe 'last'
+      expect(buffer.lineEndingForRow(3)).toBe ''
+
+    it "can be constructed with initial text containing a trailing newline", ->
+      text = "first\n"
+      buffer = new TextBuffer(text)
+      expect(buffer.getLineCount()).toBe 2
+      expect(buffer.getText()).toBe text
+      expect(buffer.lineForRow(0)).toBe 'first'
+      expect(buffer.lineEndingForRow(0)).toBe '\n'
+      expect(buffer.lineForRow(1)).toBe ''
+      expect(buffer.lineEndingForRow(1)).toBe ''
 
     describe "when a file path is given", ->
       [filePath] = []
@@ -155,74 +167,6 @@ describe "TextBuffer", ->
       expect(buffer.getText()).toBe "goodnight\r\nmoon\nit's been good"
       buffer.undo()
       expect(buffer.getText()).toBe "hello\nworld\r\nyou are cool"
-
-  describe "::setTextViaDiff(text)", ->
-    describe "when the buffer contains no newlines", ->
-      beforeEach ->
-        buffer = new TextBuffer('original content')
-
-      it "can change the contents of the buffer", ->
-        newText = 'new text'
-        buffer.setTextViaDiff(newText)
-        expect(buffer.getText()).toBe newText
-
-    describe "when the buffer contains standard newlines", ->
-      beforeEach ->
-        buffer = new TextBuffer(SampleText)
-
-      it "can replace the contents of the buffer with text that doesn't end in a newline", ->
-        newText = "I know you are.\nBut what am I?"
-        buffer.setTextViaDiff(newText)
-        expect(buffer.getText()).toBe newText
-
-      it "can replace the contents of the buffer with text that ends in a newline", ->
-        newText = "I know you are.\nBut what am I?\n"
-        buffer.setTextViaDiff(newText)
-        expect(buffer.getText()).toBe newText
-
-      it "can change a few lines at the beginning in the buffer", ->
-        newText = buffer.getText().replace(/function/g, 'omgwow')
-        buffer.setTextViaDiff(newText)
-        expect(buffer.getText()).toBe newText
-
-      it "can change a few lines in the middle of the buffer", ->
-        newText = buffer.getText().replace(/shift/g, 'omgwow')
-        buffer.setTextViaDiff(newText)
-        expect(buffer.getText()).toBe newText
-
-      it "can add a newline to the end of the buffer", ->
-        newText = buffer.getText() + '\n'
-        buffer.setTextViaDiff(newText)
-        expect(buffer.getText()).toBe newText
-
-    describe "when the buffer contains windows newlines", ->
-      beforeEach ->
-        buffer = new TextBuffer(SampleText.replace(/\n/g, '\r\n'))
-
-      it "can replace the contents of the buffer with shorter text that doesn't end in a newline", ->
-        newText = "I know you are.\r\nBut what am I?"
-        buffer.setTextViaDiff(newText)
-        expect(buffer.getText()).toBe newText
-
-      it "can replace the contents of the buffer with shorter text that doesn't end in a newline", ->
-        newText = "I know you are.\r\nBut what am I?\r\n"
-        buffer.setTextViaDiff(newText)
-        expect(buffer.getText()).toBe newText
-
-      it "can change a few lines at the beginning in the buffer", ->
-        newText = buffer.getText().replace(/function/g, 'omgwow')
-        buffer.setTextViaDiff(newText)
-        expect(buffer.getText()).toBe newText
-
-      it "can change a few lines in the middle of the buffer", ->
-        newText = buffer.getText().replace(/shift/g, 'omgwow')
-        buffer.setTextViaDiff(newText)
-        expect(buffer.getText()).toBe newText
-
-      it "can add a newline at the end of the buffer", ->
-        newText = buffer.getText() + '\r\n'
-        buffer.setTextViaDiff(newText)
-        expect(buffer.getText()).toBe newText
 
   describe "::insert(position, text, normalizeNewlinesn)", ->
     it "inserts text at the given position", ->
@@ -1144,22 +1088,61 @@ describe "TextBuffer", ->
       waitsFor ->
         buffer.loaded
 
-    it "changes the entire contents of the buffer and emits a change event", ->
-      lastRow = buffer.getLastRow()
-      expectedPreRange = [[0,0], [lastRow, buffer.lineForRow(lastRow).length]]
-      changeHandler = jasmine.createSpy('changeHandler')
-      buffer.on 'changed', changeHandler
+    describe "when the buffer contains newlines", ->
+      it "changes the entire contents of the buffer and emits a change event", ->
+        lastRow = buffer.getLastRow()
+        expectedPreRange = [[0,0], [lastRow, buffer.lineForRow(lastRow).length]]
+        changeHandler = jasmine.createSpy('changeHandler')
+        buffer.on 'changed', changeHandler
 
-      newText = "I know you are.\nBut what am I?"
-      buffer.setText(newText)
+        newText = "I know you are.\rBut what am I?"
+        buffer.setText(newText)
 
-      expect(buffer.getText()).toBe newText
-      expect(changeHandler).toHaveBeenCalled()
+        expect(buffer.getText()).toBe newText
+        expect(changeHandler).toHaveBeenCalled()
 
-      [event] = changeHandler.argsForCall[0]
-      expect(event.newText).toBe newText
-      expect(event.oldRange).toEqual expectedPreRange
-      expect(event.newRange).toEqual [[0, 0], [1, 14]]
+        [event] = changeHandler.argsForCall[0]
+        expect(event.newText).toBe newText
+        expect(event.oldRange).toEqual expectedPreRange
+        expect(event.newRange).toEqual [[0, 0], [1, 14]]
+
+    describe "with windows newlines", ->
+      it "changes the entire contents of the buffer", ->
+        buffer = new TextBuffer("first\r\nlast")
+        lastRow = buffer.getLastRow()
+        expectedPreRange = [[0,0], [lastRow, buffer.lineForRow(lastRow).length]]
+        changeHandler = jasmine.createSpy('changeHandler')
+        buffer.on 'changed', changeHandler
+
+        newText = "new first\r\nnew last"
+        buffer.setText(newText)
+
+        expect(buffer.getText()).toBe newText
+        expect(changeHandler).toHaveBeenCalled()
+
+        [event] = changeHandler.argsForCall[0]
+        expect(event.newText).toBe newText
+        expect(event.oldRange).toEqual expectedPreRange
+        expect(event.newRange).toEqual [[0, 0], [1, 8]]
+
+    describe "when the buffer contains carriage returns for newlines", ->
+      it "changes the entire contents of the buffer", ->
+        buffer = new TextBuffer("first\rlast")
+        lastRow = buffer.getLastRow()
+        expectedPreRange = [[0,0], [lastRow, buffer.lineForRow(lastRow).length]]
+        changeHandler = jasmine.createSpy('changeHandler')
+        buffer.on 'changed', changeHandler
+
+        newText = "new first\rnew last"
+        buffer.setText(newText)
+
+        expect(buffer.getText()).toBe newText
+        expect(changeHandler).toHaveBeenCalled()
+
+        [event] = changeHandler.argsForCall[0]
+        expect(event.newText).toBe newText
+        expect(event.oldRange).toEqual expectedPreRange
+        expect(event.newRange).toEqual [[0, 0], [1, 8]]
 
   describe "::setTextViaDiff(text)", ->
     beforeEach ->
@@ -1227,6 +1210,13 @@ describe "TextBuffer", ->
 
       it "changes a few lines in the middle of the buffer", ->
         newText = buffer.getText().replace(/shift/g, 'omgwow')
+        buffer.setTextViaDiff(newText)
+        expect(buffer.getText()).toBe newText
+
+    describe "when the buffer contains carriage returns for newlines", ->
+      it "can replace the contents of the buffer", ->
+        buffer = new TextBuffer("first\rsecond\rlast")
+        newText = "new first\rnew last"
         buffer.setTextViaDiff(newText)
         expect(buffer.getText()).toBe newText
 

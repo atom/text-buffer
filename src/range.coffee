@@ -1,4 +1,5 @@
 Point = require './point'
+{newlineRegex} = require './helpers'
 
 # Public: Represents a region in a buffer in row/column coordinates.
 #
@@ -53,7 +54,7 @@ class Range
       startPoint = new Point(0, 0)
     text = args.shift()
     endPoint = startPoint.copy()
-    lines = text.split('\n')
+    lines = text.split(newlineRegex)
     if lines.length > 1
       lastIndex = lines.length - 1
       endPoint.row += lastIndex

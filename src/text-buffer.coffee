@@ -11,7 +11,7 @@ Range = require './range'
 History = require './history'
 MarkerManager = require './marker-manager'
 BufferPatch = require './buffer-patch'
-{spliceArray} = require './helpers'
+{spliceArray, newlineRegex} = require './helpers'
 
 # Public: A mutable text container with undo/redo support and the ability to
 # annotate logical regions in the text.
@@ -68,6 +68,7 @@ module.exports =
 class TextBuffer
   @Point: Point
   @Range: Range
+  @newlineRegex: newlineRegex
 
   Delegator.includeInto(this)
   Emitter.includeInto(this)
@@ -178,8 +179,9 @@ class TextBuffer
   #
   # row - A {Number} indicating the row.
   #
-  # The returned newline is represented as a literal string: `'\n'`, `'\r\n'`,
-  # or `''` for the last line of the buffer, which doesn't end in a newline.
+  # The returned newline is represented as a literal string: `'\n'`, `'\r'`,
+  # `'\r\n'`, or `''` for the last line of the buffer, which doesn't end in a
+  # newline.
   #
   # Returns a {String}.
   lineEndingForRow: (row) ->
@@ -231,7 +233,7 @@ class TextBuffer
       changeOptions = normalizeLineEndings: false
 
       for change in lineDiff
-        lineCount = change.value.match(/\n/g)?.length ? 0
+        lineCount = change.value.match(newlineRegex)?.length ? 0
         currentPosition[0] = row
         currentPosition[1] = column
 
@@ -359,20 +361,23 @@ class TextBuffer
           normalizedEnding = null
 
     # Split inserted text into lines and line endings
-    lines = newText.split('\n')
+    lines = []
     lineEndings = []
-    for line, index in lines
-      if line[-1..] is '\r'
-        lines[index] = line[0...-1]
-        lineEndings.push(normalizedEnding ? '\r\n')
-      else
-        lineEndings.push(normalizedEnding ? '\n')
+    lineStartIndex = 0
+    while result = newlineRegex.exec(newText)
+      lines.push(newText[lineStartIndex...result.index])
+      lineEndings.push(normalizedEnding ? result[0])
+      lineStartIndex = newlineRegex.lastIndex
+
+    lastLine = newText[lineStartIndex..]
+    lines.push(lastLine)
+    lineEndings.push('')
 
     # Update first and last line so replacement preserves existing prefix and suffix of oldRange
-    lastIndex = lines.length - 1
     prefix = @lineForRow(startRow)[0...oldRange.start.column]
-    suffix = @lineForRow(endRow)[oldRange.end.column...]
     lines[0] = prefix + lines[0]
+    suffix = @lineForRow(endRow)[oldRange.end.column...]
+    lastIndex = lines.length - 1
     lines[lastIndex] += suffix
     lastLineEnding = @lineEndingForRow(endRow)
     lastLineEnding = normalizedEnding if lastLineEnding isnt '' and normalizedEnding?
