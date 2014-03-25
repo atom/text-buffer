@@ -170,81 +170,6 @@ describe "TextBuffer", ->
       buffer.undo()
       expect(buffer.getText()).toBe "hello\nworld\r\nyou are cool"
 
-  describe "::setTextViaDiff(text)", ->
-    describe "when the buffer contains no newlines", ->
-      beforeEach ->
-        buffer = new TextBuffer('original content')
-
-      it "can change the contents of the buffer", ->
-        newText = 'new text'
-        buffer.setTextViaDiff(newText)
-        expect(buffer.getText()).toBe newText
-
-    describe "when the buffer contains standard newlines", ->
-      beforeEach ->
-        buffer = new TextBuffer(SampleText)
-
-      it "can replace the contents of the buffer with text that doesn't end in a newline", ->
-        newText = "I know you are.\nBut what am I?"
-        buffer.setTextViaDiff(newText)
-        expect(buffer.getText()).toBe newText
-
-      it "can replace the contents of the buffer with text that ends in a newline", ->
-        newText = "I know you are.\nBut what am I?\n"
-        buffer.setTextViaDiff(newText)
-        expect(buffer.getText()).toBe newText
-
-      it "can change a few lines at the beginning in the buffer", ->
-        newText = buffer.getText().replace(/function/g, 'omgwow')
-        buffer.setTextViaDiff(newText)
-        expect(buffer.getText()).toBe newText
-
-      it "can change a few lines in the middle of the buffer", ->
-        newText = buffer.getText().replace(/shift/g, 'omgwow')
-        buffer.setTextViaDiff(newText)
-        expect(buffer.getText()).toBe newText
-
-      it "can add a newline to the end of the buffer", ->
-        newText = buffer.getText() + '\n'
-        buffer.setTextViaDiff(newText)
-        expect(buffer.getText()).toBe newText
-
-    describe "when the buffer contains windows newlines", ->
-      beforeEach ->
-        buffer = new TextBuffer(SampleText.replace(/\n/g, '\r\n'))
-
-      it "can replace the contents of the buffer with shorter text that doesn't end in a newline", ->
-        newText = "I know you are.\r\nBut what am I?"
-        buffer.setTextViaDiff(newText)
-        expect(buffer.getText()).toBe newText
-
-      it "can replace the contents of the buffer with shorter text that doesn't end in a newline", ->
-        newText = "I know you are.\r\nBut what am I?\r\n"
-        buffer.setTextViaDiff(newText)
-        expect(buffer.getText()).toBe newText
-
-      it "can change a few lines at the beginning in the buffer", ->
-        newText = buffer.getText().replace(/function/g, 'omgwow')
-        buffer.setTextViaDiff(newText)
-        expect(buffer.getText()).toBe newText
-
-      it "can change a few lines in the middle of the buffer", ->
-        newText = buffer.getText().replace(/shift/g, 'omgwow')
-        buffer.setTextViaDiff(newText)
-        expect(buffer.getText()).toBe newText
-
-      it "can add a newline at the end of the buffer", ->
-        newText = buffer.getText() + '\r\n'
-        buffer.setTextViaDiff(newText)
-        expect(buffer.getText()).toBe newText
-
-    describe "when the buffer contains carriage returns for newlines", ->
-      fit "can replace the contents of the buffer", ->
-        buffer = new TextBuffer("first\rsecond\rlast")
-        newText = "new first\rnew last"
-        buffer.setTextViaDiff(newText)
-        expect(buffer.getText()).toBe newText
-
   describe "::insert(position, text, normalizeNewlinesn)", ->
     it "inserts text at the given position", ->
       buffer = new TextBuffer("hello world")
@@ -1248,6 +1173,13 @@ describe "TextBuffer", ->
 
       it "changes a few lines in the middle of the buffer", ->
         newText = buffer.getText().replace(/shift/g, 'omgwow')
+        buffer.setTextViaDiff(newText)
+        expect(buffer.getText()).toBe newText
+
+    describe "when the buffer contains carriage returns for newlines", ->
+      it "can replace the contents of the buffer", ->
+        buffer = new TextBuffer("first\rsecond\rlast")
+        newText = "new first\rnew last"
         buffer.setTextViaDiff(newText)
         expect(buffer.getText()).toBe newText
 
