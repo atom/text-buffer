@@ -1090,22 +1090,61 @@ describe "TextBuffer", ->
       waitsFor ->
         buffer.loaded
 
-    it "changes the entire contents of the buffer and emits a change event", ->
-      lastRow = buffer.getLastRow()
-      expectedPreRange = [[0,0], [lastRow, buffer.lineForRow(lastRow).length]]
-      changeHandler = jasmine.createSpy('changeHandler')
-      buffer.on 'changed', changeHandler
+    describe "when the buffer contains newlines", ->
+      it "changes the entire contents of the buffer and emits a change event", ->
+        lastRow = buffer.getLastRow()
+        expectedPreRange = [[0,0], [lastRow, buffer.lineForRow(lastRow).length]]
+        changeHandler = jasmine.createSpy('changeHandler')
+        buffer.on 'changed', changeHandler
 
-      newText = "I know you are.\nBut what am I?"
-      buffer.setText(newText)
+        newText = "I know you are.\rBut what am I?"
+        buffer.setText(newText)
 
-      expect(buffer.getText()).toBe newText
-      expect(changeHandler).toHaveBeenCalled()
+        expect(buffer.getText()).toBe newText
+        expect(changeHandler).toHaveBeenCalled()
 
-      [event] = changeHandler.argsForCall[0]
-      expect(event.newText).toBe newText
-      expect(event.oldRange).toEqual expectedPreRange
-      expect(event.newRange).toEqual [[0, 0], [1, 14]]
+        [event] = changeHandler.argsForCall[0]
+        expect(event.newText).toBe newText
+        expect(event.oldRange).toEqual expectedPreRange
+        expect(event.newRange).toEqual [[0, 0], [1, 14]]
+
+    describe "with windows newlines", ->
+      it "changes the entire contents of the buffer", ->
+        buffer = new TextBuffer("first\r\nlast")
+        lastRow = buffer.getLastRow()
+        expectedPreRange = [[0,0], [lastRow, buffer.lineForRow(lastRow).length]]
+        changeHandler = jasmine.createSpy('changeHandler')
+        buffer.on 'changed', changeHandler
+
+        newText = "new first\r\nnew last"
+        buffer.setText(newText)
+
+        expect(buffer.getText()).toBe newText
+        expect(changeHandler).toHaveBeenCalled()
+
+        [event] = changeHandler.argsForCall[0]
+        expect(event.newText).toBe newText
+        expect(event.oldRange).toEqual expectedPreRange
+        expect(event.newRange).toEqual [[0, 0], [1, 8]]
+
+    describe "when the buffer contains carriage returns for newlines", ->
+      it "changes the entire contents of the buffer", ->
+        buffer = new TextBuffer("first\rlast")
+        lastRow = buffer.getLastRow()
+        expectedPreRange = [[0,0], [lastRow, buffer.lineForRow(lastRow).length]]
+        changeHandler = jasmine.createSpy('changeHandler')
+        buffer.on 'changed', changeHandler
+
+        newText = "new first\rnew last"
+        buffer.setText(newText)
+
+        expect(buffer.getText()).toBe newText
+        expect(changeHandler).toHaveBeenCalled()
+
+        [event] = changeHandler.argsForCall[0]
+        expect(event.newText).toBe newText
+        expect(event.oldRange).toEqual expectedPreRange
+        expect(event.newRange).toEqual [[0, 0], [1, 8]]
 
   describe "::setTextViaDiff(text)", ->
     beforeEach ->
