@@ -11,7 +11,7 @@ Range = require './range'
 History = require './history'
 MarkerManager = require './marker-manager'
 BufferPatch = require './buffer-patch'
-{spliceArray} = require './helpers'
+{spliceArray, newlineRegex} = require './helpers'
 
 # Public: A mutable text container with undo/redo support and the ability to
 # annotate logical regions in the text.
@@ -68,7 +68,7 @@ module.exports =
 class TextBuffer
   @Point: Point
   @Range: Range
-  @newlineRegex: /\r\n|\n|\r/g
+  @newlineRegex: newlineRegex
 
   Delegator.includeInto(this)
   Emitter.includeInto(this)
@@ -233,7 +233,7 @@ class TextBuffer
       changeOptions = normalizeLineEndings: false
 
       for change in lineDiff
-        lineCount = change.value.match(TextBuffer.newlineRegex)?.length ? 0
+        lineCount = change.value.match(newlineRegex)?.length ? 0
         currentPosition[0] = row
         currentPosition[1] = column
 
@@ -364,10 +364,10 @@ class TextBuffer
     lines = []
     lineEndings = []
     lineStartIndex = 0
-    while result = TextBuffer.newlineRegex.exec(newText)
+    while result = newlineRegex.exec(newText)
       lines.push(newText[lineStartIndex...result.index])
       lineEndings.push(normalizedEnding ? result[0])
-      lineStartIndex = TextBuffer.newlineRegex.lastIndex
+      lineStartIndex = newlineRegex.lastIndex
 
     lastLine = newText[lineStartIndex..]
     lines.push(lastLine)
