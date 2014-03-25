@@ -19,31 +19,29 @@ describe "TextBuffer", ->
       expect(buffer.lineForRow(0)).toBe ''
       expect(buffer.lineEndingForRow(0)).toBe ''
 
-    describe "when the last line does not contain a newline", ->
-      it "can be constructed with initial text", ->
-        text = "hello\nworld\r\nhow are you doing?\rlast"
-        buffer = new TextBuffer(text)
-        expect(buffer.getLineCount()).toBe 4
-        expect(buffer.getText()).toBe text
-        expect(buffer.lineForRow(0)).toBe 'hello'
-        expect(buffer.lineEndingForRow(0)).toBe '\n'
-        expect(buffer.lineForRow(1)).toBe 'world'
-        expect(buffer.lineEndingForRow(1)).toBe '\r\n'
-        expect(buffer.lineForRow(2)).toBe 'how are you doing?'
-        expect(buffer.lineEndingForRow(2)).toBe '\r'
-        expect(buffer.lineForRow(3)).toBe 'last'
-        expect(buffer.lineEndingForRow(3)).toBe ''
+    it "can be constructed with initial text containing no trailing newline", ->
+      text = "hello\nworld\r\nhow are you doing?\rlast"
+      buffer = new TextBuffer(text)
+      expect(buffer.getLineCount()).toBe 4
+      expect(buffer.getText()).toBe text
+      expect(buffer.lineForRow(0)).toBe 'hello'
+      expect(buffer.lineEndingForRow(0)).toBe '\n'
+      expect(buffer.lineForRow(1)).toBe 'world'
+      expect(buffer.lineEndingForRow(1)).toBe '\r\n'
+      expect(buffer.lineForRow(2)).toBe 'how are you doing?'
+      expect(buffer.lineEndingForRow(2)).toBe '\r'
+      expect(buffer.lineForRow(3)).toBe 'last'
+      expect(buffer.lineEndingForRow(3)).toBe ''
 
-    describe "when the last line contains a newline", ->
-      it "can be constructed with initial text", ->
-        text = "first\n"
-        buffer = new TextBuffer(text)
-        expect(buffer.getLineCount()).toBe 2
-        expect(buffer.getText()).toBe text
-        expect(buffer.lineForRow(0)).toBe 'first'
-        expect(buffer.lineEndingForRow(0)).toBe '\n'
-        expect(buffer.lineForRow(1)).toBe ''
-        expect(buffer.lineEndingForRow(1)).toBe ''
+    it "can be constructed with initial text containing a trailing newline", ->
+      text = "first\n"
+      buffer = new TextBuffer(text)
+      expect(buffer.getLineCount()).toBe 2
+      expect(buffer.getText()).toBe text
+      expect(buffer.lineForRow(0)).toBe 'first'
+      expect(buffer.lineEndingForRow(0)).toBe '\n'
+      expect(buffer.lineForRow(1)).toBe ''
+      expect(buffer.lineEndingForRow(1)).toBe ''
 
     describe "when a file path is given", ->
       [filePath] = []
