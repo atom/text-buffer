@@ -380,7 +380,6 @@ class TextBuffer
     # Update first and last line so replacement preserves existing prefix and suffix of oldRange
     prefix = @lineForRow(startRow)[0...oldRange.start.column]
     lines[0] = prefix + lines[0]
-
     suffix = @lineForRow(endRow)[oldRange.end.column...]
     lastIndex = lines.length - 1
     lines[lastIndex] += suffix
