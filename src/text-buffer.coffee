@@ -232,7 +232,7 @@ class TextBuffer
       changeOptions = normalizeLineEndings: false
 
       for change in lineDiff
-        lineCount = change.value.match(/\n/g)?.length ? 0
+        lineCount = change.value.match(/\r\n|\n|\r/g)?.length ? 0
         currentPosition[0] = row
         currentPosition[1] = column
 
