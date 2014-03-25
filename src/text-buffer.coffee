@@ -68,6 +68,7 @@ module.exports =
 class TextBuffer
   @Point: Point
   @Range: Range
+  @newlineRegex: /\r\n|\n|\r/g
 
   Delegator.includeInto(this)
   Emitter.includeInto(this)
@@ -232,7 +233,7 @@ class TextBuffer
       changeOptions = normalizeLineEndings: false
 
       for change in lineDiff
-        lineCount = change.value.match(/\r\n|\n|\r/g)?.length ? 0
+        lineCount = change.value.match(TextBuffer.newlineRegex)?.length ? 0
         currentPosition[0] = row
         currentPosition[1] = column
 
@@ -362,12 +363,11 @@ class TextBuffer
     # Split inserted text into lines and line endings
     lines = []
     lineEndings = []
-    lineEndingRegex = /\r\n|\r|\n/g
     lineStartIndex = 0
-    while result = lineEndingRegex.exec(newText)
+    while result = TextBuffer.newlineRegex.exec(newText)
       lines.push(newText[lineStartIndex...result.index])
       lineEndings.push(normalizedEnding ? result[0])
-      lineStartIndex = lineEndingRegex.lastIndex
+      lineStartIndex = TextBuffer.newlineRegex.lastIndex
 
     lastLine = newText[lineStartIndex..]
     lines.push(lastLine)
