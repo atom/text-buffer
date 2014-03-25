@@ -19,7 +19,7 @@ describe "TextBuffer", ->
       expect(buffer.lineForRow(0)).toBe ''
       expect(buffer.lineEndingForRow(0)).toBe ''
 
-    describe "when the last line does not contains a newline", ->
+    describe "when the last line does not contain a newline", ->
       it "can be constructed with initial text", ->
         text = "hello\nworld\r\nhow are you doing?\rlast"
         buffer = new TextBuffer(text)
