@@ -238,6 +238,13 @@ describe "TextBuffer", ->
         buffer.setTextViaDiff(newText)
         expect(buffer.getText()).toBe newText
 
+    describe "when the buffer contains carriage returns for newlines", ->
+      fit "can replace the contents of the buffer", ->
+        buffer = new TextBuffer("first\rsecond\rlast")
+        newText = "new first\rnew last"
+        buffer.setTextViaDiff(newText)
+        expect(buffer.getText()).toBe newText
+
   describe "::insert(position, text, normalizeNewlinesn)", ->
     it "inserts text at the given position", ->
       buffer = new TextBuffer("hello world")
