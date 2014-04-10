@@ -554,14 +554,37 @@ describe "Marker", ->
           expect(marker.getRange()).toEqual [[0, 6], [0, 9]]
           expect(marker.isValid()).toBe true
 
+    describe "when a change starts and ends at a marker's start position", ->
+      it "interprets the change as being inside the marker for all invalidation strategies except 'inside'", ->
+        buffer.insert([0, 6], "ABC")
+
+        for marker in difference(allStrategies, [insideMarker, touchMarker])
+          expect(marker.getRange()).toEqual [[0, 6], [0, 12]]
+          expect(marker.isValid()).toBe true
+
+        expect(insideMarker.getRange()).toEqual [[0, 9], [0, 12]]
+        expect(insideMarker.isValid()).toBe true
+
+        expect(touchMarker.getRange()).toEqual [[0, 6], [0, 12]]
+        expect(touchMarker.isValid()).toBe false
+
+        buffer.undo()
+
+        for marker in allStrategies
+          expect(marker.getRange()).toEqual [[0, 6], [0, 9]]
+          expect(marker.isValid()).toBe true
+
     describe "when a change starts at a marker's end position", ->
       describe "when the change is an insertion", ->
-        it "interprets the change as being inside the marker for all invalidation strategies", ->
+        it "interprets the change as being inside the marker for all invalidation strategies except 'inside'", ->
           buffer.setTextInRange([[0, 9], [0, 9]], "ABC")
 
-          for marker in difference(allStrategies, [touchMarker])
+          for marker in difference(allStrategies, [insideMarker, touchMarker])
             expect(marker.getRange()).toEqual [[0, 6], [0, 12]]
             expect(marker.isValid()).toBe true
+
+          expect(insideMarker.getRange()).toEqual [[0, 6], [0, 9]]
+          expect(insideMarker.isValid()).toBe true
 
           expect(touchMarker.getRange()).toEqual [[0, 6], [0, 12]]
           expect(touchMarker.isValid()).toBe false
