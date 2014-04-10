@@ -25,7 +25,7 @@ OptionKeys = ['reversed', 'tailed', 'invalidate', 'persistent']
 # Markers are considered *valid* when they are first created. Depending on the
 # invalidation strategy you choose, certain changes to the buffer can cause a
 # marker to become invalid, for example if the text surrounding the marker is
-# deleted.
+# deleted. See {TextBuffer::markRange} for invalidation strategies.
 #
 # Change events:
 # When markers change in position for any reason, the emit a 'changed' event with
