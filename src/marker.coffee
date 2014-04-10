@@ -389,9 +389,10 @@ class Marker
 
     newMarkerRange = @range.copy()
 
-    changePrecedesMarkerStart = oldRange.end.isLessThan(markerStart) or (not @hasTail() and oldRange.end.isLessThanOrEqual(markerStart))
+    exclusive = not @hasTail() or @getInvalidationStrategy() is 'inside'
+    changePrecedesMarkerStart = oldRange.end.isLessThan(markerStart) or (exclusive and oldRange.end.isLessThanOrEqual(markerStart))
     changeSurroundsMarkerStart = not changePrecedesMarkerStart and oldRange.start.isLessThan(markerStart)
-    changePrecedesMarkerEnd = oldRange.end.isLessThanOrEqual(markerEnd)
+    changePrecedesMarkerEnd = changePrecedesMarkerStart or oldRange.end.isLessThan(markerEnd) or (not exclusive and oldRange.end.isLessThanOrEqual(markerEnd))
     changeSurroundsMarkerEnd = not changePrecedesMarkerEnd and oldRange.start.isLessThan(markerEnd)
 
     if changePrecedesMarkerStart
