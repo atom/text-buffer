@@ -268,7 +268,7 @@ class Marker
 
   # Public: Get the invalidation strategy for this marker.
   #
-  # Valid values include: `inside`, `never`, `overlap`, and `surround`.
+  # Valid values include: `never`, `surround`, `overlap`, `inside`, and `touch`.
   #
   # Returns a {String}.
   getInvalidationStrategy: ->
@@ -372,15 +372,20 @@ class Marker
 
     return if markerEnd.isLessThan(oldRange.start)
 
-    valid = @valid
     switch @getInvalidationStrategy()
+      when 'never'
+        valid = true
       when 'surround'
         valid = markerStart.isLessThan(oldRange.start) or oldRange.end.isLessThanOrEqual(markerEnd)
       when 'overlap'
         valid = !oldRange.containsPoint(markerStart, true) and !oldRange.containsPoint(markerEnd, true)
       when 'inside'
         if @hasTail()
-          valid = oldRange.end.isLessThan(markerStart) or markerEnd.isLessThan(oldRange.start)
+          valid = oldRange.end.isLessThanOrEqual(markerStart) or markerEnd.isLessThanOrEqual(oldRange.start)
+        else
+          valid = @valid
+      when 'touch'
+        valid = oldRange.end.isLessThan(markerStart) or markerEnd.isLessThan(oldRange.start)
 
     newMarkerRange = @range.copy()
 

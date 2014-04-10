@@ -378,14 +378,15 @@ describe "Marker", ->
       expect(marker.getRange()).toEqual [[0, 4], [0, 20]]
 
   describe "indirect updates (due to buffer changes)", ->
-    [allStrategies, neverMarker, surroundMarker, overlapMarker, insideMarker] = []
+    [allStrategies, neverMarker, surroundMarker, overlapMarker, insideMarker, touchMarker] = []
 
     beforeEach ->
       overlapMarker = buffer.markRange([[0, 6], [0, 9]], invalidate: 'overlap')
       neverMarker = overlapMarker.copy(invalidate: 'never')
       surroundMarker = overlapMarker.copy(invalidate: 'surround')
       insideMarker = overlapMarker.copy(invalidate: 'inside')
-      allStrategies = [neverMarker, surroundMarker, overlapMarker, insideMarker]
+      touchMarker = overlapMarker.copy(invalidate: 'touch')
+      allStrategies = [neverMarker, surroundMarker, overlapMarker, insideMarker, touchMarker]
 
     it "defers marker 'changed' events until after the buffer 'changed' event", ->
       for marker in allStrategies
@@ -480,12 +481,13 @@ describe "Marker", ->
         it "interprets the change as being inside the marker for all invalidation strategies", ->
           buffer.setTextInRange([[0, 6], [0, 7]], "ABC")
 
-          for marker in difference(allStrategies, [insideMarker])
+          for marker in difference(allStrategies, [insideMarker, touchMarker])
             expect(marker.getRange()).toEqual [[0, 6], [0, 11]]
             expect(marker.isValid()).toBe true
 
-          expect(insideMarker.getRange()).toEqual [[0, 6], [0, 11]]
-          expect(insideMarker.isValid()).toBe false
+          for marker in [insideMarker, touchMarker]
+            expect(marker.getRange()).toEqual [[0, 6], [0, 11]]
+            expect(marker.isValid()).toBe false
 
           buffer.undo()
 
@@ -502,9 +504,12 @@ describe "Marker", ->
 
           buffer.setTextInRange([[0, 6], [0, 6]], "ABC")
 
-          for marker in allStrategies
+          for marker in difference(allStrategies, [touchMarker])
             expect(marker.getRange()).toEqual [[0, 9], [0, 9]]
             expect(marker.isValid()).toBe true
+
+          expect(touchMarker.getRange()).toEqual [[0, 9], [0, 9]]
+          expect(touchMarker.isValid()).toBe false
 
           buffer.undo()
 
@@ -519,9 +524,12 @@ describe "Marker", ->
 
           buffer.setTextInRange([[0, 6], [0, 6]], "DEF")
 
-          for marker in allStrategies
+          for marker in difference(allStrategies, [touchMarker])
             expect(marker.getRange()).toEqual [[0, 9], [0, 9]]
             expect(marker.isValid()).toBe true
+
+          expect(touchMarker.getRange()).toEqual [[0, 9], [0, 9]]
+          expect(touchMarker.isValid()).toBe false
 
           buffer.undo()
 
@@ -529,17 +537,34 @@ describe "Marker", ->
             expect(marker.getRange()).toEqual [[0, 6], [0, 6]]
             expect(marker.isValid()).toBe true
 
+    describe "when a change ends at a marker's start position but starts before it", ->
+      it "interprets the change as being outside the marker for all invalidation strategies", ->
+        buffer.setTextInRange([[0, 4], [0, 6]], "ABC")
+
+        for marker in difference(allStrategies, [touchMarker])
+          expect(marker.getRange()).toEqual [[0, 7], [0, 10]]
+          expect(marker.isValid()).toBe true
+
+        expect(touchMarker.getRange()).toEqual [[0, 7], [0, 10]]
+        expect(touchMarker.isValid()).toBe false
+
+        buffer.undo()
+
+        for marker in allStrategies
+          expect(marker.getRange()).toEqual [[0, 6], [0, 9]]
+          expect(marker.isValid()).toBe true
+
     describe "when a change starts at a marker's end position", ->
       describe "when the change is an insertion", ->
         it "interprets the change as being inside the marker for all invalidation strategies", ->
           buffer.setTextInRange([[0, 9], [0, 9]], "ABC")
 
-          for marker in difference(allStrategies, [insideMarker])
+          for marker in difference(allStrategies, [touchMarker])
             expect(marker.getRange()).toEqual [[0, 6], [0, 12]]
             expect(marker.isValid()).toBe true
 
-          expect(insideMarker.getRange()).toEqual [[0, 6], [0, 12]]
-          expect(insideMarker.isValid()).toBe false
+          expect(touchMarker.getRange()).toEqual [[0, 6], [0, 12]]
+          expect(touchMarker.isValid()).toBe false
 
           buffer.undo()
 
@@ -551,12 +576,12 @@ describe "Marker", ->
         it "interprets the change as being outside the marker for all invalidation strategies", ->
           buffer.setTextInRange([[0, 9], [0, 11]], "ABC")
 
-          for marker in difference(allStrategies, [insideMarker])
+          for marker in difference(allStrategies, [touchMarker])
             expect(marker.getRange()).toEqual [[0, 6], [0, 9]]
             expect(marker.isValid()).toBe true
 
-          expect(insideMarker.getRange()).toEqual [[0, 6], [0, 9]]
-          expect(insideMarker.isValid()).toBe false
+          expect(touchMarker.getRange()).toEqual [[0, 6], [0, 9]]
+          expect(touchMarker.isValid()).toBe false
 
           buffer.undo()
 
@@ -583,16 +608,17 @@ describe "Marker", ->
           expect(marker.isValid()).toBe true
 
     describe "when a change is inside a marker", ->
-      it "adjusts the marker's end position and invalidates markers with an 'inside' strategy", ->
+      it "adjusts the marker's end position and invalidates markers with an 'inside' or 'touch' strategy", ->
         buffer.setTextInRange([[0, 7], [0, 8]], "AB")
 
         for marker in allStrategies
           expect(marker.getRange()).toEqual [[0, 6], [0, 10]]
 
-        for marker in difference(allStrategies, [insideMarker])
+        for marker in difference(allStrategies, [insideMarker, touchMarker])
           expect(marker.isValid()).toBe true
 
         expect(insideMarker.isValid()).toBe false
+        expect(touchMarker.isValid()).toBe false
 
         buffer.undo()
 
@@ -601,7 +627,7 @@ describe "Marker", ->
           expect(marker.isValid()).toBe true
 
     describe "when a change overlaps the start of a marker", ->
-      it "moves the start of the marker to the end of the change and invalidates the marker if its stategy is 'overlap' or 'inside'", ->
+      it "moves the start of the marker to the end of the change and invalidates the marker if its stategy is 'overlap', 'inside', or 'touch'", ->
         buffer.setTextInRange([[0, 5], [0, 7]], "ABC")
 
         for marker in allStrategies
@@ -611,6 +637,7 @@ describe "Marker", ->
         expect(surroundMarker.isValid()).toBe true
         expect(overlapMarker.isValid()).toBe false
         expect(insideMarker.isValid()).toBe false
+        expect(touchMarker.isValid()).toBe false
 
         buffer.undo()
 
@@ -619,7 +646,7 @@ describe "Marker", ->
           expect(marker.isValid()).toBe true
 
     describe "when a change overlaps the end of a marker", ->
-      it "moves the end of the marker to the end of the change and invalidates the marker if its stategy is 'overlap' or 'inside'", ->
+      it "moves the end of the marker to the end of the change and invalidates the marker if its stategy is 'overlap', 'inside', or 'touch'", ->
         buffer.setTextInRange([[0, 8], [0, 10]], "ABC")
 
         for marker in allStrategies
@@ -629,6 +656,7 @@ describe "Marker", ->
         expect(surroundMarker.isValid()).toBe true
         expect(overlapMarker.isValid()).toBe false
         expect(insideMarker.isValid()).toBe false
+        expect(touchMarker.isValid()).toBe false
 
         buffer.undo()
 
