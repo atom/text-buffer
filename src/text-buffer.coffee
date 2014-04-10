@@ -1005,7 +1005,8 @@ class TextBuffer
   #         to true.
   #       :invalidate -
   #         Determines the rules by which changes to the buffer *invalidate* the
-  #         marker. Defaults to 'overlap', but can be any of the following:
+  #         marker. Defaults to 'overlap', but can be any of the following
+  #         strategies, in order of fragility:
   #         * 'never':
   #             The marker is never marked as invalid. This is a good choice for
   #             markers representing selections in an editor.
@@ -1015,8 +1016,14 @@ class TextBuffer
   #             The marker is invalidated by changes that surround the start or
   #             end of the marker. This is the default.
   #         * 'inside':
+  #             The marker is invalidated by changes that extend into the
+  #             inside of the marker. Changes that end at the marker's start or
+  #             start at the marker's end do not invalidate the marker.
+  #         * 'touch':
   #             The marker is invalidated by a change that touches the marked
-  #             region in any way. This is the most fragile strategy.
+  #             region in any way, including changes that end at the marker's
+  #             start or start at the marker's end. This is the most fragile
+  #             strategy.
   #
   # Returns a {Marker}.
   markRange: (range, properties) -> @markers.markRange(range, properties)
