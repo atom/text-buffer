@@ -20,7 +20,7 @@ class MarkerManager
   constructor: (@buffer, @markers) ->
     @intervals ?= @buildIntervals()
     if @markers?
-      @nextMarkerId = max(keys(@markers).map(parseInt)) + 1
+      @nextMarkerId = max(keys(@markers).map((id) -> parseInt(id))) + 1
     else
       @markers = {}
 
