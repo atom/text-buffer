@@ -1,3 +1,4 @@
+Grim = require 'grim'
 Point = require './point'
 {newlineRegex} = require './helpers'
 
@@ -176,6 +177,7 @@ class Range
   containsPoint: (point, exclusive) ->
     # Deprecated: Support options hash with exclusive
     if exclusive? and typeof exclusive is 'object'
+      Grim.deprecate("The second param is not longer an object, it's a boolean argument named `exclusive`.")
       {exclusive} = exclusive
 
     point = Point.fromObject(point)
