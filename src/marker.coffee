@@ -1,5 +1,6 @@
 {extend, isEqual, omit, pick, size} = require 'underscore-plus'
 {Emitter} = require 'emissary'
+Grim = require 'grim'
 Delegator = require 'delegato'
 Serializable = require 'serializable'
 MarkerPatch = require './marker-patch'
@@ -72,18 +73,22 @@ class Marker
 
   @handleDeprecatedParams: (params) ->
     if params.isReversed?
+      Grim.deprecate("The option `isReversed` is deprecated, use `reversed` instead")
       params.reversed = params.isReversed
       delete params.isReversed
 
     if params.hasTail?
+      Grim.deprecate("The option `hasTail` is deprecated, use `tailed` instead")
       params.tailed = params.hasTail
       delete params.hasTail
 
     if params.persist?
+      Grim.deprecate("The option `persist` is deprecated, use `persistent` instead")
       params.persistent = params.persist
       delete params.persist
 
     if params.invalidation
+      Grim.deprecate("The option `invalidation` is deprecated, use `invalidate` instead")
       params.invalidate = params.invalidation
       delete params.invalidation
 
@@ -276,10 +281,12 @@ class Marker
 
   # Deprecated: Use ::getProperties instead
   getAttributes: ->
+    Grim.deprecate("Use Marker::getProperties instead.")
     @getProperties()
 
   # Deprecated: Use ::setProperties instead
   setAttributes: (args...) ->
+    Grim.deprecate("Use Marker::setProperties instead.")
     @setProperties(args...)
 
   # Public: Returns an {Object} containing any custom properties associated with

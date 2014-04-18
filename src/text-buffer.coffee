@@ -1,5 +1,6 @@
 _ = require 'underscore-plus'
 Delegator = require 'delegato'
+Grim = require 'grim'
 Serializable = require 'serializable'
 {Emitter, Subscriber} = require 'emissary'
 {File} = require 'pathwatcher'
@@ -496,6 +497,7 @@ class TextBuffer
   rangeForRow: (row, includeNewline) ->
     # Handle deprecated options hash
     if typeof includeNewline is 'object'
+      Grim.deprecate("The second param is not longer an object, it's a boolean argument named `includeNewline`.")
       {includeNewline} = includeNewline
 
     if includeNewline and row < @getLastRow()
@@ -678,7 +680,9 @@ class TextBuffer
     @emit "path-changed", this
 
   # Deprecated: Use {::getEndPosition} instead
-  getEofPosition: -> @getEndPosition()
+  getEofPosition: ->
+    Grim.deprecate("Use TextBuffer::getEndPosition instead.")
+    @getEndPosition()
 
   # Public: Save the buffer.
   save: ->
@@ -925,6 +929,7 @@ class TextBuffer
 
   # Deprecated: Call {::setTextInRange} instead.
   change: (oldRange, newText, options={}) ->
+    Grim.deprecate("Use TextBuffer::setTextInRange instead.")
     @setTextInRange(oldRange, newText, options.normalizeLineEndings)
 
   cancelStoppedChangingTimeout: ->
