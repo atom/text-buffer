@@ -861,7 +861,7 @@ class TextBuffer
       iterator({ match, matchText, range, stop, replace })
 
       if replacementText?
-        @change(range, replacementText)
+        @setTextInRange(range, replacementText)
         lengthDelta += replacementText.length - matchLength unless reverse
 
       break unless global and keepLooping

@@ -982,7 +982,7 @@ describe "TextBuffer", ->
       describe "when the given string has no newlines", ->
         it "inserts the string at the location of the given range", ->
           range = [[3, 4], [3, 4]]
-          buffer.change range, "foo"
+          buffer.setTextInRange range, "foo"
 
           expect(buffer.lineForRow(2)).toBe "    if (items.length <= 1) return items;"
           expect(buffer.lineForRow(3)).toBe "    foovar pivot = items.shift(), current, left = [], right = [];"
@@ -999,7 +999,7 @@ describe "TextBuffer", ->
         it "inserts the lines at the location of the given range", ->
           range = [[3, 4], [3, 4]]
 
-          buffer.change range, "foo\n\nbar\nbaz"
+          buffer.setTextInRange range, "foo\n\nbar\nbaz"
 
           expect(buffer.lineForRow(2)).toBe "    if (items.length <= 1) return items;"
           expect(buffer.lineForRow(3)).toBe "    foo"
@@ -1019,7 +1019,7 @@ describe "TextBuffer", ->
       describe "when the range is contained within a single line", ->
         it "removes the characters within the range", ->
           range = [[3, 4], [3, 7]]
-          buffer.change range, ""
+          buffer.setTextInRange range, ""
 
           expect(buffer.lineForRow(2)).toBe "    if (items.length <= 1) return items;"
           expect(buffer.lineForRow(3)).toBe "     pivot = items.shift(), current, left = [], right = [];"
@@ -1035,7 +1035,7 @@ describe "TextBuffer", ->
       describe "when the range spans 2 lines", ->
         it "removes the characters within the range and joins the lines", ->
           range = [[3, 16], [4, 4]]
-          buffer.change range, ""
+          buffer.setTextInRange range, ""
 
           expect(buffer.lineForRow(2)).toBe "    if (items.length <= 1) return items;"
           expect(buffer.lineForRow(3)).toBe "    var pivot = while(items.length > 0) {"
@@ -1050,7 +1050,7 @@ describe "TextBuffer", ->
 
       describe "when the range spans more than 2 lines", ->
         it "removes the characters within the range, joining the first and last line and removing the lines in-between", ->
-          buffer.change [[3, 16], [11, 9]], ""
+          buffer.setTextInRange [[3, 16], [11, 9]], ""
 
           expect(buffer.lineForRow(2)).toBe "    if (items.length <= 1) return items;"
           expect(buffer.lineForRow(3)).toBe "    var pivot = sort(Array.apply(this, arguments));"
@@ -1061,7 +1061,7 @@ describe "TextBuffer", ->
         range = [[3, 16], [11, 9]]
         oldText = buffer.getTextInRange(range)
 
-        buffer.change range, "foo\nbar"
+        buffer.setTextInRange range, "foo\nbar"
 
         expect(buffer.lineForRow(2)).toBe "    if (items.length <= 1) return items;"
         expect(buffer.lineForRow(3)).toBe "    var pivot = foo"
@@ -1077,7 +1077,7 @@ describe "TextBuffer", ->
 
     it "allows a 'changed' event handler to safely undo the change", ->
       buffer.once 'changed', -> buffer.undo()
-      buffer.change([0, 0], "hello")
+      buffer.setTextInRange([0, 0], "hello")
       expect(buffer.lineForRow(0)).toBe "var quicksort = function () {"
 
   describe "::setText(text)", ->
