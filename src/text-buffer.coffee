@@ -915,13 +915,9 @@ class TextBuffer
         return row unless @isRowBlank(row)
     null
 
-  # Public: Determine if the buffer uses soft tabs.
-  #
-  # Returns `true` if the first line with leading whitespace starts with a
-  # space character. Returns `false` if it starts with a hard tab (`\t`).
-  #
-  # Returns a {Boolean},
+  # Deprecate
   usesSoftTabs: ->
+    Grim.deprecate("Use Editor::usesSoftTabs instead. TextBuffer doesn't have enough context to determine this.")
     for row in [0..@getLastRow()]
       if match = @lineForRow(row).match(/^\s/)
         return match[0][0] != '\t'
