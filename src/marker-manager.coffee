@@ -99,6 +99,10 @@ class MarkerManager
         when 'intersectsRow'
           candidateIds.push(@intervals.findIntersecting(new Point(value, 0), new Point(value, Infinity)))
           delete params[key]
+        when 'intersectsRowRange'
+          [startRow, endRow] = value
+          candidateIds.push(@intervals.findIntersecting(new Point(startRow, 0), new Point(endRow, Infinity)))
+          delete params[key]
 
     if candidateIds.length > 0
       candidates = compact(intersection(candidateIds...).map((id) => @getMarker(id)))
