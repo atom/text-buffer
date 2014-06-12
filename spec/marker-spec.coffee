@@ -749,6 +749,10 @@ describe "Marker", ->
       expect(buffer.findMarkers(containsRange: [[0, 1], [0, 3]])).toEqual [marker4, marker2, marker1]
       expect(buffer.findMarkers(containsRange: [[0, 6], [0, 7]])).toEqual [marker4, marker3]
 
+    it "can find markers that intersect a given range", ->
+      expect(buffer.findMarkers(intersectsRange: [[0, 4], [0, 6]])).toEqual [marker4, marker2, marker3]
+      expect(buffer.findMarkers(intersectsRange: [[0, 0], [0, 2]])).toEqual [marker4, marker2, marker1]
+
     it "can find markers that start or end at a given row", ->
       buffer.setTextInRange([[0, 7], [0, 7]], '\n')
       buffer.setTextInRange([[0, 3], [0, 4]], ' \n')

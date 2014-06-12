@@ -82,6 +82,10 @@ class MarkerManager
           range = Range.fromObject(value)
           candidateIds.push(@intervals.findContaining(range.start, range.end))
           delete params[key]
+        when 'intersectsRange'
+          range = Range.fromObject(value)
+          candidateIds.push(@intervals.findIntersecting(range.start, range.end))
+          delete params[key]
         when 'containedInRange'
           range = Range.fromObject(value)
           candidateIds.push(@intervals.findContainedIn(range.start, range.end))
