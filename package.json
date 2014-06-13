@@ -39,7 +39,7 @@
     "emissary": "1.x",
     "grim": "0.11.0",
     "underscore-plus": "1.x",
-    "interval-skip-list": "^1.0.0",
+    "interval-skip-list": "^2.0.0",
     "serializable": "1.x",
     "pathwatcher": "^1.0",
     "q": "~1.0.1",
