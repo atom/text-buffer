@@ -497,7 +497,7 @@ class TextBuffer
   rangeForRow: (row, includeNewline) ->
     # Handle deprecated options hash
     if typeof includeNewline is 'object'
-      Grim.deprecate("The second param is not longer an object, it's a boolean argument named `includeNewline`.")
+      Grim.deprecate("The second param is no longer an object, it's a boolean argument named `includeNewline`.")
       {includeNewline} = includeNewline
 
     if includeNewline and row < @getLastRow()
