@@ -112,10 +112,7 @@ class Range
   # and end points as the given {Range} or range-compatible {Array}.
   isEqual: (other) ->
     return false unless other?
-
-    if Array.isArray(other) and other.length == 2
-      other = new @constructor(other...)
-
+    other = @constructor.fromObject(other)
     other.start.isEqual(@start) and other.end.isEqual(@end)
 
   # Public:
