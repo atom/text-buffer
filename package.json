@@ -41,7 +41,7 @@
     "underscore-plus": "1.x",
     "interval-skip-list": "^2.0.0",
     "serializable": "1.x",
-    "pathwatcher": "^1.0",
+    "pathwatcher": "^2.0.2",
     "q": "~1.0.1",
     "fs-plus": "2.x"
   }
