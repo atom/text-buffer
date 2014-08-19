@@ -4,7 +4,7 @@
   "description": "A container for large mutable strings with annotated regions",
   "main": "./lib/text-buffer",
   "scripts": {
-    "prepublish": "grunt clean lint coffee",
+    "prepublish": "grunt clean lint coffee atomdoc",
     "test": "grunt test"
   },
   "repository": {
@@ -30,7 +30,8 @@
     "grunt-coffeelint": "0.0.6",
     "rimraf": "~2.2.2",
     "coffee-cache": "~0.2.0",
-    "temp": "~0.6.0"
+    "temp": "~0.6.0",
+    "grunt-atomdoc": "^0.2.0"
   },
   "dependencies": {
     "span-skip-list": "~0.1.1",
