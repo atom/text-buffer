@@ -14,7 +14,7 @@ MarkerManager = require './marker-manager'
 BufferPatch = require './buffer-patch'
 {spliceArray, newlineRegex} = require './helpers'
 
-# Public: A mutable text container with undo/redo support and the ability to
+# Extended: A mutable text container with undo/redo support and the ability to
 # annotate logical regions in the text.
 #
 # ## Events
@@ -195,11 +195,9 @@ class TextBuffer
   #
   # * `row` A {Number} indicating the row.
   #
-  # The returned newline is represented as a literal string: `'\n'`, `'\r'`,
-  # `'\r\n'`, or `''` for the last line of the buffer, which doesn't end in a
-  # newline.
-  #
-  # Returns a {String}.
+  # Returns a {String}. The returned newline is represented as a literal string:
+  # `'\n'`, `'\r'`, `'\r\n'`, or `''` for the last line of the buffer, which
+  # doesn't end in a newline.
   lineEndingForRow: (row) ->
     @lineEndings[row]
 
@@ -285,7 +283,7 @@ class TextBuffer
   # * `position` A {Point} representing the insertion location. The position is
   #   clipped before insertion.
   # * `text` A {String} representing the text to insert.
-  # * `normalizeLineEndings` (optional) {Boolean} (default: true)
+  # * `normalizeLineEndings` (optional) {Boolean} (default: true)\
   #
   # Returns the {Range} of the inserted text.
   insert: (position, text, normalizeLineEndings) ->
@@ -781,7 +779,8 @@ class TextBuffer
   # {::backwardsScan} to avoid tripping over your own changes.
   #
   # * `regex` A {RegExp} to search for.
-  # * `iterator` A {Function} that's called on each match with an {Object} containing the following keys:
+  # * `iterator` A {Function} that's called on each match with an {Object}
+  #   containing the following keys:
   #   * `match` The current regular expression match.
   #   * `matchText` A {String} with the text of the match.
   #   * `range` The {Range} of the match.
@@ -797,7 +796,8 @@ class TextBuffer
   # order, calling the given iterator function on each match.
   #
   # * `regex` A {RegExp} to search for.
-  # * `iterator` A {Function} that's called on each match with an {Object} containing the following keys:
+  # * `iterator` A {Function} that's called on each match with an {Object}
+  #   containing the following keys:
   #   * `match` The current regular expression match.
   #   * `matchText` A {String} with the text of the match.
   #   * `range` The {Range} of the match.
@@ -833,7 +833,8 @@ class TextBuffer
   #
   # * `regex` A {RegExp} to search for.
   # * `range` A {Range} in which to search.
-  # * `iterator` A {Function} that's called on each match with an {Object} containing the following keys
+  # * `iterator` A {Function} that's called on each match with an {Object}
+  #   containing the following keys:
   #   * `match` The current regular expression match.
   #   * `matchText` A {String} with the text of the match.
   #   * `range` The {Range} of the match.
@@ -882,7 +883,8 @@ class TextBuffer
   #
   # * `regex` A {RegExp} to search for.
   # * `range` A {Range} in which to search.
-  # * `iterator` A {Function} that's called on each match with an {Object} containing the following keys:
+  # * `iterator` A {Function} that's called on each match with an {Object}
+  #   containing the following keys:
   #   * `match` The current regular expression match.
   #   * `matchText` A {String} with the text of the match.
   #   * `range` The {Range} of the match.
@@ -1005,7 +1007,8 @@ class TextBuffer
   # the buffer changes.
   #
   # * `range` A {Range} or range-compatible {Array}
-  # * `properties` A hash of key-value pairs to associate with the marker. There are also reserved property names that have marker-specific meaning.
+  # * `properties` A hash of key-value pairs to associate with the marker. There
+  #   are also reserved property names that have marker-specific meaning.
   #   * `reversed` (optional) Creates the marker in a reversed orientation. (default: false)
   #   * `persistent` (optional) Whether to include this marker when serializing the buffer. (default: true)
   #   * `invalidate` (optional) Determines the rules by which changes to the
@@ -1021,16 +1024,15 @@ class TextBuffer
   #       start at the marker's end do not invalidate the marker.
   #     * __touch__: The marker is invalidated by a change that touches the marked
   #       region in any way, including changes that end at the marker's
-  #       start or start at the marker's end. This is the most fragile
-  #       strategy.
+  #       start or start at the marker's end. This is the most fragile strategy.
   #
   # Returns a {Marker}.
   markRange: (range, properties) -> @markers.markRange(range, properties)
 
   # Public: Create a marker at the given position with no tail.
   #
-  #   * `position` {Point} or point-compatible {Array}
-  #   * `properties` This is the same as the `properties` parameter in {::markRange}
+  # * `position` {Point} or point-compatible {Array}
+  # * `properties` This is the same as the `properties` parameter in {::markRange}
   #
   # Returns a {Marker}.
   markPosition: (position, properties) -> @markers.markPosition(position, properties)
@@ -1047,6 +1049,9 @@ class TextBuffer
 
   # Public: Find markers conforming to the given parameters.
   #
+  # Markers are sorted based on their position in the buffer. If two markers
+  # start at the same position, the larger marker comes first.
+  #
   # * `params` A hash of key-value pairs constraining the set of returned markers. You
   #   can query against custom marker properties by listing the desired
   #   key-value pairs here. In addition, the following keys are reserved and
@@ -1058,10 +1063,6 @@ class TextBuffer
   #   * `startRow` Only include markers that start at the given row {Number}.
   #   * `endRow` Only include markers that end at the given row {Number}.
   #   * `intersectsRow` Only include markers that intersect the given row {Number}.
-  #
-  # Finds markers that conform to all of the given parameters. Markers are
-  # sorted based on their position in the buffer. If two markers start at the
-  # same position, the larger marker comes first.
   #
   # Returns an {Array} of {Marker}s.
   findMarkers: (params) -> @markers.findMarkers(params)
