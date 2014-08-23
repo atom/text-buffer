@@ -9,8 +9,8 @@ Range = require './range'
 
 OptionKeys = ['reversed', 'tailed', 'invalidate', 'persistent']
 
-# Public: Reprents a buffer annotation that remains logically stationary even
-# as the buffer changes. This is used to represent cursors, folds, snippet
+# Essential: Represents a buffer annotation that remains logically stationary
+# even as the buffer changes. This is used to represent cursors, folds, snippet
 # targets, misspelled words, and anything else that needs to track a logical
 # location in the buffer over time.
 #
@@ -28,34 +28,30 @@ OptionKeys = ['reversed', 'tailed', 'invalidate', 'persistent']
 # marker to become invalid, for example if the text surrounding the marker is
 # deleted. See {TextBuffer::markRange} for invalidation strategies.
 #
-# Change events:
-# When markers change in position for any reason, the emit a 'changed' event with
-# the following properties:
+# ## Events
 #
-# * oldHeadPosition:
-#     A {Point} representing the former head position
-# * newHeadPosition:
-#     A {Point} representing the new head position
-# * oldTailPosition:
-#     A {Point} representing the former tail position
-# * newTailPosition:
-#     A {Point} representing the new tail position
-# * wasValid:
-#     A {Boolean} indicating whether the marker was valid before the change
-# * isValid:
-#     A {Boolean} indicating whether the marker is now valid
-# * hadTail:
-#     A {Boolean} indicating whether the marker had a tail before the change
-# * hasTail:
-#     A {Boolean} indicating whether the marker now has a tail
-# * oldProperties:
-#     An {Object} containing the marker's custom properties before the change.
-# * newProperties:
-#     An {Object} containing the marker's custom properties after the change.
-# * textChanged:
-#     A {Boolean} indicating whether this change was caused by a textual change
-#     to the buffer or whether the marker was manipulated directly via its public
-#     API.
+# ### changed
+#
+# Essential: Emit when markers change in position for any reason
+#
+# * `event` {Object}
+#   * `oldHeadPosition` {Point} representing the former head position
+#   * `newHeadPosition` {Point} representing the new head position
+#   * `oldTailPosition` {Point} representing the former tail position
+#   * `newTailPosition` {Point} representing the new tail position
+#   * `wasValid` {Boolean} indicating whether the marker was valid before the change
+#   * `isValid` {Boolean} indicating whether the marker is now valid
+#   * `hadTail` {Boolean} indicating whether the marker had a tail before the change
+#   * `hasTail` {Boolean} indicating whether the marker now has a tail
+#   * `oldProperties` {Object} containing the marker's custom properties before the change.
+#   * `newProperties` {Object} containing the marker's custom properties after the change.
+#   * `textChanged` {Boolean} indicating whether this change was caused by a textual change
+#     to the buffer or whether the marker was manipulated directly via its public API.
+#
+# ### destroyed
+#
+# Essential: Emit when a marker has been destroyed
+#
 module.exports =
 class Marker
   Emitter.includeInto(this)
@@ -124,10 +120,10 @@ class Marker
 
   # Public: Sets the range of the marker.
   #
-  # range - A {Range} or range-compatible {Array}. The range will be clipped
-  #         before it is assigned.
-  # properties - An optional hash of properties to associate with the marker.
-  #   :reversed -  If true, the marker will to be in a reversed orientation.
+  # * `range` A {Range} or range-compatible {Array}. The range will be clipped
+  #   before it is assigned.
+  # * `properties` (optional) {Object} properties to associate with the marker.
+  #   * `reversed`  {Boolean} If true, the marker will to be in a reversed orientation.
   setRange: (range, properties) ->
     params = @extractParams(properties)
     params.tailed = true
@@ -143,9 +139,9 @@ class Marker
 
   # Public: Sets the head position of the marker.
   #
-  # position - A {Point} or point-compatible {Array}. The position will be
-  #            clipped before it is assigned.
-  # properties - An optional hash of properties to associate with the marker.
+  # * `position` A {Point} or point-compatible {Array}. The position will be
+  #   clipped before it is assigned.
+  # * `properties` (optional) {Object} properties to associate with the marker.
   setHeadPosition: (position, properties) ->
     position = @clipPosition(Point.fromObject(position, true))
     params = @extractParams(properties)
@@ -183,9 +179,9 @@ class Marker
   # Public: Sets the head position of the marker. If the marker doesn't have a
   # tail, it will after calling this method.
   #
-  # position - A {Point} or point-compatible {Array}. The position will be
-  #            clipped before it is assigned.
-  # properties - An optional hash of properties to associate with the marker.
+  # * `position` A {Point} or point-compatible {Array}. The position will be
+  #   clipped before it is assigned.
+  # * `properties` (optional) {Object} properties to associate with the marker.
   setTailPosition: (position, properties) ->
     position = @clipPosition(Point.fromObject(position, true))
     params = @extractParams(properties)
@@ -226,7 +222,7 @@ class Marker
   # will be reported as its current tail position until the tail is planted
   # again.
   #
-  # properties - An optional hash of properties to associate with the marker.
+  # * `properties` (optional) {Object} properties to associate with the marker.
   clearTail: (properties) ->
     params = @extractParams(properties)
     params.tailed = false
@@ -238,7 +234,7 @@ class Marker
   # the marker's tail position will be its head position at the time of the
   # call, regardless of where the marker's head is moved.
   #
-  # properties - An optional hash of properties to associate with the marker.
+  # * `properties` (optional) {Object} properties to associate with the marker.
   plantTail: (properties) ->
     params = @extractParams(properties)
     unless @hasTail()
@@ -268,6 +264,8 @@ class Marker
 
   # Public: Returns a {Boolean} indicating whether this marker is equivalent to
   # another marker, meaning they have the same range and options.
+  #
+  # * `other` {Marker} other marker
   isEqual: (other) ->
     isEqual(@toParams(true), other.toParams(true))
 
@@ -296,11 +294,15 @@ class Marker
 
   # Public: Merges an {Object} containing new properties into the marker's
   # existing properties.
+  #
+  # * `properties` {Object}
   setProperties: (properties) ->
     @update(properties: extend({}, @getProperties(), properties))
 
   # Public: Creates and returns a new {Marker} with the same properties as this
   # marker.
+  #
+  # * `params` {Object}
   copy: (params) ->
     @manager.createMarker(extend(@toParams(), @extractParams(params)))
 
@@ -318,6 +320,8 @@ class Marker
     params
 
   # Public: Compares this marker to another based on their ranges.
+  #
+  # * `other` {Marker}
   compare: (other) ->
     @range.compare(other.range)
 
