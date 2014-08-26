@@ -8,26 +8,28 @@ Point = require './point'
 # {Array}. This means a 2-element array containing {Point}s or point-compatible
 # arrays. So the following are equivalent:
 #
+# ## Examples
+#
 # ```coffee
 # new Range(new Point(0, 1), new Point(2, 3))
 # new Range([0, 1], [2, 3])
-# [[0, 1], [2, 3]]
+# [[0, 1], [2, 3]] # Range compatible array
 # ```
 module.exports =
 class Range
   # Public: Call this with the result of {Range::serialize} to construct a new Range.
+  #
+  # * `array` {array} of params to pass to the {::constructor}
   @deserialize: (array) ->
     new this(array...)
 
   # Public: Convert any range-compatible object to a {Range}.
   #
-  # * object:
-  #     This can be an object that's already a {Range}, in which case it's
-  #     simply returned, or an array containing two {Point}s or point-compatible
-  #     arrays.
-  # * copy:
-  #     An optional boolean indicating whether to force the copying of objects
-  #     that are already ranges.
+  # * `object` This can be an object that's already a {Range}, in which case it's
+  #   simply returned, or an array containing two {Point}s or point-compatible
+  #   arrays.
+  # * `copy` An optional boolean indicating whether to force the copying of objects
+  #   that are already ranges.˚
   #
   # Returns: A {Range} based on the given object.
   @fromObject: (object, copy) ->
@@ -41,9 +43,8 @@ class Range
   # Returns a range based on an optional starting point and the given text. If
   # no starting point is given it will be assumed to be [0, 0].
   #
-  # * startPoint: A {Point} where the range should start.
-  # * text:
-  #   A {String} after which the range should end. The range will have as many
+  # * `startPoint` (optional) {Point} where the range should start.
+  # * `text` A {String} after which the range should end. The range will have as many
   #   rows as the text has lines have an end column based on the length of the
   #   last line.
   #
@@ -67,14 +68,11 @@ class Range
   # Public: Returns a {Range} that starts at the given point and ends at the
   # start point plus the given row and column deltas.
   #
-  # * startPoint:
-  #     A {Point} or point-compatible {Array}
-  # * rowDelta:
-  #     A {Number} indicating how many rows to add to the start point to get the
-  #     end point.
-  # * columnDelta:
-  #     A {Number} indicating how many rows to columns to the start point to get
-  #     the end point.
+  # * `startPoint` A {Point} or point-compatible {Array}
+  # * `rowDelta` A {Number} indicating how many rows to add to the start point
+  #   to get the end point.
+  # * `columnDelta` A {Number} indicating how many rows to columns to the start
+  #   point to get the end point.
   #
   # Returns a {Range}
   @fromPointWithDelta: (startPoint, rowDelta, columnDelta) ->
@@ -82,6 +80,10 @@ class Range
     endPoint = new Point(startPoint.row + rowDelta, startPoint.column + columnDelta)
     new this(startPoint, endPoint)
 
+  # Public: Construct a {Range} object
+  #
+  # * `pointA` {Point} or Point compatible {Array} (default: [0,0])
+  # * `pointB` {Point} or Point compatible {Array} (default: [0,0])
   constructor: (pointA = new Point(0, 0), pointB = new Point(0, 0)) ->
     pointA = Point.fromObject(pointA)
     pointB = Point.fromObject(pointB)
@@ -110,19 +112,20 @@ class Range
 
   # Public: Returns a {Boolean} indicating whether this range has the same start
   # and end points as the given {Range} or range-compatible {Array}.
+  #
+  # * otherRange: A {Range} or range-compatible {Array}.
   isEqual: (other) ->
     return false unless other?
     other = @constructor.fromObject(other)
     other.start.isEqual(@start) and other.end.isEqual(@end)
 
-  # Public:
+  # Public: Compare two Ranges
   #
   # * other: A {Range} or range-compatible {Array}.
   #
-  # Returns:
-  #  * -1 if this range starts before the argument or contains it
-  #  * 0 if this range is equivalent to the argument.
-  #  * 1 if this range starts after the argument or is contained by it.
+  # Returns `-1` if this range starts before the argument or contains it.
+  # Returns `0` if this range is equivalent to the argument.
+  # Returns `1` if this range starts after the argument or is contained by it.
   compare: (other) ->
     other = @constructor.fromObject(other)
     if value = @start.compare(other.start)
@@ -137,6 +140,8 @@ class Range
 
   # Public: Returns a {Boolean} indicating whether this range starts and ends on
   # the same row as the argument.
+  #
+  # * otherRange: A {Range} or range-compatible {Array}.
   coversSameRows: (other) ->
     @start.row == other.start.row && @end.row == other.end.row
 
@@ -147,6 +152,8 @@ class Range
     new @constructor(@start.translate(startPoint), @end.translate(endPoint))
 
   # Public: Determines whether this range intersects with the argument.
+  #
+  # * `otherRange` A {Range} or range-compatible {Array}
   intersectsWith: (otherRange) ->
     if @start.isLessThanOrEqual(otherRange.start)
       @end.isGreaterThanOrEqual(otherRange.start)
@@ -156,9 +163,8 @@ class Range
   # Public: Returns a {Boolean} indicating whether this range contains the given
   # range.
   #
-  # * otherRange: A {Range} or range-compatible {Array}
-  # * exclusive:
-  #   A boolean value including that the containment should be exclusive of
+  # * `otherRange` A {Range} or range-compatible {Array}
+  # * `exclusive` A boolean value including that the containment should be exclusive of
   #   endpoints. Defaults to false.
   containsRange: (otherRange, exclusive) ->
     {start, end} = @constructor.fromObject(otherRange)
@@ -167,9 +173,8 @@ class Range
   # Public: Returns a {Boolean} indicating whether this range contains the given
   # point.
   #
-  # * point: A {Point} or point-compatible {Array}
-  # * exclusive:
-  #   A boolean value including that the containment should be exclusive of
+  # * `point` A {Point} or point-compatible {Array}
+  # * `exclusive` A boolean value including that the containment should be exclusive of
   #   endpoints. Defaults to false.
   containsPoint: (point, exclusive) ->
     # Deprecated: Support options hash with exclusive
@@ -185,16 +190,23 @@ class Range
 
   # Public: Returns a {Boolean} indicating whether this range intersects the
   # given row {Number}.
+  #
+  # * `row` Row {Number}
   intersectsRow: (row) ->
     @start.row <= row <= @end.row
 
   # Public: Returns a {Boolean} indicating whether this range intersects the
   # row range indicated by the given startRow and endRow {Number}s.
+  #
+  # * `startRow` {Number} start row
+  # * `endRow` {Number} end row
   intersectsRowRange: (startRow, endRow) ->
     [startRow, endRow] = [endRow, startRow] if startRow > endRow
     @end.row >= startRow and endRow >= @start.row
 
   # Public: Returns a new range that contains this range and the given range.
+  #
+  # * `otherRange` A {Range} or range-compatible {Array}
   union: (otherRange) ->
     start = if @start.isLessThan(otherRange.start) then @start else otherRange.start
     end = if @end.isGreaterThan(otherRange.end) then @end else otherRange.end
