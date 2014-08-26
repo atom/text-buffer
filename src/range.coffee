@@ -73,8 +73,6 @@ class Range
   #   to get the end point.
   # * `columnDelta` A {Number} indicating how many rows to columns to the start
   #   point to get the end point.
-  #
-  # Returns a {Range}
   @fromPointWithDelta: (startPoint, rowDelta, columnDelta) ->
     startPoint = Point.fromObject(startPoint)
     endPoint = new Point(startPoint.row + rowDelta, startPoint.column + columnDelta)
@@ -105,6 +103,8 @@ class Range
 
   # Public: Freezes the range and its start and end point so it becomes
   # immutable and returns itself.
+  #
+  # Returns an immutable version of this {Range}
   freeze: ->
     @start.freeze()
     @end.freeze()
@@ -113,7 +113,7 @@ class Range
   # Public: Returns a {Boolean} indicating whether this range has the same start
   # and end points as the given {Range} or range-compatible {Array}.
   #
-  # * otherRange: A {Range} or range-compatible {Array}.
+  # * `otherRange` A {Range} or range-compatible {Array}.
   isEqual: (other) ->
     return false unless other?
     other = @constructor.fromObject(other)
@@ -121,7 +121,7 @@ class Range
 
   # Public: Compare two Ranges
   #
-  # * other: A {Range} or range-compatible {Array}.
+  # * `otherRange` A {Range} or range-compatible {Array}.
   #
   # Returns `-1` if this range starts before the argument or contains it.
   # Returns `0` if this range is equivalent to the argument.
@@ -141,7 +141,7 @@ class Range
   # Public: Returns a {Boolean} indicating whether this range starts and ends on
   # the same row as the argument.
   #
-  # * otherRange: A {Range} or range-compatible {Array}.
+  # * `otherRange` A {Range} or range-compatible {Array}.
   coversSameRows: (other) ->
     @start.row == other.start.row && @end.row == other.end.row
 
