@@ -19,52 +19,67 @@ BufferPatch = require './buffer-patch'
 #
 # ## Events
 #
-# * `changed` -
-#      Emitted synchronously whenever the buffer changes. Binding a slow handler
-#      to this event has the potential to destroy typing performance. Consider
-#      using `contents-modified` instead and aim for extremely fast performance
-#      (< 2 ms) if you must bind to it. Your handler will be called with an
-#      object containing the following keys.
-#      * `oldRange` - The {Range} of the old text
-#      * `newRange` - The {Range} of the new text
-#      * `oldText` - A {String} containing the text that was replaced
-#      * `newText` - A {String} containing the text that was inserted
+# ### contents-modified
 #
-# * `markers-updated` -
-#      Emitted synchronously when the `changed` events of all markers have been
-#      fired for a change. The order of events is as follows:
-#      * The text of the buffer is changed
-#      * All markers are updated accordingly, but their `changed` events are not
-#        emited
-#      * The `changed` event is emitted
-#      * The `changed` events of all updated markers are emitted
-#      * The `markers-updated` event is emitted.
+# Public: Emitted asynchronously 300ms (or `TextBuffer::stoppedChangingDelay`)
+# after the last buffer change. This is a good place to handle changes to
+# the buffer without compromising typing performance.
 #
-# * `contents-modified` -
-#      Emitted asynchronously 300ms (or `TextBuffer::stoppedChangingDelay`)
-#      after the last buffer change. This is a good place to handle changes to
-#      the buffer without compromising typing performance.
+# ### contents-conflicted
 #
-# * `modified-status-changed` -
-#      Emitted with a {Boolean} when the result of {::isModified} changes.
+# Public: Emitted when the buffer's underlying file changes on disk at a moment
+# when the result of {::isModified} is true.
 #
-# * `contents-conflicted` -
-#      Emitted when the buffer's underlying file changes on disk at a moment
-#      when the result of {::isModified} is true.
+# ### will-reload
 #
-# * `will-reload` -
-#      Emitted before the in-memory contents of the buffer are refreshed from
-#      the contents of the file on disk.
+# Public: Emitted before the in-memory contents of the buffer are refreshed from
+# the contents of the file on disk.
 #
-# * `reloaded` -
-#      Emitted after the in-memory contents of the buffer are refreshed from
-#      the contents of the file on disk.
+# ### reloaded
 #
-# * `will-be-saved` - Emitted before the buffer is saved to disk.
+# Public: Emitted after the in-memory contents of the buffer are refreshed from
+# the contents of the file on disk.
 #
-# * `saved` - Emitted after the buffer is saved to disk.
+# ### will-be-saved
 #
-# * `destroyed` - Emitted when the buffer is destroyed.
+# Public: Emitted before the buffer is saved to disk.
+#
+# ### saved
+#
+# Public: Emitted after the buffer is saved to disk.
+#
+# ### changed
+#
+# Public: Emitted synchronously whenever the buffer changes. Binding a slow handler
+# to this event has the potential to destroy typing performance. Consider
+# using {:contents-modified} instead and aim for extremely fast performance
+# (< 2 ms) if you must bind to it. Your handler will be called with an
+# object containing the following keys.
+#
+# * `event` {Object}
+#   * `oldRange` The {Range} of the old text
+#   * `newRange` The {Range} of the new text
+#   * `oldText` A {String} containing the text that was replaced
+#   * `newText` A {String} containing the text that was inserted
+#
+# ### markers-updated
+#
+# Public: Emitted synchronously when the `changed` events of all markers have been
+# fired for a change. The order of events is as follows:
+#
+# * The text of the buffer is changed
+# * All markers are updated accordingly, but their `changed` events are not emited
+# * The `changed` event is emitted
+# * The `changed` events of all updated markers are emitted
+# * The `markers-updated` event is emitted.
+#
+# ### modified-status-changed
+#
+# Public: Emitted with a {Boolean} when the result of {::isModified} changes.
+#
+# ### destroyed
+#
+# Public: Emitted when the buffer is destroyed.
 module.exports =
 class TextBuffer
   @Point: Point
@@ -86,10 +101,10 @@ class TextBuffer
 
   # Public: Create a new buffer with the given params.
   #
-  # params - A {String} of text or an {Object} with the following keys:
-  #   :load - A {Boolean}, `true` to asynchronously load the buffer from disk
-  #           after initialization.
-  #   :text - The initial {String} text of the buffer.
+  # * `params` A {String} of text or an {Object} with the following keys:
+  #   * `load` A {Boolean}, `true` to asynchronously load the buffer from disk
+  #     after initialization.
+  #   * `text` The initial {String} text of the buffer.
   constructor: (params) ->
     text = params if typeof params is 'string'
 
@@ -163,7 +178,7 @@ class TextBuffer
 
   # Public: Get the text of the line at the given row, without its line ending.
   #
-  # row - A {Number} representing a 0-indexed row.
+  # * `row` A {Number} representing a 0-indexed row.
   #
   # Returns a {String}.
   lineForRow: (row) ->
@@ -178,7 +193,7 @@ class TextBuffer
 
   # Public: Get the line ending for the given 0-indexed row.
   #
-  # row - A {Number} indicating the row.
+  # * `row` A {Number} indicating the row.
   #
   # The returned newline is represented as a literal string: `'\n'`, `'\r'`,
   # `'\r\n'`, or `''` for the last line of the buffer, which doesn't end in a
@@ -191,7 +206,7 @@ class TextBuffer
   # Public: Get the length of the line for the given 0-indexed row, without its
   # line ending.
   #
-  # row - A {Number} indicating the row.
+  # * `row` A {Number} indicating the row.
   #
   # Returns a {Number}.
   lineLengthForRow: (row) ->
@@ -199,7 +214,7 @@ class TextBuffer
 
   # Public: Replace the entire contents of the buffer with the given text.
   #
-  # text - A {String}
+  # * `text` A {String}
   #
   # Returns a {Range} spanning the new buffer contents.
   setText: (text) ->
@@ -208,7 +223,7 @@ class TextBuffer
   # Public: Replace the current buffer contents by applying a diff based on the
   # given text.
   #
-  # text - A {String} containing the new buffer contents.
+  # * `text` A {String} containing the new buffer contents.
   setTextViaDiff: (text) ->
     currentText = @getText()
     return if currentText == text
@@ -254,8 +269,9 @@ class TextBuffer
 
   # Public: Set the text in the given range.
   #
-  # range - A {Range}.
-  # text - A {String}.
+  # * `range` A {Range}
+  # * `text` A {String}
+  # * `normalizeLineEndings` (optional) {Boolean} (default: true)
   #
   # Returns the {Range} of the inserted text.
   setTextInRange: (range, text, normalizeLineEndings=true) ->
@@ -266,9 +282,10 @@ class TextBuffer
 
   # Public: Insert text at the given position.
   #
-  # position - A {Point} representing the insertion location. The position is
-  #            clipped before insertion.
-  # text - A {String} representing the text to insert.
+  # * `position` A {Point} representing the insertion location. The position is
+  #   clipped before insertion.
+  # * `text` A {String} representing the text to insert.
+  # * `normalizeLineEndings` (optional) {Boolean} (default: true)
   #
   # Returns the {Range} of the inserted text.
   insert: (position, text, normalizeLineEndings) ->
@@ -276,7 +293,7 @@ class TextBuffer
 
   # Public: Append text to the end of the buffer.
   #
-  # text - A {String} representing the text text to append.
+  # * `text` A {String} representing the text text to append.
   #
   # Returns the {Range} of the inserted text
   append: (text, normalizeLineEndings) ->
@@ -284,7 +301,7 @@ class TextBuffer
 
   # Public: Delete the text in the given range.
   #
-  # range - A {Range} in which to delete. The range is clipped before deleting.
+  # * `range` A {Range} in which to delete. The range is clipped before deleting.
   #
   # Returns an empty {Range} starting at the start of deleted range.
   delete: (range) ->
@@ -292,7 +309,7 @@ class TextBuffer
 
   # Public: Delete the line associated with a specified row.
   #
-  # row - A {Number} representing the 0-indexed row to delete.
+  # * `row` A {Number} representing the 0-indexed row to delete.
   #
   # Returns the {Range} of the deleted text.
   deleteRow: (row) ->
@@ -300,11 +317,11 @@ class TextBuffer
 
   # Public: Delete the lines associated with the specified row range.
   #
-  # startRow - A {Number} representing the first row to delete.
-  # endRow - A {Number} representing the last row to delete, inclusive.
-  #
   # If the row range is out of bounds, it will be clipped. If the startRow is
   # greater than the end row, they will be reordered.
+  #
+  # * `startRow` A {Number} representing the first row to delete.
+  # * `endRow` A {Number} representing the last row to delete, inclusive.
   #
   # Returns the {Range} of the deleted text.
   deleteRows: (startRow, endRow) ->
@@ -401,7 +418,7 @@ class TextBuffer
 
   # Public: Get the text in a range.
   #
-  # range - A {Range}
+  # * `range` A {Range}
   #
   # Returns a {String}
   getTextInRange: (range) ->
@@ -427,10 +444,10 @@ class TextBuffer
 
   # Public: Clip the given range so it starts and ends at valid positions.
   #
-  # For example, the position [1, 100] is out of bounds if the line at row 1 is
-  # only 10 characters long, and it would be clipped to (1, 10).
+  # For example, the position `[1, 100]` is out of bounds if the line at row 1 is
+  # only 10 characters long, and it would be clipped to `(1, 10)`.
   #
-  # range - A {Range} or range-compatible {Array} to clip.
+  # * `range` A {Range} or range-compatible {Array} to clip.
   #
   # Returns the given {Range} if it is already in bounds, or a new clipped
   # {Range} if the given range is out-of-bounds.
@@ -448,7 +465,7 @@ class TextBuffer
   # For example, the position (1, 100) is out of bounds if the line at row 1 is
   # only 10 characters long, and it would be clipped to (1, 10)
   #
-  # position - A {Point} or point-compatible {Array}.
+  # * `position` A {Point} or point-compatible {Array}.
   #
   # Returns a new {Point} if the given position is invalid, otherwise returns
   # the given position.
@@ -488,10 +505,10 @@ class TextBuffer
 
   # Public: Get the range for the given row
   #
-  # row - A {Number} representing a 0-indexed row.
-  # includeNewline - A {Boolean} indicating whether or not to include the
-  #                  newline, which results in a range that extends to the start
-  #                  of the next line.
+  # * `row` A {Number} representing a 0-indexed row.
+  # * `includeNewline` A {Boolean} indicating whether or not to include the
+  #   newline, which results in a range that extends to the start
+  #   of the next line.
   #
   # Returns a {Range}.
   rangeForRow: (row, includeNewline) ->
@@ -510,7 +527,7 @@ class TextBuffer
   #
   # The position is clipped prior to translating.
   #
-  # position - A {Point}.
+  # * `position` A {Point}.
   #
   # Returns a {Number}.
   characterIndexForPosition: (position) ->
@@ -527,7 +544,7 @@ class TextBuffer
   #
   # The offset is clipped prior to translating.
   #
-  # offset - A {Number}.
+  # * `offset` A {Number}.
   #
   # Returns a {Point}.
   positionForCharacterIndex: (offset) ->
@@ -665,7 +682,7 @@ class TextBuffer
 
   # Public: Set the path for the buffer's associated file.
   #
-  # filePath - A {String} representing the new file path
+  # * `filePath` A {String} representing the new file path
   setPath: (filePath) ->
     return if filePath == @getPath()
 
@@ -690,7 +707,7 @@ class TextBuffer
 
   # Public: Save the buffer at a specific path.
   #
-  # filePath - The path to save at.
+  # * `filePath` The path to save at.
   saveAs: (filePath) ->
     unless filePath then throw new Error("Can't save buffer with no file path")
 
@@ -729,9 +746,9 @@ class TextBuffer
 
   # Identifies if a character sequence is within a certain range.
   #
-  # regex - The {RegExp} to match.
-  # startIndex - A {Number} representing the starting character offset.
-  # endIndex - A {Number} representing the ending character offset.
+  # * `regex` The {RegExp} to match.
+  # * `startIndex` A {Number} representing the starting character offset.
+  # * `endIndex` A {Number} representing the ending character offset.
   #
   # Returns an {Array} of matches for the given regex.
   matchesInCharacterRange: (regex, startIndex, endIndex) ->
@@ -763,15 +780,13 @@ class TextBuffer
   # If you're programmatically modifying the results, you may want to try
   # {::backwardsScan} to avoid tripping over your own changes.
   #
-  # regex - A {RegExp} to search for.
-  # iterator -
-  #   A {Function} that's called on each match with an {Object} containing the.
-  #   following keys:
-  #   :match - The current regular expression match.
-  #   :matchText - A {String} with the text of the match.
-  #   :range - The {Range} of the match.
-  #   :stop - Call this {Function} to terminate the scan.
-  #   :replace - Call this {Function} with a {String} to replace the match.
+  # * `regex` A {RegExp} to search for.
+  # * `iterator` A {Function} that's called on each match with an {Object} containing the following keys:
+  #   * `match` The current regular expression match.
+  #   * `matchText` A {String} with the text of the match.
+  #   * `range` The {Range} of the match.
+  #   * `stop` Call this {Function} to terminate the scan.
+  #   * `replace` Call this {Function} with a {String} to replace the match.
   scan: (regex, iterator) ->
     @scanInRange regex, @getRange(), (result) =>
       result.lineText = @lineForRow(result.range.start.row)
@@ -781,15 +796,13 @@ class TextBuffer
   # Public: Scan regular expression matches in the entire buffer in reverse
   # order, calling the given iterator function on each match.
   #
-  # regex - A {RegExp} to search for.
-  # iterator -
-  #   A {Function} that's called on each match with an {Object} containing the.
-  #   following keys:
-  #   :match - The current regular expression match.
-  #   :matchText - A {String} with the text of the match.
-  #   :range - The {Range} of the match.
-  #   :stop - Call this {Function} to terminate the scan.
-  #   :replace - Call this {Function} with a {String} to replace the match.
+  # * `regex` A {RegExp} to search for.
+  # * `iterator` A {Function} that's called on each match with an {Object} containing the following keys:
+  #   * `match` The current regular expression match.
+  #   * `matchText` A {String} with the text of the match.
+  #   * `range` The {Range} of the match.
+  #   * `stop` Call this {Function} to terminate the scan.
+  #   * `replace` Call this {Function} with a {String} to replace the match.
   backwardsScan: (regex, iterator) ->
     @backwardsScanInRange regex, @getRange(), (result) =>
       result.lineText = @lineForRow(result.range.start.row)
@@ -798,8 +811,8 @@ class TextBuffer
 
   # Public: Replace all regular expression matches in the entire buffer.
   #
-  # regex - A {RegExp} representing the matches to be replaced.
-  # replacementText - A {String} representing the text to replace each match.
+  # * `regex` A {RegExp} representing the matches to be replaced.
+  # * `replacementText` A {String} representing the text to replace each match.
   #
   # Returns a {Number} representing the number of replacements made.
   replace: (regex, replacementText) ->
@@ -818,16 +831,14 @@ class TextBuffer
   # Public: Scan regular expression matches in a given range , calling the given
   # iterator function on each match.
   #
-  # regex - A {RegExp} to search for.
-  # range - A {Range} in which to search.
-  # iterator -
-  #   A {Function} that's called on each match with an {Object} containing the.
-  #   following keys:
-  #   :match - The current regular expression match.
-  #   :matchText - A {String} with the text of the match.
-  #   :range - The {Range} of the match.
-  #   :stop - Call this {Function} to terminate the scan.
-  #   :replace - Call this {Function} with a {String} to replace the match.
+  # * `regex` A {RegExp} to search for.
+  # * `range` A {Range} in which to search.
+  # * `iterator` A {Function} that's called on each match with an {Object} containing the following keys
+  #   * `match` The current regular expression match.
+  #   * `matchText` A {String} with the text of the match.
+  #   * `range` The {Range} of the match.
+  #   * `stop` Call this {Function} to terminate the scan.
+  #   * `replace` Call this {Function} with a {String} to replace the match.
   scanInRange: (regex, range, iterator, reverse=false) ->
     range = @clipRange(range)
     global = regex.global
@@ -869,22 +880,20 @@ class TextBuffer
   # Public: Scan regular expression matches in a given range in reverse order,
   # calling the given iterator function on each match.
   #
-  # regex - A {RegExp} to search for.
-  # range - A {Range} in which to search.
-  # iterator -
-  #   A {Function} that's called on each match with an {Object} containing the.
-  #   following keys:
-  #   :match - The current regular expression match.
-  #   :matchText - A {String} with the text of the match.
-  #   :range - The {Range} of the match.
-  #   :stop - Call this {Function} to terminate the scan.
-  #   :replace - Call this {Function} with a {String} to replace the match.
+  # * `regex` A {RegExp} to search for.
+  # * `range` A {Range} in which to search.
+  # * `iterator` A {Function} that's called on each match with an {Object} containing the following keys:
+  #   * `match` The current regular expression match.
+  #   * `matchText` A {String} with the text of the match.
+  #   * `range` The {Range} of the match.
+  #   * `stop` Call this {Function} to terminate the scan.
+  #   * `replace` Call this {Function} with a {String} to replace the match.
   backwardsScanInRange: (regex, range, iterator) ->
     @scanInRange regex, range, iterator, true
 
   # Public: Determine if the given row contains only whitespace.
   #
-  # row - A {Number} representing a 0-indexed row.
+  # * `row` A {Number} representing a 0-indexed row.
   #
   # Returns a {Boolean}.
   isRowBlank: (row) ->
@@ -892,7 +901,7 @@ class TextBuffer
 
   # Public: Given a row, find the first preceding row that's not blank.
   #
-  # startRow - A {Number} identifying the row to start checking at.
+  # * `startRow` A {Number} identifying the row to start checking at.
   #
   # Returns a {Number} or `null` if there's no preceding non-blank row.
   previousNonBlankRow: (startRow) ->
@@ -905,7 +914,7 @@ class TextBuffer
 
   # Public: Given a row, find the next row that's not blank.
   #
-  # startRow - A {Number} identifying the row to start checking at.
+  # * `startRow` A {Number} identifying the row to start checking at.
   #
   # Returns a {Number} or `null` if there's no next non-blank row.
   nextNonBlankRow: (startRow) ->
@@ -966,7 +975,7 @@ class TextBuffer
   # abort the transaction, call {::abortTransaction} to terminate the function's
   # execution and revert any changes performed up to the abortion.
   #
-  # fn - A {Function} to call inside the transaction.
+  # * `fn` A {Function} to call inside the transaction.
   transact: (fn) -> @history.transact(fn)
 
   # Public: Start an open-ended transaction.
@@ -995,44 +1004,33 @@ class TextBuffer
   # word, the marker will remain over that word even if the word's location in
   # the buffer changes.
   #
-  # * range: A {Range} or range-compatible {Array}
-  # * properties:
-  #     A hash of key-value pairs to associate with the marker. There are also
-  #     reserved property names that have marker-specific meaning:
-  #       :reversed -
-  #         Creates the marker in a reversed orientation. Defaults to false.
-  #       :persistent -
-  #         Whether to include this marker when serializing the buffer. Defaults
-  #         to true.
-  #       :invalidate -
-  #         Determines the rules by which changes to the buffer *invalidate* the
-  #         marker. Defaults to 'overlap', but can be any of the following
-  #         strategies, in order of fragility:
-  #         * 'never':
-  #             The marker is never marked as invalid. This is a good choice for
-  #             markers representing selections in an editor.
-  #         * 'surround':
-  #             The marker is invalidated by changes that completely surround it.
-  #         * 'overlap':
-  #             The marker is invalidated by changes that surround the start or
-  #             end of the marker. This is the default.
-  #         * 'inside':
-  #             The marker is invalidated by changes that extend into the
-  #             inside of the marker. Changes that end at the marker's start or
-  #             start at the marker's end do not invalidate the marker.
-  #         * 'touch':
-  #             The marker is invalidated by a change that touches the marked
-  #             region in any way, including changes that end at the marker's
-  #             start or start at the marker's end. This is the most fragile
-  #             strategy.
+  # * `range` A {Range} or range-compatible {Array}
+  # * `properties` A hash of key-value pairs to associate with the marker. There are also reserved property names that have marker-specific meaning.
+  #   * `reversed` (optional) Creates the marker in a reversed orientation. (default: false)
+  #   * `persistent` (optional) Whether to include this marker when serializing the buffer. (default: true)
+  #   * `invalidate` (optional) Determines the rules by which changes to the
+  #     buffer *invalidate* the marker. (default: 'overlap') It can be any of
+  #     the following strategies, in order of fragility
+  #     * __never__: The marker is never marked as invalid. This is a good choice for
+  #       markers representing selections in an editor.
+  #     * __surround__: The marker is invalidated by changes that completely surround it.
+  #     * __overlap__: The marker is invalidated by changes that surround the
+  #       start or end of the marker. This is the default.
+  #     * __inside__: The marker is invalidated by changes that extend into the
+  #       inside of the marker. Changes that end at the marker's start or
+  #       start at the marker's end do not invalidate the marker.
+  #     * __touch__: The marker is invalidated by a change that touches the marked
+  #       region in any way, including changes that end at the marker's
+  #       start or start at the marker's end. This is the most fragile
+  #       strategy.
   #
   # Returns a {Marker}.
   markRange: (range, properties) -> @markers.markRange(range, properties)
 
   # Public: Create a marker at the given position with no tail.
   #
-  # :position - {Point} or point-compatible {Array}
-  # :properties - This is the same as the `properties` parameter in {::markRange}
+  #   * `position` {Point} or point-compatible {Array}
+  #   * `properties` This is the same as the `properties` parameter in {::markRange}
   #
   # Returns a {Marker}.
   markPosition: (position, properties) -> @markers.markPosition(position, properties)
@@ -1049,18 +1047,17 @@ class TextBuffer
 
   # Public: Find markers conforming to the given parameters.
   #
-  # :params -
-  #   A hash of key-value pairs constraining the set of returned markers. You
+  # * `params` A hash of key-value pairs constraining the set of returned markers. You
   #   can query against custom marker properties by listing the desired
   #   key-value pairs here. In addition, the following keys are reserved and
   #   have special semantics:
-  #   * 'startPosition': Only include markers that start at the given {Point}.
-  #   * 'endPosition': Only include markers that end at the given {Point}.
-  #   * 'containsPoint': Only include markers that contain the given {Point}, inclusive.
-  #   * 'containsRange': Only include markers that contain the given {Range}, inclusive.
-  #   * 'startRow': Only include markers that start at the given row {Number}.
-  #   * 'endRow': Only include markers that end at the given row {Number}.
-  #   * 'intersectsRow': Only include markers that intersect the given row {Number}.
+  #   * `startPosition` Only include markers that start at the given {Point}.
+  #   * `endPosition` Only include markers that end at the given {Point}.
+  #   * `containsPoint` Only include markers that contain the given {Point}, inclusive.
+  #   * `containsRange` Only include markers that contain the given {Range}, inclusive.
+  #   * `startRow` Only include markers that start at the given row {Number}.
+  #   * `endRow` Only include markers that end at the given row {Number}.
+  #   * `intersectsRow` Only include markers that intersect the given row {Number}.
   #
   # Finds markers that conform to all of the given parameters. Markers are
   # sorted based on their position in the buffer. If two markers start at the
