@@ -31,7 +31,7 @@
     "rimraf": "~2.2.2",
     "coffee-cache": "~0.2.0",
     "temp": "~0.6.0",
-    "grunt-atomdoc": "^0.2.0"
+    "grunt-atomdoc": "^1.0"
   },
   "dependencies": {
     "span-skip-list": "~0.1.1",
