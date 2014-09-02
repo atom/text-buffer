@@ -154,11 +154,24 @@ class Range
   # Public: Determines whether this range intersects with the argument.
   #
   # * `otherRange` A {Range} or range-compatible {Array}
-  intersectsWith: (otherRange) ->
-    if @start.isLessThanOrEqual(otherRange.start)
-      @end.isGreaterThanOrEqual(otherRange.start)
+  intersectsWith: (otherRange, exclusive) ->
+    if exclusive
+      not (@end.isLessThanOrEqual(otherRange.start) or @start.isGreaterThanOrEqual(otherRange.end))
     else
-      otherRange.intersectsWith(this)
+      not (@end.isLessThan(otherRange.start) or @start.isGreaterThan(otherRange.end))
+
+
+
+    # if exclusive
+    #   if @start.isLessThanOrEqual(otherRange.start)
+    #     @end.isGreaterThan(otherRange.start)
+    #   else
+    #     otherRange.intersectsWith(this, true)
+    # else
+    #   if @start.isLessThanOrEqual(otherRange.start)
+    #     @end.isGreaterThanOrEqual(otherRange.start)
+    #   else
+    #     otherRange.intersectsWith(this, false)
 
   # Public: Returns a {Boolean} indicating whether this range contains the given
   # range.
