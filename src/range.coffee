@@ -154,6 +154,10 @@ class Range
   # Public: Determines whether this range intersects with the argument.
   #
   # * `otherRange` A {Range} or range-compatible {Array}
+  # * `exclusive` (optional) {Boolean} indicating whether to exclude endpoints
+  #     when testing for intersection. Defaults to `false`.
+  #
+  # Returns a {Boolean}.
   intersectsWith: (otherRange, exclusive) ->
     if exclusive
       not (@end.isLessThanOrEqual(otherRange.start) or @start.isGreaterThanOrEqual(otherRange.end))
