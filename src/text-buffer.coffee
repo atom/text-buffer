@@ -146,6 +146,9 @@ class TextBuffer
   onDidChange: (callback) ->
     @emitter.on 'did-change', callback
 
+  onDidStopChanging: (callback) ->
+    @emitter.on 'did-stop-changing', callback
+
   onDidUpdateMarkers: (callback) ->
     @emitter.on 'did-update-markers', callback
 
@@ -990,6 +993,7 @@ class TextBuffer
       @stoppedChangingTimeout = null
       modifiedStatus = @isModified()
       @emit 'contents-modified', modifiedStatus
+      @emitter.emit 'did-stop-changing'
       @emitModifiedStatusChanged(modifiedStatus)
     @stoppedChangingTimeout = setTimeout(stoppedChangingCallback, @stoppedChangingDelay)
 

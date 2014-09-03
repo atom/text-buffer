@@ -1722,7 +1722,7 @@ describe "TextBuffer", ->
       buffer.setText('\n')
       expect(buffer.isEmpty()).toBeFalsy()
 
-  describe "'contents-modified' event", ->
+  describe "::onDidStopChanging(callback)", ->
     beforeEach ->
       filePath = require.resolve('./fixtures/sample.js')
       buffer = new TextBuffer({filePath, load: true})
@@ -1730,38 +1730,38 @@ describe "TextBuffer", ->
       waitsFor ->
         buffer.loaded
 
-    it "triggers the 'contents-modified' event with the current modified status when the buffer changes, rate-limiting events with a delay", ->
+    it "notifies observers after a delay passes following changes", ->
       delay = buffer.stoppedChangingDelay
-      contentsModifiedHandler = jasmine.createSpy("contentsModifiedHandler")
-      buffer.on 'contents-modified', contentsModifiedHandler
+      didStopChangingCallback = jasmine.createSpy("didStopChangingCallback")
+      buffer.onDidStopChanging didStopChangingCallback
 
       buffer.insert([0, 0], 'a')
-      expect(contentsModifiedHandler).not.toHaveBeenCalled()
+      expect(didStopChangingCallback).not.toHaveBeenCalled()
 
       waits delay / 2
 
       runs ->
         buffer.insert([0, 0], 'b')
-        expect(contentsModifiedHandler).not.toHaveBeenCalled()
+        expect(didStopChangingCallback).not.toHaveBeenCalled()
 
       waits delay / 2
 
       runs ->
-        expect(contentsModifiedHandler).not.toHaveBeenCalled()
+        expect(didStopChangingCallback).not.toHaveBeenCalled()
 
       waits delay / 2
 
       runs ->
-        expect(contentsModifiedHandler).toHaveBeenCalledWith(true)
+        expect(didStopChangingCallback).toHaveBeenCalled()
 
-        contentsModifiedHandler.reset()
+        didStopChangingCallback.reset()
         buffer.undo()
         buffer.undo()
 
       waits delay
 
       runs ->
-        expect(contentsModifiedHandler).toHaveBeenCalledWith(false)
+        expect(didStopChangingCallback).toHaveBeenCalled()
 
   describe "::append(text)", ->
     beforeEach ->
