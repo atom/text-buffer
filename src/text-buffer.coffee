@@ -58,7 +58,6 @@ class TextBuffer
     @digestWhenLastPersisted = params?.digestWhenLastPersisted ? false
     @modifiedWhenLastPersisted = params?.modifiedWhenLastPersisted ? false
     @useSerializedText = @modifiedWhenLastPersisted isnt false
-    @subscribe this, 'changed', @handleTextChange
 
     @setPath(params.filePath) if params?.filePath
     @load() if params?.load
@@ -201,6 +200,37 @@ class TextBuffer
   # Returns a {Disposable} on which `.dispose()` can be called to unsubscribe.
   onDidDestroy: (callback) ->
     @emitter.on 'did-destroy', callback
+
+  on: (eventName) ->
+    switch eventName
+      when 'changed'
+        Grim.deprecate("Use TextBuffer::onDidChange instead")
+      when 'contents-modified'
+        Grim.deprecate("Use TextBuffer::onDidStopChanging instead. If you need the modified status, call TextBuffer::isModified yourself in your callback.")
+      when 'contents-conflicted'
+        Grim.deprecate("Use TextBuffer::onDidConflict instead")
+      when 'modified-status-changed'
+        Grim.deprecate("Use TextBuffer::onDidChangeModified instead")
+      when 'markers-updated'
+        Grim.deprecate("Use TextBuffer::onDidUpdateMarkers instead")
+      when 'marker-created'
+        Grim.deprecate("Use TextBuffer::onDidCreateMarker instead")
+      when 'path-changed'
+        Grim.deprecate("Use TextBuffer::onDidChangePath instead. The path is now provided as a callback argument rather than a TextBuffer instance.")
+      when 'will-be-saved'
+        Grim.deprecate("Use TextBuffer::onWillSave instead. A TextBuffer instance is no longer provided as a callback argument.")
+      when 'saved'
+        Grim.deprecate("Use TextBuffer::onDidSave instead. A TextBuffer instance is no longer provided as a callback argument.")
+      when 'will-reload'
+        Grim.deprecate("Use TextBuffer::onWillReload instead.")
+      when 'reloaded'
+        Grim.deprecate("Use TextBuffer::onDidReload instead.")
+      when 'destroyed'
+        Grim.deprecate("Use TextBuffer::onDidDestroy instead")
+      else
+        Grim.deprecate("TextBuffer::on is deprecated. Use event subscription methods instead.")
+
+    EmitterMixin::on.apply(this, arguments)
 
   # Public: Get the entire text of the buffer.
   #
@@ -481,6 +511,8 @@ class TextBuffer
 
     changeEvent = {oldRange, newRange, oldText, newText}
 
+    @conflict = false if @conflict and !@isModified()
+    @scheduleModifiedEvents()
     @emit 'changed', changeEvent
     @emitter.emit 'did-change', changeEvent
     @markers?.resumeChangeEvents()
@@ -650,10 +682,6 @@ class TextBuffer
         @reload()
       @clearUndoStack()
     this
-
-  handleTextChange: (event) =>
-    @conflict = false if @conflict and !@isModified()
-    @scheduleModifiedEvents()
 
   destroy: ->
     unless @destroyed

@@ -122,6 +122,17 @@ class Marker
   onDidChange: (callback) ->
     @emitter.on 'did-change', callback
 
+  on: (eventName) ->
+    switch eventName
+      when 'changed'
+        Grim.deprecate("Use Marker::onDidChange instead")
+      when 'destroyed'
+        Grim.deprecate("Use Marker::onDidDestroy instead")
+      else
+        Grim.deprecate("Marker::on is deprecated. Use event subscription methods instead.")
+
+    EmitterMixin::on.apply(this, arguments)
+
   # Public: Returns the current {Range} of the marker. The range is immutable.
   getRange: ->
     @range
