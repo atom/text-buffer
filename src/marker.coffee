@@ -93,7 +93,7 @@ class Marker
     state.range = Range.deserialize(state.range)
     state
 
-  # Essential: Invoke the given callback when the marker is destroyed.
+  # Public: Invoke the given callback when the marker is destroyed.
   #
   # * `callback` {Function} to be called when the marker is destroyed.
   #
@@ -101,7 +101,7 @@ class Marker
   onDidDestroy: (callback) ->
     @emitter.on 'did-destroy', callback
 
-  # Essential: Invoke the given callback when the state of the marker changes.
+  # Public: Invoke the given callback when the state of the marker changes.
   #
   # * `callback` {Function} to be called when the marker changes.
   #   * `event` {Object} with the following keys:
