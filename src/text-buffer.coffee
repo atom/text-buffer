@@ -167,6 +167,9 @@ class TextBuffer
   onDidReload: (callback) ->
     @emitter.on 'did-reload', callback
 
+  onDidDestroy: (callback) ->
+    @emitter.on 'did-destroy', callback
+
   # Public: Get the entire text of the buffer.
   #
   # Returns a {String}.
@@ -621,6 +624,7 @@ class TextBuffer
       @unsubscribe()
       @destroyed = true
       @emit 'destroyed'
+      @emitter.emit 'did-destroy'
 
   isAlive: -> not @destroyed
 
