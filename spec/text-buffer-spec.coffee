@@ -705,14 +705,14 @@ describe "TextBuffer", ->
         runs ->
           expect(buffer.isModified()).toBeTruthy()
 
-      it "fires a single contents-conflicted event", ->
+      it "notifies ::onDidConflict observers", ->
         buffer.setText("a change")
         buffer.save()
         buffer.insert([0, 0], "a second change")
 
         handler = jasmine.createSpy('fileChange')
         writeFileSync(filePath, "a disk change")
-        buffer.on 'contents-conflicted', handler
+        buffer.onDidConflict handler
 
         expect(handler.callCount).toBe 0
         waitsFor ->
@@ -1283,7 +1283,7 @@ describe "TextBuffer", ->
 
         writeFileSync(saveBuffer.getPath(), 'c')
         conflictHandler = jasmine.createSpy('conflictHandler')
-        saveBuffer.on 'contents-conflicted', conflictHandler
+        saveBuffer.onDidConflict conflictHandler
 
         waitsFor ->
           conflictHandler.callCount > 0

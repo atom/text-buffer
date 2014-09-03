@@ -149,6 +149,9 @@ class TextBuffer
   onDidStopChanging: (callback) ->
     @emitter.on 'did-stop-changing', callback
 
+  onDidConflict: (callback) ->
+    @emitter.on 'did-conflict', callback
+
   onDidUpdateMarkers: (callback) ->
     @emitter.on 'did-update-markers', callback
 
@@ -657,6 +660,7 @@ class TextBuffer
 
       if @conflict
         @emit "contents-conflicted"
+        @emitter.emit 'did-conflict'
       else
         @reload()
 
