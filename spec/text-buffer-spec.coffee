@@ -794,7 +794,7 @@ describe "TextBuffer", ->
 
     it "reports the modified status changing to true or false after the user changes buffer", ->
       modifiedHandler = jasmine.createSpy("modifiedHandler")
-      buffer.on 'modified-status-changed', modifiedHandler
+      buffer.onDidChangeModified modifiedHandler
 
       expect(buffer.isModified()).toBeFalsy()
       buffer.insert([0,0], "hi")
@@ -826,7 +826,7 @@ describe "TextBuffer", ->
 
     it "reports the modified status changing to false after a modified buffer is saved", ->
       modifiedHandler = jasmine.createSpy("modifiedHandler")
-      buffer.on 'modified-status-changed', modifiedHandler
+      buffer.onDidChangeModified modifiedHandler
       buffer.insert([0,0], "hi")
 
       waitsFor ->
@@ -853,7 +853,7 @@ describe "TextBuffer", ->
 
     it "reports the modified status changing to false after a modified buffer is reloaded", ->
       modifiedHandler = jasmine.createSpy("modifiedHandler")
-      buffer.on 'modified-status-changed', modifiedHandler
+      buffer.onDidChangeModified modifiedHandler
       buffer.insert([0,0], "hi")
 
       waitsFor ->
@@ -890,7 +890,7 @@ describe "TextBuffer", ->
         buffer.loaded
 
       runs ->
-        buffer.on 'modified-status-changed', modifiedHandler
+        buffer.onDidChangeModified modifiedHandler
         buffer.insert([0,0], "hi")
 
       waitsFor ->

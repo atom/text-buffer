@@ -152,6 +152,9 @@ class TextBuffer
   onDidConflict: (callback) ->
     @emitter.on 'did-conflict', callback
 
+  onDidChangeModified: (callback) ->
+    @emitter.on 'did-change-modified', callback
+
   onDidUpdateMarkers: (callback) ->
     @emitter.on 'did-update-markers', callback
 
@@ -1005,6 +1008,7 @@ class TextBuffer
     return if modifiedStatus is @previousModifiedStatus
     @previousModifiedStatus = modifiedStatus
     @emit 'modified-status-changed', modifiedStatus
+    @emitter.emit 'did-change-modified', modifiedStatus
 
   logLines: (start=0, end=@getLastRow())->
     for row in [start..end]
