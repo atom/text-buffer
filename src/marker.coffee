@@ -28,31 +28,6 @@ OptionKeys = ['reversed', 'tailed', 'invalidate', 'persistent']
 # invalidation strategy you choose, certain changes to the buffer can cause a
 # marker to become invalid, for example if the text surrounding the marker is
 # deleted. See {TextBuffer::markRange} for invalidation strategies.
-#
-# ## Events
-#
-# ### changed
-#
-# Essential: Emit when markers change in position for any reason
-#
-# * `event` {Object}
-#   * `oldHeadPosition` {Point} representing the former head position
-#   * `newHeadPosition` {Point} representing the new head position
-#   * `oldTailPosition` {Point} representing the former tail position
-#   * `newTailPosition` {Point} representing the new tail position
-#   * `wasValid` {Boolean} indicating whether the marker was valid before the change
-#   * `isValid` {Boolean} indicating whether the marker is now valid
-#   * `hadTail` {Boolean} indicating whether the marker had a tail before the change
-#   * `hasTail` {Boolean} indicating whether the marker now has a tail
-#   * `oldProperties` {Object} containing the marker's custom properties before the change.
-#   * `newProperties` {Object} containing the marker's custom properties after the change.
-#   * `textChanged` {Boolean} indicating whether this change was caused by a textual change
-#     to the buffer or whether the marker was manipulated directly via its public API.
-#
-# ### destroyed
-#
-# Essential: Emit when a marker has been destroyed
-#
 module.exports =
 class Marker
   EmitterMixin.includeInto(this)
@@ -118,9 +93,32 @@ class Marker
     state.range = Range.deserialize(state.range)
     state
 
+  # Essential: Invoke the given callback when the marker is destroyed.
+  #
+  # * `callback` {Function} to be called when the marker is destroyed.
+  #
+  # Returns a {Disposable} on which `.dispose()` can be called to unsubscribe.
   onDidDestroy: (callback) ->
     @emitter.on 'did-destroy', callback
 
+  # Essential: Invoke the given callback when the state of the marker changes.
+  #
+  # * `callback` {Function} to be called when the marker changes.
+  #   * `event` {Object} with the following keys:
+  #     * `oldHeadPosition` {Point} representing the former head position
+  #     * `newHeadPosition` {Point} representing the new head position
+  #     * `oldTailPosition` {Point} representing the former tail position
+  #     * `newTailPosition` {Point} representing the new tail position
+  #     * `wasValid` {Boolean} indicating whether the marker was valid before the change
+  #     * `isValid` {Boolean} indicating whether the marker is now valid
+  #     * `hadTail` {Boolean} indicating whether the marker had a tail before the change
+  #     * `hasTail` {Boolean} indicating whether the marker now has a tail
+  #     * `oldProperties` {Object} containing the marker's custom properties before the change.
+  #     * `newProperties` {Object} containing the marker's custom properties after the change.
+  #     * `textChanged` {Boolean} indicating whether this change was caused by a textual change
+  #       to the buffer or whether the marker was manipulated directly via its public API.
+  #
+  # Returns a {Disposable} on which `.dispose()` can be called to unsubscribe.
   onDidChange: (callback) ->
     @emitter.on 'did-change', callback
 
