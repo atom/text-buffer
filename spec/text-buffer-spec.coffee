@@ -608,7 +608,7 @@ describe "TextBuffer", ->
         expect(buffer.rangeForRow(1, true)).toEqual([[1, 0], [2, 0]])
         expect(buffer.rangeForRow(2, true)).toEqual([[2, 0], [2, 7]])
 
-  describe "path-changed event", ->
+  describe "::onDidChangePath()", ->
     [filePath, newPath, bufferToChange, eventHandler] = []
 
     beforeEach ->
@@ -617,7 +617,7 @@ describe "TextBuffer", ->
       writeFileSync(filePath, "")
       bufferToChange = new TextBuffer({filePath, load: true})
       eventHandler = jasmine.createSpy('eventHandler')
-      bufferToChange.on 'path-changed', eventHandler
+      bufferToChange.onDidChangePath eventHandler
 
       waitsFor ->
         bufferToChange.loaded
@@ -627,11 +627,11 @@ describe "TextBuffer", ->
       removeSync(filePath)
       removeSync(newPath)
 
-    it "triggers a `path-changed` event when path is changed", ->
+    it "notifies observers when the buffer is saved to a new path", ->
       bufferToChange.saveAs(newPath)
-      expect(eventHandler).toHaveBeenCalledWith(bufferToChange)
+      expect(eventHandler).toHaveBeenCalledWith(newPath)
 
-    it "triggers a `path-changed` event when the file is moved", ->
+    it "notifies observers when the buffer's file is moved", ->
       removeSync(newPath)
       moveSync(filePath, newPath)
 
@@ -639,7 +639,7 @@ describe "TextBuffer", ->
         eventHandler.callCount > 0
 
       runs ->
-        expect(eventHandler).toHaveBeenCalledWith(bufferToChange)
+        expect(eventHandler).toHaveBeenCalledWith(newPath)
 
   describe "when the buffer's on-disk contents change", ->
     filePath = null
@@ -1327,13 +1327,13 @@ describe "TextBuffer", ->
 
       saveAsBuffer = new TextBuffer()
       eventHandler = jasmine.createSpy('eventHandler')
-      saveAsBuffer.on 'path-changed', eventHandler
+      saveAsBuffer.onDidChangePath eventHandler
 
       saveAsBuffer.setText 'Buffer contents!'
       saveAsBuffer.saveAs(filePath)
       expect(readFileSync(filePath, 'utf8')).toEqual 'Buffer contents!'
 
-      expect(eventHandler).toHaveBeenCalledWith(saveAsBuffer)
+      expect(eventHandler).toHaveBeenCalledWith(filePath)
 
     it "stops listening to events on previous path and begins listening to events on new path", ->
       changeHandler = null

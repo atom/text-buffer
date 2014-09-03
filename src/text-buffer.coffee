@@ -152,6 +152,9 @@ class TextBuffer
   onDidCreateMarker: (callback) ->
     @emitter.on 'did-create-marker', callback
 
+  onDidChangePath: (callback) ->
+    @emitter.on 'did-change-path', callback
+
   # Public: Get the entire text of the buffer.
   #
   # Returns a {String}.
@@ -648,6 +651,7 @@ class TextBuffer
 
     @file.on "moved", =>
       @emit "path-changed", this
+      @emitter.emit 'did-change-path', @getPath()
 
   # Identifies if the buffer belongs to multiple editors.
   #
@@ -710,6 +714,7 @@ class TextBuffer
       @file = null
 
     @emit "path-changed", this
+    @emitter.emit 'did-change-path', @getPath()
 
   # Deprecated: Use {::getEndPosition} instead
   getEofPosition: ->
