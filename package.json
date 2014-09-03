@@ -34,16 +34,17 @@
     "grunt-atomdoc": "^1.0"
   },
   "dependencies": {
-    "span-skip-list": "~0.1.1",
     "delegato": "1.x",
     "diff": "git://github.com/benogle/jsdiff.git",
     "emissary": "1.x",
+    "event-kit": "^0.3.0",
+    "fs-plus": "2.x",
     "grim": "0.12.0",
-    "underscore-plus": "1.x",
     "interval-skip-list": "^2.0.0",
-    "serializable": "1.x",
     "pathwatcher": "^2.0.2",
     "q": "~1.0.1",
-    "fs-plus": "2.x"
+    "serializable": "1.x",
+    "span-skip-list": "~0.1.1",
+    "underscore-plus": "1.x"
   }
 }

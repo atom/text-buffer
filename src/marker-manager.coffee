@@ -134,7 +134,7 @@ class MarkerManager
       @getMarker(id)?.applyPatch(patch, textChanged)
 
   pauseChangeEvents: ->
-    marker.pauseEvents('changed') for marker in @getMarkers()
+    marker.pauseChangeEvents() for marker in @getMarkers()
 
   resumeChangeEvents: ->
-    marker.resumeEvents('changed') for marker in @getMarkers()
+    marker.resumeChangeEvents() for marker in @getMarkers()

@@ -1,5 +1,6 @@
 {extend, isEqual, omit, pick, size} = require 'underscore-plus'
-{Emitter} = require 'emissary'
+EmitterMixin = require('emissary').Emitter
+{Emitter} = require 'event-kit'
 Grim = require 'grim'
 Delegator = require 'delegato'
 Serializable = require 'serializable'
@@ -54,7 +55,7 @@ OptionKeys = ['reversed', 'tailed', 'invalidate', 'persistent']
 #
 module.exports =
 class Marker
-  Emitter.includeInto(this)
+  EmitterMixin.includeInto(this)
   Delegator.includeInto(this)
   Serializable.includeInto(this)
 
@@ -91,9 +92,12 @@ class Marker
   @delegatesMethods 'containsPoint', 'containsRange', 'intersectsRow', toProperty: 'range'
   @delegatesMethods 'clipPosition', 'clipRange', toProperty: 'manager'
 
+  deferredChangeEvents: null
+
   constructor: (params) ->
     {@manager, @id, @range, @tailed, @reversed} = params
     {@valid, @invalidate, @persistent, @properties} = params
+    @emitter = new Emitter
     @tailed ?= true
     @reversed ?= false
     @valid ?= true
@@ -113,6 +117,12 @@ class Marker
   deserializeParams: (state) ->
     state.range = Range.deserialize(state.range)
     state
+
+  onDidDestroy: (callback) ->
+    @emitter.on 'did-destroy', callback
+
+  onDidChange: (callback) ->
+    @emitter.on 'did-change', callback
 
   # Public: Returns the current {Range} of the marker. The range is immutable.
   getRange: ->
@@ -313,6 +323,7 @@ class Marker
     @manager.removeMarker(@id)
     @manager.intervals.remove(@id)
     @emit 'destroyed'
+    @emitter.emit 'did-destroy'
 
   extractParams: (params) ->
     params = @constructor.extractParams(params)
@@ -471,13 +482,29 @@ class Marker
     hasTail = @hasTail()
     newProperties = @getProperties()
 
-    @emit 'changed', {
+    event = {
       oldHeadPosition, newHeadPosition, oldTailPosition, newTailPosition
       wasValid, isValid, hadTail, hasTail, oldProperties, newProperties, textChanged
     }
+    if @deferredChangeEvents?
+      @deferredChangeEvents.push(event)
+    else
+      @emit 'changed', event
+      @emitter.emit 'did-change', event
     true
 
   # Updates the interval index on the marker manager with the marker's current
   # range.
   updateIntervals: ->
     @manager.intervals.update(@id, @range.start, @range.end)
+
+  pauseChangeEvents: ->
+    @deferredChangeEvents = []
+
+  resumeChangeEvents: ->
+    deferredChangeEvents = @deferredChangeEvents
+    @deferredChangeEvents = null
+
+    for event in deferredChangeEvents
+      @emitter.emit 'changed', event
+      @emitter.emit 'did-change', event
