@@ -149,6 +149,9 @@ class TextBuffer
   onDidUpdateMarkers: (callback) ->
     @emitter.on 'did-update-markers', callback
 
+  onDidCreateMarker: (callback) ->
+    @emitter.on 'did-create-marker', callback
+
   # Public: Get the entire text of the buffer.
   #
   # Returns a {String}.
@@ -1085,3 +1088,7 @@ class TextBuffer
   #
   # Returns a {Number}.
   getMarkerCount: -> @markers.getMarkerCount()
+
+  markerCreated: (marker) ->
+    @emit 'marker-created', marker
+    @emitter.emit 'did-create-marker', marker

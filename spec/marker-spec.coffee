@@ -6,7 +6,7 @@ describe "Marker", ->
   beforeEach ->
     buffer = new TextBuffer(text: "abcdefghijklmnopqrstuvwxyz")
     markerCreations = []
-    buffer.on 'marker-created', (marker) -> markerCreations.push(marker)
+    buffer.onDidCreateMarker (marker) -> markerCreations.push(marker)
 
   describe "creation", ->
     describe "TextBuffer::markRange(range, properties)", ->

@@ -116,7 +116,7 @@ class MarkerManager
     params.id = @nextMarkerId++
     marker = new Marker(params)
     @markers[marker.id] = marker
-    @buffer.emit 'marker-created', marker
+    @buffer.markerCreated(marker)
     marker
 
   removeMarker: (id) ->
