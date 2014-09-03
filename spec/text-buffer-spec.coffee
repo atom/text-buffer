@@ -1245,21 +1245,28 @@ describe "TextBuffer", ->
         saveBuffer.save()
         expect(readFileSync(filePath, 'utf8')).toEqual 'Buffer contents!'
 
-      it "fires will-be-saved and saved events around the call to File::write", ->
+      it "notifies ::onWillSave and ::onDidSave observers around the call to File::write", ->
         events = []
-        beforeSave1 = -> events.push('beforeSave1')
-        beforeSave2 = -> events.push('beforeSave2')
-        afterSave1 = -> events.push('afterSave1')
-        afterSave2 = -> events.push('afterSave2')
+        willSave1 = (event) -> events.push(['will-save-1', event])
+        willSave2 = (event) -> events.push(['will-save-2', event])
+        didSave1 = (event) -> events.push(['did-save-1', event])
+        didSave2 = (event) -> events.push(['did-save-2', event])
 
-        saveBuffer.on 'will-be-saved', beforeSave1
-        saveBuffer.on 'will-be-saved', beforeSave2
+        saveBuffer.onWillSave willSave1
+        saveBuffer.onWillSave willSave2
         spyOn(File.prototype, 'write').andCallFake -> events.push 'File::write'
-        saveBuffer.on 'saved', afterSave1
-        saveBuffer.on 'saved', afterSave2
+        saveBuffer.onDidSave didSave1
+        saveBuffer.onDidSave didSave2
 
         saveBuffer.save()
-        expect(events).toEqual ['beforeSave1', 'beforeSave2', 'File::write', 'afterSave1', 'afterSave2']
+        path = saveBuffer.getPath()
+        expect(events).toEqual [
+          ['will-save-1', {path}]
+          ['will-save-2', {path}]
+          'File::write'
+          ['did-save-1', {path}]
+          ['did-save-2', {path}]
+        ]
 
       it "fires will-reload and reloaded events when reloaded", ->
         events = []

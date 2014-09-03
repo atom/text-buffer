@@ -155,6 +155,12 @@ class TextBuffer
   onDidChangePath: (callback) ->
     @emitter.on 'did-change-path', callback
 
+  onWillSave: (callback) ->
+    @emitter.on 'will-save', callback
+
+  onDidSave: (callback) ->
+    @emitter.on 'did-save', callback
+
   # Public: Get the entire text of the buffer.
   #
   # Returns a {String}.
@@ -732,12 +738,14 @@ class TextBuffer
     unless filePath then throw new Error("Can't save buffer with no file path")
 
     @emit 'will-be-saved', this
+    @emitter.emit 'will-save', {path: filePath}
     @setPath(filePath)
     @file.write(@getText())
     @cachedDiskContents = @getText()
     @conflict = false
     @emitModifiedStatusChanged(false)
     @emit 'saved', this
+    @emitter.emit 'did-save', {path: filePath}
 
   # Public: Determine if the in-memory contents of the buffer differ from its
   # contents on disk.
