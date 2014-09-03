@@ -161,6 +161,12 @@ class TextBuffer
   onDidSave: (callback) ->
     @emitter.on 'did-save', callback
 
+  onWillReload: (callback) ->
+    @emitter.on 'will-reload', callback
+
+  onDidReload: (callback) ->
+    @emitter.on 'did-reload', callback
+
   # Public: Get the entire text of the buffer.
   #
   # Returns a {String}.
@@ -671,9 +677,11 @@ class TextBuffer
   # Sets the buffer's content to the cached disk contents
   reload: ->
     @emit 'will-reload'
+    @emitter.emit 'will-reload'
     @setTextViaDiff(@cachedDiskContents)
     @emitModifiedStatusChanged(false)
     @emit 'reloaded'
+    @emitter.emit 'did-reload'
 
   # Rereads the contents of the file, and stores them in the cache.
   updateCachedDiskContentsSync: ->

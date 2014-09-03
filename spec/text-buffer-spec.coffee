@@ -1268,13 +1268,13 @@ describe "TextBuffer", ->
           ['did-save-2', {path}]
         ]
 
-      it "fires will-reload and reloaded events when reloaded", ->
+      it "notifies ::onWillReload and ::onDidReload observers when reloaded", ->
         events = []
 
-        saveBuffer.on 'will-reload', -> events.push 'will-reload'
-        saveBuffer.on 'reloaded', -> events.push 'reloaded'
+        saveBuffer.onWillReload -> events.push 'will-reload'
+        saveBuffer.onDidReload -> events.push 'did-reload'
         saveBuffer.reload()
-        expect(events).toEqual ['will-reload', 'reloaded']
+        expect(events).toEqual ['will-reload', 'did-reload']
 
       it "no longer reports being in conflict", ->
         saveBuffer.setText('a')
