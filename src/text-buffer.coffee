@@ -2,7 +2,9 @@ _ = require 'underscore-plus'
 Delegator = require 'delegato'
 Grim = require 'grim'
 Serializable = require 'serializable'
-{Emitter, Subscriber} = require 'emissary'
+{Subscriber} = require 'emissary'
+EmitterMixin = require('emissary').Emitter
+{Emitter} = require 'event-kit'
 {File} = require 'pathwatcher'
 SpanSkipList = require 'span-skip-list'
 diff = require 'diff'
@@ -87,7 +89,7 @@ class TextBuffer
   @newlineRegex: newlineRegex
 
   Delegator.includeInto(this)
-  Emitter.includeInto(this)
+  EmitterMixin.includeInto(this)
   Serializable.includeInto(this)
   Subscriber.includeInto(this)
 
@@ -108,6 +110,7 @@ class TextBuffer
   constructor: (params) ->
     text = params if typeof params is 'string'
 
+    @emitter = new Emitter
     @lines = ['']
     @lineEndings = ['']
     @offsetIndex = new SpanSkipList('rows', 'characters')
@@ -139,6 +142,12 @@ class TextBuffer
     filePath: @getPath()
     modifiedWhenLastPersisted: @isModified()
     digestWhenLastPersisted: @file?.getDigest()
+
+  onDidChange: (callback) ->
+    @emitter.on 'did-change', callback
+
+  onDidUpdateMarkers: (callback) ->
+    @emitter.on 'did-update-markers', callback
 
   # Public: Get the entire text of the buffer.
   #
@@ -410,9 +419,14 @@ class TextBuffer
 
     @markers?.pauseChangeEvents()
     @markers?.applyPatches(markerPatches, true)
-    @emit 'changed', {oldRange, newRange, oldText, newText}
+
+    changeEvent = {oldRange, newRange, oldText, newText}
+
+    @emit 'changed', changeEvent
+    @emitter.emit 'did-change', changeEvent
     @markers?.resumeChangeEvents()
     @emit 'markers-updated'
+    @emitter.emit 'did-update-markers'
 
   # Public: Get the text in a range.
   #

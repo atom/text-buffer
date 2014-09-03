@@ -94,7 +94,7 @@ describe "TextBuffer", ->
 
     it "emits a 'changed' event with the relevant details after a change", ->
       changes = []
-      buffer.on 'changed', (change) -> changes.push(change)
+      buffer.onDidChange (change) -> changes.push(change)
       buffer.setTextInRange([[0, 2], [2, 3]], "y there\r\ncat\nwhat", false)
       expect(changes).toEqual [{
         oldRange: [[0, 2], [2, 3]]
@@ -668,7 +668,7 @@ describe "TextBuffer", ->
     describe "when the buffer is in an unmodified state before the on-disk change", ->
       it "changes the memory contents of the buffer to match the new disk contents and triggers a 'changed' event", ->
         changeHandler = jasmine.createSpy('changeHandler')
-        buffer.on 'changed', changeHandler
+        buffer.onDidChange changeHandler
         writeFileSync(filePath, "second")
 
         expect(changeHandler.callCount).toBe 0
@@ -774,7 +774,7 @@ describe "TextBuffer", ->
       writeFileSync(filePath, 'moo')
 
       changeHandler = jasmine.createSpy('changeHandler')
-      bufferToDelete.on 'changed', changeHandler
+      bufferToDelete.onDidChange changeHandler
       waitsFor 'change event', ->
         changeHandler.callCount > 0
 
@@ -976,7 +976,7 @@ describe "TextBuffer", ->
 
       runs ->
         changeHandler = jasmine.createSpy('changeHandler')
-        buffer.on 'changed', changeHandler
+        buffer.onDidChange changeHandler
 
     describe "when used to insert (called with an empty range and a non-empty string)", ->
       describe "when the given string has no newlines", ->
@@ -1093,7 +1093,7 @@ describe "TextBuffer", ->
         lastRow = buffer.getLastRow()
         expectedPreRange = [[0,0], [lastRow, buffer.lineForRow(lastRow).length]]
         changeHandler = jasmine.createSpy('changeHandler')
-        buffer.on 'changed', changeHandler
+        buffer.onDidChange changeHandler
 
         newText = "I know you are.\rBut what am I?"
         buffer.setText(newText)
@@ -1112,7 +1112,7 @@ describe "TextBuffer", ->
         lastRow = buffer.getLastRow()
         expectedPreRange = [[0,0], [lastRow, buffer.lineForRow(lastRow).length]]
         changeHandler = jasmine.createSpy('changeHandler')
-        buffer.on 'changed', changeHandler
+        buffer.onDidChange changeHandler
 
         newText = "new first\r\nnew last"
         buffer.setText(newText)
@@ -1131,7 +1131,7 @@ describe "TextBuffer", ->
         lastRow = buffer.getLastRow()
         expectedPreRange = [[0,0], [lastRow, buffer.lineForRow(lastRow).length]]
         changeHandler = jasmine.createSpy('changeHandler')
-        buffer.on 'changed', changeHandler
+        buffer.onDidChange changeHandler
 
         newText = "new first\rnew last"
         buffer.setText(newText)
@@ -1348,7 +1348,7 @@ describe "TextBuffer", ->
 
       runs ->
         changeHandler = jasmine.createSpy('changeHandler')
-        saveAsBuffer.on 'changed', changeHandler
+        saveAsBuffer.onDidChange changeHandler
         saveAsBuffer.saveAs(newPath)
         expect(changeHandler).not.toHaveBeenCalled()
 

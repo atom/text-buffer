@@ -388,7 +388,7 @@ describe "Marker", ->
       touchMarker = overlapMarker.copy(invalidate: 'touch')
       allStrategies = [neverMarker, surroundMarker, overlapMarker, insideMarker, touchMarker]
 
-    it "defers notifying ::onDidChange observers until after the buffer 'changed' event", ->
+    it "defers notifying Marker::onDidChange observers until after notifying Buffer::onDidChange observers", ->
       for marker in allStrategies
         do (marker) ->
           marker.changes = []
@@ -396,11 +396,11 @@ describe "Marker", ->
             marker.changes.push(change)
 
       markersUpdatedCount = 0
-      buffer.on 'markers-updated', -> markersUpdatedCount++
+      buffer.onDidUpdateMarkers -> markersUpdatedCount++
 
       changedCount = 0
       changeSubscription =
-        buffer.on 'changed', (change) ->
+        buffer.onDidChange (change) ->
           changedCount++
           expect(markersUpdatedCount).toBe 0
           for marker in allStrategies
@@ -424,10 +424,10 @@ describe "Marker", ->
       expect(markersUpdatedCount).toBe 1
 
       marker.changes = [] for marker in allStrategies
-      changeSubscription.off()
+      changeSubscription.dispose()
       changedCount = 0
       markersUpdatedCount = 0
-      buffer.on 'changed', (change) ->
+      buffer.onDidChange (change) ->
         changedCount++
         expect(markersUpdatedCount).toBe 0
         for marker in allStrategies
