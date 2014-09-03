@@ -515,5 +515,5 @@ class Marker
     @deferredChangeEvents = null
 
     for event in deferredChangeEvents
-      @emitter.emit 'changed', event
+      @emit 'changed', event
       @emitter.emit 'did-change', event
