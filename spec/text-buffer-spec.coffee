@@ -92,7 +92,7 @@ describe "TextBuffer", ->
       buffer.setTextInRange([[0, 2], [1, 3]], "y\nyou're o", false)
       expect(buffer.getText()).toEqual "hey\nyou're old\r\nhow are you doing?"
 
-    it "emits a 'changed' event with the relevant details after a change", ->
+    it "notifies ::onDidChange observers with the relevant details after a change", ->
       changes = []
       buffer.onDidChange (change) -> changes.push(change)
       buffer.setTextInRange([[0, 2], [2, 3]], "y there\r\ncat\nwhat", false)
@@ -655,18 +655,18 @@ describe "TextBuffer", ->
     afterEach ->
       buffer.destroy()
 
-    it "does not trigger a change event when Atom modifies the file", ->
+    it "does not notify ::onDidChange observers when the file is written via TextBuffer::save", ->
       buffer.insert([0,0], "HELLO!")
       changeHandler = jasmine.createSpy("buffer changed")
-      buffer.on "changed", changeHandler
+      buffer.onDidChange changeHandler
       buffer.save()
 
       waits 30
       runs ->
         expect(changeHandler).not.toHaveBeenCalled()
 
-    describe "when the buffer is in an unmodified state before the on-disk change", ->
-      it "changes the memory contents of the buffer to match the new disk contents and triggers a 'changed' event", ->
+    describe "when the buffer is in an unmodified state before the file is modified on disk", ->
+      it "changes the in-memory contents of the buffer to match the new disk contents and notifies ::onDidChange observers", ->
         changeHandler = jasmine.createSpy('changeHandler')
         buffer.onDidChange changeHandler
         writeFileSync(filePath, "second")
@@ -1075,8 +1075,8 @@ describe "TextBuffer", ->
         expect(event.oldText).toBe oldText
         expect(event.newText).toBe "foo\nbar"
 
-    it "allows a 'changed' event handler to safely undo the change", ->
-      buffer.once 'changed', -> buffer.undo()
+    it "allows a change to be undone safely from an ::onDidChange callback", ->
+      buffer.onDidChange -> buffer.undo()
       buffer.setTextInRange([0, 0], "hello")
       expect(buffer.lineForRow(0)).toBe "var quicksort = function () {"
 
