@@ -121,8 +121,6 @@ class TextBuffer
   # Public: Invoke the given callback when all marker `::onDidChange`
   # observers have been notified following a change to the buffer.
   #
-  # * `callback` {Function} to be called after markers are updated.
-  #
   # The order of events following a buffer change is as follows:
   #
   # * The text of the buffer is changed
@@ -134,6 +132,8 @@ class TextBuffer
   #
   # Basically, this method gives you a way to take action after both a buffer
   # change and all associated marker changes.
+  #
+  # * `callback` {Function} to be called after markers are updated.
   #
   # Returns a {Disposable} on which `.dispose()` can be called to unsubscribe.
   onDidUpdateMarkers: (callback) ->
