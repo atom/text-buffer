@@ -78,7 +78,12 @@ class TextBuffer
     modifiedWhenLastPersisted: @isModified()
     digestWhenLastPersisted: @file?.getDigest()
 
-  # Public: Invoke the given callback when the content of the buffer changes.
+  # Public: Invoke the given callback synchronously when the content of the
+  # buffer changes.
+  #
+  # Because observers are invoked synchronously, it's important not to perform
+  # any expensive operations via this method. Consider {::onDidStopChanging} to
+  # delay expensive operations until after changes stop occurring.
   #
   # * `callback` {Function} to be called when the buffer changes.
   #   * `event` {Object} with the following keys:
@@ -91,8 +96,13 @@ class TextBuffer
   onDidChange: (callback) ->
     @emitter.on 'did-change', callback
 
-  # Public: Invoke the given callback when {::getStoppedChangingDelay}
-  # milliseconds elapse without a change following a change.
+  # Public: Invoke the given callback asynchronously following one or more
+  # changes after {::getStoppedChangingDelay} milliseconds elapse without an
+  # additional change.
+  #
+  # This method can be used to perform potentially expensive operations that
+  # don't need to be performed synchronously. If you need to run your callback
+  # synchronously, use {::onDidChange} instead.
   #
   # * `callback` {Function} to be called when the buffer stops changing.
   #
