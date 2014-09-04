@@ -6,7 +6,7 @@ describe "Marker", ->
   beforeEach ->
     buffer = new TextBuffer(text: "abcdefghijklmnopqrstuvwxyz")
     markerCreations = []
-    buffer.on 'marker-created', (marker) -> markerCreations.push(marker)
+    buffer.onDidCreateMarker (marker) -> markerCreations.push(marker)
 
   describe "creation", ->
     describe "TextBuffer::markRange(range, properties)", ->
@@ -63,7 +63,7 @@ describe "Marker", ->
     beforeEach ->
       marker = buffer.markRange([[0, 6], [0, 9]])
       changes = []
-      marker.on 'changed', (change) -> changes.push(change)
+      marker.onDidChange (change) -> changes.push(change)
 
     describe "::setHeadPosition(position, state)", ->
       it "sets the head position of the marker, flipping its orientation if necessary", ->
@@ -112,7 +112,7 @@ describe "Marker", ->
         expect(marker.hasTail()).toBe false
         expect(marker.getRange()).toEqual [[0, 15], [0, 15]]
 
-      it "does not emit an event and returns false if the position isn't actually changed", ->
+      it "does not notify ::onDidChange observers and returns false if the position isn't actually changed", ->
         expect(marker.setHeadPosition(marker.getHeadPosition())).toBe false
         expect(changes.length).toBe 0
 
@@ -190,7 +190,7 @@ describe "Marker", ->
         expect(marker.hasTail()).toBe true
         expect(marker.getRange()).toEqual [[0, 0], [0, 9]]
 
-      it "does not emit an event and returns false if the position isn't actually changed", ->
+      it "does not notify ::onDidChange observers and returns false if the position isn't actually changed", ->
         expect(marker.setTailPosition(marker.getTailPosition())).toBe false
         expect(changes.length).toBe 0
 
@@ -388,18 +388,19 @@ describe "Marker", ->
       touchMarker = overlapMarker.copy(invalidate: 'touch')
       allStrategies = [neverMarker, surroundMarker, overlapMarker, insideMarker, touchMarker]
 
-    it "defers marker 'changed' events until after the buffer 'changed' event", ->
+    it "defers notifying Marker::onDidChange observers until after notifying Buffer::onDidChange observers", ->
       for marker in allStrategies
         do (marker) ->
           marker.changes = []
-          marker.on 'changed', (change) -> marker.changes.push(change)
+          marker.onDidChange (change) ->
+            marker.changes.push(change)
 
       markersUpdatedCount = 0
-      buffer.on 'markers-updated', -> markersUpdatedCount++
+      buffer.onDidUpdateMarkers -> markersUpdatedCount++
 
       changedCount = 0
       changeSubscription =
-        buffer.on 'changed', (change) ->
+        buffer.onDidChange (change) ->
           changedCount++
           expect(markersUpdatedCount).toBe 0
           for marker in allStrategies
@@ -410,6 +411,7 @@ describe "Marker", ->
       buffer.setTextInRange([[0, 1], [0, 2]], "ABC")
 
       expect(changedCount).toBe 1
+
       for marker in allStrategies
         expect(marker.changes).toEqual [{
           oldHeadPosition: [0, 9], newHeadPosition: [0, 11]
@@ -422,10 +424,10 @@ describe "Marker", ->
       expect(markersUpdatedCount).toBe 1
 
       marker.changes = [] for marker in allStrategies
-      changeSubscription.off()
+      changeSubscription.dispose()
       changedCount = 0
       markersUpdatedCount = 0
-      buffer.on 'changed', (change) ->
+      buffer.onDidChange (change) ->
         changedCount++
         expect(markersUpdatedCount).toBe 0
         for marker in allStrategies
@@ -700,10 +702,10 @@ describe "Marker", ->
         expect(marker2.getRange()).toEqual [[0, 9], [0, 11]]
 
   describe "destruction", ->
-    it "removes the marker from the buffer, marks it destroyed and invalid, and emits a 'destroyed' event", ->
+    it "removes the marker from the buffer, marks it destroyed and invalid, and notifies ::onDidDestroy observers", ->
       marker = buffer.markRange([[0, 3], [0, 6]])
       expect(buffer.getMarker(marker.id)).toBe marker
-      marker.on 'destroyed', destroyedHandler = jasmine.createSpy("destroyedHandler")
+      marker.onDidDestroy destroyedHandler = jasmine.createSpy("destroyedHandler")
 
       marker.destroy()
 

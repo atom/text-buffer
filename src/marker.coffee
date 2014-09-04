@@ -1,5 +1,6 @@
 {extend, isEqual, omit, pick, size} = require 'underscore-plus'
-{Emitter} = require 'emissary'
+EmitterMixin = require('emissary').Emitter
+{Emitter} = require 'event-kit'
 Grim = require 'grim'
 Delegator = require 'delegato'
 Serializable = require 'serializable'
@@ -27,34 +28,9 @@ OptionKeys = ['reversed', 'tailed', 'invalidate', 'persistent']
 # invalidation strategy you choose, certain changes to the buffer can cause a
 # marker to become invalid, for example if the text surrounding the marker is
 # deleted. See {TextBuffer::markRange} for invalidation strategies.
-#
-# ## Events
-#
-# ### changed
-#
-# Essential: Emit when markers change in position for any reason
-#
-# * `event` {Object}
-#   * `oldHeadPosition` {Point} representing the former head position
-#   * `newHeadPosition` {Point} representing the new head position
-#   * `oldTailPosition` {Point} representing the former tail position
-#   * `newTailPosition` {Point} representing the new tail position
-#   * `wasValid` {Boolean} indicating whether the marker was valid before the change
-#   * `isValid` {Boolean} indicating whether the marker is now valid
-#   * `hadTail` {Boolean} indicating whether the marker had a tail before the change
-#   * `hasTail` {Boolean} indicating whether the marker now has a tail
-#   * `oldProperties` {Object} containing the marker's custom properties before the change.
-#   * `newProperties` {Object} containing the marker's custom properties after the change.
-#   * `textChanged` {Boolean} indicating whether this change was caused by a textual change
-#     to the buffer or whether the marker was manipulated directly via its public API.
-#
-# ### destroyed
-#
-# Essential: Emit when a marker has been destroyed
-#
 module.exports =
 class Marker
-  Emitter.includeInto(this)
+  EmitterMixin.includeInto(this)
   Delegator.includeInto(this)
   Serializable.includeInto(this)
 
@@ -91,9 +67,12 @@ class Marker
   @delegatesMethods 'containsPoint', 'containsRange', 'intersectsRow', toProperty: 'range'
   @delegatesMethods 'clipPosition', 'clipRange', toProperty: 'manager'
 
+  deferredChangeEvents: null
+
   constructor: (params) ->
     {@manager, @id, @range, @tailed, @reversed} = params
     {@valid, @invalidate, @persistent, @properties} = params
+    @emitter = new Emitter
     @tailed ?= true
     @reversed ?= false
     @valid ?= true
@@ -113,6 +92,46 @@ class Marker
   deserializeParams: (state) ->
     state.range = Range.deserialize(state.range)
     state
+
+  # Public: Invoke the given callback when the marker is destroyed.
+  #
+  # * `callback` {Function} to be called when the marker is destroyed.
+  #
+  # Returns a {Disposable} on which `.dispose()` can be called to unsubscribe.
+  onDidDestroy: (callback) ->
+    @emitter.on 'did-destroy', callback
+
+  # Public: Invoke the given callback when the state of the marker changes.
+  #
+  # * `callback` {Function} to be called when the marker changes.
+  #   * `event` {Object} with the following keys:
+  #     * `oldHeadPosition` {Point} representing the former head position
+  #     * `newHeadPosition` {Point} representing the new head position
+  #     * `oldTailPosition` {Point} representing the former tail position
+  #     * `newTailPosition` {Point} representing the new tail position
+  #     * `wasValid` {Boolean} indicating whether the marker was valid before the change
+  #     * `isValid` {Boolean} indicating whether the marker is now valid
+  #     * `hadTail` {Boolean} indicating whether the marker had a tail before the change
+  #     * `hasTail` {Boolean} indicating whether the marker now has a tail
+  #     * `oldProperties` {Object} containing the marker's custom properties before the change.
+  #     * `newProperties` {Object} containing the marker's custom properties after the change.
+  #     * `textChanged` {Boolean} indicating whether this change was caused by a textual change
+  #       to the buffer or whether the marker was manipulated directly via its public API.
+  #
+  # Returns a {Disposable} on which `.dispose()` can be called to unsubscribe.
+  onDidChange: (callback) ->
+    @emitter.on 'did-change', callback
+
+  on: (eventName) ->
+    switch eventName
+      when 'changed'
+        Grim.deprecate("Use Marker::onDidChange instead")
+      when 'destroyed'
+        Grim.deprecate("Use Marker::onDidDestroy instead")
+      else
+        Grim.deprecate("Marker::on is deprecated. Use event subscription methods instead.")
+
+    EmitterMixin::on.apply(this, arguments)
 
   # Public: Returns the current {Range} of the marker. The range is immutable.
   getRange: ->
@@ -313,6 +332,7 @@ class Marker
     @manager.removeMarker(@id)
     @manager.intervals.remove(@id)
     @emit 'destroyed'
+    @emitter.emit 'did-destroy'
 
   extractParams: (params) ->
     params = @constructor.extractParams(params)
@@ -471,13 +491,29 @@ class Marker
     hasTail = @hasTail()
     newProperties = @getProperties()
 
-    @emit 'changed', {
+    event = {
       oldHeadPosition, newHeadPosition, oldTailPosition, newTailPosition
       wasValid, isValid, hadTail, hasTail, oldProperties, newProperties, textChanged
     }
+    if @deferredChangeEvents?
+      @deferredChangeEvents.push(event)
+    else
+      @emit 'changed', event
+      @emitter.emit 'did-change', event
     true
 
   # Updates the interval index on the marker manager with the marker's current
   # range.
   updateIntervals: ->
     @manager.intervals.update(@id, @range.start, @range.end)
+
+  pauseChangeEvents: ->
+    @deferredChangeEvents = []
+
+  resumeChangeEvents: ->
+    deferredChangeEvents = @deferredChangeEvents
+    @deferredChangeEvents = null
+
+    for event in deferredChangeEvents
+      @emit 'changed', event
+      @emitter.emit 'did-change', event

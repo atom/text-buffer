@@ -92,9 +92,9 @@ describe "TextBuffer", ->
       buffer.setTextInRange([[0, 2], [1, 3]], "y\nyou're o", false)
       expect(buffer.getText()).toEqual "hey\nyou're old\r\nhow are you doing?"
 
-    it "emits a 'changed' event with the relevant details after a change", ->
+    it "notifies ::onDidChange observers with the relevant details after a change", ->
       changes = []
-      buffer.on 'changed', (change) -> changes.push(change)
+      buffer.onDidChange (change) -> changes.push(change)
       buffer.setTextInRange([[0, 2], [2, 3]], "y there\r\ncat\nwhat", false)
       expect(changes).toEqual [{
         oldRange: [[0, 2], [2, 3]]
@@ -608,7 +608,7 @@ describe "TextBuffer", ->
         expect(buffer.rangeForRow(1, true)).toEqual([[1, 0], [2, 0]])
         expect(buffer.rangeForRow(2, true)).toEqual([[2, 0], [2, 7]])
 
-  describe "path-changed event", ->
+  describe "::onDidChangePath()", ->
     [filePath, newPath, bufferToChange, eventHandler] = []
 
     beforeEach ->
@@ -617,7 +617,7 @@ describe "TextBuffer", ->
       writeFileSync(filePath, "")
       bufferToChange = new TextBuffer({filePath, load: true})
       eventHandler = jasmine.createSpy('eventHandler')
-      bufferToChange.on 'path-changed', eventHandler
+      bufferToChange.onDidChangePath eventHandler
 
       waitsFor ->
         bufferToChange.loaded
@@ -627,11 +627,11 @@ describe "TextBuffer", ->
       removeSync(filePath)
       removeSync(newPath)
 
-    it "triggers a `path-changed` event when path is changed", ->
+    it "notifies observers when the buffer is saved to a new path", ->
       bufferToChange.saveAs(newPath)
-      expect(eventHandler).toHaveBeenCalledWith(bufferToChange)
+      expect(eventHandler).toHaveBeenCalledWith(newPath)
 
-    it "triggers a `path-changed` event when the file is moved", ->
+    it "notifies observers when the buffer's file is moved", ->
       removeSync(newPath)
       moveSync(filePath, newPath)
 
@@ -639,7 +639,7 @@ describe "TextBuffer", ->
         eventHandler.callCount > 0
 
       runs ->
-        expect(eventHandler).toHaveBeenCalledWith(bufferToChange)
+        expect(eventHandler).toHaveBeenCalledWith(newPath)
 
   describe "when the buffer's on-disk contents change", ->
     filePath = null
@@ -655,20 +655,20 @@ describe "TextBuffer", ->
     afterEach ->
       buffer.destroy()
 
-    it "does not trigger a change event when Atom modifies the file", ->
+    it "does not notify ::onDidChange observers when the file is written via TextBuffer::save", ->
       buffer.insert([0,0], "HELLO!")
       changeHandler = jasmine.createSpy("buffer changed")
-      buffer.on "changed", changeHandler
+      buffer.onDidChange changeHandler
       buffer.save()
 
       waits 30
       runs ->
         expect(changeHandler).not.toHaveBeenCalled()
 
-    describe "when the buffer is in an unmodified state before the on-disk change", ->
-      it "changes the memory contents of the buffer to match the new disk contents and triggers a 'changed' event", ->
+    describe "when the buffer is in an unmodified state before the file is modified on disk", ->
+      it "changes the in-memory contents of the buffer to match the new disk contents and notifies ::onDidChange observers", ->
         changeHandler = jasmine.createSpy('changeHandler')
-        buffer.on 'changed', changeHandler
+        buffer.onDidChange changeHandler
         writeFileSync(filePath, "second")
 
         expect(changeHandler.callCount).toBe 0
@@ -705,14 +705,14 @@ describe "TextBuffer", ->
         runs ->
           expect(buffer.isModified()).toBeTruthy()
 
-      it "fires a single contents-conflicted event", ->
+      it "notifies ::onDidConflict observers", ->
         buffer.setText("a change")
         buffer.save()
         buffer.insert([0, 0], "a second change")
 
         handler = jasmine.createSpy('fileChange')
         writeFileSync(filePath, "a disk change")
-        buffer.on 'contents-conflicted', handler
+        buffer.onDidConflict handler
 
         expect(handler.callCount).toBe 0
         waitsFor ->
@@ -774,7 +774,7 @@ describe "TextBuffer", ->
       writeFileSync(filePath, 'moo')
 
       changeHandler = jasmine.createSpy('changeHandler')
-      bufferToDelete.on 'changed', changeHandler
+      bufferToDelete.onDidChange changeHandler
       waitsFor 'change event', ->
         changeHandler.callCount > 0
 
@@ -794,7 +794,7 @@ describe "TextBuffer", ->
 
     it "reports the modified status changing to true or false after the user changes buffer", ->
       modifiedHandler = jasmine.createSpy("modifiedHandler")
-      buffer.on 'modified-status-changed', modifiedHandler
+      buffer.onDidChangeModified modifiedHandler
 
       expect(buffer.isModified()).toBeFalsy()
       buffer.insert([0,0], "hi")
@@ -826,7 +826,7 @@ describe "TextBuffer", ->
 
     it "reports the modified status changing to false after a modified buffer is saved", ->
       modifiedHandler = jasmine.createSpy("modifiedHandler")
-      buffer.on 'modified-status-changed', modifiedHandler
+      buffer.onDidChangeModified modifiedHandler
       buffer.insert([0,0], "hi")
 
       waitsFor ->
@@ -853,7 +853,7 @@ describe "TextBuffer", ->
 
     it "reports the modified status changing to false after a modified buffer is reloaded", ->
       modifiedHandler = jasmine.createSpy("modifiedHandler")
-      buffer.on 'modified-status-changed', modifiedHandler
+      buffer.onDidChangeModified modifiedHandler
       buffer.insert([0,0], "hi")
 
       waitsFor ->
@@ -890,7 +890,7 @@ describe "TextBuffer", ->
         buffer.loaded
 
       runs ->
-        buffer.on 'modified-status-changed', modifiedHandler
+        buffer.onDidChangeModified modifiedHandler
         buffer.insert([0,0], "hi")
 
       waitsFor ->
@@ -976,7 +976,7 @@ describe "TextBuffer", ->
 
       runs ->
         changeHandler = jasmine.createSpy('changeHandler')
-        buffer.on 'changed', changeHandler
+        buffer.onDidChange changeHandler
 
     describe "when used to insert (called with an empty range and a non-empty string)", ->
       describe "when the given string has no newlines", ->
@@ -1075,8 +1075,8 @@ describe "TextBuffer", ->
         expect(event.oldText).toBe oldText
         expect(event.newText).toBe "foo\nbar"
 
-    it "allows a 'changed' event handler to safely undo the change", ->
-      buffer.once 'changed', -> buffer.undo()
+    it "allows a change to be undone safely from an ::onDidChange callback", ->
+      buffer.onDidChange -> buffer.undo()
       buffer.setTextInRange([0, 0], "hello")
       expect(buffer.lineForRow(0)).toBe "var quicksort = function () {"
 
@@ -1093,7 +1093,7 @@ describe "TextBuffer", ->
         lastRow = buffer.getLastRow()
         expectedPreRange = [[0,0], [lastRow, buffer.lineForRow(lastRow).length]]
         changeHandler = jasmine.createSpy('changeHandler')
-        buffer.on 'changed', changeHandler
+        buffer.onDidChange changeHandler
 
         newText = "I know you are.\rBut what am I?"
         buffer.setText(newText)
@@ -1112,7 +1112,7 @@ describe "TextBuffer", ->
         lastRow = buffer.getLastRow()
         expectedPreRange = [[0,0], [lastRow, buffer.lineForRow(lastRow).length]]
         changeHandler = jasmine.createSpy('changeHandler')
-        buffer.on 'changed', changeHandler
+        buffer.onDidChange changeHandler
 
         newText = "new first\r\nnew last"
         buffer.setText(newText)
@@ -1131,7 +1131,7 @@ describe "TextBuffer", ->
         lastRow = buffer.getLastRow()
         expectedPreRange = [[0,0], [lastRow, buffer.lineForRow(lastRow).length]]
         changeHandler = jasmine.createSpy('changeHandler')
-        buffer.on 'changed', changeHandler
+        buffer.onDidChange changeHandler
 
         newText = "new first\rnew last"
         buffer.setText(newText)
@@ -1245,29 +1245,36 @@ describe "TextBuffer", ->
         saveBuffer.save()
         expect(readFileSync(filePath, 'utf8')).toEqual 'Buffer contents!'
 
-      it "fires will-be-saved and saved events around the call to File::write", ->
+      it "notifies ::onWillSave and ::onDidSave observers around the call to File::write", ->
         events = []
-        beforeSave1 = -> events.push('beforeSave1')
-        beforeSave2 = -> events.push('beforeSave2')
-        afterSave1 = -> events.push('afterSave1')
-        afterSave2 = -> events.push('afterSave2')
+        willSave1 = (event) -> events.push(['will-save-1', event])
+        willSave2 = (event) -> events.push(['will-save-2', event])
+        didSave1 = (event) -> events.push(['did-save-1', event])
+        didSave2 = (event) -> events.push(['did-save-2', event])
 
-        saveBuffer.on 'will-be-saved', beforeSave1
-        saveBuffer.on 'will-be-saved', beforeSave2
+        saveBuffer.onWillSave willSave1
+        saveBuffer.onWillSave willSave2
         spyOn(File.prototype, 'write').andCallFake -> events.push 'File::write'
-        saveBuffer.on 'saved', afterSave1
-        saveBuffer.on 'saved', afterSave2
+        saveBuffer.onDidSave didSave1
+        saveBuffer.onDidSave didSave2
 
         saveBuffer.save()
-        expect(events).toEqual ['beforeSave1', 'beforeSave2', 'File::write', 'afterSave1', 'afterSave2']
+        path = saveBuffer.getPath()
+        expect(events).toEqual [
+          ['will-save-1', {path}]
+          ['will-save-2', {path}]
+          'File::write'
+          ['did-save-1', {path}]
+          ['did-save-2', {path}]
+        ]
 
-      it "fires will-reload and reloaded events when reloaded", ->
+      it "notifies ::onWillReload and ::onDidReload observers when reloaded", ->
         events = []
 
-        saveBuffer.on 'will-reload', -> events.push 'will-reload'
-        saveBuffer.on 'reloaded', -> events.push 'reloaded'
+        saveBuffer.onWillReload -> events.push 'will-reload'
+        saveBuffer.onDidReload -> events.push 'did-reload'
         saveBuffer.reload()
-        expect(events).toEqual ['will-reload', 'reloaded']
+        expect(events).toEqual ['will-reload', 'did-reload']
 
       it "no longer reports being in conflict", ->
         saveBuffer.setText('a')
@@ -1276,7 +1283,7 @@ describe "TextBuffer", ->
 
         writeFileSync(saveBuffer.getPath(), 'c')
         conflictHandler = jasmine.createSpy('conflictHandler')
-        saveBuffer.on 'contents-conflicted', conflictHandler
+        saveBuffer.onDidConflict conflictHandler
 
         waitsFor ->
           conflictHandler.callCount > 0
@@ -1327,13 +1334,13 @@ describe "TextBuffer", ->
 
       saveAsBuffer = new TextBuffer()
       eventHandler = jasmine.createSpy('eventHandler')
-      saveAsBuffer.on 'path-changed', eventHandler
+      saveAsBuffer.onDidChangePath eventHandler
 
       saveAsBuffer.setText 'Buffer contents!'
       saveAsBuffer.saveAs(filePath)
       expect(readFileSync(filePath, 'utf8')).toEqual 'Buffer contents!'
 
-      expect(eventHandler).toHaveBeenCalledWith(saveAsBuffer)
+      expect(eventHandler).toHaveBeenCalledWith(filePath)
 
     it "stops listening to events on previous path and begins listening to events on new path", ->
       changeHandler = null
@@ -1348,7 +1355,7 @@ describe "TextBuffer", ->
 
       runs ->
         changeHandler = jasmine.createSpy('changeHandler')
-        saveAsBuffer.on 'changed', changeHandler
+        saveAsBuffer.onDidChange changeHandler
         saveAsBuffer.saveAs(newPath)
         expect(changeHandler).not.toHaveBeenCalled()
 
@@ -1715,7 +1722,7 @@ describe "TextBuffer", ->
       buffer.setText('\n')
       expect(buffer.isEmpty()).toBeFalsy()
 
-  describe "'contents-modified' event", ->
+  describe "::onDidStopChanging(callback)", ->
     beforeEach ->
       filePath = require.resolve('./fixtures/sample.js')
       buffer = new TextBuffer({filePath, load: true})
@@ -1723,38 +1730,38 @@ describe "TextBuffer", ->
       waitsFor ->
         buffer.loaded
 
-    it "triggers the 'contents-modified' event with the current modified status when the buffer changes, rate-limiting events with a delay", ->
+    it "notifies observers after a delay passes following changes", ->
       delay = buffer.stoppedChangingDelay
-      contentsModifiedHandler = jasmine.createSpy("contentsModifiedHandler")
-      buffer.on 'contents-modified', contentsModifiedHandler
+      didStopChangingCallback = jasmine.createSpy("didStopChangingCallback")
+      buffer.onDidStopChanging didStopChangingCallback
 
       buffer.insert([0, 0], 'a')
-      expect(contentsModifiedHandler).not.toHaveBeenCalled()
+      expect(didStopChangingCallback).not.toHaveBeenCalled()
 
       waits delay / 2
 
       runs ->
         buffer.insert([0, 0], 'b')
-        expect(contentsModifiedHandler).not.toHaveBeenCalled()
+        expect(didStopChangingCallback).not.toHaveBeenCalled()
 
       waits delay / 2
 
       runs ->
-        expect(contentsModifiedHandler).not.toHaveBeenCalled()
+        expect(didStopChangingCallback).not.toHaveBeenCalled()
 
       waits delay / 2
 
       runs ->
-        expect(contentsModifiedHandler).toHaveBeenCalledWith(true)
+        expect(didStopChangingCallback).toHaveBeenCalled()
 
-        contentsModifiedHandler.reset()
+        didStopChangingCallback.reset()
         buffer.undo()
         buffer.undo()
 
       waits delay
 
       runs ->
-        expect(contentsModifiedHandler).toHaveBeenCalledWith(false)
+        expect(didStopChangingCallback).toHaveBeenCalled()
 
   describe "::append(text)", ->
     beforeEach ->

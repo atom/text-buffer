@@ -2,7 +2,9 @@ _ = require 'underscore-plus'
 Delegator = require 'delegato'
 Grim = require 'grim'
 Serializable = require 'serializable'
-{Emitter, Subscriber} = require 'emissary'
+{Subscriber} = require 'emissary'
+EmitterMixin = require('emissary').Emitter
+{Emitter} = require 'event-kit'
 {File} = require 'pathwatcher'
 SpanSkipList = require 'span-skip-list'
 diff = require 'diff'
@@ -16,70 +18,6 @@ BufferPatch = require './buffer-patch'
 
 # Extended: A mutable text container with undo/redo support and the ability to
 # annotate logical regions in the text.
-#
-# ## Events
-#
-# ### contents-modified
-#
-# Public: Emitted asynchronously 300ms (or `TextBuffer::stoppedChangingDelay`)
-# after the last buffer change. This is a good place to handle changes to
-# the buffer without compromising typing performance.
-#
-# ### contents-conflicted
-#
-# Public: Emitted when the buffer's underlying file changes on disk at a moment
-# when the result of {::isModified} is true.
-#
-# ### will-reload
-#
-# Public: Emitted before the in-memory contents of the buffer are refreshed from
-# the contents of the file on disk.
-#
-# ### reloaded
-#
-# Public: Emitted after the in-memory contents of the buffer are refreshed from
-# the contents of the file on disk.
-#
-# ### will-be-saved
-#
-# Public: Emitted before the buffer is saved to disk.
-#
-# ### saved
-#
-# Public: Emitted after the buffer is saved to disk.
-#
-# ### changed
-#
-# Public: Emitted synchronously whenever the buffer changes. Binding a slow handler
-# to this event has the potential to destroy typing performance. Consider
-# using {:contents-modified} instead and aim for extremely fast performance
-# (< 2 ms) if you must bind to it. Your handler will be called with an
-# object containing the following keys.
-#
-# * `event` {Object}
-#   * `oldRange` The {Range} of the old text
-#   * `newRange` The {Range} of the new text
-#   * `oldText` A {String} containing the text that was replaced
-#   * `newText` A {String} containing the text that was inserted
-#
-# ### markers-updated
-#
-# Public: Emitted synchronously when the `changed` events of all markers have been
-# fired for a change. The order of events is as follows:
-#
-# * The text of the buffer is changed
-# * All markers are updated accordingly, but their `changed` events are not emited
-# * The `changed` event is emitted
-# * The `changed` events of all updated markers are emitted
-# * The `markers-updated` event is emitted.
-#
-# ### modified-status-changed
-#
-# Public: Emitted with a {Boolean} when the result of {::isModified} changes.
-#
-# ### destroyed
-#
-# Public: Emitted when the buffer is destroyed.
 module.exports =
 class TextBuffer
   @Point: Point
@@ -87,7 +25,7 @@ class TextBuffer
   @newlineRegex: newlineRegex
 
   Delegator.includeInto(this)
-  Emitter.includeInto(this)
+  EmitterMixin.includeInto(this)
   Serializable.includeInto(this)
   Subscriber.includeInto(this)
 
@@ -108,6 +46,7 @@ class TextBuffer
   constructor: (params) ->
     text = params if typeof params is 'string'
 
+    @emitter = new Emitter
     @lines = ['']
     @lineEndings = ['']
     @offsetIndex = new SpanSkipList('rows', 'characters')
@@ -119,7 +58,6 @@ class TextBuffer
     @digestWhenLastPersisted = params?.digestWhenLastPersisted ? false
     @modifiedWhenLastPersisted = params?.modifiedWhenLastPersisted ? false
     @useSerializedText = @modifiedWhenLastPersisted isnt false
-    @subscribe this, 'changed', @handleTextChange
 
     @setPath(params.filePath) if params?.filePath
     @load() if params?.load
@@ -140,6 +78,170 @@ class TextBuffer
     modifiedWhenLastPersisted: @isModified()
     digestWhenLastPersisted: @file?.getDigest()
 
+  # Public: Invoke the given callback synchronously when the content of the
+  # buffer changes.
+  #
+  # Because observers are invoked synchronously, it's important not to perform
+  # any expensive operations via this method. Consider {::onDidStopChanging} to
+  # delay expensive operations until after changes stop occurring.
+  #
+  # * `callback` {Function} to be called when the buffer changes.
+  #   * `event` {Object} with the following keys:
+  #     * `oldRange` {Range} of the old texte
+  #     * `newRange` {Range} of the new text.
+  #     * `oldText` {String} containing the text that was replaced.
+  #     * `newText` {String} containing the text that was inserted.
+  #
+  # Returns a {Disposable} on which `.dispose()` can be called to unsubscribe.
+  onDidChange: (callback) ->
+    @emitter.on 'did-change', callback
+
+  # Public: Invoke the given callback asynchronously following one or more
+  # changes after {::getStoppedChangingDelay} milliseconds elapse without an
+  # additional change.
+  #
+  # This method can be used to perform potentially expensive operations that
+  # don't need to be performed synchronously. If you need to run your callback
+  # synchronously, use {::onDidChange} instead.
+  #
+  # * `callback` {Function} to be called when the buffer stops changing.
+  #
+  # Returns a {Disposable} on which `.dispose()` can be called to unsubscribe.
+  onDidStopChanging: (callback) ->
+    @emitter.on 'did-stop-changing', callback
+
+  # Public: Invoke the given callback when the in-memory contents of the
+  # buffer become in conflict with the contents of the file on disk.
+  #
+  # * `callback` {Function} to be called when the buffer enters conflict.
+  #
+  # Returns a {Disposable} on which `.dispose()` can be called to unsubscribe.
+  onDidConflict: (callback) ->
+    @emitter.on 'did-conflict', callback
+
+  # Public: Invoke the given callback the value of {::isModified} changes.
+  #
+  # * `callback` {Function} to be called when {::isModified} changes.
+  #   * `modified` {Boolean} indicating whether the buffer is modified.
+  #
+  # Returns a {Disposable} on which `.dispose()` can be called to unsubscribe.
+  onDidChangeModified: (callback) ->
+    @emitter.on 'did-change-modified', callback
+
+  # Public: Invoke the given callback when all marker `::onDidChange`
+  # observers have been notified following a change to the buffer.
+  #
+  # The order of events following a buffer change is as follows:
+  #
+  # * The text of the buffer is changed
+  # * All markers are updated accordingly, but their `::onDidChange` observers
+  #   are not notified.
+  # * `TextBuffer::onDidChange` observers are notified.
+  # * `Marker::onDidChange` observers are notified.
+  # * `TextBuffer::onDidUpdateMarkers` observers are notified.
+  #
+  # Basically, this method gives you a way to take action after both a buffer
+  # change and all associated marker changes.
+  #
+  # * `callback` {Function} to be called after markers are updated.
+  #
+  # Returns a {Disposable} on which `.dispose()` can be called to unsubscribe.
+  onDidUpdateMarkers: (callback) ->
+    @emitter.on 'did-update-markers', callback
+
+  # Public: Invoke the given callback when a marker is created.
+  #
+  # * `callback` {Function} to be called when a marker is created.
+  #   * `marker` {Marker} that was created.
+  #
+  # Returns a {Disposable} on which `.dispose()` can be called to unsubscribe.
+  onDidCreateMarker: (callback) ->
+    @emitter.on 'did-create-marker', callback
+
+  # Public: Invoke the given callback when the value of {::getPath} changes.
+  #
+  # * `callback` {Function} to be called when the path changes.
+  #   * `path` {String} representing the buffer's current path on disk.
+  #
+  # Returns a {Disposable} on which `.dispose()` can be called to unsubscribe.
+  onDidChangePath: (callback) ->
+    @emitter.on 'did-change-path', callback
+
+  # Public: Invoke the given callback before the buffer is saved to disk.
+  #
+  # * `callback` {Function} to be called before the buffer is saved.
+  #
+  # Returns a {Disposable} on which `.dispose()` can be called to unsubscribe.
+  onWillSave: (callback) ->
+    @emitter.on 'will-save', callback
+
+  # Public: Invoke the given callback after the buffer is saved to disk.
+  #
+  # * `callback` {Function} to be called after the buffer is saved.
+  #   * `event` {Object} with the following keys:
+  #     * `path` The path to which the buffer was saved.
+  #
+  # Returns a {Disposable} on which `.dispose()` can be called to unsubscribe.
+  onDidSave: (callback) ->
+    @emitter.on 'did-save', callback
+
+  # Public: Invoke the given callback before the buffer is reloaded from the
+  # contents of its file on disk.
+  #
+  # * `callback` {Function} to be called before the buffer is reloaded.
+  #
+  # Returns a {Disposable} on which `.dispose()` can be called to unsubscribe.
+  onWillReload: (callback) ->
+    @emitter.on 'will-reload', callback
+
+  # Public: Invoke the given callback after the buffer is reloaded from the
+  # contents of its file on disk.
+  #
+  # * `callback` {Function} to be called after the buffer is reloaded.
+  #
+  # Returns a {Disposable} on which `.dispose()` can be called to unsubscribe.
+  onDidReload: (callback) ->
+    @emitter.on 'did-reload', callback
+
+  # Public: Invoke the given callback when the buffer is destroyed.
+  #
+  # * `callback` {Function} to be called when the buffer is destroyed.
+  #
+  # Returns a {Disposable} on which `.dispose()` can be called to unsubscribe.
+  onDidDestroy: (callback) ->
+    @emitter.on 'did-destroy', callback
+
+  on: (eventName) ->
+    switch eventName
+      when 'changed'
+        Grim.deprecate("Use TextBuffer::onDidChange instead")
+      when 'contents-modified'
+        Grim.deprecate("Use TextBuffer::onDidStopChanging instead. If you need the modified status, call TextBuffer::isModified yourself in your callback.")
+      when 'contents-conflicted'
+        Grim.deprecate("Use TextBuffer::onDidConflict instead")
+      when 'modified-status-changed'
+        Grim.deprecate("Use TextBuffer::onDidChangeModified instead")
+      when 'markers-updated'
+        Grim.deprecate("Use TextBuffer::onDidUpdateMarkers instead")
+      when 'marker-created'
+        Grim.deprecate("Use TextBuffer::onDidCreateMarker instead")
+      when 'path-changed'
+        Grim.deprecate("Use TextBuffer::onDidChangePath instead. The path is now provided as a callback argument rather than a TextBuffer instance.")
+      when 'will-be-saved'
+        Grim.deprecate("Use TextBuffer::onWillSave instead. A TextBuffer instance is no longer provided as a callback argument.")
+      when 'saved'
+        Grim.deprecate("Use TextBuffer::onDidSave instead. A TextBuffer instance is no longer provided as a callback argument.")
+      when 'will-reload'
+        Grim.deprecate("Use TextBuffer::onWillReload instead.")
+      when 'reloaded'
+        Grim.deprecate("Use TextBuffer::onDidReload instead.")
+      when 'destroyed'
+        Grim.deprecate("Use TextBuffer::onDidDestroy instead")
+      else
+        Grim.deprecate("TextBuffer::on is deprecated. Use event subscription methods instead.")
+
+    EmitterMixin::on.apply(this, arguments)
+
   # Public: Get the entire text of the buffer.
   #
   # Returns a {String}.
@@ -157,6 +259,12 @@ class TextBuffer
   # Returns an {Array} of {String}s.
   getLines: ->
     @lines.slice()
+
+  # Public: Get the number of milliseconds that will elapse without a change
+  # before {::onDidStopChanging} observers are invoked following a change.
+  #
+  # Returns a {Number}.
+  getStoppedChangingDelay: -> @stoppedChangingDelay
 
   # Public: Determine whether the buffer is empty.
   #
@@ -410,9 +518,16 @@ class TextBuffer
 
     @markers?.pauseChangeEvents()
     @markers?.applyPatches(markerPatches, true)
-    @emit 'changed', {oldRange, newRange, oldText, newText}
+
+    changeEvent = {oldRange, newRange, oldText, newText}
+
+    @conflict = false if @conflict and !@isModified()
+    @scheduleModifiedEvents()
+    @emit 'changed', changeEvent
+    @emitter.emit 'did-change', changeEvent
     @markers?.resumeChangeEvents()
     @emit 'markers-updated'
+    @emitter.emit 'did-update-markers'
 
   # Public: Get the text in a range.
   #
@@ -578,10 +693,6 @@ class TextBuffer
       @clearUndoStack()
     this
 
-  handleTextChange: (event) =>
-    @conflict = false if @conflict and !@isModified()
-    @scheduleModifiedEvents()
-
   destroy: ->
     unless @destroyed
       @cancelStoppedChangingTimeout()
@@ -589,6 +700,7 @@ class TextBuffer
       @unsubscribe()
       @destroyed = true
       @emit 'destroyed'
+      @emitter.emit 'did-destroy'
 
   isAlive: -> not @destroyed
 
@@ -618,6 +730,7 @@ class TextBuffer
 
       if @conflict
         @emit "contents-conflicted"
+        @emitter.emit 'did-conflict'
       else
         @reload()
 
@@ -631,6 +744,7 @@ class TextBuffer
 
     @file.on "moved", =>
       @emit "path-changed", this
+      @emitter.emit 'did-change-path', @getPath()
 
   # Identifies if the buffer belongs to multiple editors.
   #
@@ -644,9 +758,11 @@ class TextBuffer
   # Sets the buffer's content to the cached disk contents
   reload: ->
     @emit 'will-reload'
+    @emitter.emit 'will-reload'
     @setTextViaDiff(@cachedDiskContents)
     @emitModifiedStatusChanged(false)
     @emit 'reloaded'
+    @emitter.emit 'did-reload'
 
   # Rereads the contents of the file, and stores them in the cache.
   updateCachedDiskContentsSync: ->
@@ -693,6 +809,7 @@ class TextBuffer
       @file = null
 
     @emit "path-changed", this
+    @emitter.emit 'did-change-path', @getPath()
 
   # Deprecated: Use {::getEndPosition} instead
   getEofPosition: ->
@@ -710,12 +827,14 @@ class TextBuffer
     unless filePath then throw new Error("Can't save buffer with no file path")
 
     @emit 'will-be-saved', this
+    @emitter.emit 'will-save', {path: filePath}
     @setPath(filePath)
     @file.write(@getText())
     @cachedDiskContents = @getText()
     @conflict = false
     @emitModifiedStatusChanged(false)
     @emit 'saved', this
+    @emitter.emit 'did-save', {path: filePath}
 
   # Public: Determine if the in-memory contents of the buffer differ from its
   # contents on disk.
@@ -948,6 +1067,7 @@ class TextBuffer
       @stoppedChangingTimeout = null
       modifiedStatus = @isModified()
       @emit 'contents-modified', modifiedStatus
+      @emitter.emit 'did-stop-changing'
       @emitModifiedStatusChanged(modifiedStatus)
     @stoppedChangingTimeout = setTimeout(stoppedChangingCallback, @stoppedChangingDelay)
 
@@ -955,6 +1075,7 @@ class TextBuffer
     return if modifiedStatus is @previousModifiedStatus
     @previousModifiedStatus = modifiedStatus
     @emit 'modified-status-changed', modifiedStatus
+    @emitter.emit 'did-change-modified', modifiedStatus
 
   logLines: (start=0, end=@getLastRow())->
     for row in [start..end]
@@ -1071,3 +1192,7 @@ class TextBuffer
   #
   # Returns a {Number}.
   getMarkerCount: -> @markers.getMarkerCount()
+
+  markerCreated: (marker) ->
+    @emit 'marker-created', marker
+    @emitter.emit 'did-create-marker', marker

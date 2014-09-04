@@ -116,7 +116,7 @@ class MarkerManager
     params.id = @nextMarkerId++
     marker = new Marker(params)
     @markers[marker.id] = marker
-    @buffer.emit 'marker-created', marker
+    @buffer.markerCreated(marker)
     marker
 
   removeMarker: (id) ->
@@ -134,7 +134,7 @@ class MarkerManager
       @getMarker(id)?.applyPatch(patch, textChanged)
 
   pauseChangeEvents: ->
-    marker.pauseEvents('changed') for marker in @getMarkers()
+    marker.pauseChangeEvents() for marker in @getMarkers()
 
   resumeChangeEvents: ->
-    marker.resumeEvents('changed') for marker in @getMarkers()
+    marker.resumeChangeEvents() for marker in @getMarkers()
