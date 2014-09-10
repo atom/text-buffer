@@ -511,9 +511,9 @@ class Marker
     @deferredChangeEvents = []
 
   resumeChangeEvents: ->
-    deferredChangeEvents = @deferredChangeEvents
-    @deferredChangeEvents = null
+    if deferredChangeEvents = @deferredChangeEvents
+      @deferredChangeEvents = null
 
-    for event in deferredChangeEvents
-      @emit 'changed', event
-      @emitter.emit 'did-change', event
+      for event in deferredChangeEvents
+        @emit 'changed', event
+        @emitter.emit 'did-change', event
