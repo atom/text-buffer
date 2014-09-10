@@ -4,7 +4,7 @@
   "description": "A container for large mutable strings with annotated regions",
   "main": "./lib/text-buffer",
   "scripts": {
-    "prepublish": "grunt clean lint coffee atomdoc",
+    "prepublish": "node ./script/prepublish.js",
     "test": "grunt test"
   },
   "repository": {
