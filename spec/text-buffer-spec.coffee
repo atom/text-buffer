@@ -693,13 +693,13 @@ describe "TextBuffer", ->
     describe "when the buffer's memory contents differ from the *previous* disk contents", ->
       it "leaves the buffer in a modified state (does not update its memory contents)", ->
         fileChangeHandler = jasmine.createSpy('fileChange')
-        buffer.file.on 'contents-changed', fileChangeHandler
+        buffer.file.onDidChange fileChangeHandler
 
         buffer.insert([0, 0], "a change")
         writeFileSync(filePath, "second")
 
         expect(fileChangeHandler.callCount).toBe 0
-        waitsFor "file to trigger 'contents-changed' event", ->
+        waitsFor "file to notify ::onDidChange observer", ->
           fileChangeHandler.callCount > 0
 
         runs ->
@@ -742,11 +742,11 @@ describe "TextBuffer", ->
         bufferToDelete.setText("I WAS MODIFIED")
         expect(bufferToDelete.isModified()).toBeTruthy()
 
-        removeHandler = jasmine.createSpy('removeHandler')
-        bufferToDelete.file.on 'removed', removeHandler
+        deleteHandler = jasmine.createSpy('deleteHandler')
+        bufferToDelete.file.onDidDelete deleteHandler
         removeSync(filePath)
-        waitsFor "file to be removed", ->
-          removeHandler.callCount > 0
+        waitsFor "file to be deleted", ->
+          deleteHandler.callCount > 0
 
       it "retains its path and reports the buffer as modified", ->
         expect(bufferToDelete.getPath()).toBe filePath
@@ -756,11 +756,11 @@ describe "TextBuffer", ->
       beforeEach ->
         expect(bufferToDelete.isModified()).toBeFalsy()
 
-        removeHandler = jasmine.createSpy('removeHandler')
-        bufferToDelete.file.on 'removed', removeHandler
+        deleteHandler = jasmine.createSpy('deleteHandler')
+        bufferToDelete.file.onDidDelete deleteHandler
         removeSync(filePath)
-        waitsFor "file to be removed", ->
-          removeHandler.callCount > 0
+        waitsFor "file to be deleted", ->
+          deleteHandler.callCount > 0
 
       it "retains its path and reports the buffer as not modified", ->
         expect(bufferToDelete.getPath()).toBe filePath

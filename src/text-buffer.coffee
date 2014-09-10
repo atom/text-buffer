@@ -4,7 +4,7 @@ Grim = require 'grim'
 Serializable = require 'serializable'
 {Subscriber} = require 'emissary'
 EmitterMixin = require('emissary').Emitter
-{Emitter} = require 'event-kit'
+{Emitter, CompositeDisposable} = require 'event-kit'
 {File} = require 'pathwatcher'
 SpanSkipList = require 'span-skip-list'
 diff = require 'diff'
@@ -36,6 +36,7 @@ class TextBuffer
   conflict: false
   file: null
   refcount: 0
+  fileSubscriptions: null
 
   # Public: Create a new buffer with the given params.
   #
@@ -696,7 +697,7 @@ class TextBuffer
   destroy: ->
     unless @destroyed
       @cancelStoppedChangingTimeout()
-      @file?.off()
+      @fileSubscriptions?.dispose()
       @unsubscribe()
       @destroyed = true
       @emit 'destroyed'
@@ -718,7 +719,10 @@ class TextBuffer
     this
 
   subscribeToFile: ->
-    @file.on "contents-changed", =>
+    @fileSubscriptions?.dispose()
+    @fileSubscriptions = new CompositeDisposable
+
+    @fileSubscriptions.add @file.onDidChange =>
       @conflict = true if @isModified()
       previousContents = @cachedDiskContents
 
@@ -734,7 +738,7 @@ class TextBuffer
       else
         @reload()
 
-    @file.on "removed", =>
+    @fileSubscriptions.add @file.onDidDelete =>
       modified = @getText() != @cachedDiskContents
       @wasModifiedBeforeRemove = modified
       if modified
@@ -742,7 +746,7 @@ class TextBuffer
       else
         @destroy()
 
-    @file.on "moved", =>
+    @fileSubscriptions.add @file.onDidRename =>
       @emit "path-changed", this
       @emitter.emit 'did-change-path', @getPath()
 
@@ -799,8 +803,6 @@ class TextBuffer
   # * `filePath` A {String} representing the new file path
   setPath: (filePath) ->
     return if filePath == @getPath()
-
-    @file?.off()
 
     if filePath
       @file = new File(filePath)
