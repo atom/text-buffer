@@ -17,11 +17,10 @@ Point = require './point'
 # ```
 module.exports =
 class Range
-  # Public: Call this with the result of {Range::serialize} to construct a new Range.
-  #
-  # * `array` {array} of params to pass to the {::constructor}
-  @deserialize: (array) ->
-    new this(array...)
+
+  ###
+  Section: Construction
+  ###
 
   # Public: Convert any range-compatible object to a {Range}.
   #
@@ -65,7 +64,7 @@ class Range
       endPoint.column += lines[0].length
     new this(startPoint, endPoint)
 
-  # Public: Returns a {Range} that starts at the given point and ends at the
+  # Returns a {Range} that starts at the given point and ends at the
   # start point plus the given row and column deltas.
   #
   # * `startPoint` A {Point} or point-compatible {Array}
@@ -77,6 +76,20 @@ class Range
     startPoint = Point.fromObject(startPoint)
     endPoint = new Point(startPoint.row + rowDelta, startPoint.column + columnDelta)
     new this(startPoint, endPoint)
+
+  ###
+  Section: Serialization and Deserialization
+  ###
+
+  # Public: Call this with the result of {Range::serialize} to construct a new Range.
+  #
+  # * `array` {array} of params to pass to the {::constructor}
+  @deserialize: (array) ->
+    new this(array...)
+
+  ###
+  Section: Construction
+  ###
 
   # Public: Construct a {Range} object
   #
@@ -93,13 +106,46 @@ class Range
       @start = pointB
       @end = pointA
 
+  # Public: Returns a new range with the same start and end positions.
+  copy: ->
+    new @constructor(@start.copy(), @end.copy())
+
+  ###
+  Section: Serialization and Deserialization
+  ###
+
   # Public: Returns a plain javascript object representation of the range.
   serialize: ->
     [@start.serialize(), @end.serialize()]
 
-  # Public: Returns a new range with the same start and end positions.
-  copy: ->
-    new @constructor(@start.copy(), @end.copy())
+  ###
+  Section: Range Details
+  ###
+
+  # Public: Is the start position of this range equal to the end position?
+  #
+  # Returns a {Boolean}.
+  isEmpty: ->
+    @start.isEqual(@end)
+
+  # Public: Returns a {Boolean} indicating whether this range starts and ends on
+  # the same row.
+  isSingleLine: ->
+    @start.row is @end.row
+
+  # Public: Get the number of rows in this range.
+  #
+  # Returns a {Number}.
+  getRowCount: ->
+    @end.row - @start.row + 1
+
+  # Public: Returns an array of all rows in the range.
+  getRows: ->
+    [@start.row..@end.row]
+
+  ###
+  Section: Operations
+  ###
 
   # Public: Freezes the range and its start and end point so it becomes
   # immutable and returns itself.
@@ -110,14 +156,23 @@ class Range
     @end.freeze()
     Object.freeze(this)
 
-  # Public: Returns a {Boolean} indicating whether this range has the same start
-  # and end points as the given {Range} or range-compatible {Array}.
+  # Public: Returns a new range that contains this range and the given range.
   #
-  # * `otherRange` A {Range} or range-compatible {Array}.
-  isEqual: (other) ->
-    return false unless other?
-    other = @constructor.fromObject(other)
-    other.start.isEqual(@start) and other.end.isEqual(@end)
+  # * `otherRange` A {Range} or range-compatible {Array}
+  union: (otherRange) ->
+    start = if @start.isLessThan(otherRange.start) then @start else otherRange.start
+    end = if @end.isGreaterThan(otherRange.end) then @end else otherRange.end
+    new @constructor(start, end)
+
+  add: (delta) ->
+    new @constructor(@start.add(delta), @end.add(delta))
+
+  translate: (startPoint, endPoint=startPoint) ->
+    new @constructor(@start.translate(startPoint), @end.translate(endPoint))
+
+  ###
+  Section: Comparison
+  ###
 
   # Public: Compare two Ranges
   #
@@ -133,10 +188,14 @@ class Range
     else
       other.end.compare(@end)
 
-  # Public: Returns a {Boolean} indicating whether this range starts and ends on
-  # the same row.
-  isSingleLine: ->
-    @start.row is @end.row
+  # Public: Returns a {Boolean} indicating whether this range has the same start
+  # and end points as the given {Range} or range-compatible {Array}.
+  #
+  # * `otherRange` A {Range} or range-compatible {Array}.
+  isEqual: (other) ->
+    return false unless other?
+    other = @constructor.fromObject(other)
+    other.start.isEqual(@start) and other.end.isEqual(@end)
 
   # Public: Returns a {Boolean} indicating whether this range starts and ends on
   # the same row as the argument.
@@ -144,12 +203,6 @@ class Range
   # * `otherRange` A {Range} or range-compatible {Array}.
   coversSameRows: (other) ->
     @start.row == other.start.row && @end.row == other.end.row
-
-  add: (delta) ->
-    new @constructor(@start.add(delta), @end.add(delta))
-
-  translate: (startPoint, endPoint=startPoint) ->
-    new @constructor(@start.translate(startPoint), @end.translate(endPoint))
 
   # Public: Determines whether this range intersects with the argument.
   #
@@ -163,19 +216,6 @@ class Range
       not (@end.isLessThanOrEqual(otherRange.start) or @start.isGreaterThanOrEqual(otherRange.end))
     else
       not (@end.isLessThan(otherRange.start) or @start.isGreaterThan(otherRange.end))
-
-
-
-    # if exclusive
-    #   if @start.isLessThanOrEqual(otherRange.start)
-    #     @end.isGreaterThan(otherRange.start)
-    #   else
-    #     otherRange.intersectsWith(this, true)
-    # else
-    #   if @start.isLessThanOrEqual(otherRange.start)
-    #     @end.isGreaterThanOrEqual(otherRange.start)
-    #   else
-    #     otherRange.intersectsWith(this, false)
 
   # Public: Returns a {Boolean} indicating whether this range contains the given
   # range.
@@ -221,19 +261,9 @@ class Range
     [startRow, endRow] = [endRow, startRow] if startRow > endRow
     @end.row >= startRow and endRow >= @start.row
 
-  # Public: Returns a new range that contains this range and the given range.
-  #
-  # * `otherRange` A {Range} or range-compatible {Array}
-  union: (otherRange) ->
-    start = if @start.isLessThan(otherRange.start) then @start else otherRange.start
-    end = if @end.isGreaterThan(otherRange.end) then @end else otherRange.end
-    new @constructor(start, end)
-
-  # Public: Is the start position of this range equal to the end position?
-  #
-  # Returns a {Boolean}.
-  isEmpty: ->
-    @start.isEqual(@end)
+  ###
+  Section: Conversion
+  ###
 
   toDelta: ->
     rows = @end.row - @start.row
@@ -242,16 +272,6 @@ class Range
     else
       columns = @end.column
     new Point(rows, columns)
-
-  # Public: Get the number of rows in this range.
-  #
-  # Returns a {Number}.
-  getRowCount: ->
-    @end.row - @start.row + 1
-
-  # Public: Returns an array of all rows in the range.
-  getRows: ->
-    [@start.row..@end.row]
 
   # Public: Returns a string representation of the range.
   toString: ->

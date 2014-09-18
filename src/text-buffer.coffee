@@ -38,9 +38,16 @@ class TextBuffer
   refcount: 0
   fileSubscriptions: null
 
+  @delegatesMethods 'undo', 'redo', 'transact', 'beginTransaction', 'commitTransaction',
+    'abortTransaction', 'isTransacting', 'clearUndoStack', toProperty: 'history'
+
+  ###
+  Section: Construction
+  ###
+
   # Public: Create a new buffer with the given params.
   #
-  # * `params` A {String} of text or an {Object} with the following keys:
+  # * `params` {Object} or {String} of text
   #   * `load` A {Boolean}, `true` to asynchronously load the buffer from disk
   #     after initialization.
   #   * `text` The initial {String} text of the buffer.
@@ -78,6 +85,10 @@ class TextBuffer
     filePath: @getPath()
     modifiedWhenLastPersisted: @isModified()
     digestWhenLastPersisted: @file?.getDigest()
+
+  ###
+  Section: Event Subscription
+  ###
 
   # Public: Invoke the given callback synchronously when the content of the
   # buffer changes.
@@ -212,6 +223,12 @@ class TextBuffer
   onDidDestroy: (callback) ->
     @emitter.on 'did-destroy', callback
 
+  # Public: Get the number of milliseconds that will elapse without a change
+  # before {::onDidStopChanging} observers are invoked following a change.
+  #
+  # Returns a {Number}.
+  getStoppedChangingDelay: -> @stoppedChangingDelay
+
   on: (eventName) ->
     switch eventName
       when 'changed'
@@ -243,6 +260,78 @@ class TextBuffer
 
     EmitterMixin::on.apply(this, arguments)
 
+  ###
+  Section: File Details
+  ###
+
+  # Public: Determine if the in-memory contents of the buffer differ from its
+  # contents on disk.
+  #
+  # If the buffer is unsaved, always returns `true` unless the buffer is empty.
+  #
+  # Returns a {Boolean}.
+  isModified: ->
+    return false unless @loaded
+    if @file
+      if @file.exists()
+        @getText() != @cachedDiskContents
+      else
+        @wasModifiedBeforeRemove ? not @isEmpty()
+    else
+      not @isEmpty()
+
+  # Public: Determine if the in-memory contents of the buffer conflict with the
+  # on-disk contents of its associated file.
+  #
+  # Returns a {Boolean}.
+  isInConflict: -> @conflict
+
+  # Public: Get the path of the associated file.
+  #
+  # Returns a {String}.
+  getPath: ->
+    @file?.getPath()
+
+  # Public: Set the path for the buffer's associated file.
+  #
+  # * `filePath` A {String} representing the new file path
+  setPath: (filePath) ->
+    return if filePath == @getPath()
+
+    if filePath
+      @file = new File(filePath)
+      @subscribeToFile()
+    else
+      @file = null
+
+    @emit "path-changed", this
+    @emitter.emit 'did-change-path', @getPath()
+
+  # Public: Get the path of the associated file.
+  #
+  # Returns a {String}.
+  getUri: ->
+    @getPath()
+
+  # Get the basename of the associated file.
+  #
+  # The basename is the name portion of the file's path, without the containing
+  # directories.
+  #
+  # Returns a {String}.
+  getBaseName: ->
+    @file?.getBaseName()
+
+  ###
+  Section: Reading Text
+  ###
+
+  # Public: Determine whether the buffer is empty.
+  #
+  # Returns a {Boolean}.
+  isEmpty: ->
+    @getLastRow() is 0 and @lineLengthForRow(0) is 0
+
   # Public: Get the entire text of the buffer.
   #
   # Returns a {String}.
@@ -255,35 +344,44 @@ class TextBuffer
         text += (@lineForRow(row) + @lineEndingForRow(row))
       @cachedText = text
 
+  # Public: Get the text in a range.
+  #
+  # * `range` A {Range}
+  #
+  # Returns a {String}
+  getTextInRange: (range) ->
+    range = @clipRange(Range.fromObject(range))
+    startRow = range.start.row
+    endRow = range.end.row
+
+    if startRow is endRow
+      @lineForRow(startRow)[range.start.column...range.end.column]
+    else
+      text = ''
+      for row in [startRow..endRow]
+        line = @lineForRow(row)
+        if row is startRow
+          text += line[range.start.column...]
+        else if row is endRow
+          text += line[0...range.end.column]
+          continue
+        else
+          text += line
+        text += @lineEndingForRow(row)
+      text
+
   # Public: Get the text of all lines in the buffer, without their line endings.
   #
   # Returns an {Array} of {String}s.
   getLines: ->
     @lines.slice()
 
-  # Public: Get the number of milliseconds that will elapse without a change
-  # before {::onDidStopChanging} observers are invoked following a change.
+  # Public: Get the text of the last line of the buffer, without its line
+  # ending.
   #
-  # Returns a {Number}.
-  getStoppedChangingDelay: -> @stoppedChangingDelay
-
-  # Public: Determine whether the buffer is empty.
-  #
-  # Returns a {Boolean}.
-  isEmpty: ->
-    @getLastRow() is 0 and @lineLengthForRow(0) is 0
-
-  # Public: Get the number of lines in the buffer.
-  #
-  # Returns a {Number}.
-  getLineCount: ->
-    @lines.length
-
-  # Public: Get the last 0-indexed row in the buffer.
-  #
-  # Returns a {Number}.
-  getLastRow: ->
-    @getLineCount() - 1
+  # Returns a {String}.
+  getLastLine: ->
+    @lineForRow(@getLastRow())
 
   # Public: Get the text of the line at the given row, without its line ending.
   #
@@ -292,13 +390,6 @@ class TextBuffer
   # Returns a {String}.
   lineForRow: (row) ->
     @lines[row]
-
-  # Public: Get the text of the last line of the buffer, without its line
-  # ending.
-  #
-  # Returns a {String}.
-  getLastLine: ->
-    @lineForRow(@getLastRow())
 
   # Public: Get the line ending for the given 0-indexed row.
   #
@@ -318,6 +409,43 @@ class TextBuffer
   # Returns a {Number}.
   lineLengthForRow: (row) ->
     @lines[row].length
+
+  # Public: Determine if the given row contains only whitespace.
+  #
+  # * `row` A {Number} representing a 0-indexed row.
+  #
+  # Returns a {Boolean}.
+  isRowBlank: (row) ->
+    not /\S/.test @lineForRow(row)
+
+  # Public: Given a row, find the first preceding row that's not blank.
+  #
+  # * `startRow` A {Number} identifying the row to start checking at.
+  #
+  # Returns a {Number} or `null` if there's no preceding non-blank row.
+  previousNonBlankRow: (startRow) ->
+    return null if startRow == 0
+
+    startRow = Math.min(startRow, @getLastRow())
+    for row in [(startRow - 1)..0]
+      return row unless @isRowBlank(row)
+    null
+
+  # Public: Given a row, find the next row that's not blank.
+  #
+  # * `startRow` A {Number} identifying the row to start checking at.
+  #
+  # Returns a {Number} or `null` if there's no next non-blank row.
+  nextNonBlankRow: (startRow) ->
+    lastRow = @getLastRow()
+    if startRow < lastRow
+      for row in [(startRow + 1)..lastRow]
+        return row unless @isRowBlank(row)
+    null
+
+  ###
+  Section: Mutating Text
+  ###
 
   # Public: Replace the entire contents of the buffer with the given text.
   #
@@ -406,57 +534,6 @@ class TextBuffer
   append: (text, normalizeLineEndings) ->
     @insert(@getEndPosition(), text, normalizeLineEndings)
 
-  # Public: Delete the text in the given range.
-  #
-  # * `range` A {Range} in which to delete. The range is clipped before deleting.
-  #
-  # Returns an empty {Range} starting at the start of deleted range.
-  delete: (range) ->
-    @setTextInRange(range, '')
-
-  # Public: Delete the line associated with a specified row.
-  #
-  # * `row` A {Number} representing the 0-indexed row to delete.
-  #
-  # Returns the {Range} of the deleted text.
-  deleteRow: (row) ->
-    @deleteRows(row, row)
-
-  # Public: Delete the lines associated with the specified row range.
-  #
-  # If the row range is out of bounds, it will be clipped. If the startRow is
-  # greater than the end row, they will be reordered.
-  #
-  # * `startRow` A {Number} representing the first row to delete.
-  # * `endRow` A {Number} representing the last row to delete, inclusive.
-  #
-  # Returns the {Range} of the deleted text.
-  deleteRows: (startRow, endRow) ->
-    lastRow = @getLastRow()
-
-    [startRow, endRow] = [endRow, startRow] if startRow > endRow
-
-    if endRow < 0
-      return new Range(@getFirstPosition(), @getFirstPosition())
-
-    if startRow > lastRow
-      return new Range(@getEndPosition(), @getEndPosition())
-
-    startRow = Math.max(0, startRow)
-    endRow = Math.min(lastRow, endRow)
-
-    if endRow < lastRow
-      startPoint = new Point(startRow, 0)
-      endPoint = new Point(endRow + 1, 0)
-    else
-      if startRow is 0
-        startPoint = new Point(startRow, 0)
-      else
-        startPoint = new Point(startRow - 1, @lineLengthForRow(startRow - 1))
-      endPoint = new Point(endRow, @lineLengthForRow(endRow))
-
-    @delete(new Range(startPoint, endPoint))
-
   # Builds a {BufferPatch}, which is used to modify the buffer and is also
   # pushed into the undo history so it can be undone.
   buildPatch: (oldRange, newText, normalizeLineEndings) ->
@@ -530,72 +607,354 @@ class TextBuffer
     @emit 'markers-updated'
     @emitter.emit 'did-update-markers'
 
-  # Public: Get the text in a range.
+  # Public: Delete the text in the given range.
   #
-  # * `range` A {Range}
+  # * `range` A {Range} in which to delete. The range is clipped before deleting.
   #
-  # Returns a {String}
-  getTextInRange: (range) ->
-    range = @clipRange(Range.fromObject(range))
-    startRow = range.start.row
-    endRow = range.end.row
+  # Returns an empty {Range} starting at the start of deleted range.
+  delete: (range) ->
+    @setTextInRange(range, '')
 
-    if startRow is endRow
-      @lineForRow(startRow)[range.start.column...range.end.column]
-    else
-      text = ''
-      for row in [startRow..endRow]
-        line = @lineForRow(row)
-        if row is startRow
-          text += line[range.start.column...]
-        else if row is endRow
-          text += line[0...range.end.column]
-          continue
-        else
-          text += line
-        text += @lineEndingForRow(row)
-      text
+  # Public: Delete the line associated with a specified row.
+  #
+  # * `row` A {Number} representing the 0-indexed row to delete.
+  #
+  # Returns the {Range} of the deleted text.
+  deleteRow: (row) ->
+    @deleteRows(row, row)
 
-  # Public: Clip the given range so it starts and ends at valid positions.
+  # Public: Delete the lines associated with the specified row range.
   #
-  # For example, the position `[1, 100]` is out of bounds if the line at row 1 is
-  # only 10 characters long, and it would be clipped to `(1, 10)`.
+  # If the row range is out of bounds, it will be clipped. If the startRow is
+  # greater than the end row, they will be reordered.
   #
-  # * `range` A {Range} or range-compatible {Array} to clip.
+  # * `startRow` A {Number} representing the first row to delete.
+  # * `endRow` A {Number} representing the last row to delete, inclusive.
   #
-  # Returns the given {Range} if it is already in bounds, or a new clipped
-  # {Range} if the given range is out-of-bounds.
-  clipRange: (range) ->
-    range = Range.fromObject(range)
-    start = @clipPosition(range.start)
-    end = @clipPosition(range.end)
-    if range.start.isEqual(start) and range.end.isEqual(end)
-      range
-    else
-      new Range(start, end)
+  # Returns the {Range} of the deleted text.
+  deleteRows: (startRow, endRow) ->
+    lastRow = @getLastRow()
 
-  # Public: Clip the given point so it is at a valid position in the buffer.
-  #
-  # For example, the position (1, 100) is out of bounds if the line at row 1 is
-  # only 10 characters long, and it would be clipped to (1, 10)
-  #
-  # * `position` A {Point} or point-compatible {Array}.
-  #
-  # Returns a new {Point} if the given position is invalid, otherwise returns
-  # the given position.
-  clipPosition: (position) ->
-    position = Point.fromObject(position)
-    {row, column} = position
-    if row < 0
-      @getFirstPosition()
-    else if row > @getLastRow()
-      @getEndPosition()
+    [startRow, endRow] = [endRow, startRow] if startRow > endRow
+
+    if endRow < 0
+      return new Range(@getFirstPosition(), @getFirstPosition())
+
+    if startRow > lastRow
+      return new Range(@getEndPosition(), @getEndPosition())
+
+    startRow = Math.max(0, startRow)
+    endRow = Math.min(lastRow, endRow)
+
+    if endRow < lastRow
+      startPoint = new Point(startRow, 0)
+      endPoint = new Point(endRow + 1, 0)
     else
-      column = Math.min(Math.max(column, 0), @lineLengthForRow(row))
-      if column is position.column
-        position
+      if startRow is 0
+        startPoint = new Point(startRow, 0)
       else
-        new Point(row, column)
+        startPoint = new Point(startRow - 1, @lineLengthForRow(startRow - 1))
+      endPoint = new Point(endRow, @lineLengthForRow(endRow))
+
+    @delete(new Range(startPoint, endPoint))
+
+  ###
+  Section: Markers
+  ###
+
+  # Public: Create a marker with the given range. This marker will maintain
+  # its logical location as the buffer is changed, so if you mark a particular
+  # word, the marker will remain over that word even if the word's location in
+  # the buffer changes.
+  #
+  # * `range` A {Range} or range-compatible {Array}
+  # * `properties` A hash of key-value pairs to associate with the marker. There
+  #   are also reserved property names that have marker-specific meaning.
+  #   * `reversed` (optional) Creates the marker in a reversed orientation. (default: false)
+  #   * `persistent` (optional) Whether to include this marker when serializing the buffer. (default: true)
+  #   * `invalidate` (optional) Determines the rules by which changes to the
+  #     buffer *invalidate* the marker. (default: 'overlap') It can be any of
+  #     the following strategies, in order of fragility
+  #     * __never__: The marker is never marked as invalid. This is a good choice for
+  #       markers representing selections in an editor.
+  #     * __surround__: The marker is invalidated by changes that completely surround it.
+  #     * __overlap__: The marker is invalidated by changes that surround the
+  #       start or end of the marker. This is the default.
+  #     * __inside__: The marker is invalidated by changes that extend into the
+  #       inside of the marker. Changes that end at the marker's start or
+  #       start at the marker's end do not invalidate the marker.
+  #     * __touch__: The marker is invalidated by a change that touches the marked
+  #       region in any way, including changes that end at the marker's
+  #       start or start at the marker's end. This is the most fragile strategy.
+  #
+  # Returns a {Marker}.
+  markRange: (range, properties) -> @markers.markRange(range, properties)
+
+  # Public: Create a marker at the given position with no tail.
+  #
+  # * `position` {Point} or point-compatible {Array}
+  # * `properties` This is the same as the `properties` parameter in {::markRange}
+  #
+  # Returns a {Marker}.
+  markPosition: (position, properties) -> @markers.markPosition(position, properties)
+
+  # Public: Get all existing markers on the buffer.
+  #
+  # Returns an {Array} of {Marker}s.
+  getMarkers: -> @markers.getMarkers()
+
+  # Public: Get an existing marker by its id.
+  #
+  # * `id` {Number} id of the marker to retrieve
+  #
+  # Returns a {Marker}.
+  getMarker: (id) -> @markers.getMarker(id)
+
+  # Public: Find markers conforming to the given parameters.
+  #
+  # Markers are sorted based on their position in the buffer. If two markers
+  # start at the same position, the larger marker comes first.
+  #
+  # * `params` A hash of key-value pairs constraining the set of returned markers. You
+  #   can query against custom marker properties by listing the desired
+  #   key-value pairs here. In addition, the following keys are reserved and
+  #   have special semantics:
+  #   * `startPosition` Only include markers that start at the given {Point}.
+  #   * `endPosition` Only include markers that end at the given {Point}.
+  #   * `containsPoint` Only include markers that contain the given {Point}, inclusive.
+  #   * `containsRange` Only include markers that contain the given {Range}, inclusive.
+  #   * `startRow` Only include markers that start at the given row {Number}.
+  #   * `endRow` Only include markers that end at the given row {Number}.
+  #   * `intersectsRow` Only include markers that intersect the given row {Number}.
+  #
+  # Returns an {Array} of {Marker}s.
+  findMarkers: (params) -> @markers.findMarkers(params)
+
+  # Public: Get the number of markers in the buffer.
+  #
+  # Returns a {Number}.
+  getMarkerCount: -> @markers.getMarkerCount()
+
+  destroyMarker: (id) ->
+    @getMarker(id)?.destroy()
+
+  ###
+  Section: History
+  ###
+
+  # Public: Undo the last operation. If a transaction is in progress, aborts it.
+  undo: -> @history.undo()
+
+  # Public: Redo the last operation
+  redo: -> @history.redo()
+
+  # Public: Batch multiple operations as a single undo/redo step.
+  #
+  # Any group of operations that are logically grouped from the perspective of
+  # undoing and redoing should be performed in a transaction. If you want to
+  # abort the transaction, call {::abortTransaction} to terminate the function's
+  # execution and revert any changes performed up to the abortion.
+  #
+  # * `fn` A {Function} to call inside the transaction.
+  transact: (fn) -> @history.transact(fn)
+
+  # Public: Start an open-ended transaction.
+  #
+  # Call {::commitTransaction} or {::abortTransaction} to terminate the
+  # transaction. If you nest calls to transactions, only the outermost
+  # transaction is considered. You must match every begin with a matching
+  # commit, but a single call to abort will cancel all nested transactions.
+  beginTransaction: -> @history.beginTransaction()
+
+  # Public: Commit an open-ended transaction started with {::beginTransaction}
+  # and push it to the undo stack.
+  #
+  # If transactions are nested, only the outermost commit takes effect.
+  commitTransaction: -> @history.commitTransaction()
+
+  # Public: Abort an open transaction, undoing any operations performed so far
+  # within the transaction.
+  abortTransaction: -> @history.abortTransaction()
+
+  # Public: Clear the undo stack.
+  clearUndoStack: -> @history.clearUndoStack()
+
+  ###
+  Section: Search And Replace
+  ###
+
+  # Public: Scan regular expression matches in the entire buffer, calling the
+  # given iterator function on each match.
+  #
+  # If you're programmatically modifying the results, you may want to try
+  # {::backwardsScan} to avoid tripping over your own changes.
+  #
+  # * `regex` A {RegExp} to search for.
+  # * `iterator` A {Function} that's called on each match with an {Object}
+  #   containing the following keys:
+  #   * `match` The current regular expression match.
+  #   * `matchText` A {String} with the text of the match.
+  #   * `range` The {Range} of the match.
+  #   * `stop` Call this {Function} to terminate the scan.
+  #   * `replace` Call this {Function} with a {String} to replace the match.
+  scan: (regex, iterator) ->
+    @scanInRange regex, @getRange(), (result) =>
+      result.lineText = @lineForRow(result.range.start.row)
+      result.lineTextOffset = 0
+      iterator(result)
+
+  # Public: Scan regular expression matches in the entire buffer in reverse
+  # order, calling the given iterator function on each match.
+  #
+  # * `regex` A {RegExp} to search for.
+  # * `iterator` A {Function} that's called on each match with an {Object}
+  #   containing the following keys:
+  #   * `match` The current regular expression match.
+  #   * `matchText` A {String} with the text of the match.
+  #   * `range` The {Range} of the match.
+  #   * `stop` Call this {Function} to terminate the scan.
+  #   * `replace` Call this {Function} with a {String} to replace the match.
+  backwardsScan: (regex, iterator) ->
+    @backwardsScanInRange regex, @getRange(), (result) =>
+      result.lineText = @lineForRow(result.range.start.row)
+      result.lineTextOffset = 0
+      iterator(result)
+
+  # Public: Scan regular expression matches in a given range , calling the given
+  # iterator function on each match.
+  #
+  # * `regex` A {RegExp} to search for.
+  # * `range` A {Range} in which to search.
+  # * `iterator` A {Function} that's called on each match with an {Object}
+  #   containing the following keys:
+  #   * `match` The current regular expression match.
+  #   * `matchText` A {String} with the text of the match.
+  #   * `range` The {Range} of the match.
+  #   * `stop` Call this {Function} to terminate the scan.
+  #   * `replace` Call this {Function} with a {String} to replace the match.
+  scanInRange: (regex, range, iterator, reverse=false) ->
+    range = @clipRange(range)
+    global = regex.global
+    flags = "gm"
+    flags += "i" if regex.ignoreCase
+    regex = new RegExp(regex.source, flags)
+
+    startIndex = @characterIndexForPosition(range.start)
+    endIndex = @characterIndexForPosition(range.end)
+
+    matches = @matchesInCharacterRange(regex, startIndex, endIndex)
+    lengthDelta = 0
+
+    keepLooping = null
+    replacementText = null
+    stop = -> keepLooping = false
+    replace = (text) -> replacementText = text
+
+    matches.reverse() if reverse
+    for match in matches
+      matchLength = match[0].length
+      matchStartIndex = match.index
+      matchEndIndex = matchStartIndex + matchLength
+
+      startPosition = @positionForCharacterIndex(matchStartIndex + lengthDelta)
+      endPosition = @positionForCharacterIndex(matchEndIndex + lengthDelta)
+      range = new Range(startPosition, endPosition)
+      keepLooping = true
+      replacementText = null
+      matchText = match[0]
+      iterator({ match, matchText, range, stop, replace })
+
+      if replacementText?
+        @setTextInRange(range, replacementText)
+        lengthDelta += replacementText.length - matchLength unless reverse
+
+      break unless global and keepLooping
+
+  # Public: Scan regular expression matches in a given range in reverse order,
+  # calling the given iterator function on each match.
+  #
+  # * `regex` A {RegExp} to search for.
+  # * `range` A {Range} in which to search.
+  # * `iterator` A {Function} that's called on each match with an {Object}
+  #   containing the following keys:
+  #   * `match` The current regular expression match.
+  #   * `matchText` A {String} with the text of the match.
+  #   * `range` The {Range} of the match.
+  #   * `stop` Call this {Function} to terminate the scan.
+  #   * `replace` Call this {Function} with a {String} to replace the match.
+  backwardsScanInRange: (regex, range, iterator) ->
+    @scanInRange regex, range, iterator, true
+
+  # Public: Replace all regular expression matches in the entire buffer.
+  #
+  # * `regex` A {RegExp} representing the matches to be replaced.
+  # * `replacementText` A {String} representing the text to replace each match.
+  #
+  # Returns a {Number} representing the number of replacements made.
+  replace: (regex, replacementText) ->
+    doSave = !@isModified()
+    replacements = 0
+
+    @transact =>
+      @scan regex, ({matchText, replace}) ->
+        replace(matchText.replace(regex, replacementText))
+        replacements++
+
+    @save() if doSave
+
+    replacements
+
+  # Identifies if a character sequence is within a certain range.
+  #
+  # * `regex` The {RegExp} to match.
+  # * `startIndex` A {Number} representing the starting character offset.
+  # * `endIndex` A {Number} representing the ending character offset.
+  #
+  # Returns an {Array} of matches for the given regex.
+  matchesInCharacterRange: (regex, startIndex, endIndex) ->
+    text = @getText()
+    matches = []
+
+    regex.lastIndex = startIndex
+    while match = regex.exec(text)
+      matchLength = match[0].length
+      matchStartIndex = match.index
+      matchEndIndex = matchStartIndex + matchLength
+
+      if matchEndIndex > endIndex
+        regex.lastIndex = 0
+        if matchStartIndex < endIndex and submatch = regex.exec(text[matchStartIndex...endIndex])
+          submatch.index = matchStartIndex
+          matches.push submatch
+        break
+
+      matchEndIndex++ if matchLength is 0
+      regex.lastIndex = matchEndIndex
+      matches.push match
+
+    matches
+
+  ###
+  Section: Buffer Range Details
+  ###
+
+  # Public: Get the range spanning from `[0, 0]` to {::getEndPosition}.
+  #
+  # Returns a {Range}.
+  getRange: ->
+    new Range(@getFirstPosition(), @getEndPosition())
+
+  # Public: Get the number of lines in the buffer.
+  #
+  # Returns a {Number}.
+  getLineCount: ->
+    @lines.length
+
+  # Public: Get the last 0-indexed row in the buffer.
+  #
+  # Returns a {Number}.
+  getLastRow: ->
+    @getLineCount() - 1
 
   # Public: Get the first position in the buffer, which is always `[0, 0]`.
   #
@@ -611,11 +970,11 @@ class TextBuffer
     lastRow = @getLastRow()
     new Point(lastRow, @lineLengthForRow(lastRow))
 
-  # Public: Get the range spanning from `[0, 0]` to {::getEndPosition}.
+  # Public: Get the length of the buffer in characters.
   #
-  # Returns a {Range}.
-  getRange: ->
-    new Range(@getFirstPosition(), @getEndPosition())
+  # Returns a {Number}.
+  getMaxCharacterIndex: ->
+    @offsetIndex.totalTo(Infinity, 'rows').characters
 
   # Public: Get the range for the given row
   #
@@ -671,11 +1030,99 @@ class TextBuffer
     else
       new Point(rows, offset - characters)
 
-  # Public: Get the length of the buffer in characters.
+  # Public: Clip the given range so it starts and ends at valid positions.
   #
-  # Returns a {Number}.
-  getMaxCharacterIndex: ->
-    @offsetIndex.totalTo(Infinity, 'rows').characters
+  # For example, the position `[1, 100]` is out of bounds if the line at row 1 is
+  # only 10 characters long, and it would be clipped to `(1, 10)`.
+  #
+  # * `range` A {Range} or range-compatible {Array} to clip.
+  #
+  # Returns the given {Range} if it is already in bounds, or a new clipped
+  # {Range} if the given range is out-of-bounds.
+  clipRange: (range) ->
+    range = Range.fromObject(range)
+    start = @clipPosition(range.start)
+    end = @clipPosition(range.end)
+    if range.start.isEqual(start) and range.end.isEqual(end)
+      range
+    else
+      new Range(start, end)
+
+  # Public: Clip the given point so it is at a valid position in the buffer.
+  #
+  # For example, the position (1, 100) is out of bounds if the line at row 1 is
+  # only 10 characters long, and it would be clipped to (1, 10)
+  #
+  # * `position` A {Point} or point-compatible {Array}.
+  #
+  # Returns a new {Point} if the given position is invalid, otherwise returns
+  # the given position.
+  clipPosition: (position) ->
+    position = Point.fromObject(position)
+    {row, column} = position
+    if row < 0
+      @getFirstPosition()
+    else if row > @getLastRow()
+      @getEndPosition()
+    else
+      column = Math.min(Math.max(column, 0), @lineLengthForRow(row))
+      if column is position.column
+        position
+      else
+        new Point(row, column)
+
+
+  ###
+  Section: Buffer Operations
+  ###
+
+  # Public: Save the buffer.
+  save: ->
+    @saveAs(@getPath())
+
+  # Public: Save the buffer at a specific path.
+  #
+  # * `filePath` The path to save at.
+  saveAs: (filePath) ->
+    unless filePath then throw new Error("Can't save buffer with no file path")
+
+    @emit 'will-be-saved', this
+    @emitter.emit 'will-save', {path: filePath}
+    @setPath(filePath)
+    @file.write(@getText())
+    @cachedDiskContents = @getText()
+    @conflict = false
+    @emitModifiedStatusChanged(false)
+    @emit 'saved', this
+    @emitter.emit 'did-save', {path: filePath}
+
+  # Public: Reload the buffer's contents from disk.
+  #
+  # Sets the buffer's content to the cached disk contents
+  reload: ->
+    @emit 'will-reload'
+    @emitter.emit 'will-reload'
+    @setTextViaDiff(@cachedDiskContents)
+    @emitModifiedStatusChanged(false)
+    @emit 'reloaded'
+    @emitter.emit 'did-reload'
+
+  # Rereads the contents of the file, and stores them in the cache.
+  updateCachedDiskContentsSync: ->
+    @cachedDiskContents = @file?.readSync() ? ""
+
+  # Rereads the contents of the file, and stores them in the cache.
+  updateCachedDiskContents: ->
+    Q(@file?.read() ? "").then (contents) =>
+      @cachedDiskContents = contents
+
+  ###
+  Section: Private Utility Methods
+  ###
+
+  markerCreated: (marker) ->
+    @emit 'marker-created', marker
+    @emitter.emit 'did-create-marker', marker
 
   loadSync: ->
     @updateCachedDiskContentsSync()
@@ -757,309 +1204,6 @@ class TextBuffer
   # Returns a {Boolean}.
   hasMultipleEditors: -> @refcount > 1
 
-  # Public: Reload the buffer's contents from disk.
-  #
-  # Sets the buffer's content to the cached disk contents
-  reload: ->
-    @emit 'will-reload'
-    @emitter.emit 'will-reload'
-    @setTextViaDiff(@cachedDiskContents)
-    @emitModifiedStatusChanged(false)
-    @emit 'reloaded'
-    @emitter.emit 'did-reload'
-
-  # Rereads the contents of the file, and stores them in the cache.
-  updateCachedDiskContentsSync: ->
-    @cachedDiskContents = @file?.readSync() ? ""
-
-  # Rereads the contents of the file, and stores them in the cache.
-  updateCachedDiskContents: ->
-    Q(@file?.read() ? "").then (contents) =>
-      @cachedDiskContents = contents
-
-  # Get the basename of the associated file.
-  #
-  # The basename is the name portion of the file's path, without the containing
-  # directories.
-  #
-  # Returns a {String}.
-  getBaseName: ->
-    @file?.getBaseName()
-
-  # Pubilc: Get the path of the associated file.
-  #
-  # Returns a {String}.
-  getPath: ->
-    @file?.getPath()
-
-  # Public: Get the path of the associated file.
-  #
-  # Returns a {String}.
-  getUri: ->
-    @getPath()
-
-  # Public: Set the path for the buffer's associated file.
-  #
-  # * `filePath` A {String} representing the new file path
-  setPath: (filePath) ->
-    return if filePath == @getPath()
-
-    if filePath
-      @file = new File(filePath)
-      @subscribeToFile()
-    else
-      @file = null
-
-    @emit "path-changed", this
-    @emitter.emit 'did-change-path', @getPath()
-
-  # Deprecated: Use {::getEndPosition} instead
-  getEofPosition: ->
-    Grim.deprecate("Use TextBuffer::getEndPosition instead.")
-    @getEndPosition()
-
-  # Public: Save the buffer.
-  save: ->
-    @saveAs(@getPath())
-
-  # Public: Save the buffer at a specific path.
-  #
-  # * `filePath` The path to save at.
-  saveAs: (filePath) ->
-    unless filePath then throw new Error("Can't save buffer with no file path")
-
-    @emit 'will-be-saved', this
-    @emitter.emit 'will-save', {path: filePath}
-    @setPath(filePath)
-    @file.write(@getText())
-    @cachedDiskContents = @getText()
-    @conflict = false
-    @emitModifiedStatusChanged(false)
-    @emit 'saved', this
-    @emitter.emit 'did-save', {path: filePath}
-
-  # Public: Determine if the in-memory contents of the buffer differ from its
-  # contents on disk.
-  #
-  # If the buffer is unsaved, always returns `true` unless the buffer is empty.
-  #
-  # Returns a {Boolean}.
-  isModified: ->
-    return false unless @loaded
-    if @file
-      if @file.exists()
-        @getText() != @cachedDiskContents
-      else
-        @wasModifiedBeforeRemove ? not @isEmpty()
-    else
-      not @isEmpty()
-
-  # Public: Determine if the in-memory contents of the buffer conflict with the
-  # on-disk contents of its associated file.
-  #
-  # Returns a {Boolean}.
-  isInConflict: -> @conflict
-
-  destroyMarker: (id) ->
-    @getMarker(id)?.destroy()
-
-  # Identifies if a character sequence is within a certain range.
-  #
-  # * `regex` The {RegExp} to match.
-  # * `startIndex` A {Number} representing the starting character offset.
-  # * `endIndex` A {Number} representing the ending character offset.
-  #
-  # Returns an {Array} of matches for the given regex.
-  matchesInCharacterRange: (regex, startIndex, endIndex) ->
-    text = @getText()
-    matches = []
-
-    regex.lastIndex = startIndex
-    while match = regex.exec(text)
-      matchLength = match[0].length
-      matchStartIndex = match.index
-      matchEndIndex = matchStartIndex + matchLength
-
-      if matchEndIndex > endIndex
-        regex.lastIndex = 0
-        if matchStartIndex < endIndex and submatch = regex.exec(text[matchStartIndex...endIndex])
-          submatch.index = matchStartIndex
-          matches.push submatch
-        break
-
-      matchEndIndex++ if matchLength is 0
-      regex.lastIndex = matchEndIndex
-      matches.push match
-
-    matches
-
-  # Public: Scan regular expression matches in the entire buffer, calling the
-  # given iterator function on each match.
-  #
-  # If you're programmatically modifying the results, you may want to try
-  # {::backwardsScan} to avoid tripping over your own changes.
-  #
-  # * `regex` A {RegExp} to search for.
-  # * `iterator` A {Function} that's called on each match with an {Object}
-  #   containing the following keys:
-  #   * `match` The current regular expression match.
-  #   * `matchText` A {String} with the text of the match.
-  #   * `range` The {Range} of the match.
-  #   * `stop` Call this {Function} to terminate the scan.
-  #   * `replace` Call this {Function} with a {String} to replace the match.
-  scan: (regex, iterator) ->
-    @scanInRange regex, @getRange(), (result) =>
-      result.lineText = @lineForRow(result.range.start.row)
-      result.lineTextOffset = 0
-      iterator(result)
-
-  # Public: Scan regular expression matches in the entire buffer in reverse
-  # order, calling the given iterator function on each match.
-  #
-  # * `regex` A {RegExp} to search for.
-  # * `iterator` A {Function} that's called on each match with an {Object}
-  #   containing the following keys:
-  #   * `match` The current regular expression match.
-  #   * `matchText` A {String} with the text of the match.
-  #   * `range` The {Range} of the match.
-  #   * `stop` Call this {Function} to terminate the scan.
-  #   * `replace` Call this {Function} with a {String} to replace the match.
-  backwardsScan: (regex, iterator) ->
-    @backwardsScanInRange regex, @getRange(), (result) =>
-      result.lineText = @lineForRow(result.range.start.row)
-      result.lineTextOffset = 0
-      iterator(result)
-
-  # Public: Replace all regular expression matches in the entire buffer.
-  #
-  # * `regex` A {RegExp} representing the matches to be replaced.
-  # * `replacementText` A {String} representing the text to replace each match.
-  #
-  # Returns a {Number} representing the number of replacements made.
-  replace: (regex, replacementText) ->
-    doSave = !@isModified()
-    replacements = 0
-
-    @transact =>
-      @scan regex, ({matchText, replace}) ->
-        replace(matchText.replace(regex, replacementText))
-        replacements++
-
-    @save() if doSave
-
-    replacements
-
-  # Public: Scan regular expression matches in a given range , calling the given
-  # iterator function on each match.
-  #
-  # * `regex` A {RegExp} to search for.
-  # * `range` A {Range} in which to search.
-  # * `iterator` A {Function} that's called on each match with an {Object}
-  #   containing the following keys:
-  #   * `match` The current regular expression match.
-  #   * `matchText` A {String} with the text of the match.
-  #   * `range` The {Range} of the match.
-  #   * `stop` Call this {Function} to terminate the scan.
-  #   * `replace` Call this {Function} with a {String} to replace the match.
-  scanInRange: (regex, range, iterator, reverse=false) ->
-    range = @clipRange(range)
-    global = regex.global
-    flags = "gm"
-    flags += "i" if regex.ignoreCase
-    regex = new RegExp(regex.source, flags)
-
-    startIndex = @characterIndexForPosition(range.start)
-    endIndex = @characterIndexForPosition(range.end)
-
-    matches = @matchesInCharacterRange(regex, startIndex, endIndex)
-    lengthDelta = 0
-
-    keepLooping = null
-    replacementText = null
-    stop = -> keepLooping = false
-    replace = (text) -> replacementText = text
-
-    matches.reverse() if reverse
-    for match in matches
-      matchLength = match[0].length
-      matchStartIndex = match.index
-      matchEndIndex = matchStartIndex + matchLength
-
-      startPosition = @positionForCharacterIndex(matchStartIndex + lengthDelta)
-      endPosition = @positionForCharacterIndex(matchEndIndex + lengthDelta)
-      range = new Range(startPosition, endPosition)
-      keepLooping = true
-      replacementText = null
-      matchText = match[0]
-      iterator({ match, matchText, range, stop, replace })
-
-      if replacementText?
-        @setTextInRange(range, replacementText)
-        lengthDelta += replacementText.length - matchLength unless reverse
-
-      break unless global and keepLooping
-
-  # Public: Scan regular expression matches in a given range in reverse order,
-  # calling the given iterator function on each match.
-  #
-  # * `regex` A {RegExp} to search for.
-  # * `range` A {Range} in which to search.
-  # * `iterator` A {Function} that's called on each match with an {Object}
-  #   containing the following keys:
-  #   * `match` The current regular expression match.
-  #   * `matchText` A {String} with the text of the match.
-  #   * `range` The {Range} of the match.
-  #   * `stop` Call this {Function} to terminate the scan.
-  #   * `replace` Call this {Function} with a {String} to replace the match.
-  backwardsScanInRange: (regex, range, iterator) ->
-    @scanInRange regex, range, iterator, true
-
-  # Public: Determine if the given row contains only whitespace.
-  #
-  # * `row` A {Number} representing a 0-indexed row.
-  #
-  # Returns a {Boolean}.
-  isRowBlank: (row) ->
-    not /\S/.test @lineForRow(row)
-
-  # Public: Given a row, find the first preceding row that's not blank.
-  #
-  # * `startRow` A {Number} identifying the row to start checking at.
-  #
-  # Returns a {Number} or `null` if there's no preceding non-blank row.
-  previousNonBlankRow: (startRow) ->
-    return null if startRow == 0
-
-    startRow = Math.min(startRow, @getLastRow())
-    for row in [(startRow - 1)..0]
-      return row unless @isRowBlank(row)
-    null
-
-  # Public: Given a row, find the next row that's not blank.
-  #
-  # * `startRow` A {Number} identifying the row to start checking at.
-  #
-  # Returns a {Number} or `null` if there's no next non-blank row.
-  nextNonBlankRow: (startRow) ->
-    lastRow = @getLastRow()
-    if startRow < lastRow
-      for row in [(startRow + 1)..lastRow]
-        return row unless @isRowBlank(row)
-    null
-
-  # Deprecate
-  usesSoftTabs: ->
-    Grim.deprecate("Use Editor::usesSoftTabs instead. TextBuffer doesn't have enough context to determine this.")
-    for row in [0..@getLastRow()]
-      if match = @lineForRow(row).match(/^\s/)
-        return match[0][0] != '\t'
-    undefined
-
-  # Deprecated: Call {::setTextInRange} instead.
-  change: (oldRange, newText, options={}) ->
-    Grim.deprecate("Use TextBuffer::setTextInRange instead.")
-    @setTextInRange(oldRange, newText, options.normalizeLineEndings)
-
   cancelStoppedChangingTimeout: ->
     clearTimeout(@stoppedChangingTimeout) if @stoppedChangingTimeout
 
@@ -1079,122 +1223,25 @@ class TextBuffer
     @emit 'modified-status-changed', modifiedStatus
     @emitter.emit 'did-change-modified', modifiedStatus
 
+  # Deprecate
+  usesSoftTabs: ->
+    Grim.deprecate("Use Editor::usesSoftTabs instead. TextBuffer doesn't have enough context to determine this.")
+    for row in [0..@getLastRow()]
+      if match = @lineForRow(row).match(/^\s/)
+        return match[0][0] != '\t'
+    undefined
+
+  # Deprecated: Call {::setTextInRange} instead.
+  change: (oldRange, newText, options={}) ->
+    Grim.deprecate("Use TextBuffer::setTextInRange instead.")
+    @setTextInRange(oldRange, newText, options.normalizeLineEndings)
+
+  # Deprecated: Use {::getEndPosition} instead
+  getEofPosition: ->
+    Grim.deprecate("Use TextBuffer::getEndPosition instead.")
+    @getEndPosition()
+
   logLines: (start=0, end=@getLastRow())->
     for row in [start..end]
       line = @lineForRow(row)
       console.log row, line, line.length
-
-  @delegatesMethods 'undo', 'redo', 'transact', 'beginTransaction', 'commitTransaction',
-    'abortTransaction', 'isTransacting', 'clearUndoStack', toProperty: 'history'
-
-  # Public: Undo the last operation. If a transaction is in progress, aborts it.
-  undo: -> @history.undo()
-
-  # Public: Redo the last operation
-  redo: -> @history.redo()
-
-  # Public: Batch multiple operations as a single undo/redo step.
-  #
-  # Any group of operations that are logically grouped from the perspective of
-  # undoing and redoing should be performed in a transaction. If you want to
-  # abort the transaction, call {::abortTransaction} to terminate the function's
-  # execution and revert any changes performed up to the abortion.
-  #
-  # * `fn` A {Function} to call inside the transaction.
-  transact: (fn) -> @history.transact(fn)
-
-  # Public: Start an open-ended transaction.
-  #
-  # Call {::commitTransaction} or {::abortTransaction} to terminate the
-  # transaction. If you nest calls to transactions, only the outermost
-  # transaction is considered. You must match every begin with a matching
-  # commit, but a single call to abort will cancel all nested transactions.
-  beginTransaction: -> @history.beginTransaction()
-
-  # Public: Commit an open-ended transaction started with {::beginTransaction}
-  # and push it to the undo stack.
-  #
-  # If transactions are nested, only the outermost commit takes effect.
-  commitTransaction: -> @history.commitTransaction()
-
-  # Public: Abort an open transaction, undoing any operations performed so far
-  # within the transaction.
-  abortTransaction: -> @history.abortTransaction()
-
-  # Public: Clear the undo stack.
-  clearUndoStack: -> @history.clearUndoStack()
-
-  # Public: Create a marker with the given range. This marker will maintain
-  # its logical location as the buffer is changed, so if you mark a particular
-  # word, the marker will remain over that word even if the word's location in
-  # the buffer changes.
-  #
-  # * `range` A {Range} or range-compatible {Array}
-  # * `properties` A hash of key-value pairs to associate with the marker. There
-  #   are also reserved property names that have marker-specific meaning.
-  #   * `reversed` (optional) Creates the marker in a reversed orientation. (default: false)
-  #   * `persistent` (optional) Whether to include this marker when serializing the buffer. (default: true)
-  #   * `invalidate` (optional) Determines the rules by which changes to the
-  #     buffer *invalidate* the marker. (default: 'overlap') It can be any of
-  #     the following strategies, in order of fragility
-  #     * __never__: The marker is never marked as invalid. This is a good choice for
-  #       markers representing selections in an editor.
-  #     * __surround__: The marker is invalidated by changes that completely surround it.
-  #     * __overlap__: The marker is invalidated by changes that surround the
-  #       start or end of the marker. This is the default.
-  #     * __inside__: The marker is invalidated by changes that extend into the
-  #       inside of the marker. Changes that end at the marker's start or
-  #       start at the marker's end do not invalidate the marker.
-  #     * __touch__: The marker is invalidated by a change that touches the marked
-  #       region in any way, including changes that end at the marker's
-  #       start or start at the marker's end. This is the most fragile strategy.
-  #
-  # Returns a {Marker}.
-  markRange: (range, properties) -> @markers.markRange(range, properties)
-
-  # Public: Create a marker at the given position with no tail.
-  #
-  # * `position` {Point} or point-compatible {Array}
-  # * `properties` This is the same as the `properties` parameter in {::markRange}
-  #
-  # Returns a {Marker}.
-  markPosition: (position, properties) -> @markers.markPosition(position, properties)
-
-  # Public: Get an existing marker by its id.
-  #
-  # Returns a {Marker}.
-  getMarker: (id) -> @markers.getMarker(id)
-
-  # Public: Get all existing markers on the buffer.
-  #
-  # Returns an {Array} of {Marker}s.
-  getMarkers: -> @markers.getMarkers()
-
-  # Public: Find markers conforming to the given parameters.
-  #
-  # Markers are sorted based on their position in the buffer. If two markers
-  # start at the same position, the larger marker comes first.
-  #
-  # * `params` A hash of key-value pairs constraining the set of returned markers. You
-  #   can query against custom marker properties by listing the desired
-  #   key-value pairs here. In addition, the following keys are reserved and
-  #   have special semantics:
-  #   * `startPosition` Only include markers that start at the given {Point}.
-  #   * `endPosition` Only include markers that end at the given {Point}.
-  #   * `containsPoint` Only include markers that contain the given {Point}, inclusive.
-  #   * `containsRange` Only include markers that contain the given {Range}, inclusive.
-  #   * `startRow` Only include markers that start at the given row {Number}.
-  #   * `endRow` Only include markers that end at the given row {Number}.
-  #   * `intersectsRow` Only include markers that intersect the given row {Number}.
-  #
-  # Returns an {Array} of {Marker}s.
-  findMarkers: (params) -> @markers.findMarkers(params)
-
-  # Public: Get the number of markers in the buffer.
-  #
-  # Returns a {Number}.
-  getMarkerCount: -> @markers.getMarkerCount()
-
-  markerCreated: (marker) ->
-    @emit 'marker-created', marker
-    @emitter.emit 'did-create-marker', marker

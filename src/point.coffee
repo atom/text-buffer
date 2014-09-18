@@ -1,3 +1,5 @@
+{deprecate} = require 'grim'
+
 # Public: Represents a point in a buffer in row/column coordinates.
 #
 # Every public method that takes a point also accepts a *point-compatible*
@@ -10,6 +12,10 @@
 # ```
 module.exports =
 class Point
+  ###
+  Section: Construction
+  ###
+
   # Public: Convert any point-compatible object to a {Point}.
   #
   # * `object` This can be an object that's already a {Point}, in which case it's
@@ -30,6 +36,10 @@ class Point
 
       new Point(row, column)
 
+  ###
+  Section: Comparison
+  ###
+
   # Public: Returns the given {Point} that is earlier in the buffer.
   #
   # * `point1` {Point}
@@ -42,6 +52,10 @@ class Point
     else
       point2
 
+  ###
+  Section: Construction
+  ###
+
   # Public: Construct a {Point} object
   #
   # * `row` {Number} row
@@ -52,20 +66,25 @@ class Point
   copy: ->
     new Point(@row, @column)
 
+  ###
+  Section: Operations
+  ###
+
   # Public: Makes this point immutable and returns itself.
   #
   # Returns an immutable version of this {Point}
   freeze: ->
     Object.freeze(this)
 
-  # Public: Return a new {Point} based on shifting this point by the given delta,
-  # which is represented by another {Point}.
-  #
-  # * `delta` {Point} to shift by
+  # Deprecated
   translate: (delta) ->
+    deprecate 'Use ::add() instead'
     {row, column} = Point.fromObject(delta)
     new Point(@row + row, @column + column)
 
+  # Return a new {Point} based on shifting this point by the given {Point}.
+  #
+  # * `other` {Point} to shift by
   add: (other) ->
     other = Point.fromObject(other)
     row = @row + other.row
@@ -83,6 +102,10 @@ class Point
       rightColumn = @column
 
     [new Point(0, column), new Point(@row, rightColumn)]
+
+  ###
+  Section: Comparison
+  ###
 
   # Public:
   #
@@ -140,6 +163,10 @@ class Point
   # * `other` A {Point} or point-compatible {Array}.
   isGreaterThanOrEqual: (other) ->
     @compare(other) >= 0
+
+  ###
+  Section: Conversion
+  ###
 
   # Public: Returns an array of this point's row and column.
   toArray: ->
