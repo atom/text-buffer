@@ -10,6 +10,10 @@
 # ```
 module.exports =
 class Point
+  ###
+  Section: Construction
+  ###
+
   # Public: Convert any point-compatible object to a {Point}.
   #
   # * `object` This can be an object that's already a {Point}, in which case it's
@@ -30,6 +34,10 @@ class Point
 
       new Point(row, column)
 
+  ###
+  Section: Comparison
+  ###
+
   # Public: Returns the given {Point} that is earlier in the buffer.
   #
   # * `point1` {Point}
@@ -42,6 +50,10 @@ class Point
     else
       point2
 
+  ###
+  Section: Construction
+  ###
+
   # Public: Construct a {Point} object
   #
   # * `row` {Number} row
@@ -51,6 +63,10 @@ class Point
   # Public: Returns a new {Point} with the same row and column.
   copy: ->
     new Point(@row, @column)
+
+  ###
+  Section: Operations
+  ###
 
   # Public: Makes this point immutable and returns itself.
   #
@@ -83,6 +99,10 @@ class Point
       rightColumn = @column
 
     [new Point(0, column), new Point(@row, rightColumn)]
+
+  ###
+  Section: Comparison
+  ###
 
   # Public:
   #
@@ -140,6 +160,10 @@ class Point
   # * `other` A {Point} or point-compatible {Array}.
   isGreaterThanOrEqual: (other) ->
     @compare(other) >= 0
+
+  ###
+  Section: Conversion
+  ###
 
   # Public: Returns an array of this point's row and column.
   toArray: ->
