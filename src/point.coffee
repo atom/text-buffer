@@ -1,3 +1,5 @@
+{deprecate} = require 'grim'
+
 # Public: Represents a point in a buffer in row/column coordinates.
 #
 # Every public method that takes a point also accepts a *point-compatible*
@@ -74,14 +76,15 @@ class Point
   freeze: ->
     Object.freeze(this)
 
-  # Public: Return a new {Point} based on shifting this point by the given delta,
-  # which is represented by another {Point}.
-  #
-  # * `delta` {Point} to shift by
+  # Deprecated
   translate: (delta) ->
+    deprecate 'Use ::add() instead'
     {row, column} = Point.fromObject(delta)
     new Point(@row + row, @column + column)
 
+  # Return a new {Point} based on shifting this point by the given {Point}.
+  #
+  # * `other` {Point} to shift by
   add: (other) ->
     other = Point.fromObject(other)
     row = @row + other.row
