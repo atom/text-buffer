@@ -33,7 +33,7 @@ class Range
   # Returns: A {Range} based on the given object.
   @fromObject: (object, copy) ->
     if Array.isArray(object)
-      new this(object...)
+      new this(object[0], object[1])
     else if object instanceof this
       if copy then object.copy() else object
     else
@@ -85,7 +85,10 @@ class Range
   #
   # * `array` {array} of params to pass to the {::constructor}
   @deserialize: (array) ->
-    new this(array...)
+    if Array.isArray(array)
+      new this(array[0], array[1])
+    else
+      new this()
 
   ###
   Section: Construction
