@@ -119,7 +119,7 @@ class Range
     [@start.serialize(), @end.serialize()]
 
   ###
-  Section: Range Info
+  Section: Range Details
   ###
 
   # Public: Is the start position of this range equal to the end position?

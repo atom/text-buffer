@@ -223,6 +223,12 @@ class TextBuffer
   onDidDestroy: (callback) ->
     @emitter.on 'did-destroy', callback
 
+  # Public: Get the number of milliseconds that will elapse without a change
+  # before {::onDidStopChanging} observers are invoked following a change.
+  #
+  # Returns a {Number}.
+  getStoppedChangingDelay: -> @stoppedChangingDelay
+
   on: (eventName) ->
     switch eventName
       when 'changed'
@@ -255,14 +261,8 @@ class TextBuffer
     EmitterMixin::on.apply(this, arguments)
 
   ###
-  Section: Metadata
+  Section: File Details
   ###
-
-  # Public: Determine whether the buffer is empty.
-  #
-  # Returns a {Boolean}.
-  isEmpty: ->
-    @getLastRow() is 0 and @lineLengthForRow(0) is 0
 
   # Public: Determine if the in-memory contents of the buffer differ from its
   # contents on disk.
@@ -286,17 +286,7 @@ class TextBuffer
   # Returns a {Boolean}.
   isInConflict: -> @conflict
 
-  # Public: Get the number of milliseconds that will elapse without a change
-  # before {::onDidStopChanging} observers are invoked following a change.
-  #
-  # Returns a {Number}.
-  getStoppedChangingDelay: -> @stoppedChangingDelay
-
-  ###
-  Section: Path Data
-  ###
-
-  # Pubilc: Get the path of the associated file.
+  # Public: Get the path of the associated file.
   #
   # Returns a {String}.
   getPath: ->
@@ -335,6 +325,12 @@ class TextBuffer
   ###
   Section: Reading Text
   ###
+
+  # Public: Determine whether the buffer is empty.
+  #
+  # Returns a {Boolean}.
+  isEmpty: ->
+    @getLastRow() is 0 and @lineLengthForRow(0) is 0
 
   # Public: Get the entire text of the buffer.
   #
@@ -610,10 +606,6 @@ class TextBuffer
     @markers?.resumeChangeEvents()
     @emit 'markers-updated'
     @emitter.emit 'did-update-markers'
-
-  ###
-  Section: Removing Text
-  ###
 
   # Public: Delete the text in the given range.
   #
@@ -943,7 +935,7 @@ class TextBuffer
     matches
 
   ###
-  Section: Buffer Range Data
+  Section: Buffer Range Details
   ###
 
   # Public: Get the range spanning from `[0, 0]` to {::getEndPosition}.
