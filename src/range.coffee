@@ -64,7 +64,7 @@ class Range
       endPoint.column += lines[0].length
     new this(startPoint, endPoint)
 
-  # Public: Returns a {Range} that starts at the given point and ends at the
+  # Returns a {Range} that starts at the given point and ends at the
   # start point plus the given row and column deltas.
   #
   # * `startPoint` A {Point} or point-compatible {Array}
