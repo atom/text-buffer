@@ -10,7 +10,7 @@ Range = require './range'
 
 OptionKeys = ['reversed', 'tailed', 'invalidate', 'persistent']
 
-# Essential: Represents a buffer annotation that remains logically stationary
+# Private: Represents a buffer annotation that remains logically stationary
 # even as the buffer changes. This is used to represent cursors, folds, snippet
 # targets, misspelled words, and anything else that needs to track a logical
 # location in the buffer over time.
