@@ -32,7 +32,7 @@ module.exports = (grunt) ->
           failOnError: true
 
       'update-atomdoc':
-        command: 'npm update grunt-atomdoc'
+        command: 'npm update grunt-atomdoc donna tello atomdoc'
         options:
           stdout: true
           stderr: true
