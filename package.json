@@ -35,7 +35,7 @@
   },
   "dependencies": {
     "delegato": "1.x",
-    "diff": "git://github.com/benogle/jsdiff.git",
+    "diff": "git+https://github.com/benogle/jsdiff.git",
     "emissary": "1.x",
     "event-kit": "^0.7.0",
     "fs-plus": "2.x",
