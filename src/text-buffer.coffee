@@ -304,8 +304,8 @@ class TextBuffer
     else
       @file = null
 
-    @emit "path-changed", this
     @emitter.emit 'did-change-path', @getPath()
+    @emit "path-changed", this
 
   # Public: Get the path of the associated file.
   #
@@ -601,11 +601,11 @@ class TextBuffer
 
     @conflict = false if @conflict and !@isModified()
     @scheduleModifiedEvents()
-    @emit 'changed', changeEvent
     @emitter.emit 'did-change', changeEvent
+    @emit 'changed', changeEvent
     @markers?.resumeChangeEvents()
-    @emit 'markers-updated'
     @emitter.emit 'did-update-markers'
+    @emit 'markers-updated'
 
   # Public: Delete the text in the given range.
   #
@@ -1086,26 +1086,26 @@ class TextBuffer
   saveAs: (filePath) ->
     unless filePath then throw new Error("Can't save buffer with no file path")
 
-    @emit 'will-be-saved', this
     @emitter.emit 'will-save', {path: filePath}
+    @emit 'will-be-saved', this
     @setPath(filePath)
     @file.write(@getText())
     @cachedDiskContents = @getText()
     @conflict = false
     @emitModifiedStatusChanged(false)
-    @emit 'saved', this
     @emitter.emit 'did-save', {path: filePath}
+    @emit 'saved', this
 
   # Public: Reload the buffer's contents from disk.
   #
   # Sets the buffer's content to the cached disk contents
   reload: ->
-    @emit 'will-reload'
     @emitter.emit 'will-reload'
+    @emit 'will-reload'
     @setTextViaDiff(@cachedDiskContents)
     @emitModifiedStatusChanged(false)
-    @emit 'reloaded'
     @emitter.emit 'did-reload'
+    @emit 'reloaded'
 
   # Rereads the contents of the file, and stores them in the cache.
   updateCachedDiskContentsSync: ->
@@ -1121,8 +1121,8 @@ class TextBuffer
   ###
 
   markerCreated: (marker) ->
-    @emit 'marker-created', marker
     @emitter.emit 'did-create-marker', marker
+    @emit 'marker-created', marker
 
   loadSync: ->
     @updateCachedDiskContentsSync()
@@ -1147,8 +1147,8 @@ class TextBuffer
       @fileSubscriptions?.dispose()
       @unsubscribe()
       @destroyed = true
-      @emit 'destroyed'
       @emitter.emit 'did-destroy'
+      @emit 'destroyed'
 
   isAlive: -> not @destroyed
 
@@ -1180,8 +1180,8 @@ class TextBuffer
       return if previousContents == @cachedDiskContents
 
       if @conflict
-        @emit "contents-conflicted"
         @emitter.emit 'did-conflict'
+        @emit "contents-conflicted"
       else
         @reload()
 
@@ -1194,8 +1194,8 @@ class TextBuffer
         @destroy()
 
     @fileSubscriptions.add @file.onDidRename =>
-      @emit "path-changed", this
       @emitter.emit 'did-change-path', @getPath()
+      @emit "path-changed", this
 
   # Identifies if the buffer belongs to multiple editors.
   #
@@ -1212,16 +1212,16 @@ class TextBuffer
     stoppedChangingCallback = =>
       @stoppedChangingTimeout = null
       modifiedStatus = @isModified()
-      @emit 'contents-modified', modifiedStatus
       @emitter.emit 'did-stop-changing'
+      @emit 'contents-modified', modifiedStatus
       @emitModifiedStatusChanged(modifiedStatus)
     @stoppedChangingTimeout = setTimeout(stoppedChangingCallback, @stoppedChangingDelay)
 
   emitModifiedStatusChanged: (modifiedStatus) ->
     return if modifiedStatus is @previousModifiedStatus
     @previousModifiedStatus = modifiedStatus
-    @emit 'modified-status-changed', modifiedStatus
     @emitter.emit 'did-change-modified', modifiedStatus
+    @emit 'modified-status-changed', modifiedStatus
 
   # Deprecate
   usesSoftTabs: ->

@@ -331,8 +331,8 @@ class Marker
     @destroyed = true
     @manager.removeMarker(@id)
     @manager.intervals.remove(@id)
-    @emit 'destroyed'
     @emitter.emit 'did-destroy'
+    @emit 'destroyed'
 
   extractParams: (params) ->
     params = @constructor.extractParams(params)
@@ -498,8 +498,8 @@ class Marker
     if @deferredChangeEvents?
       @deferredChangeEvents.push(event)
     else
-      @emit 'changed', event
       @emitter.emit 'did-change', event
+      @emit 'changed', event
     true
 
   # Updates the interval index on the marker manager with the marker's current
@@ -515,5 +515,5 @@ class Marker
       @deferredChangeEvents = null
 
       for event in deferredChangeEvents
-        @emit 'changed', event
         @emitter.emit 'did-change', event
+        @emit 'changed', event
