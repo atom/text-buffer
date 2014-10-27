@@ -108,6 +108,9 @@ class TextBuffer
   onDidChange: (callback) ->
     @emitter.on 'did-change', callback
 
+  preemptDidChange: (callback) ->
+    @emitter.preempt 'did-change', callback
+
   # Public: Invoke the given callback asynchronously following one or more
   # changes after {::getStoppedChangingDelay} milliseconds elapse without an
   # additional change.
