@@ -330,15 +330,18 @@ class TextBuffer
     return if encoding is @getEncoding()
 
     @encoding = encoding
-    return unless @file?
+    if @file?
+      @file.setEncoding(encoding)
+      @emitter.emit 'did-change-encoding', encoding
 
-    @file.setEncoding(encoding)
-    @emitter.emit 'did-change-encoding', encoding
+      unless @isModified()
+        @updateCachedDiskContents true, =>
+          @reload()
+          @clearUndoStack()
+    else
+      @emitter.emit 'did-change-encoding', encoding
 
-    unless @isModified()
-      @updateCachedDiskContents true, =>
-        @reload()
-        @clearUndoStack()
+    return
 
   # Public: Returns the {String} encoding of this buffer.
   getEncoding: -> @encoding ? @file?.getEncoding()
