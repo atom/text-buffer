@@ -305,8 +305,7 @@ class TextBuffer
 
     if filePath
       @file = new File(filePath)
-      if encoding = @getEncoding()
-        @file.setEncoding(encoding)
+      @file.setEncoding(@getEncoding())
       @subscribeToFile()
     else
       @file = null
