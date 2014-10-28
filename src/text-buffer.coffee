@@ -314,10 +314,10 @@ class TextBuffer
     @emitter.emit 'did-change-path', @getPath()
     @emit "path-changed", this
 
-  # Public: Sets the encoding for this buffer.
+  # Public: Sets the character set encoding for this buffer.
   #
-  # * `encoding` The {String} encoding to use such as 'utf8'
-  setEncoding: (@encoding) ->
+  # * `encoding` The {String} encoding to use (default: 'utf8').
+  setEncoding: (@encoding='utf8') ->
     return unless @file?
 
     @file.setEncoding(@encoding)
