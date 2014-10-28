@@ -1831,6 +1831,21 @@ describe "TextBuffer", ->
         expect(buffer.getEncoding()).toBe 'win1251'
         expect(buffer.getText()).toBe 'тест 1234 абвгдеёжз'
 
+    describe "when the buffer is modified", ->
+      describe "when the encoding of the buffer is changed", ->
+        beforeEach ->
+          filePath = join(__dirname, 'fixtures', 'win1251.txt')
+          buffer = new TextBuffer({filePath, load: true})
+
+          waitsFor ->
+            buffer.loaded
+
+        it "does not reload the contents from the disk", ->
+          spyOn(buffer, 'updateCachedDiskContents')
+          buffer.setText('ch ch changes')
+          buffer.setEncoding('win1251')
+          expect(buffer.updateCachedDiskContents.callCount).toBe 0
+
     describe "when the buffer is unmodified", ->
       describe "when the encoding of the buffer is changed", ->
         beforeEach ->
