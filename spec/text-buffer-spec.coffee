@@ -1820,6 +1820,17 @@ describe "TextBuffer", ->
             expect(buffer.getText()).toBe "\ninitialtexthello\n1\n2\n"
 
   describe "character set encoding support", ->
+    it "allows the encoding to be set on creation", ->
+      filePath = join(__dirname, 'fixtures', 'win1251.txt')
+      buffer = new TextBuffer({filePath, load: true, encoding: 'win1251'})
+
+      waitsFor ->
+        buffer.loaded
+
+      runs ->
+        expect(buffer.getEncoding()).toBe 'win1251'
+        expect(buffer.getText()).toBe 'тест 1234 абвгдеёжз'
+
     describe "when the buffer is unmodified", ->
       describe "when the encoding of the buffer is changed", ->
         beforeEach ->
@@ -1829,7 +1840,7 @@ describe "TextBuffer", ->
           waitsFor ->
             buffer.loaded
 
-        fit "reloads the contents from the disk", ->
+        it "reloads the contents from the disk", ->
           expect(buffer.getEncoding()).toBe 'utf8'
           expect(buffer.getText()).not.toBe 'тест 1234 абвгдеёжз'
 
