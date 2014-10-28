@@ -1819,7 +1819,7 @@ describe "TextBuffer", ->
             buffer.append("hello\n1\r\n2\n")
             expect(buffer.getText()).toBe "\ninitialtexthello\n1\n2\n"
 
-  describe "encodings", ->
+  describe "character set encoding support", ->
     describe "when the buffer is unmodified", ->
       describe "when the encoding of the buffer is changed", ->
         beforeEach ->
