@@ -1818,3 +1818,109 @@ describe "TextBuffer", ->
             buffer.setText("\ninitialtext")
             buffer.append("hello\n1\r\n2\n")
             expect(buffer.getText()).toBe "\ninitialtexthello\n1\n2\n"
+
+  describe "character set encoding support", ->
+    it "allows the encoding to be set on creation", ->
+      filePath = join(__dirname, 'fixtures', 'win1251.txt')
+      buffer = new TextBuffer({filePath, load: true, encoding: 'win1251'})
+
+      waitsFor ->
+        buffer.loaded
+
+      runs ->
+        expect(buffer.getEncoding()).toBe 'win1251'
+        expect(buffer.getText()).toBe 'тест 1234 абвгдеёжз'
+
+    it "serializes the encoding", ->
+      filePath = join(__dirname, 'fixtures', 'win1251.txt')
+      bufferA = new TextBuffer({filePath, load: true, encoding: 'win1251'})
+
+      waitsFor ->
+        bufferA.loaded
+
+      runs ->
+        bufferB = TextBuffer.deserialize(bufferA.serialize())
+        expect(bufferB.getEncoding()).toBe 'win1251'
+        expect(bufferB.getText()).toBe 'тест 1234 абвгдеёжз'
+
+    describe "when the buffer is modified", ->
+      describe "when the encoding of the buffer is changed", ->
+        beforeEach ->
+          filePath = join(__dirname, 'fixtures', 'win1251.txt')
+          buffer = new TextBuffer({filePath, load: true})
+
+          waitsFor ->
+            buffer.loaded
+
+        it "does not reload the contents from the disk", ->
+          spyOn(buffer, 'updateCachedDiskContents')
+          buffer.setText('ch ch changes')
+          buffer.setEncoding('win1251')
+          expect(buffer.updateCachedDiskContents.callCount).toBe 0
+
+    describe "when the buffer is unmodified", ->
+      describe "when the encoding of the buffer is changed", ->
+        beforeEach ->
+          filePath = join(__dirname, 'fixtures', 'win1251.txt')
+          buffer = new TextBuffer({filePath, load: true})
+
+          waitsFor ->
+            buffer.loaded
+
+        it "reloads the contents from the disk", ->
+          expect(buffer.getEncoding()).toBe 'utf8'
+          expect(buffer.getText()).not.toBe 'тест 1234 абвгдеёжз'
+
+          reloadHandler = jasmine.createSpy('reloadHandler')
+          buffer.setEncoding('win1251')
+          expect(buffer.getEncoding()).toBe 'win1251'
+          buffer.onDidReload(reloadHandler)
+
+          waitsFor ->
+            reloadHandler.callCount is 1
+
+          runs ->
+            expect(buffer.getText()).toBe 'тест 1234 абвгдеёжз'
+
+    it "emits an event when the encoding changes", ->
+      filePath = join(__dirname, 'fixtures', 'win1251.txt')
+      encodingChangeHandler = jasmine.createSpy('encodingChangeHandler')
+
+      buffer = new TextBuffer({filePath, load: true})
+      buffer.onDidChangeEncoding(encodingChangeHandler)
+      buffer.setEncoding('win1251')
+      expect(encodingChangeHandler).toHaveBeenCalledWith('win1251')
+
+      encodingChangeHandler.reset()
+      buffer.setEncoding('win1251')
+      expect(encodingChangeHandler.callCount).toBe 0
+
+      encodingChangeHandler.reset()
+
+      buffer = new TextBuffer()
+      buffer.onDidChangeEncoding(encodingChangeHandler)
+      buffer.setEncoding('win1251')
+      expect(encodingChangeHandler).toHaveBeenCalledWith('win1251')
+
+      encodingChangeHandler.reset()
+      buffer.setEncoding('win1251')
+      expect(encodingChangeHandler.callCount).toBe 0
+
+    it "does not push the encoding change onto the undo stack", ->
+      filePath = join(__dirname, 'fixtures', 'win1251.txt')
+      buffer = new TextBuffer({filePath, load: true})
+      reloadHandler = jasmine.createSpy('reloadHandler')
+
+      waitsFor ->
+        buffer.loaded
+
+      runs ->
+        buffer.setEncoding('win1251')
+        buffer.onDidReload(reloadHandler)
+
+      waitsFor ->
+        reloadHandler.callCount is 1
+
+      runs ->
+        buffer.undo()
+        expect(buffer.getText()).toBe 'тест 1234 абвгдеёжз'

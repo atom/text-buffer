@@ -30,6 +30,7 @@ class TextBuffer
   Subscriber.includeInto(this)
 
   cachedText: null
+  encoding: null
   stoppedChangingDelay: 300
   stoppedChangingTimeout: null
   cachedDiskContents: null
@@ -61,6 +62,7 @@ class TextBuffer
     @setTextInRange([[0, 0], [0, 0]], text ? params?.text ? '', false)
     @history = params?.history ? new History(this)
     @markers = params?.markers ? new MarkerManager(this)
+    @setEncoding(params?.encoding)
 
     @loaded = false
     @digestWhenLastPersisted = params?.digestWhenLastPersisted ? false
@@ -82,6 +84,7 @@ class TextBuffer
     text: @getText()
     markers: @markers.serialize()
     history: @history.serialize()
+    encoding: @getEncoding()
     filePath: @getPath()
     modifiedWhenLastPersisted: @isModified()
     digestWhenLastPersisted: @file?.getDigest()
@@ -181,6 +184,15 @@ class TextBuffer
   # Returns a {Disposable} on which `.dispose()` can be called to unsubscribe.
   onDidChangePath: (callback) ->
     @emitter.on 'did-change-path', callback
+
+  # Public: Invoke the given callback when the value of {::getEncoding} changes.
+  #
+  # * `callback` {Function} to be called when the encoding changes.
+  #   * `encoding` {String} character set encoding of the buffer.
+  #
+  # Returns a {Disposable} on which `.dispose()` can be called to unsubscribe.
+  onDidChangeEncoding: (callback) ->
+    @emitter.on 'did-change-encoding', callback
 
   # Public: Invoke the given callback before the buffer is saved to disk.
   #
@@ -303,12 +315,36 @@ class TextBuffer
 
     if filePath
       @file = new File(filePath)
+      @file.setEncoding(@getEncoding())
       @subscribeToFile()
     else
       @file = null
 
     @emitter.emit 'did-change-path', @getPath()
     @emit "path-changed", this
+
+  # Public: Sets the character set encoding for this buffer.
+  #
+  # * `encoding` The {String} encoding to use (default: 'utf8').
+  setEncoding: (encoding='utf8') ->
+    return if encoding is @getEncoding()
+
+    @encoding = encoding
+    if @file?
+      @file.setEncoding(encoding)
+      @emitter.emit 'did-change-encoding', encoding
+
+      unless @isModified()
+        @updateCachedDiskContents true, =>
+          @reload()
+          @clearUndoStack()
+    else
+      @emitter.emit 'did-change-encoding', encoding
+
+    return
+
+  # Public: Returns the {String} encoding of this buffer.
+  getEncoding: -> @encoding ? @file?.getEncoding()
 
   # Public: Get the path of the associated file.
   #
@@ -1115,9 +1151,15 @@ class TextBuffer
     @cachedDiskContents = @file?.readSync() ? ""
 
   # Rereads the contents of the file, and stores them in the cache.
-  updateCachedDiskContents: ->
-    Q(@file?.read() ? "").then (contents) =>
+  #
+  # * `flushCache` (optional) {Boolean} flush option to pass through to
+  #                {File::read} (default: false).
+  # * `callback`   (optional) {Function} to call after the cached contents have
+  #                been updated.
+  updateCachedDiskContents: (flushCache=false, callback) ->
+    Q(@file?.read(flushCache) ? "").then (contents) =>
       @cachedDiskContents = contents
+      callback?()
 
   ###
   Section: Private Utility Methods
