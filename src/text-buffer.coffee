@@ -322,7 +322,8 @@ class TextBuffer
 
     @file.setEncoding(@encoding)
     unless @isModified()
-      @updateCachedDiskContents true, => @onDidFileChange()
+      @updateCachedDiskContents true, =>
+        @reload() unless @isModified()
 
   # Public: Returns the {String} encoding of this buffer.
   getEncoding: -> @encoding ? @file.getEncoding()
@@ -1195,7 +1196,20 @@ class TextBuffer
     @fileSubscriptions = new CompositeDisposable
 
     @fileSubscriptions.add @file.onDidChange =>
-      @onDidFileChange()
+      @conflict = true if @isModified()
+      previousContents = @cachedDiskContents
+
+      # Synchrounously update the disk contents because the {File} has already cached them. If the
+      # contents updated asynchrounously multiple `conlict` events could trigger for the same disk
+      # contents.
+      @updateCachedDiskContentsSync()
+      return if previousContents == @cachedDiskContents
+
+      if @conflict
+        @emitter.emit 'did-conflict'
+        @emit "contents-conflicted"
+      else
+        @reload()
 
     @fileSubscriptions.add @file.onDidDelete =>
       modified = @getText() != @cachedDiskContents
@@ -1208,22 +1222,6 @@ class TextBuffer
     @fileSubscriptions.add @file.onDidRename =>
       @emitter.emit 'did-change-path', @getPath()
       @emit "path-changed", this
-
-  onDidFileChange: ->
-    @conflict = true if @isModified()
-    previousContents = @cachedDiskContents
-
-    # Synchrounously update the disk contents because the {File} has already cached them. If the
-    # contents updated asynchrounously multiple `conlict` events could trigger for the same disk
-    # contents.
-    @updateCachedDiskContentsSync()
-    return if previousContents == @cachedDiskContents
-
-    if @conflict
-      @emitter.emit 'did-conflict'
-      @emit "contents-conflicted"
-    else
-      @reload()
 
   # Identifies if the buffer belongs to multiple editors.
   #
