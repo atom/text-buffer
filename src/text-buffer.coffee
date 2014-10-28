@@ -30,6 +30,7 @@ class TextBuffer
   Subscriber.includeInto(this)
 
   cachedText: null
+  encoding: null
   stoppedChangingDelay: 300
   stoppedChangingTimeout: null
   cachedDiskContents: null
