@@ -336,7 +336,9 @@ class TextBuffer
     @emitter.emit 'did-change-encoding', encoding
 
     unless @isModified()
-      @updateCachedDiskContents true, => @reload()
+      @updateCachedDiskContents true, =>
+        @reload()
+        @clearUndoStack()
 
   # Public: Returns the {String} encoding of this buffer.
   getEncoding: -> @encoding ? @file?.getEncoding()
