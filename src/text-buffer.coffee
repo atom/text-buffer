@@ -317,7 +317,10 @@ class TextBuffer
   # Public: Sets the encoding for this buffer.
   #
   # * `encoding` The {String} encoding to use such as 'utf8'
-  setEncoding: (@encoding) -> @file?.setEncoding(@encoding)
+  setEncoding: (@encoding) ->
+    if @file?
+      @file.setEncoding(@encoding)
+      @updateCachedDiskContents true, => @onDidFileChange()
 
   # Public: Returns the {String} encoding of this buffer.
   getEncoding: -> @encoding ? @file.getEncoding()
@@ -1127,9 +1130,10 @@ class TextBuffer
     @cachedDiskContents = @file?.readSync() ? ""
 
   # Rereads the contents of the file, and stores them in the cache.
-  updateCachedDiskContents: ->
-    Q(@file?.read() ? "").then (contents) =>
+  updateCachedDiskContents: (flushCache=false, callback) ->
+    Q(@file?.read(flushCache) ? "").then (contents) =>
       @cachedDiskContents = contents
+      callback?()
 
   ###
   Section: Private Utility Methods
@@ -1185,20 +1189,7 @@ class TextBuffer
     @fileSubscriptions = new CompositeDisposable
 
     @fileSubscriptions.add @file.onDidChange =>
-      @conflict = true if @isModified()
-      previousContents = @cachedDiskContents
-
-      # Synchrounously update the disk contents because the {File} has already cached them. If the
-      # contents updated asynchrounously multiple `conlict` events could trigger for the same disk
-      # contents.
-      @updateCachedDiskContentsSync()
-      return if previousContents == @cachedDiskContents
-
-      if @conflict
-        @emitter.emit 'did-conflict'
-        @emit "contents-conflicted"
-      else
-        @reload()
+      @onDidFileChange()
 
     @fileSubscriptions.add @file.onDidDelete =>
       modified = @getText() != @cachedDiskContents
@@ -1211,6 +1202,22 @@ class TextBuffer
     @fileSubscriptions.add @file.onDidRename =>
       @emitter.emit 'did-change-path', @getPath()
       @emit "path-changed", this
+
+  onDidFileChange: ->
+    @conflict = true if @isModified()
+    previousContents = @cachedDiskContents
+
+    # Synchrounously update the disk contents because the {File} has already cached them. If the
+    # contents updated asynchrounously multiple `conlict` events could trigger for the same disk
+    # contents.
+    @updateCachedDiskContentsSync()
+    return if previousContents == @cachedDiskContents
+
+    if @conflict
+      @emitter.emit 'did-conflict'
+      @emit "contents-conflicted"
+    else
+      @reload()
 
   # Identifies if the buffer belongs to multiple editors.
   #
