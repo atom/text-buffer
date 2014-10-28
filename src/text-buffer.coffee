@@ -1130,6 +1130,10 @@ class TextBuffer
     @cachedDiskContents = @file?.readSync() ? ""
 
   # Rereads the contents of the file, and stores them in the cache.
+  #
+  # * `flushCache` {Boolean} flush option to pass through to {File::read}
+  # * `callback`   A {Function} to call after the cached contents have been
+  #                updated.
   updateCachedDiskContents: (flushCache=false, callback) ->
     Q(@file?.read(flushCache) ? "").then (contents) =>
       @cachedDiskContents = contents
