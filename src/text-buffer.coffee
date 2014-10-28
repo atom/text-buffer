@@ -318,8 +318,10 @@ class TextBuffer
   #
   # * `encoding` The {String} encoding to use such as 'utf8'
   setEncoding: (@encoding) ->
-    if @file?
-      @file.setEncoding(@encoding)
+    return unless @file?
+
+    @file.setEncoding(@encoding)
+    unless @isModified()
       @updateCachedDiskContents true, => @onDidFileChange()
 
   # Public: Returns the {String} encoding of this buffer.
