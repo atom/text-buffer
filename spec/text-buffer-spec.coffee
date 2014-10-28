@@ -1893,3 +1893,22 @@ describe "TextBuffer", ->
       encodingChangeHandler.reset()
       buffer.setEncoding('win1251')
       expect(encodingChangeHandler.callCount).toBe 0
+
+    it "does not push the encoding change onto the undo stack", ->
+      filePath = join(__dirname, 'fixtures', 'win1251.txt')
+      buffer = new TextBuffer({filePath, load: true})
+      reloadHandler = jasmine.createSpy('reloadHandler')
+
+      waitsFor ->
+        buffer.loaded
+
+      runs ->
+        buffer.setEncoding('win1251')
+        buffer.onDidReload(reloadHandler)
+
+      waitsFor ->
+        reloadHandler.callCount is 1
+
+      runs ->
+        buffer.undo()
+        expect(buffer.getText()).toBe 'тест 1234 абвгдеёжз'
