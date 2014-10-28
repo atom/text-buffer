@@ -303,12 +303,22 @@ class TextBuffer
 
     if filePath
       @file = new File(filePath)
+      if encoding = @getEncoding()
+        @file.setEncoding(encoding)
       @subscribeToFile()
     else
       @file = null
 
     @emitter.emit 'did-change-path', @getPath()
     @emit "path-changed", this
+
+  # Public: Sets the encoding for this buffer.
+  #
+  # * `encoding` The {String} encoding to use such as 'utf8'
+  setEncoding: (@encoding) -> @file?.setEncoding(@encoding)
+
+  # Public: Returns the {String} encoding of this buffer.
+  getEncoding: -> @encoding ? @file.getEncoding()
 
   # Public: Get the path of the associated file.
   #
