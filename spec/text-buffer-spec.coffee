@@ -1831,6 +1831,18 @@ describe "TextBuffer", ->
         expect(buffer.getEncoding()).toBe 'win1251'
         expect(buffer.getText()).toBe 'тест 1234 абвгдеёжз'
 
+    it "serializes the encoding", ->
+      filePath = join(__dirname, 'fixtures', 'win1251.txt')
+      bufferA = new TextBuffer({filePath, load: true, encoding: 'win1251'})
+
+      waitsFor ->
+        bufferA.loaded
+
+      runs ->
+        bufferB = TextBuffer.deserialize(bufferA.serialize())
+        expect(bufferB.getEncoding()).toBe 'win1251'
+        expect(bufferB.getText()).toBe 'тест 1234 абвгдеёжз'
+
     describe "when the buffer is modified", ->
       describe "when the encoding of the buffer is changed", ->
         beforeEach ->
