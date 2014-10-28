@@ -61,7 +61,7 @@ class TextBuffer
     @setTextInRange([[0, 0], [0, 0]], text ? params?.text ? '', false)
     @history = params?.history ? new History(this)
     @markers = params?.markers ? new MarkerManager(this)
-    @setEncoding(params.encoding)
+    @setEncoding(params?.encoding)
 
     @loaded = false
     @digestWhenLastPersisted = params?.digestWhenLastPersisted ? false
