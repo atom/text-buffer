@@ -1818,3 +1818,28 @@ describe "TextBuffer", ->
             buffer.setText("\ninitialtext")
             buffer.append("hello\n1\r\n2\n")
             expect(buffer.getText()).toBe "\ninitialtexthello\n1\n2\n"
+
+  describe "encodings", ->
+    describe "when the buffer is unmodified", ->
+      describe "when the encoding of the buffer is changed", ->
+        beforeEach ->
+          filePath = join(__dirname, 'fixtures', 'win1251.txt')
+          buffer = new TextBuffer({filePath, load: true})
+
+          waitsFor ->
+            buffer.loaded
+
+        fit "reloads the contents from the disk", ->
+          expect(buffer.getEncoding()).toBe 'utf8'
+          expect(buffer.getText()).not.toBe 'тест 1234 абвгдеёжз'
+
+          reloadHandler = jasmine.createSpy('reloadHandler')
+          buffer.setEncoding('win1251')
+          expect(buffer.getEncoding()).toBe 'win1251'
+          buffer.onDidReload(reloadHandler)
+
+          waitsFor ->
+            reloadHandler.callCount is 1
+
+          runs ->
+            expect(buffer.getText()).toBe 'тест 1234 абвгдеёжз'
