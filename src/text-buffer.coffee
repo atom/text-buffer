@@ -326,7 +326,7 @@ class TextBuffer
         @reload() unless @isModified()
 
   # Public: Returns the {String} encoding of this buffer.
-  getEncoding: -> @encoding ? @file.getEncoding()
+  getEncoding: -> @encoding ? @file?.getEncoding()
 
   # Public: Get the path of the associated file.
   #
