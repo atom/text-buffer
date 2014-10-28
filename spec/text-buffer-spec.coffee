@@ -1881,3 +1881,15 @@ describe "TextBuffer", ->
 
           runs ->
             expect(buffer.getText()).toBe 'тест 1234 абвгдеёжз'
+
+    it "emits an event whent the encoding changes", ->
+      filePath = join(__dirname, 'fixtures', 'win1251.txt')
+      buffer = new TextBuffer({filePath, load: true})
+      encodingChangeHandler = jasmine.createSpy('encodingChangeHandler')
+      buffer.onDidChangeEncoding(encodingChangeHandler)
+      buffer.setEncoding('win1251')
+      expect(encodingChangeHandler).toHaveBeenCalledWith('win1251')
+
+      encodingChangeHandler.reset()
+      buffer.setEncoding('win1251')
+      expect(encodingChangeHandler.callCount).toBe 0

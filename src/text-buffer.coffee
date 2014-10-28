@@ -185,6 +185,15 @@ class TextBuffer
   onDidChangePath: (callback) ->
     @emitter.on 'did-change-path', callback
 
+  # Public: Invoke the given callback when the value of {::getEncoding} changes.
+  #
+  # * `callback` {Function} to be called when the encoding changes.
+  #   * `encoding` {String} character set encoding of the buffer.
+  #
+  # Returns a {Disposable} on which `.dispose()` can be called to unsubscribe.
+  onDidChangeEncoding: (callback) ->
+    @emitter.on 'did-change-encoding', callback
+
   # Public: Invoke the given callback before the buffer is saved to disk.
   #
   # * `callback` {Function} to be called before the buffer is saved.
@@ -317,10 +326,15 @@ class TextBuffer
   # Public: Sets the character set encoding for this buffer.
   #
   # * `encoding` The {String} encoding to use (default: 'utf8').
-  setEncoding: (@encoding='utf8') ->
+  setEncoding: (encoding='utf8') ->
+    return if encoding is @getEncoding()
+
+    @encoding = encoding
     return unless @file?
 
-    @file.setEncoding(@encoding)
+    @file.setEncoding(encoding)
+    @emitter.emit 'did-change-encoding', encoding
+
     unless @isModified()
       @updateCachedDiskContents true, => @reload()
 
