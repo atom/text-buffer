@@ -548,7 +548,14 @@ class TextBuffer
   # * `normalizeLineEndings` (optional) {Boolean} (default: true)
   #
   # Returns the {Range} of the inserted text.
-  setTextInRange: (range, text, normalizeLineEndings=true) ->
+  setTextInRange: (range, text, options) ->
+    if typeof options is 'boolean'
+      normalizeLineEndings = options
+      Grim.deprecate("The normalizeLineEndings argument is now an options hash. Use {normalizeLineEndings: #{options}} instead")
+    else if options?
+      {normalizeLineEndings, undo} = options
+    normalizeLineEndings ?= true
+
     patch = @buildPatch(range, text, normalizeLineEndings)
     @history?.recordNewPatch(patch)
     @applyPatch(patch)
@@ -562,16 +569,16 @@ class TextBuffer
   # * `normalizeLineEndings` (optional) {Boolean} (default: true)\
   #
   # Returns the {Range} of the inserted text.
-  insert: (position, text, normalizeLineEndings) ->
-    @setTextInRange(new Range(position, position), text, normalizeLineEndings)
+  insert: (position, text, options) ->
+    @setTextInRange(new Range(position, position), text, options)
 
   # Public: Append text to the end of the buffer.
   #
   # * `text` A {String} representing the text text to append.
   #
   # Returns the {Range} of the inserted text
-  append: (text, normalizeLineEndings) ->
-    @insert(@getEndPosition(), text, normalizeLineEndings)
+  append: (text, options) ->
+    @insert(@getEndPosition(), text, options)
 
   # Builds a {BufferPatch}, which is used to modify the buffer and is also
   # pushed into the undo history so it can be undone.
