@@ -117,6 +117,15 @@ describe "TextBuffer", ->
       buffer.setTextInRange([[1, 1], [1, 3]], 'i')
       expect(buffer.lineEndingForRow(1)).toBe '\r\n'
 
+    describe "when the undo option is 'skip'", ->
+      it "replaces the contents of the buffer with the given text", ->
+        buffer.setTextInRange([[0, 0], [0, 1]], "y")
+        buffer.setTextInRange([[0, 10], [0, 100]], "w", {undo: 'skip'})
+        expect(buffer.lineForRow(0)).toBe "yellow"
+
+        buffer.undo()
+        expect(buffer.lineForRow(0)).toBe "hellow"
+
     describe "when the normalizeLineEndings argument is true (the default)", ->
       describe "when the range's start row has a line ending", ->
         it "normalizes inserted line endings to match the line ending of the range's start row", ->
@@ -153,6 +162,14 @@ describe "TextBuffer", ->
 
     describe "when the normalizeLineEndings argument is false", ->
       it "honors the newlines in the inserted text", ->
+        buffer.setTextInRange([[1, 0], [1, 5]], "moon\norbiting\r\nhappily\nthere", {normalizeLineEndings: false})
+        expect(buffer.lineEndingForRow(1)).toBe '\n'
+        expect(buffer.lineEndingForRow(2)).toBe '\r\n'
+        expect(buffer.lineEndingForRow(3)).toBe '\n'
+        expect(buffer.lineEndingForRow(4)).toBe '\r\n'
+        expect(buffer.lineEndingForRow(5)).toBe ''
+
+      it "honors the newlines in the inserted text when the deprecated boolean is used", ->
         buffer.setTextInRange([[1, 0], [1, 5]], "moon\norbiting\r\nhappily\nthere", false)
         expect(buffer.lineEndingForRow(1)).toBe '\n'
         expect(buffer.lineEndingForRow(2)).toBe '\r\n'
