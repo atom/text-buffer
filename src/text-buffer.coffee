@@ -545,7 +545,8 @@ class TextBuffer
   #
   # * `range` A {Range}
   # * `text` A {String}
-  # * `normalizeLineEndings` (optional) {Boolean} (default: true)
+  # * `options` (optional) {Object}
+  #   * `normalizeLineEndings` (optional) {Boolean} (default: true)
   #
   # Returns the {Range} of the inserted text.
   setTextInRange: (range, text, options) ->
@@ -566,7 +567,8 @@ class TextBuffer
   # * `position` A {Point} representing the insertion location. The position is
   #   clipped before insertion.
   # * `text` A {String} representing the text to insert.
-  # * `normalizeLineEndings` (optional) {Boolean} (default: true)\
+  # * `options` (optional) {Object}
+  #   * `normalizeLineEndings` (optional) {Boolean} (default: true)
   #
   # Returns the {Range} of the inserted text.
   insert: (position, text, options) ->
@@ -575,6 +577,8 @@ class TextBuffer
   # Public: Append text to the end of the buffer.
   #
   # * `text` A {String} representing the text text to append.
+  # * `options` (optional) {Object}
+  #   * `normalizeLineEndings` (optional) {Boolean} (default: true)
   #
   # Returns the {Range} of the inserted text
   append: (text, options) ->
