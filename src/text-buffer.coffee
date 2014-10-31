@@ -558,7 +558,7 @@ class TextBuffer
     normalizeLineEndings ?= true
 
     patch = @buildPatch(range, text, normalizeLineEndings)
-    @history?.recordNewPatch(patch)
+    @history?.recordNewPatch(patch) unless undo is 'skip'
     @applyPatch(patch)
     patch.newRange
 

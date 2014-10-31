@@ -117,6 +117,15 @@ describe "TextBuffer", ->
       buffer.setTextInRange([[1, 1], [1, 3]], 'i')
       expect(buffer.lineEndingForRow(1)).toBe '\r\n'
 
+    describe "when the undo option is 'skip'", ->
+      it "replaces the contents of the buffer with the given text", ->
+        buffer.setTextInRange([[0, 0], [0, 1]], "y")
+        buffer.setTextInRange([[0, 10], [0, 100]], "w", {undo: 'skip'})
+        expect(buffer.lineForRow(0)).toBe "yellow"
+
+        buffer.undo()
+        expect(buffer.lineForRow(0)).toBe "hellow"
+
     describe "when the normalizeLineEndings argument is true (the default)", ->
       describe "when the range's start row has a line ending", ->
         it "normalizes inserted line endings to match the line ending of the range's start row", ->
