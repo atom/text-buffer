@@ -547,6 +547,7 @@ class TextBuffer
   # * `text` A {String}
   # * `options` (optional) {Object}
   #   * `normalizeLineEndings` (optional) {Boolean} (default: true)
+  #   * `undo` (optional) {String} 'skip' will skip the undo system
   #
   # Returns the {Range} of the inserted text.
   setTextInRange: (range, text, options) ->
@@ -569,6 +570,7 @@ class TextBuffer
   # * `text` A {String} representing the text to insert.
   # * `options` (optional) {Object}
   #   * `normalizeLineEndings` (optional) {Boolean} (default: true)
+  #   * `undo` (optional) {String} 'skip' will skip the undo system
   #
   # Returns the {Range} of the inserted text.
   insert: (position, text, options) ->
@@ -579,6 +581,7 @@ class TextBuffer
   # * `text` A {String} representing the text text to append.
   # * `options` (optional) {Object}
   #   * `normalizeLineEndings` (optional) {Boolean} (default: true)
+  #   * `undo` (optional) {String} 'skip' will skip the undo system
   #
   # Returns the {Range} of the inserted text
   append: (text, options) ->
