@@ -821,9 +821,10 @@ class TextBuffer
   # commit, but a single call to abort will cancel all nested transactions.
   #
   # * `groupingInterval` (optional) The {Number} of milliseconds for which this
-  #   transaction should be considered 'groupable' after it begins. If a transaction
-  #   with a positive `groupingInterval` is committed while the previous transaction is
-  #   still 'groupable', the two transactions are merged with respect to undo and redo.
+  #   transaction should be considered 'open for grouping' after it begins. If a
+  #   transaction with a positive `groupingInterval` is committed while the previous
+  #   transaction is still open for grouping, the two transactions are merged with
+  #   respect to undo and redo.
   beginTransaction: (groupingInterval) -> @history.beginTransaction(groupingInterval)
 
   # Public: Commit an open-ended transaction started with {::beginTransaction}
