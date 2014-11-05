@@ -400,6 +400,81 @@ describe "TextBuffer", ->
         buffer.undo()
         expect(buffer.getText()).toBe "hello\nworms\r\nhow are you doing?"
 
+      describe "when a grouping interval is provided", ->
+        currentTime = null
+
+        beforeEach ->
+          currentTime = 10000
+          spyOn(Date, 'now').andCallFake -> currentTime
+
+        describe "and the previous transaction also had a grouping interval", ->
+          beforeEach ->
+            buffer.beginTransaction(100)
+            buffer.setTextInRange([[0, 2], [0, 5]], "y")
+            buffer.commitTransaction()
+            expect(buffer.getText()).toBe "hey\nworms\r\nhow are you doing?"
+
+          describe "and that interval has not yet expired", ->
+            beforeEach ->
+              currentTime += 99
+
+              buffer.beginTransaction(200)
+              buffer.setTextInRange([[0, 3], [0, 3]], "yy")
+              buffer.commitTransaction()
+              expect(buffer.getText()).toBe "heyyy\nworms\r\nhow are you doing?"
+
+            it "combines the transaction with the previous transaction in the undo stack", ->
+              buffer.undo()
+              expect(buffer.getText()).toBe "hello\nworms\r\nhow are you doing?"
+
+            it "extends the previous transaction's grouping expiration time", ->
+              currentTime += 199
+
+              buffer.beginTransaction(100)
+              buffer.setTextInRange([[0, 0], [0, 5]], "yo")
+              buffer.commitTransaction()
+              expect(buffer.getText()).toBe "yo\nworms\r\nhow are you doing?"
+
+              buffer.undo()
+              expect(buffer.getText()).toBe "hello\nworms\r\nhow are you doing?"
+
+            it "does not combine further transactions that don't have grouping intervals", ->
+              buffer.beginTransaction(0)
+              buffer.setTextInRange([[0, 0], [0, 5]], "yo")
+              buffer.commitTransaction()
+
+              buffer.undo()
+              expect(buffer.getText()).toBe "heyyy\nworms\r\nhow are you doing?"
+
+          describe "and that interval has expired", ->
+            beforeEach ->
+              currentTime += 100
+
+            it "creates a new undo entry for the new change", ->
+              buffer.beginTransaction(200)
+              buffer.setTextInRange([[0, 3], [0, 3]], "yy")
+              buffer.commitTransaction()
+              expect(buffer.getText()).toBe "heyyy\nworms\r\nhow are you doing?"
+
+              buffer.undo()
+              expect(buffer.getText()).toBe "hey\nworms\r\nhow are you doing?"
+
+              buffer.undo()
+              expect(buffer.getText()).toBe "hello\nworms\r\nhow are you doing?"
+
+        describe "and the previous buffer change did not have a grouping interval", ->
+          beforeEach ->
+            buffer.setTextInRange([[0, 2], [0, 5]], "y")
+
+          it "creates a new undo entry for the new change", ->
+            buffer.beginTransaction(200)
+            buffer.setTextInRange([[0, 3], [0, 3]], "yy")
+            buffer.commitTransaction()
+            expect(buffer.getText()).toBe "heyyy\nworms\r\nhow are you doing?"
+
+            buffer.undo()
+            expect(buffer.getText()).toBe "hey\nworms\r\nhow are you doing?"
+
     describe "::transact(fn)", ->
       it "groups all operations in the given function in a single transaction", ->
         buffer.setTextInRange([[1, 3], [1, 5]], 'ms')
