@@ -475,7 +475,7 @@ describe "TextBuffer", ->
             buffer.undo()
             expect(buffer.getText()).toBe "hey\nworms\r\nhow are you doing?"
 
-    describe "::transact(fn)", ->
+    describe "::transact(groupingInterval, fn)", ->
       it "groups all operations in the given function in a single transaction", ->
         buffer.setTextInRange([[1, 3], [1, 5]], 'ms')
         buffer.transact ->
@@ -504,6 +504,20 @@ describe "TextBuffer", ->
         expect(innerContinued).toBe false
         expect(outerContinued).toBe false
         expect(buffer.getText()).toBe "hello\nworld\r\nhow are you doing?"
+
+      describe "when a grouping interval is provided", ->
+        it "uses it in the same way as ::beginTransaction", ->
+          buffer.transact 100, ->
+            buffer.setTextInRange([[1, 3], [1, 5]], 'ms')
+            buffer.transact ->
+              buffer.setTextInRange([[0, 2], [0, 5]], "y")
+
+          buffer.transact 100, ->
+            buffer.setTextInRange([[2, 13], [2, 14]], "igg")
+
+          expect(buffer.getText()).toBe "hey\nworms\r\nhow are you digging?"
+          buffer.undo()
+          expect(buffer.getText()).toBe "hello\nworld\r\nhow are you doing?"
 
   describe "::getTextInRange(range)", ->
     it "returns the text in a given range", ->

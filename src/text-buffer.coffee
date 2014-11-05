@@ -808,10 +808,10 @@ class TextBuffer
   # abort the transaction, call {::abortTransaction} to terminate the function's
   # execution and revert any changes performed up to the abortion.
   #
+  # * `groupingInterval` (optional) This is the sames as the `groupingInterval`
+  #    parameter in {::beginTransaction}
   # * `fn` A {Function} to call inside the transaction.
-  # * `groupingInterval` This is the sames as the `groupingInterval` parameter
-  #    in {::beginTransaction}
-  transact: (fn, groupingInterval) -> @history.transact(fn, groupingInterval)
+  transact: (groupingInterval, fn) -> @history.transact(groupingInterval, fn)
 
   # Public: Start an open-ended transaction.
   #

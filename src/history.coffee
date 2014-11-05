@@ -50,7 +50,11 @@ class History extends Serializable
       @undoStack.push(inverse)
       inverse.applyTo(@buffer)
 
-  transact: (fn, groupingInterval) ->
+  transact: (groupingInterval, fn) ->
+    unless fn?
+      fn = groupingInterval
+      groupingInterval = undefined
+
     @beginTransaction(groupingInterval)
     try
       ++@transactCallDepth
