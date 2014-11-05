@@ -85,17 +85,17 @@ describe "TextBuffer", ->
       expect(buffer.getText()).toEqual "hello\nworms\r\nhow are you doing?"
 
     it "can replace text in a region spanning multiple lines, ending on the last line", ->
-      buffer.setTextInRange([[0, 2], [2, 3]], "y there\r\ncat\nwhat", false)
+      buffer.setTextInRange([[0, 2], [2, 3]], "y there\r\ncat\nwhat", normalizeLineEndings: false)
       expect(buffer.getText()).toEqual "hey there\r\ncat\nwhat are you doing?"
 
     it "can replace text in a region spanning multiple lines, ending with a carriage-return/newline", ->
-      buffer.setTextInRange([[0, 2], [1, 3]], "y\nyou're o", false)
+      buffer.setTextInRange([[0, 2], [1, 3]], "y\nyou're o", normalizeLineEndings: false)
       expect(buffer.getText()).toEqual "hey\nyou're old\r\nhow are you doing?"
 
     it "notifies ::onDidChange observers with the relevant details after a change", ->
       changes = []
       buffer.onDidChange (change) -> changes.push(change)
-      buffer.setTextInRange([[0, 2], [2, 3]], "y there\r\ncat\nwhat", false)
+      buffer.setTextInRange([[0, 2], [2, 3]], "y there\r\ncat\nwhat", normalizeLineEndings: false)
       expect(changes).toEqual [{
         oldRange: [[0, 2], [2, 3]]
         newRange: [[0, 2], [2, 4]]
@@ -104,7 +104,7 @@ describe "TextBuffer", ->
       }]
 
     it "returns the newRange of the change", ->
-      expect(buffer.setTextInRange([[0, 2], [2, 3]], "y there\r\ncat\nwhat"), false).toEqual [[0, 2], [2, 4]]
+      expect(buffer.setTextInRange([[0, 2], [2, 3]], "y there\r\ncat\nwhat"), normalizeLineEndings: false).toEqual [[0, 2], [2, 4]]
 
     it "clips the given range", ->
       buffer.setTextInRange([[-1, -1], [0, 1]], "y")
@@ -193,7 +193,7 @@ describe "TextBuffer", ->
 
     it "honors the normalizeNewlines option", ->
       buffer = new TextBuffer("hello\nworld")
-      buffer.insert([0, 5], "\r\nthere\r\nlittle", false)
+      buffer.insert([0, 5], "\r\nthere\r\nlittle", normalizeLineEndings: false)
       expect(buffer.getText()).toBe "hello\r\nthere\r\nlittle\nworld"
 
   describe "::append(text, normalizeNewlines)", ->
@@ -204,7 +204,7 @@ describe "TextBuffer", ->
 
     it "honors the normalizeNewlines option", ->
       buffer = new TextBuffer("hello\nworld")
-      buffer.append("\r\nhow\r\nare\nyou?", false)
+      buffer.append("\r\nhow\r\nare\nyou?", normalizeLineEndings: false)
       expect(buffer.getText()).toBe "hello\nworld\r\nhow\r\nare\nyou?"
 
   describe "::delete(range)", ->
