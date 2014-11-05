@@ -74,7 +74,7 @@ class History extends Serializable
       if @currentTransaction.hasBufferPatches()
         lastTransaction = last(@undoStack)
         if @currentTransaction.isOpenForGrouping?() and lastTransaction?.isOpenForGrouping?()
-          lastTransaction.incorporate(@currentTransaction)
+          lastTransaction.merge(@currentTransaction)
         else
           @undoStack.push(@currentTransaction)
       @currentTransaction = null

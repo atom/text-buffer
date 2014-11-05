@@ -30,7 +30,7 @@ class Transaction extends Serializable
   hasBufferPatches: ->
     find @patches, (patch) -> patch instanceof BufferPatch
 
-  incorporate: (transaction) ->
+  merge: (transaction) ->
     @push(patch) for patch in transaction.patches
     @groupingExpirationTime = transaction.groupingExpirationTime
 
