@@ -311,10 +311,11 @@ describe "TextBuffer", ->
     describe "::beginTransaction()", ->
       beforeEach ->
         buffer.setTextInRange([[1, 3], [1, 5]], 'ms')
-        buffer.beginTransaction()
+        expect(buffer.getText()).toBe "hello\nworms\r\nhow are you doing?"
 
       describe "when followed by ::commitTransaction()", ->
         it "groups all operations since the beginning of the transaction into a single undo operation", ->
+          buffer.beginTransaction()
           buffer.setTextInRange([[0, 2], [0, 5]], "y")
           buffer.setTextInRange([[2, 13], [2, 14]], "igg")
           buffer.commitTransaction()
@@ -350,6 +351,7 @@ describe "TextBuffer", ->
 
       describe "when followed by ::abortTransaction()", ->
         it "undoes all operations since the beginning of the transaction", ->
+          buffer.beginTransaction()
           buffer.setTextInRange([[0, 2], [0, 5]], "y")
           buffer.setTextInRange([[2, 13], [2, 14]], "igg")
           buffer.abortTransaction()
@@ -366,12 +368,14 @@ describe "TextBuffer", ->
 
       describe "when followed by ::undo()", ->
         it "aborts the transaction", ->
+          buffer.beginTransaction()
           buffer.setTextInRange([[0, 2], [0, 5]], "y")
           buffer.setTextInRange([[2, 13], [2, 14]], "igg")
           buffer.undo()
           expect(buffer.getText()).toBe "hello\nworms\r\nhow are you doing?"
 
       it "still clears the redo stack when adding to a transaction", ->
+        buffer.beginTransaction()
         buffer.abortTransaction()
         buffer.undo()
         expect(buffer.getText()).toBe "hello\nworld\r\nhow are you doing?"
@@ -385,6 +389,7 @@ describe "TextBuffer", ->
         expect(buffer.getText()).toBe "hello\nworld\r\nhow are you doing?"
 
       it "combines nested transactions", ->
+        buffer.beginTransaction()
         buffer.setTextInRange([[0, 2], [0, 5]], "y")
         buffer.beginTransaction()
         buffer.setTextInRange([[2, 13], [2, 14]], "igg")
