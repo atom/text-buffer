@@ -59,7 +59,7 @@ class TextBuffer
     @lines = ['']
     @lineEndings = ['']
     @offsetIndex = new SpanSkipList('rows', 'characters')
-    @setTextInRange([[0, 0], [0, 0]], text ? params?.text ? '', false)
+    @setTextInRange([[0, 0], [0, 0]], text ? params?.text ? '', normalizeLineEndings: false)
     @history = params?.history ? new History(this)
     @markers = params?.markers ? new MarkerManager(this)
     @setEncoding(params?.encoding)
@@ -492,7 +492,7 @@ class TextBuffer
   #
   # Returns a {Range} spanning the new buffer contents.
   setText: (text) ->
-    @setTextInRange(@getRange(), text, false)
+    @setTextInRange(@getRange(), text, normalizeLineEndings: false)
 
   # Public: Replace the current buffer contents by applying a diff based on the
   # given text.
