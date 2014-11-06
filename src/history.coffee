@@ -1,7 +1,7 @@
 Serializable = require 'serializable'
 Transaction = require './transaction'
 BufferPatch = require './buffer-patch'
-{last} = require("underscore-plus")
+{last} = require 'underscore-plus'
 
 TransactionAborted = new Error("Transaction Aborted")
 

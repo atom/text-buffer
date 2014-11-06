@@ -32,7 +32,7 @@ class Transaction extends Serializable
 
   merge: (transaction) ->
     @push(patch) for patch in transaction.patches
-    @groupingExpirationTime = transaction.groupingExpirationTime
+    {@groupingExpirationTime} = transaction
 
   isOpenForGrouping: ->
     @groupingExpirationTime > Date.now()
