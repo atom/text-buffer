@@ -8,7 +8,8 @@ module.exports =
 class Transaction extends Serializable
   @registerDeserializers(BufferPatch, MarkerPatch)
 
-  constructor: (@patches=[]) ->
+  constructor: (@patches=[], groupingInterval=0) ->
+    @groupingExpirationTime = Date.now() + groupingInterval
 
   serializeParams: ->
     patches: @patches.map (patch) -> patch.serialize()
@@ -28,3 +29,10 @@ class Transaction extends Serializable
 
   hasBufferPatches: ->
     find @patches, (patch) -> patch instanceof BufferPatch
+
+  merge: (transaction) ->
+    @push(patch) for patch in transaction.patches
+    {@groupingExpirationTime} = transaction
+
+  isOpenForGrouping: ->
+    @groupingExpirationTime > Date.now()

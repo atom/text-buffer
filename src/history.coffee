@@ -1,6 +1,7 @@
 Serializable = require 'serializable'
 Transaction = require './transaction'
 BufferPatch = require './buffer-patch'
+{last} = require 'underscore-plus'
 
 TransactionAborted = new Error("Transaction Aborted")
 
@@ -49,8 +50,12 @@ class History extends Serializable
       @undoStack.push(inverse)
       inverse.applyTo(@buffer)
 
-  transact: (fn) ->
-    @beginTransaction()
+  transact: (groupingInterval, fn) ->
+    unless fn?
+      fn = groupingInterval
+      groupingInterval = undefined
+
+    @beginTransaction(groupingInterval)
     try
       ++@transactCallDepth
       result = fn()
@@ -64,13 +69,18 @@ class History extends Serializable
       else
         throw error
 
-  beginTransaction: ->
+  beginTransaction: (groupingInterval) ->
     if ++@transactionDepth is 1
-      @currentTransaction = new Transaction()
+      @currentTransaction = new Transaction([], groupingInterval)
 
   commitTransaction: ->
     if --@transactionDepth is 0
-      @undoStack.push(@currentTransaction) if @currentTransaction.hasBufferPatches()
+      if @currentTransaction.hasBufferPatches()
+        lastTransaction = last(@undoStack)
+        if @currentTransaction.isOpenForGrouping?() and lastTransaction?.isOpenForGrouping?()
+          lastTransaction.merge(@currentTransaction)
+        else
+          @undoStack.push(@currentTransaction)
       @currentTransaction = null
 
   abortTransaction: ->

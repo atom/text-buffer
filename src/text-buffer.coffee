@@ -808,8 +808,10 @@ class TextBuffer
   # abort the transaction, call {::abortTransaction} to terminate the function's
   # execution and revert any changes performed up to the abortion.
   #
+  # * `groupingInterval` (optional) This is the sames as the `groupingInterval`
+  #    parameter in {::beginTransaction}
   # * `fn` A {Function} to call inside the transaction.
-  transact: (fn) -> @history.transact(fn)
+  transact: (groupingInterval, fn) -> @history.transact(groupingInterval, fn)
 
   # Public: Start an open-ended transaction.
   #
@@ -817,7 +819,13 @@ class TextBuffer
   # transaction. If you nest calls to transactions, only the outermost
   # transaction is considered. You must match every begin with a matching
   # commit, but a single call to abort will cancel all nested transactions.
-  beginTransaction: -> @history.beginTransaction()
+  #
+  # * `groupingInterval` (optional) The {Number} of milliseconds for which this
+  #   transaction should be considered 'open for grouping' after it begins. If a
+  #   transaction with a positive `groupingInterval` is committed while the previous
+  #   transaction is still open for grouping, the two transactions are merged with
+  #   respect to undo and redo.
+  beginTransaction: (groupingInterval) -> @history.beginTransaction(groupingInterval)
 
   # Public: Commit an open-ended transaction started with {::beginTransaction}
   # and push it to the undo stack.

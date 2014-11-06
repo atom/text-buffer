@@ -311,10 +311,11 @@ describe "TextBuffer", ->
     describe "::beginTransaction()", ->
       beforeEach ->
         buffer.setTextInRange([[1, 3], [1, 5]], 'ms')
-        buffer.beginTransaction()
+        expect(buffer.getText()).toBe "hello\nworms\r\nhow are you doing?"
 
       describe "when followed by ::commitTransaction()", ->
         it "groups all operations since the beginning of the transaction into a single undo operation", ->
+          buffer.beginTransaction()
           buffer.setTextInRange([[0, 2], [0, 5]], "y")
           buffer.setTextInRange([[2, 13], [2, 14]], "igg")
           buffer.commitTransaction()
@@ -350,6 +351,7 @@ describe "TextBuffer", ->
 
       describe "when followed by ::abortTransaction()", ->
         it "undoes all operations since the beginning of the transaction", ->
+          buffer.beginTransaction()
           buffer.setTextInRange([[0, 2], [0, 5]], "y")
           buffer.setTextInRange([[2, 13], [2, 14]], "igg")
           buffer.abortTransaction()
@@ -366,12 +368,14 @@ describe "TextBuffer", ->
 
       describe "when followed by ::undo()", ->
         it "aborts the transaction", ->
+          buffer.beginTransaction()
           buffer.setTextInRange([[0, 2], [0, 5]], "y")
           buffer.setTextInRange([[2, 13], [2, 14]], "igg")
           buffer.undo()
           expect(buffer.getText()).toBe "hello\nworms\r\nhow are you doing?"
 
       it "still clears the redo stack when adding to a transaction", ->
+        buffer.beginTransaction()
         buffer.abortTransaction()
         buffer.undo()
         expect(buffer.getText()).toBe "hello\nworld\r\nhow are you doing?"
@@ -385,6 +389,7 @@ describe "TextBuffer", ->
         expect(buffer.getText()).toBe "hello\nworld\r\nhow are you doing?"
 
       it "combines nested transactions", ->
+        buffer.beginTransaction()
         buffer.setTextInRange([[0, 2], [0, 5]], "y")
         buffer.beginTransaction()
         buffer.setTextInRange([[2, 13], [2, 14]], "igg")
@@ -395,7 +400,82 @@ describe "TextBuffer", ->
         buffer.undo()
         expect(buffer.getText()).toBe "hello\nworms\r\nhow are you doing?"
 
-    describe "::transact(fn)", ->
+      describe "when a grouping interval is provided", ->
+        currentTime = null
+
+        beforeEach ->
+          currentTime = 10000
+          spyOn(Date, 'now').andCallFake -> currentTime
+
+        describe "and the previous transaction also had a grouping interval", ->
+          beforeEach ->
+            buffer.beginTransaction(100)
+            buffer.setTextInRange([[0, 2], [0, 5]], "y")
+            buffer.commitTransaction()
+            expect(buffer.getText()).toBe "hey\nworms\r\nhow are you doing?"
+
+          describe "and that interval has not yet expired", ->
+            beforeEach ->
+              currentTime += 99
+
+              buffer.beginTransaction(200)
+              buffer.setTextInRange([[0, 3], [0, 3]], "yy")
+              buffer.commitTransaction()
+              expect(buffer.getText()).toBe "heyyy\nworms\r\nhow are you doing?"
+
+            it "combines the transaction with the previous transaction in the undo stack", ->
+              buffer.undo()
+              expect(buffer.getText()).toBe "hello\nworms\r\nhow are you doing?"
+
+            it "extends the previous transaction's grouping expiration time", ->
+              currentTime += 199
+
+              buffer.beginTransaction(100)
+              buffer.setTextInRange([[0, 0], [0, 5]], "yo")
+              buffer.commitTransaction()
+              expect(buffer.getText()).toBe "yo\nworms\r\nhow are you doing?"
+
+              buffer.undo()
+              expect(buffer.getText()).toBe "hello\nworms\r\nhow are you doing?"
+
+            it "does not combine further transactions that don't have grouping intervals", ->
+              buffer.beginTransaction(0)
+              buffer.setTextInRange([[0, 0], [0, 5]], "yo")
+              buffer.commitTransaction()
+
+              buffer.undo()
+              expect(buffer.getText()).toBe "heyyy\nworms\r\nhow are you doing?"
+
+          describe "and that interval has expired", ->
+            beforeEach ->
+              currentTime += 100
+
+            it "creates a new undo entry for the new change", ->
+              buffer.beginTransaction(200)
+              buffer.setTextInRange([[0, 3], [0, 3]], "yy")
+              buffer.commitTransaction()
+              expect(buffer.getText()).toBe "heyyy\nworms\r\nhow are you doing?"
+
+              buffer.undo()
+              expect(buffer.getText()).toBe "hey\nworms\r\nhow are you doing?"
+
+              buffer.undo()
+              expect(buffer.getText()).toBe "hello\nworms\r\nhow are you doing?"
+
+        describe "and the previous buffer change did not have a grouping interval", ->
+          beforeEach ->
+            buffer.setTextInRange([[0, 2], [0, 5]], "y")
+
+          it "creates a new undo entry for the new change", ->
+            buffer.beginTransaction(200)
+            buffer.setTextInRange([[0, 3], [0, 3]], "yy")
+            buffer.commitTransaction()
+            expect(buffer.getText()).toBe "heyyy\nworms\r\nhow are you doing?"
+
+            buffer.undo()
+            expect(buffer.getText()).toBe "hey\nworms\r\nhow are you doing?"
+
+    describe "::transact(groupingInterval, fn)", ->
       it "groups all operations in the given function in a single transaction", ->
         buffer.setTextInRange([[1, 3], [1, 5]], 'ms')
         buffer.transact ->
@@ -424,6 +504,20 @@ describe "TextBuffer", ->
         expect(innerContinued).toBe false
         expect(outerContinued).toBe false
         expect(buffer.getText()).toBe "hello\nworld\r\nhow are you doing?"
+
+      describe "when a grouping interval is provided", ->
+        it "uses it in the same way as ::beginTransaction", ->
+          buffer.transact 100, ->
+            buffer.setTextInRange([[1, 3], [1, 5]], 'ms')
+            buffer.transact ->
+              buffer.setTextInRange([[0, 2], [0, 5]], "y")
+
+          buffer.transact 100, ->
+            buffer.setTextInRange([[2, 13], [2, 14]], "igg")
+
+          expect(buffer.getText()).toBe "hey\nworms\r\nhow are you digging?"
+          buffer.undo()
+          expect(buffer.getText()).toBe "hello\nworld\r\nhow are you doing?"
 
   describe "::getTextInRange(range)", ->
     it "returns the text in a given range", ->
