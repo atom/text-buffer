@@ -171,7 +171,7 @@ class Range
     new @constructor(@start.add(delta), @end.add(delta))
 
   translate: (startPoint, endPoint=startPoint) ->
-    new @constructor(@start.translate(startPoint), @end.translate(endPoint))
+    new @constructor(@start.add(startPoint), @end.add(endPoint))
 
   ###
   Section: Comparison
