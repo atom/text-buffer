@@ -74,6 +74,8 @@ class History extends Serializable
       @currentTransaction = new Transaction([], groupingInterval)
 
   commitTransaction: ->
+    throw new Error("No transaction is open") unless @transactionDepth > 0
+
     if --@transactionDepth is 0
       if @currentTransaction.hasBufferPatches()
         lastTransaction = last(@undoStack)
@@ -84,6 +86,8 @@ class History extends Serializable
       @currentTransaction = null
 
   abortTransaction: ->
+    throw new Error("No transaction is open") unless @transactionDepth > 0
+
     if @transactCallDepth is 0
       inverse = @currentTransaction.invert(@buffer)
       @currentTransaction = null

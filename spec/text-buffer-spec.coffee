@@ -345,6 +345,7 @@ describe "TextBuffer", ->
           expect(buffer.getText()).toBe "hey\nlittle worms\r\nhow are you digging?"
 
         it "does not push the transaction to the undo stack if it is empty", ->
+          buffer.beginTransaction()
           buffer.commitTransaction()
           buffer.undo()
           expect(buffer.getText()).toBe "hello\nworld\r\nhow are you doing?"
@@ -518,6 +519,14 @@ describe "TextBuffer", ->
           expect(buffer.getText()).toBe "hey\nworms\r\nhow are you digging?"
           buffer.undo()
           expect(buffer.getText()).toBe "hello\nworld\r\nhow are you doing?"
+
+    describe "::abortTransaction()", ->
+      it "throws an exception when no transaction is open", ->
+        expect(-> buffer.abortTransaction()).toThrow("No transaction is open")
+
+    describe "::commitTransaction()", ->
+      it "throws an exception when no transaction is open", ->
+        expect(-> buffer.commitTransaction()).toThrow("No transaction is open")
 
   describe "::getTextInRange(range)", ->
     it "returns the text in a given range", ->
