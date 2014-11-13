@@ -304,6 +304,10 @@ describe "TextBuffer", ->
       buffer.undo()
       expect(buffer.getText()).toBe "hello\nworld\r\nhow are you doing?"
 
+    it "throws an exception when called in a transaction", ->
+      expect(-> buffer.transact -> buffer.undo()).toThrow("Can't undo with an open transaction")
+      expect(-> buffer.transact -> buffer.redo()).toThrow("Can't redo with an open transaction")
+
   describe "transactions", ->
     beforeEach ->
       buffer = new TextBuffer(text: "hello\nworld\r\nhow are you doing?")
@@ -365,14 +369,6 @@ describe "TextBuffer", ->
           expect(buffer.getText()).toBe "hello\nworms\r\nhow are you doing?"
 
           buffer.redo()
-          expect(buffer.getText()).toBe "hello\nworms\r\nhow are you doing?"
-
-      describe "when followed by ::undo()", ->
-        it "aborts the transaction", ->
-          buffer.beginTransaction()
-          buffer.setTextInRange([[0, 2], [0, 5]], "y")
-          buffer.setTextInRange([[2, 13], [2, 14]], "igg")
-          buffer.undo()
           expect(buffer.getText()).toBe "hello\nworms\r\nhow are you doing?"
 
       it "still clears the redo stack when adding to a transaction", ->

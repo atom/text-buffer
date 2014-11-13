@@ -37,14 +37,14 @@ class History extends Serializable
     @clearRedoStack()
 
   undo: ->
-    if @currentTransaction?
-      @abortTransaction()
-    else if patch = @undoStack.pop()
+    throw new Error("Can't undo with an open transaction") if @currentTransaction?
+    if patch = @undoStack.pop()
       inverse = patch.invert(@buffer)
       @redoStack.push(inverse)
       inverse.applyTo(@buffer)
 
   redo: ->
+    throw new Error("Can't redo with an open transaction") if @currentTransaction?
     if patch = @redoStack.pop()
       inverse = patch.invert(@buffer)
       @undoStack.push(inverse)
