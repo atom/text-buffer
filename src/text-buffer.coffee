@@ -840,6 +840,10 @@ class TextBuffer
   # Public: Clear the undo stack.
   clearUndoStack: -> @history.clearUndoStack()
 
+  createCheckpoint: -> @history.createCheckpoint()
+
+  revertToCheckpoint: (checkpoint) -> @history.revertToCheckpoint(checkpoint)
+
   ###
   Section: Search And Replace
   ###

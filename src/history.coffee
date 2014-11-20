@@ -1,6 +1,7 @@
 Serializable = require 'serializable'
 Transaction = require './transaction'
 BufferPatch = require './buffer-patch'
+Checkpoint = require './checkpoint'
 {last} = require 'underscore-plus'
 
 TransactionAborted = new Error("Transaction Aborted")
@@ -38,6 +39,11 @@ class History extends Serializable
 
   undo: ->
     throw new Error("Can't undo with an open transaction") if @currentTransaction?
+
+    if last(@undoStack) instanceof Checkpoint
+      return unless @undoStack.length > 1 # Abort unless changes exist before checkpoint
+      @redoStack.push(@undoStack.pop())
+
     if patch = @undoStack.pop()
       inverse = patch.invert(@buffer)
       @redoStack.push(inverse)
@@ -45,10 +51,14 @@ class History extends Serializable
 
   redo: ->
     throw new Error("Can't redo with an open transaction") if @currentTransaction?
+
     if patch = @redoStack.pop()
       inverse = patch.invert(@buffer)
       @undoStack.push(inverse)
       inverse.applyTo(@buffer)
+
+      if last(@redoStack) instanceof Checkpoint
+        @undoStack.push(@redoStack.pop())
 
   transact: (groupingInterval, fn) ->
     unless fn?
@@ -95,6 +105,20 @@ class History extends Serializable
       inverse.applyTo(@buffer)
     else
       throw TransactionAborted
+
+  createCheckpoint: ->
+    throw new Error("Cannot create a checkpoint inside of a transaction") if @isTransacting()
+    checkpoint = new Checkpoint
+    @undoStack.push(checkpoint)
+    checkpoint
+
+  revertToCheckpoint: (checkpoint) ->
+    if checkpoint in @undoStack
+      @undo() until last(@undoStack) is checkpoint
+      @clearRedoStack()
+      true
+    else
+      false
 
   isTransacting: ->
     @currentTransaction?

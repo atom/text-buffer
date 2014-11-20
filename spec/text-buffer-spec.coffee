@@ -524,6 +524,67 @@ describe "TextBuffer", ->
       it "throws an exception when no transaction is open", ->
         expect(-> buffer.commitTransaction()).toThrow("No transaction is open")
 
+  describe "checkpoints", ->
+    beforeEach ->
+      buffer = new TextBuffer
+
+    describe "::revertToCheckpoint(checkpoint)", ->
+      it "undoes all changes following the checkpoint", ->
+        buffer.append("hello")
+        checkpoint = buffer.createCheckpoint()
+
+        buffer.transact ->
+          buffer.append("\n")
+          buffer.append("world")
+
+        buffer.append("\n")
+        buffer.append("how are you?")
+
+        result = buffer.revertToCheckpoint(checkpoint)
+        expect(result).toBe(true)
+        expect(buffer.getText()).toBe("hello")
+
+        buffer.redo()
+        expect(buffer.getText()).toBe("hello")
+
+    it "skips checkpoints when undoing", ->
+      buffer.append("hello")
+      buffer.createCheckpoint()
+      buffer.undo()
+      expect(buffer.getText()).toBe("")
+
+    it "preserves checkpoints across undo and redo", ->
+      buffer.append("hello\n")
+      checkpoint = buffer.createCheckpoint()
+      buffer.undo()
+      expect(buffer.getText()).toBe("")
+
+      buffer.redo()
+      expect(buffer.getText()).toBe("hello\n")
+
+      buffer.append("world")
+      buffer.revertToCheckpoint(checkpoint)
+      expect(buffer.getText()).toBe("hello\n")
+
+    it "handles checkpoints created when there have been no changes", ->
+      checkpoint = buffer.createCheckpoint()
+      buffer.undo()
+      buffer.append("hello")
+      buffer.revertToCheckpoint(checkpoint)
+      expect(buffer.getText()).toBe("")
+
+    it "returns false when the checkpoint is not in the buffer's history", ->
+      buffer.append("hello\n")
+      checkpoint = buffer.createCheckpoint()
+      buffer.undo()
+      buffer.append("world")
+      expect(buffer.revertToCheckpoint(checkpoint)).toBe(false)
+      expect(buffer.getText()).toBe("world")
+
+    it "does not allow checkpoints inside of transactions", ->
+      buffer.transact ->
+        expect(-> buffer.createCheckpoint()).toThrow("Cannot create a checkpoint inside of a transaction")
+
   describe "::getTextInRange(range)", ->
     it "returns the text in a given range", ->
       buffer = new TextBuffer(text: "hello\nworld\r\nhow are you doing?")
