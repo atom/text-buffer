@@ -547,6 +547,80 @@ describe "TextBuffer", ->
         buffer.redo()
         expect(buffer.getText()).toBe("hello")
 
+    describe "::groupChangesSinceCheckpoint(checkpoint)", ->
+      it "combines all changes since the checkpoint into a single transaction", ->
+        buffer.append("one\n")
+        checkpoint = buffer.createCheckpoint()
+        buffer.append("two\n")
+        buffer.transact ->
+          buffer.append("three\n")
+          buffer.append("four")
+
+        result = buffer.groupChangesSinceCheckpoint(checkpoint)
+
+        expect(result).toBe true
+        expect(buffer.getText()).toBe """
+          one
+          two
+          three
+          four
+        """
+
+        buffer.undo()
+        expect(buffer.getText()).toBe("one\n")
+
+        buffer.redo()
+        expect(buffer.getText()).toBe """
+          one
+          two
+          three
+          four
+        """
+
+      it "skips any later checkpoints when grouping changes", ->
+        buffer.append("one\n")
+        checkpoint = buffer.createCheckpoint()
+        buffer.append("two\n")
+        checkpoint2 = buffer.createCheckpoint()
+        buffer.append("three")
+
+        buffer.groupChangesSinceCheckpoint(checkpoint)
+        expect(buffer.revertToCheckpoint(checkpoint2)).toBe(false)
+
+        expect(buffer.getText()).toBe """
+          one
+          two
+          three
+        """
+
+        buffer.undo()
+        expect(buffer.getText()).toBe("one\n")
+
+        buffer.redo()
+        expect(buffer.getText()).toBe """
+          one
+          two
+          three
+        """
+
+      it "returns false and does nothing when no changes have been made since the checkpoint", ->
+        buffer.append("one\n")
+        checkpoint = buffer.createCheckpoint()
+        result = buffer.groupChangesSinceCheckpoint(checkpoint)
+        expect(result).toBe false
+        buffer.undo()
+        expect(buffer.getText()).toBe ""
+
+      it "returns false and does nothing when the checkpoint is not in the buffer's history", ->
+        buffer.append("hello\n")
+        checkpoint = buffer.createCheckpoint()
+        buffer.undo()
+        buffer.append("world")
+        result = buffer.groupChangesSinceCheckpoint(checkpoint)
+        expect(result).toBe(false)
+        buffer.undo()
+        expect(buffer.getText()).toBe ""
+
     it "skips checkpoints when undoing", ->
       buffer.append("hello")
       buffer.createCheckpoint()

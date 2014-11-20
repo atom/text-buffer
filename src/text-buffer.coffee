@@ -843,6 +843,7 @@ class TextBuffer
   createCheckpoint: -> @history.createCheckpoint()
 
   revertToCheckpoint: (checkpoint) -> @history.revertToCheckpoint(checkpoint)
+  groupChangesSinceCheckpoint: (checkpoint) -> @history.groupChangesSinceCheckpoint(checkpoint)
 
   ###
   Section: Search And Replace

@@ -30,9 +30,12 @@ class Transaction extends Serializable
   hasBufferPatches: ->
     find @patches, (patch) -> patch instanceof BufferPatch
 
-  merge: (transaction) ->
-    @push(patch) for patch in transaction.patches
-    {@groupingExpirationTime} = transaction
+  merge: (patch) ->
+    if patch instanceof Transaction
+      @push(subpatch) for subpatch in patch.patches
+      {@groupingExpirationTime} = patch
+    else
+      @push(patch)
 
   isOpenForGrouping: ->
     @groupingExpirationTime > Date.now()

@@ -120,6 +120,20 @@ class History extends Serializable
     else
       false
 
+  groupChangesSinceCheckpoint: (checkpoint) ->
+    groupedTransaction = new Transaction
+    index = @undoStack.indexOf(checkpoint) + 1
+
+    return false if index is 0
+    return false if index is @undoStack.length
+
+    for patch in @undoStack.splice(index, @undoStack.length - index)
+      unless patch instanceof Checkpoint
+        groupedTransaction.merge(patch)
+
+    @undoStack.push(groupedTransaction)
+    true
+
   isTransacting: ->
     @currentTransaction?
 
