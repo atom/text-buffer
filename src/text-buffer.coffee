@@ -808,37 +808,60 @@ class TextBuffer
   # abort the transaction, call {::abortTransaction} to terminate the function's
   # execution and revert any changes performed up to the abortion.
   #
-  # * `groupingInterval` (optional) This is the sames as the `groupingInterval`
-  #    parameter in {::beginTransaction}
-  # * `fn` A {Function} to call inside the transaction.
-  transact: (groupingInterval, fn) -> @history.transact(groupingInterval, fn)
-
-  # Public: Start an open-ended transaction.
-  #
-  # Call {::commitTransaction} or {::abortTransaction} to terminate the
-  # transaction. If you nest calls to transactions, only the outermost
-  # transaction is considered. You must match every begin with a matching
-  # commit, but a single call to abort will cancel all nested transactions.
-  #
   # * `groupingInterval` (optional) The {Number} of milliseconds for which this
   #   transaction should be considered 'open for grouping' after it begins. If a
   #   transaction with a positive `groupingInterval` is committed while the previous
   #   transaction is still open for grouping, the two transactions are merged with
   #   respect to undo and redo.
-  beginTransaction: (groupingInterval) -> @history.beginTransaction(groupingInterval)
+  # * `fn` A {Function} to call inside the transaction.
+  transact: (groupingInterval, fn) -> @history.transact(groupingInterval, fn)
 
-  # Public: Commit an open-ended transaction started with {::beginTransaction}
-  # and push it to the undo stack.
+  # Deprecated: Use {::createCheckpoint} instead.
   #
-  # If transactions are nested, only the outermost commit takes effect.
-  commitTransaction: -> @history.commitTransaction()
+  # * `groupingInterval` (optional) This is the sames as the `groupingInterval`
+  #    parameter in {::transact}
+  beginTransaction: (groupingInterval) ->
+    Grim.deprecate("Open-ended transactions are deprecated. Use checkpoints instead.")
+    @history.beginTransaction(groupingInterval)
 
-  # Public: Abort an open transaction, undoing any operations performed so far
-  # within the transaction.
-  abortTransaction: -> @history.abortTransaction()
+  # Deprecated: Use {::groupChangesSinceCheckpoint} instead.
+  commitTransaction: ->
+    Grim.deprecate("Open-ended transactions are deprecated. Use checkpoints instead.")
+    @history.commitTransaction()
+
+  # Deprecated: Use {::revertToCheckpoint} instead.
+  abortTransaction: ->
+    Grim.deprecate("Open-ended transactions are deprecated. Use checkpoints instead.")
+    @history.abortTransaction()
 
   # Public: Clear the undo stack.
   clearUndoStack: -> @history.clearUndoStack()
+
+  # Experimental: Create a pointer to the current state of the buffer for use
+  # with {::revertToCheckpoint} and {::groupChangesSinceCheckpoint}.
+  #
+  # Returns a checkpoint value.
+  createCheckpoint: -> @history.createCheckpoint()
+
+  # Experimental: Revert the buffer to the state it was in when the given
+  # checkpoint was created.
+  #
+  # The redo stack will be empty following this operation, so changes since the
+  # checkpoint will be lost. If the given checkpoint is no longer present in the
+  # undo history, no changes will be made to the buffer and this method will
+  # return `false`.
+  #
+  # Returns a {Boolean} indicating whether the operation succeeded.
+  revertToCheckpoint: (checkpoint) -> @history.revertToCheckpoint(checkpoint)
+
+  # Experimental: Group all changes since the given checkpoint into a single
+  # transaction for purposes of undo/redo.
+  #
+  # If the given checkpoint is no longer present in the undo history, no
+  # grouping will be performed and this method will return `false`.
+  #
+  # Returns a {Boolean} indicating whether the operation succeeded.
+  groupChangesSinceCheckpoint: (checkpoint) -> @history.groupChangesSinceCheckpoint(checkpoint)
 
   ###
   Section: Search And Replace
