@@ -108,9 +108,12 @@ class History extends Serializable
 
   createCheckpoint: ->
     throw new Error("Cannot create a checkpoint inside of a transaction") if @isTransacting()
-    checkpoint = new Checkpoint
-    @undoStack.push(checkpoint)
-    checkpoint
+    if last(@undoStack) instanceof Checkpoint
+      last(@undoStack)
+    else
+      checkpoint = new Checkpoint
+      @undoStack.push(checkpoint)
+      checkpoint
 
   revertToCheckpoint: (checkpoint) ->
     if checkpoint in @undoStack

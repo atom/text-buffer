@@ -624,6 +624,8 @@ describe "TextBuffer", ->
     it "skips checkpoints when undoing", ->
       buffer.append("hello")
       buffer.createCheckpoint()
+      buffer.createCheckpoint()
+      buffer.createCheckpoint()
       buffer.undo()
       expect(buffer.getText()).toBe("")
 
