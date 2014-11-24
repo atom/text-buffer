@@ -837,13 +837,13 @@ class TextBuffer
   # Public: Clear the undo stack.
   clearUndoStack: -> @history.clearUndoStack()
 
-  # Experimental: Create a pointer to the current state of the buffer for use
+  # Public: Create a pointer to the current state of the buffer for use
   # with {::revertToCheckpoint} and {::groupChangesSinceCheckpoint}.
   #
   # Returns a checkpoint value.
   createCheckpoint: -> @history.createCheckpoint()
 
-  # Experimental: Revert the buffer to the state it was in when the given
+  # Public: Revert the buffer to the state it was in when the given
   # checkpoint was created.
   #
   # The redo stack will be empty following this operation, so changes since the
@@ -854,7 +854,7 @@ class TextBuffer
   # Returns a {Boolean} indicating whether the operation succeeded.
   revertToCheckpoint: (checkpoint) -> @history.revertToCheckpoint(checkpoint)
 
-  # Experimental: Group all changes since the given checkpoint into a single
+  # Public: Group all changes since the given checkpoint into a single
   # transaction for purposes of undo/redo.
   #
   # If the given checkpoint is no longer present in the undo history, no
