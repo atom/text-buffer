@@ -167,11 +167,33 @@ class Range
     end = if @end.isGreaterThan(otherRange.end) then @end else otherRange.end
     new @constructor(start, end)
 
-  add: (delta) ->
-    new @constructor(@start.add(delta), @end.add(delta))
+  # Public: Build and return a new range by translating this range's start and
+  # end points by the given delta(s).
+  #
+  # * `startDelta` A {Point} by which to translate the start of this range.
+  # * `endDelta` (optional) A {Point} to by which to translate the end of this
+  #   range. If omitted, the `startDelta` will be used instead.
+  #
+  # Returns a {Range}.
+  translate: (startDelta, endDelta=startDelta) ->
+    new @constructor(@start.translate(startDelta), @end.translate(endDelta))
 
-  translate: (startPoint, endPoint=startPoint) ->
-    new @constructor(@start.translate(startPoint), @end.translate(endPoint))
+  # Public: Build and return a new range by traversing this range's start and
+  # end points by the given delta.
+  #
+  # See {Point::traverse} for details of how traversal differs from translation.
+  #
+  # * `delta` A {Point} containing the rows and columns to traverse to derive
+  #   the new range.
+  #
+  # Returns a {Range}.
+  traverse: (delta) ->
+    new @constructor(@start.traverse(delta), @end.traverse(delta))
+
+  # Deprecated
+  add: (delta) ->
+    Grim.deprecate("Use Range::traverse instead")
+    @traverse(delta)
 
   ###
   Section: Comparison

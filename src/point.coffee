@@ -76,16 +76,38 @@ class Point
   freeze: ->
     Object.freeze(this)
 
-  # Deprecated
-  translate: (delta) ->
-    deprecate 'Use ::add() instead'
-    {row, column} = Point.fromObject(delta)
+  # Public: Build and return a new point by adding the rows and columns of
+  # the given point.
+  #
+  # * `other` A {Point} whose row and column will be added to this point's row
+  #   and column to build the returned point.
+  #
+  # Returns a {Point}.
+  translate: (other) ->
+    {row, column} = Point.fromObject(other)
     new Point(@row + row, @column + column)
 
-  # Return a new {Point} based on shifting this point by the given {Point}.
+  # Public: Build and return a new {Point} by traversing the rows and columns
+  # specified by the given point.
   #
-  # * `other` {Point} to shift by
-  add: (other) ->
+  # * `other` A {Point} providing the rows and columns to traverse by.
+  #
+  # This method differs from the direct, vector-style addition offered by
+  # {::translate}. Rather than adding the rows and columns directly, it derives
+  # the new point from traversing in "typewriter space". At the end of every row
+  # traversed, a carriage return occurs that returns the columns to 0 before
+  # continuing the traversal.
+  #
+  # ## Examples
+  #
+  # Traversing 0 rows, 2 columns:
+  # `new Point(10, 5).traverse(new Point(0, 2)) # => [10, 7]`
+  #
+  # Traversing 2 rows, 2 columns. Note the columns reset from 0 before adding:
+  # `new Point(10, 5).traverse(new Point(2, 2)) # => [12, 2]`
+  #
+  # Returns a {Point}.
+  traverse: (other) ->
     other = Point.fromObject(other)
     row = @row + other.row
     if other.row == 0
@@ -94,6 +116,10 @@ class Point
       column = other.column
 
     new Point(row, column)
+
+  add: (other) ->
+    deprecate("Use Point::traverse instead")
+    @traverse(other)
 
   splitAt: (column) ->
     if @row == 0
