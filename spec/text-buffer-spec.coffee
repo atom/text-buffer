@@ -371,15 +371,23 @@ describe "TextBuffer", ->
           buffer.redo()
           expect(buffer.getText()).toBe "hello\nworms\r\nhow are you doing?"
 
-      it "still clears the redo stack when adding to a transaction", ->
+      it "still clears the redo stack when adding a text change to a transaction", ->
         buffer.beginTransaction()
         buffer.abortTransaction()
         buffer.undo()
         expect(buffer.getText()).toBe "hello\nworld\r\nhow are you doing?"
 
-        buffer.beginTransaction()
-        buffer.setTextInRange([[0, 0], [0, 5]], "hey")
-        buffer.abortTransaction()
+        buffer.transact ->
+          buffer.markRange([[0, 0], [0, 5]])
+          buffer.abortTransaction()
+
+        buffer.redo()
+        expect(buffer.getText()).toBe "hello\nworms\r\nhow are you doing?"
+
+        buffer.undo()
+        buffer.transact ->
+          buffer.setTextInRange([[0, 0], [0, 5]], "hey")
+          buffer.abortTransaction()
 
         expect(buffer.getText()).toBe "hello\nworld\r\nhow are you doing?"
         buffer.redo()

@@ -33,9 +33,11 @@ class History extends Serializable
   recordNewPatch: (patch) ->
     if @currentTransaction?
       @currentTransaction.push(patch)
+      if patch instanceof BufferPatch
+        @clearRedoStack()
     else
       @undoStack.push(patch)
-    @clearRedoStack()
+      @clearRedoStack()
 
   undo: ->
     throw new Error("Can't undo with an open transaction") if @currentTransaction?
