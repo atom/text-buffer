@@ -42,7 +42,7 @@ class History extends Serializable
   undo: ->
     throw new Error("Can't undo with an open transaction") if @currentTransaction?
 
-    if last(@undoStack) instanceof Checkpoint
+    while last(@undoStack) instanceof Checkpoint
       return unless @undoStack.length > 1 # Abort unless changes exist before checkpoint
       @redoStack.push(@undoStack.pop())
 
@@ -59,7 +59,7 @@ class History extends Serializable
       @undoStack.push(inverse)
       inverse.applyTo(@buffer)
 
-      if last(@redoStack) instanceof Checkpoint
+      while last(@redoStack) instanceof Checkpoint
         @undoStack.push(@redoStack.pop())
 
   transact: (groupingInterval, fn) ->
@@ -110,20 +110,19 @@ class History extends Serializable
 
   createCheckpoint: ->
     throw new Error("Cannot create a checkpoint inside of a transaction") if @isTransacting()
-    if last(@undoStack) instanceof Checkpoint
-      last(@undoStack)
-    else
-      checkpoint = new Checkpoint
-      @undoStack.push(checkpoint)
-      checkpoint
+    checkpoint = new Checkpoint
+    @undoStack.push(checkpoint)
+    checkpoint
 
   revertToCheckpoint: (checkpoint) ->
-    if checkpoint in @undoStack
-      @undo() until last(@undoStack) is checkpoint
-      @clearRedoStack()
-      true
-    else
-      false
+    checkpointIndex = @undoStack.indexOf(checkpoint)
+    return false if checkpointIndex is -1
+
+    while @undoStack[checkpointIndex + 1] instanceof Checkpoint
+      checkpointIndex++
+    @undo() while @undoStack.length > checkpointIndex + 1
+    @clearRedoStack()
+    true
 
   groupChangesSinceCheckpoint: (checkpoint) ->
     groupedTransaction = new Transaction
