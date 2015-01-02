@@ -34,17 +34,17 @@
     "grunt-atomdoc": "^1.0"
   },
   "dependencies": {
-    "delegato": "1.x",
+    "delegato": "^1.0.0",
     "atom-diff": "^2",
-    "emissary": "1.x",
+    "emissary": "^1.0.0",
     "event-kit": "^0.8.1",
-    "fs-plus": "2.x",
+    "fs-plus": "^2.0.0",
     "grim": "0.12.0",
     "interval-skip-list": "^2.0.0",
     "pathwatcher": "^2.3.5",
     "q": "~1.0.1",
-    "serializable": "1.x",
+    "serializable": "^1.0.0",
     "span-skip-list": "~0.1.1",
-    "underscore-plus": "1.x"
+    "underscore-plus": "^1.0.0"
   }
 }
