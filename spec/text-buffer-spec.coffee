@@ -902,6 +902,27 @@ describe "TextBuffer", ->
       runs ->
         expect(eventHandler).toHaveBeenCalledWith(newPath)
 
+  describe "::onWillThrowWatchError", ->
+    [filePath, bufferToChange, eventHandler] = []
+
+    beforeEach ->
+      filePath = join(__dirname, "fixtures", "manipulate-me")
+      writeFileSync(filePath, "")
+      bufferToChange = new TextBuffer({filePath, load: true})
+      eventHandler = jasmine.createSpy('eventHandler')
+      bufferToChange.onWillThrowWatchError eventHandler
+
+      waitsFor ->
+        bufferToChange.loaded
+
+    afterEach ->
+      bufferToChange.destroy()
+      removeSync(filePath)
+
+    it "notifies observers when the file has a watch error", ->
+      bufferToChange.file.emitter.emit 'will-throw-watch-error', 'arg'
+      expect(eventHandler).toHaveBeenCalledWith 'arg'
+
   describe "when the buffer's on-disk contents change", ->
     filePath = null
 

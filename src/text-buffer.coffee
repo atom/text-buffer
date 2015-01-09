@@ -238,6 +238,9 @@ class TextBuffer
   onDidDestroy: (callback) ->
     @emitter.on 'did-destroy', callback
 
+  onWillThrowWatchError: (callback) ->
+    @emitter.on 'will-throw-watch-error', callback
+
   # Public: Get the number of milliseconds that will elapse without a change
   # before {::onDidStopChanging} observers are invoked following a change.
   #
@@ -1286,6 +1289,9 @@ class TextBuffer
     @fileSubscriptions.add @file.onDidRename =>
       @emitter.emit 'did-change-path', @getPath()
       @emit "path-changed", this
+
+    @fileSubscriptions.add @file.onWillThrowWatchError (errorObject) =>
+      @emitter.emit 'will-throw-watch-error', errorObject
 
   # Identifies if the buffer belongs to multiple editors.
   #
