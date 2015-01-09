@@ -238,6 +238,16 @@ class TextBuffer
   onDidDestroy: (callback) ->
     @emitter.on 'did-destroy', callback
 
+  # Public: Invoke the given callback when there is an error in watching the
+  # file.
+  #
+  # * `callback` {Function} callback
+  #   * `errorObject` {Object}
+  #     * `error` {Object} the error object
+  #     * `handle` {Function} call this to indicate you have handled the error.
+  #       The error will not be thrown if this function is called.
+  #
+  # Returns a {Disposable} on which `.dispose()` can be called to unsubscribe.
   onWillThrowWatchError: (callback) ->
     @emitter.on 'will-throw-watch-error', callback
 
