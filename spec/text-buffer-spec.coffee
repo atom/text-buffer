@@ -736,6 +736,7 @@ describe "TextBuffer", ->
   describe "serialization", ->
     it "can serialize / deserialize the buffer along with its history and markers", ->
       bufferA = new TextBuffer(text: "hello\nworld\r\nhow are you doing?")
+      bufferA.createCheckpoint()
       bufferA.setTextInRange([[0, 5], [0, 5]], " there")
       bufferA.transact -> bufferA.setTextInRange([[1, 0], [1, 5]], "friend")
       marker1A = bufferA.markRange([[0, 1], [1, 2]], reversed: true, foo: 1)

@@ -1,2 +1,5 @@
+Serializable = require 'serializable'
+
 module.exports =
-class Checkpoint
+class Checkpoint extends Serializable
+  @registerDeserializers(Checkpoint)
