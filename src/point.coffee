@@ -66,6 +66,10 @@ class Point
   copy: ->
     new Point(@row, @column)
 
+  # Public: Returns a new {Point} with the row and column negated.
+  negate: ->
+    new Point(-@row, -@column)
+
   ###
   Section: Operations
   ###

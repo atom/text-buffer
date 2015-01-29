@@ -113,6 +113,10 @@ class Range
   copy: ->
     new @constructor(@start.copy(), @end.copy())
 
+  # Public: Returns a new range with the start and end positions negated.
+  negate: ->
+    new @constructor(@start.negate(), @end.negate())
+
   ###
   Section: Serialization and Deserialization
   ###
