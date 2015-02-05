@@ -1201,16 +1201,19 @@ class TextBuffer
   # * `filePath` The path to save at.
   saveAs: (filePath) ->
     unless filePath then throw new Error("Can't save buffer with no file path")
-
     @emitter.emit 'will-save', {path: filePath}
     @emit 'will-be-saved', this
     @setPath(filePath)
-    @file.write(@getText())
-    @cachedDiskContents = @getText()
     @conflict = false
-    @emitModifiedStatusChanged(false)
-    @emitter.emit 'did-save', {path: filePath}
-    @emit 'saved', this
+    oldCachedDisContents = @cachedDiskContents
+    # cache disk contents as if it's a sync call
+    @cachedDiskContents = @getText()
+    @file.write(@getText()).then =>
+      @emitModifiedStatusChanged(false)
+      @emitter.emit 'did-save', {path: filePath}
+      @emit 'saved', this
+    .catch =>
+      @cachedDiskContents = oldCachedDisContents
 
   # Public: Reload the buffer's contents from disk.
   #
@@ -1247,20 +1250,31 @@ class TextBuffer
 
   loadSync: ->
     @updateCachedDiskContentsSync()
-    @finishLoading()
+    @finishLoadingSync()
 
   load: ->
     @updateCachedDiskContents().then => @finishLoading()
 
+  finishLoadingSync: ->
+    if @isAlive()
+      @loaded = true
+      digest = @file?.getDigestSync()
+      if @useSerializedText and @digestWhenLastPersisted is digest
+        @emitModifiedStatusChanged(true)
+      else
+        @reload()
+      @clearUndoStack()
+    this
+
   finishLoading: ->
     if @isAlive()
       @loaded = true
-      @file.getDigest().then (digest) =>
+      Q(@file?.getDigest() ? "").then (digest) =>
         if @useSerializedText and @digestWhenLastPersisted is digest
           @emitModifiedStatusChanged(true)
         else
           @reload()
-      @clearUndoStack()
+        @clearUndoStack()
     this
 
   destroy: ->

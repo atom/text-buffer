@@ -1,5 +1,6 @@
 {existsSync, moveSync, readFileSync, removeSync, writeFileSync} = require 'fs-plus'
 {join} = require 'path'
+Q = require 'q'
 temp = require 'temp'
 {File} = require 'pathwatcher'
 TextBuffer = require '../src/text-buffer'
@@ -990,14 +991,16 @@ describe "TextBuffer", ->
 
       it "notifies ::onDidConflict observers", ->
         buffer.setText("a change")
-        buffer.save()
-        buffer.insert([0, 0], "a second change")
-
         handler = jasmine.createSpy('fileChange')
-        writeFileSync(filePath, "a disk change")
-        buffer.onDidConflict handler
+        buffer.save().then ->
+          buffer.insert([0, 0], "a second change")
+          buffer.onDidConflict handler
+          expect(handler.callCount).toBe 0
+          # wait a little bit to not confuse the save change event, with the write file change event
+          setTimeout ( ->
+            writeFileSync(filePath, "a disk change")
+          ), 500
 
-        expect(handler.callCount).toBe 0
         waitsFor ->
           handler.callCount > 0
 
@@ -1119,13 +1122,12 @@ describe "TextBuffer", ->
         expect(buffer.isModified()).toBe true
 
         modifiedHandler.reset()
-        buffer.save()
+        buffer.save().then ->
+          expect(modifiedHandler).toHaveBeenCalledWith(false)
+          expect(buffer.isModified()).toBe false
+          modifiedHandler.reset()
 
-        expect(modifiedHandler).toHaveBeenCalledWith(false)
-        expect(buffer.isModified()).toBe false
-        modifiedHandler.reset()
-
-        buffer.insert([0, 0], 'x')
+          buffer.insert([0, 0], 'x')
 
       waitsFor ->
         modifiedHandler.callCount is 1
@@ -1183,14 +1185,13 @@ describe "TextBuffer", ->
         expect(buffer.isModified()).toBe true
 
         modifiedHandler.reset()
-        buffer.save()
+        buffer.save().then ->
+          expect(existsSync(filePath)).toBeTruthy()
+          expect(modifiedHandler).toHaveBeenCalledWith(false)
+          expect(buffer.isModified()).toBe false
 
-        expect(existsSync(filePath)).toBeTruthy()
-        expect(modifiedHandler).toHaveBeenCalledWith(false)
-        expect(buffer.isModified()).toBe false
-
-        modifiedHandler.reset()
-        buffer.insert([0, 0], 'x')
+          modifiedHandler.reset()
+          buffer.insert([0, 0], 'x')
 
       waitsFor ->
         modifiedHandler.callCount is 1
@@ -1525,8 +1526,12 @@ describe "TextBuffer", ->
 
       it "saves the contents of the buffer to the path", ->
         saveBuffer.setText 'Buffer contents!'
-        saveBuffer.save()
-        expect(readFileSync(filePath, 'utf8')).toEqual 'Buffer contents!'
+        saveHandler = jasmine.createSpy('saveHandler')
+        saveBuffer.save().then(saveHandler).catch( (err) -> console.error('error:', err); )
+        waitsFor 'saveHandler', ->
+          saveHandler.callCount > 0
+        runs ->
+          expect(readFileSync(filePath, 'utf8')).toEqual 'Buffer contents!'
 
       it "notifies ::onWillSave and ::onDidSave observers around the call to File::write", ->
         events = []
@@ -1537,19 +1542,24 @@ describe "TextBuffer", ->
 
         saveBuffer.onWillSave willSave1
         saveBuffer.onWillSave willSave2
-        spyOn(File.prototype, 'write').andCallFake -> events.push 'File::write'
+        saveHandler = jasmine.createSpy('saveHandler')
+        spyOn(File.prototype, 'write').andCallFake ->
+          events.push 'File::write'
+          Q()
         saveBuffer.onDidSave didSave1
         saveBuffer.onDidSave didSave2
-
-        saveBuffer.save()
+        saveBuffer.save().then(saveHandler)
         path = saveBuffer.getPath()
-        expect(events).toEqual [
-          ['will-save-1', {path}]
-          ['will-save-2', {path}]
-          'File::write'
-          ['did-save-1', {path}]
-          ['did-save-2', {path}]
-        ]
+        waitsFor ->
+          saveHandler.callCount > 0
+        runs ->
+          expect(events).toEqual [
+            ['will-save-1', {path}]
+            ['will-save-2', {path}]
+            'File::write'
+            ['did-save-1', {path}]
+            ['did-save-2', {path}]
+          ]
 
       it "notifies ::onWillReload and ::onDidReload observers when reloaded", ->
         events = []
@@ -1577,7 +1587,7 @@ describe "TextBuffer", ->
           expect(saveBuffer.isInConflict()).toBe false
 
     describe "when the buffer has no path", ->
-      it "throws an exception", ->
+      it "throws an exception - rejected promise", ->
         saveBuffer = new TextBuffer({load: true})
 
         waitsFor ->
@@ -1616,14 +1626,19 @@ describe "TextBuffer", ->
       removeSync(filePath)
 
       saveAsBuffer = new TextBuffer()
+      saveHandler = jasmine.createSpy('saveHandler')
       eventHandler = jasmine.createSpy('eventHandler')
       saveAsBuffer.onDidChangePath eventHandler
 
       saveAsBuffer.setText 'Buffer contents!'
-      saveAsBuffer.saveAs(filePath)
-      expect(readFileSync(filePath, 'utf8')).toEqual 'Buffer contents!'
+      saveAsBuffer.saveAs(filePath).then(saveHandler)
 
-      expect(eventHandler).toHaveBeenCalledWith(filePath)
+      waitsFor 'saveHandler', ->
+        saveHandler.callCount > 0
+
+      runs ->
+        expect(readFileSync(filePath, 'utf8')).toEqual 'Buffer contents!'
+        expect(eventHandler).toHaveBeenCalledWith(filePath)
 
     it "stops listening to events on previous path and begins listening to events on new path", ->
       changeHandler = null
