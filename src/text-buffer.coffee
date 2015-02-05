@@ -1234,8 +1234,6 @@ class TextBuffer
   #
   # * `flushCache` (optional) {Boolean} flush option to pass through to
   #                {File::read} (default: false).
-  # * `callback`   (optional) {Function} to call after the cached contents have
-  #                been updated.
   updateCachedDiskContents: (flushCache=false) ->
     Q(@file?.read(flushCache) ? "").then (contents) =>
       @cachedDiskContents = contents
