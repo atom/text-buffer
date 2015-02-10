@@ -42,7 +42,7 @@
     "grim": "1.0.0",
     "interval-skip-list": "^2.0.0",
     "pathwatcher": "^3.0.0",
-    "q": "~1.0.1",
+    "q": "^1.1.2",
     "serializable": "^1.0.0",
     "span-skip-list": "~0.1.1",
     "underscore-plus": "^1.0.0"
