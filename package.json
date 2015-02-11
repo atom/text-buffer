@@ -37,7 +37,7 @@
     "delegato": "^1.0.0",
     "atom-diff": "^2",
     "emissary": "^1.0.0",
-    "event-kit": "^0.8.1",
+    "event-kit": "^1.0.2",
     "fs-plus": "^2.0.0",
     "grim": "^1",
     "interval-skip-list": "^2.0.0",
