@@ -69,7 +69,10 @@ class TextBuffer
     @modifiedWhenLastPersisted = params?.modifiedWhenLastPersisted ? false
     @useSerializedText = @modifiedWhenLastPersisted isnt false
 
-    @setPath(params.filePath) if params?.filePath
+    if params?.file
+      @setFile(params.file)
+    else if params?.filePath
+      @setPath(params.filePath)
     @load() if params?.load
 
   # Called by {Serializable} mixin during deserialization.
@@ -87,7 +90,7 @@ class TextBuffer
     encoding: @getEncoding()
     filePath: @getPath()
     modifiedWhenLastPersisted: @isModified()
-    digestWhenLastPersisted: @file?.getDigest()
+    digestWhenLastPersisted: @file?.getDigestSync()
 
   ###
   Section: Event Subscription
@@ -301,7 +304,7 @@ class TextBuffer
   isModified: ->
     return false unless @loaded
     if @file
-      if @file.exists()
+      if not @wasRemoved
         @getText() != @cachedDiskContents
       else
         @wasModifiedBeforeRemove ? not @isEmpty()
@@ -319,6 +322,22 @@ class TextBuffer
   # Returns a {String}.
   getPath: ->
     @file?.getPath()
+
+  # Public: Set the associated file for the buffer.
+  #
+  # * `file` A {File} representing the file
+  setFile: (file) ->
+    return if file?.getPath() == @getPath()
+
+    if file
+      @file = file
+      @file.setEncoding(@getEncoding())
+      @subscribeToFile()
+    else
+      @file = null
+
+    @emitter.emit 'did-change-path', @getPath()
+    @emit "path-changed", this
 
   # Public: Set the path for the buffer's associated file.
   #
@@ -348,7 +367,7 @@ class TextBuffer
       @emitter.emit 'did-change-encoding', encoding
 
       unless @isModified()
-        @updateCachedDiskContents true, =>
+        @updateCachedDiskContents(true).then =>
           @reload()
           @clearUndoStack()
     else
@@ -1182,16 +1201,19 @@ class TextBuffer
   # * `filePath` The path to save at.
   saveAs: (filePath) ->
     unless filePath then throw new Error("Can't save buffer with no file path")
-
     @emitter.emit 'will-save', {path: filePath}
     @emit 'will-be-saved', this
     @setPath(filePath)
-    @file.write(@getText())
-    @cachedDiskContents = @getText()
     @conflict = false
-    @emitModifiedStatusChanged(false)
-    @emitter.emit 'did-save', {path: filePath}
-    @emit 'saved', this
+    oldCachedDisContents = @cachedDiskContents
+    # cache disk contents as if it's a sync call
+    @cachedDiskContents = @getText()
+    @file.write(@getText()).then =>
+      @emitModifiedStatusChanged(false)
+      @emitter.emit 'did-save', {path: filePath}
+      @emit 'saved', this
+    .catch =>
+      @cachedDiskContents = oldCachedDisContents
 
   # Public: Reload the buffer's contents from disk.
   #
@@ -1212,12 +1234,9 @@ class TextBuffer
   #
   # * `flushCache` (optional) {Boolean} flush option to pass through to
   #                {File::read} (default: false).
-  # * `callback`   (optional) {Function} to call after the cached contents have
-  #                been updated.
-  updateCachedDiskContents: (flushCache=false, callback) ->
+  updateCachedDiskContents: (flushCache=false) ->
     Q(@file?.read(flushCache) ? "").then (contents) =>
       @cachedDiskContents = contents
-      callback?()
 
   ###
   Section: Private Utility Methods
@@ -1229,19 +1248,31 @@ class TextBuffer
 
   loadSync: ->
     @updateCachedDiskContentsSync()
-    @finishLoading()
+    @finishLoadingSync()
 
   load: ->
     @updateCachedDiskContents().then => @finishLoading()
 
-  finishLoading: ->
+  finishLoadingSync: ->
     if @isAlive()
       @loaded = true
-      if @useSerializedText and @digestWhenLastPersisted is @file?.getDigest()
+      digest = @file?.getDigestSync()
+      if @useSerializedText and @digestWhenLastPersisted is digest
         @emitModifiedStatusChanged(true)
       else
         @reload()
       @clearUndoStack()
+    this
+
+  finishLoading: ->
+    if @isAlive()
+      @loaded = true
+      Q(@file?.getDigest() ? "").then (digest) =>
+        if @useSerializedText and @digestWhenLastPersisted is digest
+          @emitModifiedStatusChanged(true)
+        else
+          @reload()
+        @clearUndoStack()
     this
 
   destroy: ->
@@ -1291,6 +1322,7 @@ class TextBuffer
     @fileSubscriptions.add @file.onDidDelete =>
       modified = @getText() != @cachedDiskContents
       @wasModifiedBeforeRemove = modified
+      @wasRemoved = true
       if modified
         @updateCachedDiskContents()
       else
