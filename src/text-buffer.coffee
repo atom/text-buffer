@@ -301,7 +301,7 @@ class TextBuffer
   isModified: ->
     return false unless @loaded
     if @file
-      if @file.exists()
+      if @file.existsSync()
         @getText() != @cachedDiskContents
       else
         @wasModifiedBeforeRemove ? not @isEmpty()
