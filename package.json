@@ -44,7 +44,7 @@
     "pathwatcher": "^3.0.0",
     "q": "^1.1.2",
     "serializable": "^1.0.0",
-    "span-skip-list": "~0.1.1",
+    "span-skip-list": "~0.2.0",
     "underscore-plus": "^1.0.0"
   }
 }
