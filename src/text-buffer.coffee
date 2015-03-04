@@ -102,7 +102,7 @@ class TextBuffer
   #
   # * `callback` {Function} to be called when the buffer changes.
   #   * `event` {Object} with the following keys:
-  #     * `oldRange` {Range} of the old texte
+  #     * `oldRange` {Range} of the old text.
   #     * `newRange` {Range} of the new text.
   #     * `oldText` {String} containing the text that was replaced.
   #     * `newText` {String} containing the text that was inserted.
