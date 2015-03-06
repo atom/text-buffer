@@ -33,5 +33,11 @@ class Point
     else
       new Point(@row + delta.row, delta.column)
 
+  traversalFrom: (other) ->
+    if @row is other.row
+      new Point(0, @column - other.column)
+    else
+      new Point(@row - other.row, @column)
+
   toString: ->
-    "(#{@row}, #{column})"
+    "(#{@row}, #{@column})"
