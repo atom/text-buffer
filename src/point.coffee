@@ -3,6 +3,9 @@ class Point
   @zero: ->
     new Point(0, 0)
 
+  @infinity: ->
+    new Point(Infinity, Infinity)
+
   constructor: (row, column) ->
     unless this instanceof Point
       return new Point(row, column)
