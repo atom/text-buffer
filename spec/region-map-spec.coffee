@@ -8,41 +8,77 @@ describe "RegionMap", ->
     regionMap = new RegionMap
 
   describe "iterator", ->
-    it "terminates immediately when there is no content", ->
+    it "terminates after traversing to infinity when the region map is empty", ->
       iterator = regionMap[Symbol.iterator]()
       expect(iterator.getPosition()).toEqual(Point.zero())
 
-      expect(iterator.next()).toEqual(value: {extent: Point.infinity(), content: null}, done: false)
+      expect(iterator.next()).toEqual(value: null, done: false)
       expect(iterator.getPosition()).toEqual(Point.infinity())
+      expect(iterator.getSourcePosition()).toEqual(Point.infinity())
 
       expect(iterator.next()).toEqual(value: null, done: true)
       expect(iterator.getPosition()).toEqual(Point.infinity())
+      expect(iterator.getSourcePosition()).toEqual(Point.infinity())
 
-    it "allows new regions to be spliced at the current position", ->
-      iterator = regionMap[Symbol.iterator]()
+    describe "splicing with a positive delta", ->
+      iterator = null
 
-      iterator.seek(Point(0, 2))
-      expect(iterator.getPosition()).toEqual(Point(0, 2))
+      beforeEach ->
+        iterator = regionMap[Symbol.iterator]()
+        iterator.seek(Point(0, 2))
+        iterator.splice(Point(0, 3), "abcde")
 
-      iterator.splice(Point(0, 5), extent: Point(0, 3), content: "abc")
-      expect(iterator.getPosition()).toEqual(Point(0, 5))
+      it "inserts new content into the map", ->
+        iterator.seek(Point(0, 0))
 
-      iterator.splice(Point(0, 5), extent: Point(0, 4), content: "defg")
-      expect(iterator.getPosition()).toEqual(Point(0, 9))
+        expect(iterator.next()).toEqual(value: null, done: false)
+        expect(iterator.getPosition()).toEqual(Point(0, 2))
+        expect(iterator.getSourcePosition()).toEqual(Point(0, 2))
 
-      expect(iterator.next()).toEqual(value: {extent: Point.infinity(), content: null}, done: false)
-      expect(iterator.getPosition()).toEqual(Point.infinity())
+        expect(iterator.next()).toEqual(value: "abcde", done: false)
+        expect(iterator.getPosition()).toEqual(Point(0, 7))
+        expect(iterator.getSourcePosition()).toEqual(Point(0, 5))
 
-      iterator.seek(Point.zero())
+        expect(iterator.next()).toEqual(value: null, done: false)
+        expect(iterator.getPosition()).toEqual(Point.infinity())
+        expect(iterator.getSourcePosition()).toEqual(Point.infinity())
 
-      expect(iterator.next()).toEqual(value: {content: null, extent: Point(0, 2)}, done: false)
-      expect(iterator.getPosition()).toEqual(Point(0, 2))
+        iterator.seek(Point(0, 6))
+        expect(iterator.getSourcePosition()).toEqual(Point(0, 5))
 
-      expect(iterator.next()).toEqual(value: {content: "abc", extent: Point(0, 3)}, done: false)
-      expect(iterator.getPosition()).toEqual(Point(0, 5))
+        expect(iterator.next()).toEqual(value: "e", done: false)
+        expect(iterator.getPosition()).toEqual(Point(0, 7))
+        expect(iterator.getSourcePosition()).toEqual(Point(0, 5))
 
-      expect(iterator.next()).toEqual(value: {content: "defg", extent: Point(0, 4)}, done: false)
-      expect(iterator.getPosition()).toEqual(Point(0, 9))
+    describe "splicing with a negative delta", ->
+      iterator = null
 
-      expect(iterator.next()).toEqual(value: {extent: Point.infinity(), content: null}, done: false)
-      expect(iterator.getPosition()).toEqual(Point.infinity())
+      beforeEach ->
+        iterator = regionMap[Symbol.iterator]()
+        iterator.seek(Point(0, 2))
+        iterator.splice(Point(0, 5), "abc")
+
+      it "inserts new content into the map", ->
+        iterator.seek(Point(0, 0))
+
+        expect(iterator.next()).toEqual(value: null, done: false)
+        expect(iterator.getPosition()).toEqual(Point(0, 2))
+        expect(iterator.getSourcePosition()).toEqual(Point(0, 2))
+
+        expect(iterator.next()).toEqual(value: "abc", done: false)
+        expect(iterator.getPosition()).toEqual(Point(0, 5))
+        expect(iterator.getSourcePosition()).toEqual(Point(0, 7))
+
+        expect(iterator.next()).toEqual(value: null, done: false)
+        expect(iterator.getPosition()).toEqual(Point.infinity())
+        expect(iterator.getSourcePosition()).toEqual(Point.infinity())
+
+        iterator.seek(Point(0, 5))
+        expect(iterator.getSourcePosition()).toEqual(Point(0, 7))
+
+        iterator.seek(Point(0, 3))
+        expect(iterator.getSourcePosition()).toEqual(Point(0, 3))
+
+        expect(iterator.next()).toEqual(value: "bc", done: false)
+        expect(iterator.getPosition()).toEqual(Point(0, 5))
+        expect(iterator.getSourcePosition()).toEqual(Point(0, 7))
