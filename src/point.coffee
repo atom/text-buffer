@@ -6,6 +6,12 @@ class Point
   @infinity: ->
     new Point(Infinity, Infinity)
 
+  @min: (left, right) ->
+    if left.compare(right) <= 0
+      left
+    else
+      right
+
   constructor: (row, column) ->
     unless this instanceof Point
       return new Point(row, column)
@@ -29,6 +35,12 @@ class Point
 
   isZero: ->
     @row is 0 and @column is 0
+
+  isPositive: ->
+    if @row > 0
+      true
+    else
+      @column > 0
 
   traverse: (delta) ->
     if delta.row is 0
