@@ -68,8 +68,6 @@ class Iterator
 
     @seek(@position.traverse(oldExtent))
 
-    spliceEndIndex = @index + 1
-
     sourceExtent = @sourcePosition.traversalFrom(startSourcePosition)
     newExtent = Point(0, newContent.length)
     newRegions.push({
