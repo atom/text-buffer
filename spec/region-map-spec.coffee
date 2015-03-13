@@ -29,6 +29,7 @@ describe "RegionMap", ->
         iterator.splice(Point(0, 3), "abcde")
 
       it "inserts new content into the map", ->
+        expect(iterator.getPosition()).toEqual(Point(0, 5))
         iterator.seek(Point.zero())
 
         expect(iterator.next()).toEqual(value: null, done: false)
@@ -56,6 +57,7 @@ describe "RegionMap", ->
           iterator.splice(Point(0, 2), "fghi")
 
         it "stretches the existing splice region", ->
+          expect(iterator.getPosition()).toEqual(Point(0, 6))
           iterator.seek(Point.zero())
 
           expect(iterator.next()).toEqual(value: null, done: false)
