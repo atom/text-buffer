@@ -12,6 +12,12 @@ class Point
     else
       right
 
+  @max: (left, right) ->
+    if left.compare(right) >= 0
+      left
+    else
+      right
+
   constructor: (row, column) ->
     unless this instanceof Point
       return new Point(row, column)
