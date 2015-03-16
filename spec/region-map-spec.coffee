@@ -193,15 +193,28 @@ describe "RegionMap", ->
         expect(iterator.getPosition()).toEqual(Point(0, 5))
         expect(iterator.getSourcePosition()).toEqual(Point(0, 7))
 
-      describe "contracting an existing negative-delta splice", ->
-        it "shrinks the existing splice region", ->
-          iterator.seek(Point(0, 3))
-          iterator.splice(Point(0, 1), "")
-          expect(iterator.getPosition()).toEqual(Point(0, 3))
-          expect(iterator.getSourcePosition()).toEqual(Point(0, 3))
+      it "can apply a second splice that is contained within the existing splice", ->
+        iterator.seek(Point(0, 3))
+        iterator.splice(Point(0, 1), "")
+        expect(iterator.getPosition()).toEqual(Point(0, 3))
+        expect(iterator.getSourcePosition()).toEqual(Point(0, 3))
 
-          expectRegions(
-           [null, Point(0, 2), Point(0, 2)]
-           ["ac", Point(0, 4), Point(0, 7)]
-           [null, Point.infinity(), Point.infinity()]
-          )
+        expectRegions(
+         [null, Point(0, 2), Point(0, 2)]
+         ["ac", Point(0, 4), Point(0, 7)]
+         [null, Point.infinity(), Point.infinity()]
+        )
+
+    describe "seek", ->
+      it "stops at the first region that starts at or contains", ->
+        iterator = regionMap[Symbol.iterator]()
+        iterator.seek(Point(0, 2))
+        iterator.splice(Point(0, 5), "")
+
+        iterator.seek(Point.zero())
+        iterator.seek(Point(0, 2))
+        expect(iterator.getSourcePosition()).toEqual(Point(0, 2))
+
+        expect(iterator.next()).toEqual {value: "", done: false}
+        expect(iterator.getPosition()).toEqual(Point(0, 2))
+        expect(iterator.getSourcePosition()).toEqual(Point(0, 7))

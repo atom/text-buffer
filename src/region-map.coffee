@@ -24,7 +24,7 @@ class Iterator
       nextPosition = position.traverse(region.extent)
       nextSourcePosition = sourcePosition.traverse(region.sourceExtent)
 
-      if nextPosition.compare(@position) > 0
+      if nextPosition.compare(@position) > 0 or position.compare(@position) is 0
         @index = index
         @regionOffset = @position.traversalFrom(position)
         @sourcePosition = Point.min(sourcePosition.traverse(@regionOffset), nextSourcePosition)
