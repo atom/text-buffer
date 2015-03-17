@@ -405,6 +405,31 @@ describe "TextBuffer", ->
         buffer.undo()
         expect(buffer.getText()).toBe "hello\nworms\r\nhow are you doing?"
 
+      it "properly updates markers when a transaction is undone", ->
+        buffer.setText('')
+
+        buffer.beginTransaction()
+        buffer.append('foo')
+        buffer.commitTransaction()
+
+        buffer.beginTransaction()
+        buffer.append('\n')
+        buffer.append('bar')
+        buffer.commitTransaction()
+
+        marker1 = buffer.markRange([[0,0], [0,3]], invalidate: 'never')
+        marker2 = buffer.markRange([[1,0], [1,3]], invalidate: 'never')
+
+        buffer.undo()
+
+        expect(buffer.getText()).toBe 'foo'
+
+        expect(marker1.getRange()).toEqual([[0,0], [0,3]])
+        expect(marker1.isValid()).toBe true
+
+        expect(marker2.getRange()).toEqual([[0,3], [0,3]])
+        expect(marker2.isValid()).toBe true
+
       describe "when a grouping interval is provided", ->
         currentTime = null
 
