@@ -380,7 +380,7 @@ class Marker
         isEqual(@properties[key], value)
 
   toParams: (omitId) ->
-    params = {@range, @reversed, @tailed, @invalidate, @persistent, @properties}
+    params = {@range, @reversed, @tailed, @invalidate, @persistent, @properties, @valid}
     params.id = @id unless omitId
     params
 
@@ -394,8 +394,8 @@ class Marker
 
   # Adjusts the marker's start and end positions and possibly its validity
   # based on the given {BufferPatch}.
-  handleBufferChange: (patch) ->
-    {oldRange, newRange} = patch
+  handleBufferChange: (bufferPatch) ->
+    {oldRange, newRange} = bufferPatch
     rowDelta = newRange.end.row - oldRange.end.row
     columnDelta = newRange.end.column - oldRange.end.column
     markerStart = @range.start
@@ -439,7 +439,7 @@ class Marker
       newMarkerRange.end = newRange.end
 
     if markerPatch = @buildPatch({valid, range: newMarkerRange})
-      patch.addMarkerPatch(markerPatch)
+      @applyPatch(markerPatch, true)
 
   buildPatch: (newParams) ->
     oldParams = {}

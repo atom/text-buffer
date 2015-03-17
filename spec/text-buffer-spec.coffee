@@ -309,7 +309,12 @@ describe "TextBuffer", ->
       expect(-> buffer.transact -> buffer.redo()).toThrow("Can't redo with an open transaction")
 
   describe "transactions", ->
+    currentTime = null
+
     beforeEach ->
+      currentTime = 10000
+      spyOn(Date, 'now').andCallFake -> currentTime
+
       buffer = new TextBuffer(text: "hello\nworld\r\nhow are you doing?")
 
     describe "::beginTransaction()", ->
@@ -431,12 +436,6 @@ describe "TextBuffer", ->
         expect(marker2.isValid()).toBe true
 
       describe "when a grouping interval is provided", ->
-        currentTime = null
-
-        beforeEach ->
-          currentTime = 10000
-          spyOn(Date, 'now').andCallFake -> currentTime
-
         describe "and the previous transaction also had a grouping interval", ->
           beforeEach ->
             buffer.beginTransaction(100)

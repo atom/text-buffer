@@ -616,13 +616,12 @@ class TextBuffer
     oldRange = @clipRange(oldRange)
     oldText = @getTextInRange(oldRange)
     newRange = Range.fromText(oldRange.start, newText)
-    patch = new BufferPatch(oldRange, newRange, oldText, newText, normalizeLineEndings)
-    @markers?.handleBufferChange(patch)
-    patch
+    new BufferPatch(oldRange, newRange, oldText, newText, normalizeLineEndings)
 
   # Applies a {BufferPatch} to the buffer based on its old range and new text.
   # Also applies any {MarkerPatch}es associated with the {BufferPatch}.
-  applyPatch: ({oldRange, newRange, oldText, newText, normalizeLineEndings, markerPatches}) ->
+  applyPatch: (patch) ->
+    {oldRange, newRange, oldText, newText, normalizeLineEndings} = patch
     @cachedText = null
 
     startRow = oldRange.start.row
@@ -671,7 +670,7 @@ class TextBuffer
     @offsetIndex.spliceArray('rows', startRow, rowCount, offsets)
 
     @markers?.pauseChangeEvents()
-    @markers?.applyPatches(markerPatches, true)
+    @markers?.handleBufferChange(patch)
 
     changeEvent = {oldRange, newRange, oldText, newText}
 

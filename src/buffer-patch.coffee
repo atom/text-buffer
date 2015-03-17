@@ -26,11 +26,7 @@ class BufferPatch extends Serializable
   invert: (buffer) ->
     markerPatches = {}
     markerPatches[id] = patch.invert() for id, patch of @markerPatches
-    invertedPatch = new @constructor(@newRange, @oldRange, @newText, @oldText, @normalizeLineEndings, markerPatches)
-    for marker in buffer.getMarkers()
-      unless @markerPatches[marker.id]?
-        marker.handleBufferChange(invertedPatch)
-    invertedPatch
+    new @constructor(@newRange, @oldRange, @newText, @oldText, @normalizeLineEndings, markerPatches)
 
   applyTo: (buffer) ->
     buffer.applyPatch(this)
