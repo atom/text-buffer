@@ -1,18 +1,19 @@
 {find} = require 'underscore-plus'
 Serializable = require 'serializable'
 BufferPatch = require './buffer-patch'
-MarkerPatch = require './marker-patch'
 
 # Contains several patches that we want to undo/redo as a batch.
 module.exports =
 class Transaction extends Serializable
-  @registerDeserializers(BufferPatch, MarkerPatch)
+  @registerDeserializers(BufferPatch)
 
   constructor: (@patches, @oldMarkersSnapshot, @newMarkersSnapshot, groupingInterval=0) ->
     @groupingExpirationTime = Date.now() + groupingInterval
 
   serializeParams: ->
     patches: @patches.map (patch) -> patch.serialize()
+    oldMarkersSnapshot: @oldMarkersSnapshot
+    newMarkersSnapshot: @newMarkersSnapshot
 
   deserializeParams: (params) ->
     params.patches = params.patches.map (patchState) => @constructor.deserialize(patchState)
@@ -31,8 +32,8 @@ class Transaction extends Serializable
     patch.applyTo(buffer) for patch in @patches
     buffer.markers.applySnapshot(@newMarkersSnapshot) if @newMarkersSnapshot?
 
-  hasBufferPatches: ->
-    find @patches, (patch) -> patch instanceof BufferPatch
+  isEmpty: ->
+    @patches.length is 0
 
   merge: (patch) ->
     if patch instanceof Transaction

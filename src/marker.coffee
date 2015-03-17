@@ -4,7 +4,6 @@ EmitterMixin = require('emissary').Emitter
 Grim = require 'grim'
 Delegator = require 'delegato'
 Serializable = require 'serializable'
-MarkerPatch = require './marker-patch'
 Point = require './point'
 Range = require './range'
 
@@ -384,18 +383,10 @@ class Marker
     params.id = @id unless omitId
     params
 
-  update: (params) ->
-    if patch = @buildPatch(params)
-      @manager.recordMarkerPatch(patch)
-      @applyPatch(patch)
-      true
-    else
-      false
-
   # Adjusts the marker's start and end positions and possibly its validity
   # based on the given {BufferPatch}.
-  handleBufferChange: (bufferPatch) ->
-    {oldRange, newRange} = bufferPatch
+  handleBufferChange: (patch) ->
+    {oldRange, newRange} = patch
     rowDelta = newRange.end.row - oldRange.end.row
     columnDelta = newRange.end.column - oldRange.end.column
     markerStart = @range.start
@@ -438,29 +429,14 @@ class Marker
     else if changeSurroundsMarkerEnd
       newMarkerRange.end = newRange.end
 
-    if markerPatch = @buildPatch({valid, range: newMarkerRange})
-      @applyPatch(markerPatch, true)
+    @update({valid, range: newMarkerRange}, true)
 
-  buildPatch: (newParams) ->
-    oldParams = {}
-    for name, value of newParams
-      if isEqual(@[name], value)
-        delete newParams[name]
-      else
-        oldParams[name] = @[name]
-
-    if size(newParams)
-      new MarkerPatch(@id, oldParams, newParams)
-
-  applyPatch: (patch, textChanged=false) ->
+  update: ({range, reversed, tailed, valid, properties}, textChanged=false) ->
     oldHeadPosition = @getHeadPosition()
     oldTailPosition = @getTailPosition()
     wasValid = @isValid()
     hadTail = @hasTail()
     oldProperties = @getProperties()
-
-    updated = false
-    {range, reversed, tailed, valid, properties} = patch.newParams
 
     if range? and not range.isEqual(@range)
       @range = range.freeze()

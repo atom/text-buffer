@@ -133,16 +133,8 @@ class MarkerManager
       @getMarker(id)?.update(params)
     return
 
-  recordMarkerPatch: (patch) ->
-    if @buffer.isTransacting()
-      @buffer.history.recordNewPatch(patch)
-
   handleBufferChange: (patch) ->
     marker.handleBufferChange(patch) for id, marker of @markers
-
-  applyPatches: (markerPatches, textChanged) ->
-    for id, patch of markerPatches
-      @getMarker(id)?.applyPatch(patch, textChanged)
 
   pauseChangeEvents: ->
     marker.pauseChangeEvents() for marker in @getMarkers()
