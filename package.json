@@ -41,7 +41,7 @@
     "fs-plus": "^2.0.0",
     "grim": "^1",
     "interval-skip-list": "^2.0.1",
-    "pathwatcher": "^4.1.2",
+    "pathwatcher": "^4.2",
     "q": "^1.1.2",
     "serializable": "^1.0.0",
     "span-skip-list": "~0.2.0",
