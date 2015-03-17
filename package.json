@@ -34,6 +34,6 @@
     "jasmine-focused": "^1.0.4",
     "random-seed": "^0.2.0",
     "rimraf": "^2.2.2",
-    "temp": "^0.6.0"
+    "temp": "^0.8.1"
   }
 }
