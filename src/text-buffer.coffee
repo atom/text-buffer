@@ -212,6 +212,16 @@ class TextBuffer
   onDidSave: (callback) ->
     @emitter.on 'did-save', callback
 
+
+  # Public: Invoke the given callback after the file backing the buffer is
+  # deleted.
+  #
+  # * `callback` {Function} to be called after the buffer is deleted.
+  #
+  # Returns a {Disposable} on which `.dispose()` can be called to unsubscribe.
+  onDidDelete: (callback) ->
+    @emitter.on 'did-delete', callback
+
   # Public: Invoke the given callback before the buffer is reloaded from the
   # contents of its file on disk.
   #
@@ -1289,6 +1299,7 @@ class TextBuffer
         @reload()
 
     @fileSubscriptions.add @file.onDidDelete =>
+      @emitter.emit 'did-delete'
       modified = @getText() != @cachedDiskContents
       @wasModifiedBeforeRemove = modified
       if modified

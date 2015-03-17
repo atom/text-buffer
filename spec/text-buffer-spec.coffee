@@ -1049,6 +1049,21 @@ describe "TextBuffer", ->
         expect(bufferToDelete.getPath()).toBe filePath
         expect(bufferToDelete.isModified()).toBeFalsy()
 
+
+    describe "when the file is deleted", ->
+      events = []
+      beforeEach ->
+        bufferToDelete.onDidDelete -> events.push true
+        deleteHandler = jasmine.createSpy('deleteHandler')
+        bufferToDelete.onDidDelete deleteHandler
+        removeSync(filePath)
+        waitsFor "file to be deleted", ->
+          deleteHandler.callCount > 0
+      
+      it "expects onDidDelete to have been called ", ->
+        expect(events).toEqual [true]
+
+
     it "resumes watching of the file when it is re-saved", ->
       bufferToDelete.save()
       expect(existsSync(bufferToDelete.getPath())).toBeTruthy()
