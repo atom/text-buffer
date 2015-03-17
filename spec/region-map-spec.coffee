@@ -140,14 +140,14 @@ describe "RegionMap", ->
         )
 
       it "can apply a second splice that spans the end of the existing splice", ->
-        iterator.seek(Point(0, 7))
+        iterator.seek(Point(0, 8))
         iterator.splice(Point(0, 4), "fghijk")
-        expect(iterator.getPosition()).toEqual(Point(0, 13))
-        expect(iterator.getSourcePosition()).toEqual(Point(0, 9))
+        expect(iterator.getPosition()).toEqual(Point(0, 14))
+        expect(iterator.getSourcePosition()).toEqual(Point(0, 10))
 
         expectRegions(
           [null, Point(0, 4), Point(0, 4)]
-          ["abcfghijk", Point(0, 13), Point(0, 9)]
+          ["abcdfghijk", Point(0, 14), Point(0, 10)]
           [null, Point.infinity(), Point.infinity()]
         )
 

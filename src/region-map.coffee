@@ -63,7 +63,7 @@ class Iterator
       regionToSplit = @regionMap.regions[@index]
       newRegions.push({
         extent: @regionOffset
-        sourceExtent: @regionOffset
+        sourceExtent: Point.min(@regionOffset, regionToSplit.sourceExtent)
         content: regionToSplit.content?.substring(0, @regionOffset.column) ? null
       })
 
