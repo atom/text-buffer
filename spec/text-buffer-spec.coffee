@@ -1051,18 +1051,13 @@ describe "TextBuffer", ->
 
 
     describe "when the file is deleted", ->
-      events = []
-      beforeEach ->
-        bufferToDelete.onDidDelete -> events.push true
+      it "notifies all onDidDelete listeners ", ->
         deleteHandler = jasmine.createSpy('deleteHandler')
         bufferToDelete.onDidDelete deleteHandler
         removeSync(filePath)
-        waitsFor "file to be deleted", ->
-          deleteHandler.callCount > 0
-      
-      it "expects onDidDelete to have been called ", ->
-        expect(events).toEqual [true]
 
+        waitsFor "file to be deleted", ->
+          deleteHandler.callCount is 1
 
     it "resumes watching of the file when it is re-saved", ->
       bufferToDelete.save()
