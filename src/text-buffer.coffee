@@ -87,7 +87,7 @@ class TextBuffer
     encoding: @getEncoding()
     filePath: @getPath()
     modifiedWhenLastPersisted: @isModified()
-    digestWhenLastPersisted: @file?.getDigest()
+    digestWhenLastPersisted: @file?.getDigestSync()
 
   ###
   Section: Event Subscription
@@ -1186,7 +1186,7 @@ class TextBuffer
     @emitter.emit 'will-save', {path: filePath}
     @emit 'will-be-saved', this
     @setPath(filePath)
-    @file.write(@getText())
+    @file.writeSync(@getText())
     @cachedDiskContents = @getText()
     @conflict = false
     @emitModifiedStatusChanged(false)
@@ -1237,7 +1237,7 @@ class TextBuffer
   finishLoading: ->
     if @isAlive()
       @loaded = true
-      if @useSerializedText and @digestWhenLastPersisted is @file?.getDigest()
+      if @useSerializedText and @digestWhenLastPersisted is @file?.getDigestSync()
         @emitModifiedStatusChanged(true)
       else
         @reload()

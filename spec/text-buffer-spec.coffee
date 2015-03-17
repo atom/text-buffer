@@ -1528,7 +1528,7 @@ describe "TextBuffer", ->
         saveBuffer.save()
         expect(readFileSync(filePath, 'utf8')).toEqual 'Buffer contents!'
 
-      it "notifies ::onWillSave and ::onDidSave observers around the call to File::write", ->
+      it "notifies ::onWillSave and ::onDidSave observers around the call to File::writeSync", ->
         events = []
         willSave1 = (event) -> events.push(['will-save-1', event])
         willSave2 = (event) -> events.push(['will-save-2', event])
@@ -1537,7 +1537,7 @@ describe "TextBuffer", ->
 
         saveBuffer.onWillSave willSave1
         saveBuffer.onWillSave willSave2
-        spyOn(File.prototype, 'write').andCallFake -> events.push 'File::write'
+        spyOn(File.prototype, 'writeSync').andCallFake -> events.push 'File::writeSync'
         saveBuffer.onDidSave didSave1
         saveBuffer.onDidSave didSave2
 
@@ -1546,7 +1546,7 @@ describe "TextBuffer", ->
         expect(events).toEqual [
           ['will-save-1', {path}]
           ['will-save-2', {path}]
-          'File::write'
+          'File::writeSync'
           ['did-save-1', {path}]
           ['did-save-2', {path}]
         ]
