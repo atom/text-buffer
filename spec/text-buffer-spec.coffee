@@ -405,7 +405,7 @@ describe "TextBuffer", ->
         buffer.undo()
         expect(buffer.getText()).toBe "hello\nworms\r\nhow are you doing?"
 
-      it "properly updates markers when a transaction is undone", ->
+      it "updates marker ranges when a transaction is undone", ->
         buffer.setText('')
 
         buffer.beginTransaction()
