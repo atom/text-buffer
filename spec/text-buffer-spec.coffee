@@ -741,16 +741,19 @@ describe "TextBuffer", ->
       marker1A = bufferA.markRange([[0, 1], [1, 2]], reversed: true, foo: 1)
       marker2A = bufferA.markPosition([2, 2], bar: 2)
       bufferA.transact ->
+        bufferA.setTextInRange([[1, 0], [1, 0]], "good ")
         bufferA.append("?")
         marker2A.setProperties(bar: 3, baz: 4)
 
-      bufferB = TextBuffer.deserialize(bufferA.serialize())
+      state = JSON.parse(JSON.stringify(bufferA.serialize()))
+      bufferB = TextBuffer.deserialize(state)
 
-      expect(bufferB.getText()).toBe "hello there\nfriend\r\nhow are you doing??"
+      expect(bufferB.getText()).toBe "hello there\ngood friend\r\nhow are you doing??"
+
 
       marker1B = bufferB.getMarker(marker1A.id)
       marker2B = bufferB.getMarker(marker2A.id)
-      expect(marker1B.getRange()).toEqual [[0, 1], [1, 2]]
+      expect(marker1B.getRange()).toEqual [[0, 1], [1, 7]]
       expect(marker1B.isReversed()).toBe true
       expect(marker1B.getProperties()).toEqual {foo: 1}
       expect(marker2B.getHeadPosition()).toEqual [2, 2]

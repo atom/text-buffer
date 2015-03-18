@@ -1,5 +1,6 @@
 Serializable = require 'serializable'
 Range = require './range'
+Marker = require './marker'
 
 # Represents a single change to {TextBuffer}. We reify the change into an object
 # so it can be stored in the undo/redo stack of {History}.
@@ -12,11 +13,15 @@ class BufferPatch extends Serializable
   serializeParams: ->
     oldRange = @oldRange.serialize()
     newRange = @newRange.serialize()
-    {oldRange, newRange, @oldText, @newText, @normalizeLineEndings, @newMarkersSnapshot, @oldMarkersSnapshot}
+    newMarkersSnapshot = Marker.serializeSnapshot(@newMarkersSnapshot)
+    oldMarkersSnapshot = Marker.serializeSnapshot(@oldMarkersSnapshot)
+    {oldRange, newRange, @oldText, @newText, @normalizeLineEndings, newMarkersSnapshot, oldMarkersSnapshot}
 
   deserializeParams: (params) ->
     params.oldRange = Range.deserialize(params.oldRange)
     params.newRange = Range.deserialize(params.newRange)
+    params.newMarkersSnapshot = Marker.deserializeSnapshot(params.newMarkersSnapshot)
+    params.oldMarkersSnapshot = Marker.deserializeSnapshot(params.oldMarkersSnapshot)
     params
 
   invert: (buffer) ->

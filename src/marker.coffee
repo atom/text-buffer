@@ -64,6 +64,20 @@ class Marker
       params.invalidate = params.invalidation
       delete params.invalidation
 
+  @serializeSnapshot: (snapshot) ->
+    return unless snapshot?
+    serializedSnapshot = {}
+    for id, {range, valid} of snapshot
+      serializedSnapshot[id] = {range: range.serialize(), valid}
+    serializedSnapshot
+
+  @deserializeSnapshot: (serializedSnapshot) ->
+    return unless serializedSnapshot?
+    snapshot = {}
+    for id, {range, valid} of serializedSnapshot
+      snapshot[id] = {range: Range.deserialize(range), valid}
+    snapshot
+
   @delegatesMethods 'containsPoint', 'containsRange', 'intersectsRow', toProperty: 'range'
   @delegatesMethods 'clipPosition', 'clipRange', toProperty: 'manager'
 
