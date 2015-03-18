@@ -7,13 +7,15 @@ module.exports =
 class Transaction extends Serializable
   @registerDeserializers(BufferPatch)
 
-  constructor: (@patches, @oldMarkersSnapshot, @newMarkersSnapshot, groupingInterval=0) ->
+  oldMarkersSnapshot: null
+
+  constructor: (@patches, groupingInterval=0, @newMarkersSnapshot, @oldMarkersSnapshot) ->
     @groupingExpirationTime = Date.now() + groupingInterval
 
   serializeParams: ->
     patches: @patches.map (patch) -> patch.serialize()
-    oldMarkersSnapshot: @oldMarkersSnapshot
     newMarkersSnapshot: @newMarkersSnapshot
+    oldMarkersSnapshot: @oldMarkersSnapshot
 
   deserializeParams: (params) ->
     params.patches = params.patches.map (patchState) => @constructor.deserialize(patchState)
@@ -23,14 +25,14 @@ class Transaction extends Serializable
     @patches.push(patch)
 
   invert: (buffer) ->
-    patches = @patches.map((patch) -> patch.invert(buffer)).reverse()
-    oldMarkersSnapshot = buffer.markers.buildSnapshot()
+    invertedPatches = @patches.map((patch) -> patch.invert(buffer)).reverse()
     newMarkersSnapshot = @oldMarkersSnapshot
-    new @constructor(patches, oldMarkersSnapshot, newMarkersSnapshot)
+    oldMarkersSnapshot = buffer.markers.buildSnapshot(newMarkersSnapshot)
+    new @constructor(invertedPatches, 0, newMarkersSnapshot, oldMarkersSnapshot)
 
   applyTo: (buffer) ->
     patch.applyTo(buffer) for patch in @patches
-    buffer.markers.applySnapshot(@newMarkersSnapshot) if @newMarkersSnapshot?
+    buffer.markers.restoreSnapshot(@newMarkersSnapshot) if @newMarkersSnapshot?
 
   isEmpty: ->
     @patches.length is 0

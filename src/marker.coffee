@@ -386,7 +386,11 @@ class Marker
   # Adjusts the marker's start and end positions and possibly its validity
   # based on the given {BufferPatch}.
   handleBufferChange: (patch) ->
-    {oldRange, newRange} = patch
+    {oldRange, newRange, newMarkersSnapshot} = patch
+
+    if stateToRestore = newMarkersSnapshot?[@id]
+      return @update(stateToRestore, true)
+
     rowDelta = newRange.end.row - oldRange.end.row
     columnDelta = newRange.end.column - oldRange.end.column
     markerStart = @range.start
@@ -429,11 +433,17 @@ class Marker
     else if changeSurroundsMarkerEnd
       newMarkerRange.end = newRange.end
 
+    if not changePrecedesMarkerStart or valid isnt @valid
+      patch.oldMarkersSnapshot ?= {}
+      patch.oldMarkersSnapshot[@id] = {@range, @valid}
+
     @update({valid, range: newMarkerRange}, true)
 
   update: ({range, reversed, tailed, valid, properties}, textChanged=false) ->
     oldHeadPosition = @getHeadPosition()
     oldTailPosition = @getTailPosition()
+    oldRange = @range
+    wasReversed = @reversed
     wasValid = @isValid()
     hadTail = @hasTail()
     oldProperties = @getProperties()
@@ -460,6 +470,14 @@ class Marker
       updated = true
 
     return false unless updated
+
+    @manager.didChangeMarker(@id, {
+      range: oldRange
+      reversed: wasReversed
+      valid: wasValid
+      tailed: hadTail
+      properties: oldProperties
+    })
 
     newHeadPosition = @getHeadPosition()
     newTailPosition = @getTailPosition()

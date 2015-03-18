@@ -5,12 +5,14 @@ Range = require './range'
 # so it can be stored in the undo/redo stack of {History}.
 module.exports =
 class BufferPatch extends Serializable
-  constructor: (@oldRange, @newRange, @oldText, @newText, @normalizeLineEndings) ->
+  oldMarkersSnapshot: null
+
+  constructor: (@oldRange, @newRange, @oldText, @newText, @normalizeLineEndings, @newMarkersSnapshot, @oldMarkersSnapshot) ->
 
   serializeParams: ->
     oldRange = @oldRange.serialize()
     newRange = @newRange.serialize()
-    {oldRange, newRange, @oldText, @newText, @normalizeLineEndings}
+    {oldRange, newRange, @oldText, @newText, @normalizeLineEndings, @newMarkersSnapshot, @oldMarkersSnapshot}
 
   deserializeParams: (params) ->
     params.oldRange = Range.deserialize(params.oldRange)
@@ -18,7 +20,7 @@ class BufferPatch extends Serializable
     params
 
   invert: (buffer) ->
-    new @constructor(@newRange, @oldRange, @newText, @oldText, @normalizeLineEndings)
+    new @constructor(@newRange, @oldRange, @newText, @oldText, @normalizeLineEndings, @oldMarkersSnapshot)
 
   applyTo: (buffer) ->
     buffer.applyPatch(this)

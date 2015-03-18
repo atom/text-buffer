@@ -41,6 +41,11 @@ class History extends Serializable
       @commitTransaction()
       @clearRedoStack()
 
+  didChangeMarker: (id, params) ->
+    if @currentTransaction?
+      @currentTransaction.oldMarkersSnapshot ?= {}
+      @currentTransaction.oldMarkersSnapshot[id] ?= params
+
   undo: ->
     throw new Error("Can't undo with an open transaction") if @currentTransaction?
 
@@ -85,8 +90,7 @@ class History extends Serializable
 
   beginTransaction: (groupingInterval) ->
     if ++@transactionDepth is 1
-      markersSnapshot = @buffer.markers.buildSnapshot()
-      @currentTransaction = new Transaction([], markersSnapshot, null, groupingInterval)
+      @currentTransaction = new Transaction([], groupingInterval)
 
   commitTransaction: ->
     throw new Error("No transaction is open") unless @transactionDepth > 0

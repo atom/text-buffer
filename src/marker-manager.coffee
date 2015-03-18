@@ -122,13 +122,16 @@ class MarkerManager
   removeMarker: (id) ->
     delete @markers[id]
 
-  buildSnapshot: ->
-    snapshot = {}
-    for id, marker of @markers
-      snapshot[id] = marker.toParams()
-    snapshot
+  didChangeMarker: (id, params) ->
+    @buffer.history.didChangeMarker(id, params)
 
-  applySnapshot: (snapshot) ->
+  buildSnapshot: (oldSnapshot) ->
+    newSnapshot = {}
+    for id of oldSnapshot
+      newSnapshot[id] = @getMarker(id)?.toParams()
+    newSnapshot
+
+  restoreSnapshot: (snapshot) ->
     for id, params of snapshot
       @getMarker(id)?.update(params)
     return
