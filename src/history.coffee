@@ -9,6 +9,7 @@ TransactionAborted = new Error("Transaction Aborted")
 # Manages undo/redo for {TextBuffer}
 module.exports =
 class History extends Serializable
+  @version: 1
   @registerDeserializers(Transaction, BufferPatch)
 
   currentTransaction: null
