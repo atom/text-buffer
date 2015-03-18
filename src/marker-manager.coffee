@@ -122,19 +122,9 @@ class MarkerManager
   removeMarker: (id) ->
     delete @markers[id]
 
-  didChangeMarker: (id, params) ->
-    @buffer.history.didChangeMarker(id, params)
-
-  buildSnapshot: (oldSnapshot) ->
-    newSnapshot = {}
-    for id of oldSnapshot
-      newSnapshot[id] = @getMarker(id)?.toParams()
-    newSnapshot
-
-  restoreSnapshot: (snapshot) ->
-    for id, params of snapshot
-      @getMarker(id)?.update(params)
-    return
+  recordMarkerPatch: (patch) ->
+    if @buffer.isTransacting()
+      @buffer.history.recordNewPatch(patch)
 
   handleBufferChange: (patch) ->
     marker.handleBufferChange(patch) for id, marker of @markers

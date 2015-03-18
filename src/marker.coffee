@@ -4,6 +4,7 @@ EmitterMixin = require('emissary').Emitter
 Grim = require 'grim'
 Delegator = require 'delegato'
 Serializable = require 'serializable'
+MarkerPatch = require './marker-patch'
 Point = require './point'
 Range = require './range'
 
@@ -442,42 +443,48 @@ class Marker
   update: ({range, reversed, tailed, valid, properties}, textChanged=false) ->
     oldHeadPosition = @getHeadPosition()
     oldTailPosition = @getTailPosition()
-    oldRange = @range
-    wasReversed = @reversed
     wasValid = @isValid()
     hadTail = @hasTail()
     oldProperties = @getProperties()
 
+    patch = new MarkerPatch(@id)
+
     if range? and not range.isEqual(@range)
-      @range = range.freeze()
+      range = range.freeze()
+      patch.oldParams.range = @range
+      patch.newParams.range = range
+      @range = range
       @updateIntervals()
       updated = true
 
     if reversed? and reversed isnt @reversed
+      patch.oldParams.reversed = @reversed
+      patch.newParams.reversed = reversed
       @reversed = reversed
       updated = true
 
     if tailed? and tailed isnt @tailed
+      patch.oldParams.tailed = @tailed
+      patch.newParams.tailed = tailed
       @tailed = tailed
       updated = true
 
     if valid? and valid isnt @valid
+      patch.oldParams.valid = @valid
+      patch.newParams.valid = valid
       @valid = valid
       updated = true
 
     if properties? and not isEqual(properties, @properties)
-      @properties = Object.freeze(properties)
+      properties = Object.freeze(properties)
+      patch.oldParams.properties = @properties
+      patch.newParams.properties = properties
+      @properties = properties
       updated = true
 
     return false unless updated
 
-    @manager.didChangeMarker(@id, {
-      range: oldRange
-      reversed: wasReversed
-      valid: wasValid
-      tailed: hadTail
-      properties: oldProperties
-    })
+    @manager.recordMarkerPatch(patch)
 
     newHeadPosition = @getHeadPosition()
     newTailPosition = @getTailPosition()

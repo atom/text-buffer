@@ -41,11 +41,6 @@ class History extends Serializable
       @commitTransaction()
       @clearRedoStack()
 
-  didChangeMarker: (id, params) ->
-    if @currentTransaction?
-      @currentTransaction.oldMarkersSnapshot ?= {}
-      @currentTransaction.oldMarkersSnapshot[id] ?= params
-
   undo: ->
     throw new Error("Can't undo with an open transaction") if @currentTransaction?
 
@@ -96,7 +91,7 @@ class History extends Serializable
     throw new Error("No transaction is open") unless @transactionDepth > 0
 
     if --@transactionDepth is 0
-      unless @currentTransaction.isEmpty()
+      if @currentTransaction.hasBufferPatches()
         lastTransaction = last(@undoStack)
         if @currentTransaction.isOpenForGrouping?() and lastTransaction?.isOpenForGrouping?()
           lastTransaction.merge(@currentTransaction)
