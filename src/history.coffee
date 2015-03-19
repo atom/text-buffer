@@ -9,6 +9,7 @@ TransactionAborted = new Error("Transaction Aborted")
 # Manages undo/redo for {TextBuffer}
 module.exports =
 class History extends Serializable
+  @version: 1
   @registerDeserializers(Transaction, BufferPatch)
 
   currentTransaction: null
@@ -36,7 +37,9 @@ class History extends Serializable
       if patch instanceof BufferPatch
         @clearRedoStack()
     else
-      @undoStack.push(patch)
+      @beginTransaction()
+      @currentTransaction.push(patch)
+      @commitTransaction()
       @clearRedoStack()
 
   undo: ->
@@ -126,13 +129,14 @@ class History extends Serializable
       false
 
   groupChangesSinceCheckpoint: (checkpoint) ->
-    groupedTransaction = new Transaction
     index = @undoStack.indexOf(checkpoint) + 1
 
     return false if index is 0
     return false if index is @undoStack.length
 
-    for patch in @undoStack.splice(index, @undoStack.length - index)
+    changesSinceCheckpoint = @undoStack.splice(index, @undoStack.length - index)
+    groupedTransaction = changesSinceCheckpoint.shift()
+    for patch in changesSinceCheckpoint
       unless patch instanceof Checkpoint
         groupedTransaction.merge(patch)
 

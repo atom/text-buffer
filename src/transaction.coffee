@@ -8,7 +8,7 @@ module.exports =
 class Transaction extends Serializable
   @registerDeserializers(BufferPatch, MarkerPatch)
 
-  constructor: (@patches=[], groupingInterval=0) ->
+  constructor: (@patches, groupingInterval=0) ->
     @groupingExpirationTime = Date.now() + groupingInterval
 
   serializeParams: ->
@@ -22,7 +22,7 @@ class Transaction extends Serializable
     @patches.push(patch)
 
   invert: (buffer) ->
-    new @constructor(@patches.map((patch) -> patch.invert(buffer)).reverse())
+    new @constructor(@patches.map((patch) -> patch.invert(buffer)).reverse(), 0)
 
   applyTo: (buffer) ->
     patch.applyTo(buffer) for patch in @patches

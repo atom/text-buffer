@@ -309,7 +309,12 @@ describe "TextBuffer", ->
       expect(-> buffer.transact -> buffer.redo()).toThrow("Can't redo with an open transaction")
 
   describe "transactions", ->
+    currentTime = null
+
     beforeEach ->
+      currentTime = 10000
+      spyOn(Date, 'now').andCallFake -> currentTime
+
       buffer = new TextBuffer(text: "hello\nworld\r\nhow are you doing?")
 
     describe "::beginTransaction()", ->
@@ -406,12 +411,6 @@ describe "TextBuffer", ->
         expect(buffer.getText()).toBe "hello\nworms\r\nhow are you doing?"
 
       describe "when a grouping interval is provided", ->
-        currentTime = null
-
-        beforeEach ->
-          currentTime = 10000
-          spyOn(Date, 'now').andCallFake -> currentTime
-
         describe "and the previous transaction also had a grouping interval", ->
           beforeEach ->
             buffer.beginTransaction(100)
@@ -742,16 +741,19 @@ describe "TextBuffer", ->
       marker1A = bufferA.markRange([[0, 1], [1, 2]], reversed: true, foo: 1)
       marker2A = bufferA.markPosition([2, 2], bar: 2)
       bufferA.transact ->
+        bufferA.setTextInRange([[1, 0], [1, 0]], "good ")
         bufferA.append("?")
         marker2A.setProperties(bar: 3, baz: 4)
 
-      bufferB = TextBuffer.deserialize(bufferA.serialize())
+      state = JSON.parse(JSON.stringify(bufferA.serialize()))
+      bufferB = TextBuffer.deserialize(state)
 
-      expect(bufferB.getText()).toBe "hello there\nfriend\r\nhow are you doing??"
+      expect(bufferB.getText()).toBe "hello there\ngood friend\r\nhow are you doing??"
+
 
       marker1B = bufferB.getMarker(marker1A.id)
       marker2B = bufferB.getMarker(marker2A.id)
-      expect(marker1B.getRange()).toEqual [[0, 1], [1, 2]]
+      expect(marker1B.getRange()).toEqual [[0, 1], [1, 7]]
       expect(marker1B.isReversed()).toBe true
       expect(marker1B.getProperties()).toEqual {foo: 1}
       expect(marker2B.getHeadPosition()).toEqual [2, 2]

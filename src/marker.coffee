@@ -64,6 +64,20 @@ class Marker
       params.invalidate = params.invalidation
       delete params.invalidation
 
+  @serializeSnapshot: (snapshot) ->
+    return unless snapshot?
+    serializedSnapshot = {}
+    for id, {range, valid} of snapshot
+      serializedSnapshot[id] = {range: range.serialize(), valid}
+    serializedSnapshot
+
+  @deserializeSnapshot: (serializedSnapshot) ->
+    return unless serializedSnapshot?
+    snapshot = {}
+    for id, {range, valid} of serializedSnapshot
+      snapshot[id] = {range: Range.deserialize(range), valid}
+    snapshot
+
   @delegatesMethods 'containsPoint', 'containsRange', 'intersectsRow', toProperty: 'range'
   @delegatesMethods 'clipPosition', 'clipRange', toProperty: 'manager'
 
@@ -380,22 +394,18 @@ class Marker
         isEqual(@properties[key], value)
 
   toParams: (omitId) ->
-    params = {@range, @reversed, @tailed, @invalidate, @persistent, @properties}
+    params = {@range, @reversed, @tailed, @invalidate, @persistent, @properties, @valid}
     params.id = @id unless omitId
     params
-
-  update: (params) ->
-    if patch = @buildPatch(params)
-      @manager.recordMarkerPatch(patch)
-      @applyPatch(patch)
-      true
-    else
-      false
 
   # Adjusts the marker's start and end positions and possibly its validity
   # based on the given {BufferPatch}.
   handleBufferChange: (patch) ->
-    {oldRange, newRange} = patch
+    {oldRange, newRange, newMarkersSnapshot} = patch
+
+    if stateToRestore = newMarkersSnapshot?[@id]
+      return @update(stateToRestore, true)
+
     rowDelta = newRange.end.row - oldRange.end.row
     columnDelta = newRange.end.column - oldRange.end.column
     markerStart = @range.start
@@ -438,52 +448,57 @@ class Marker
     else if changeSurroundsMarkerEnd
       newMarkerRange.end = newRange.end
 
-    if markerPatch = @buildPatch({valid, range: newMarkerRange})
-      patch.addMarkerPatch(markerPatch)
+    if not changePrecedesMarkerStart or valid isnt @valid
+      patch.oldMarkersSnapshot ?= {}
+      patch.oldMarkersSnapshot[@id] = {@range, @valid}
 
-  buildPatch: (newParams) ->
-    oldParams = {}
-    for name, value of newParams
-      if isEqual(@[name], value)
-        delete newParams[name]
-      else
-        oldParams[name] = @[name]
+    @update({valid, range: newMarkerRange}, true)
 
-    if size(newParams)
-      new MarkerPatch(@id, oldParams, newParams)
-
-  applyPatch: (patch, textChanged=false) ->
+  update: ({range, reversed, tailed, valid, properties}, textChanged=false) ->
     oldHeadPosition = @getHeadPosition()
     oldTailPosition = @getTailPosition()
     wasValid = @isValid()
     hadTail = @hasTail()
     oldProperties = @getProperties()
 
-    updated = false
-    {range, reversed, tailed, valid, properties} = patch.newParams
+    patch = new MarkerPatch(@id)
 
     if range? and not range.isEqual(@range)
-      @range = range.freeze()
+      range = range.freeze()
+      patch.oldParams.range = @range
+      patch.newParams.range = range
+      @range = range
       @updateIntervals()
       updated = true
 
     if reversed? and reversed isnt @reversed
+      patch.oldParams.reversed = @reversed
+      patch.newParams.reversed = reversed
       @reversed = reversed
       updated = true
 
     if tailed? and tailed isnt @tailed
+      patch.oldParams.tailed = @tailed
+      patch.newParams.tailed = tailed
       @tailed = tailed
       updated = true
 
     if valid? and valid isnt @valid
+      patch.oldParams.valid = @valid
+      patch.newParams.valid = valid
       @valid = valid
       updated = true
 
     if properties? and not isEqual(properties, @properties)
-      @properties = Object.freeze(properties)
+      properties = Object.freeze(properties)
+      patch.oldParams.properties = @properties
+      patch.newParams.properties = properties
+      @properties = properties
       updated = true
 
     return false unless updated
+
+    @manager.recordMarkerPatch(patch)
 
     newHeadPosition = @getHeadPosition()
     newTailPosition = @getTailPosition()

@@ -377,6 +377,9 @@ describe "Marker", ->
       buffer.undo()
       expect(marker.getRange()).toEqual [[0, 4], [0, 20]]
 
+      buffer.redo()
+      expect(marker.getRange()).toEqual [[0, 8], [0, 12]]
+
   describe "indirect updates (due to buffer changes)", ->
     [allStrategies, neverMarker, surroundMarker, overlapMarker, insideMarker, touchMarker] = []
 
@@ -700,6 +703,45 @@ describe "Marker", ->
         buffer.redo()
         expect(marker1.getRange()).toEqual [[0, 5], [0, 6]]
         expect(marker2.getRange()).toEqual [[0, 9], [0, 11]]
+
+    describe "when multiple changes occur in a transaction", ->
+      it "correctly restores markers when the transaction is undone", ->
+        buffer.setText('')
+
+        buffer.beginTransaction()
+        buffer.append('foo')
+        buffer.commitTransaction()
+
+        buffer.beginTransaction()
+        buffer.append('\n')
+        buffer.append('bar')
+        buffer.commitTransaction()
+
+        marker1 = buffer.markRange([[0, 0], [0, 3]], invalidate: 'never')
+        marker2 = buffer.markRange([[1, 0], [1, 3]], invalidate: 'never')
+
+        marker1Ranges = []
+        marker2Ranges = []
+        buffer.onDidChange ->
+          marker1Ranges.push(marker1.getRange())
+          marker2Ranges.push(marker2.getRange())
+
+        buffer.undo()
+
+        expect(buffer.getText()).toBe 'foo'
+        expect(marker1Ranges).toEqual [[[0, 0], [0, 3]], [[0, 0], [0, 3]]]
+        expect(marker1.getRange()).toEqual([[0, 0], [0, 3]])
+        expect(marker2Ranges).toEqual [[[1, 0], [1, 0]], [[0, 3], [0, 3]]]
+        expect(marker2.getRange()).toEqual([[0, 3], [0, 3]])
+
+        marker1Ranges = []
+        marker2Ranges = []
+        buffer.redo()
+
+        expect(marker1Ranges).toEqual [[[0, 0], [0, 3]], [[0, 0], [0, 3]]]
+        expect(marker1.getRange()).toEqual([[0, 0], [0, 3]])
+        expect(marker2Ranges).toEqual [[[1, 0], [1, 0]], [[1, 0], [1, 3]]]
+        expect(marker2.getRange()).toEqual([[1, 0], [1, 3]])
 
   describe "destruction", ->
     it "removes the marker from the buffer, marks it destroyed and invalid, and notifies ::onDidDestroy observers", ->
