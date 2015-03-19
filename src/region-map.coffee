@@ -100,7 +100,7 @@ class Iterator
     @seek(startPosition.traverse(newExtent))
 
   getPosition: ->
-    @position
+    @position.copy()
 
   getSourcePosition: ->
-    @sourcePosition
+    @sourcePosition.copy()
