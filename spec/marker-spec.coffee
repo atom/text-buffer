@@ -743,6 +743,19 @@ describe "Marker", ->
         expect(marker2Ranges).toEqual [[[1, 0], [1, 0]], [[1, 0], [1, 3]]]
         expect(marker2.getRange()).toEqual([[1, 0], [1, 3]])
 
+      it "only records marker patches for direct marker updates", ->
+        buffer.setText("abcd")
+        marker = buffer.markRange([[0, 3], [0, 3]])
+
+        buffer.transact ->
+          buffer.delete([[0, 0], [0, 1]])
+          marker.setHeadPosition([0, 4])
+          buffer.delete([[0, 3], [0, 4]])
+          marker.setHeadPosition([0, 3])
+
+        buffer.undo()
+        expect(marker.getRange()).toEqual [[0, 3], [0, 3]]
+
   describe "destruction", ->
     it "removes the marker from the buffer, marks it destroyed and invalid, and notifies ::onDidDestroy observers", ->
       marker = buffer.markRange([[0, 3], [0, 6]])

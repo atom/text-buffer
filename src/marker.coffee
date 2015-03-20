@@ -498,7 +498,7 @@ class Marker
 
     return false unless updated
 
-    @manager.recordMarkerPatch(patch)
+    @manager.recordMarkerPatch(patch) unless textChanged
 
     newHeadPosition = @getHeadPosition()
     newTailPosition = @getTailPosition()
