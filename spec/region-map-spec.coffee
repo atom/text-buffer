@@ -11,7 +11,7 @@ describe "RegionMap", ->
     iterator = null
 
     it "terminates after traversing to infinity when the region map is empty", ->
-      iterator = regionMap[Symbol.iterator]()
+      iterator = regionMap.buildIterator()
       expect(iterator.getPosition()).toEqual(Point.zero())
 
       expect(iterator.next()).toEqual(value: null, done: false)
@@ -32,7 +32,7 @@ describe "RegionMap", ->
 
     describe "splicing with a positive delta", ->
       beforeEach ->
-        iterator = regionMap[Symbol.iterator]()
+        iterator = regionMap.buildIterator()
         iterator.seek(Point(0, 4))
         iterator.splice(Point(0, 3), "abcde")
 
@@ -169,7 +169,7 @@ describe "RegionMap", ->
       iterator = null
 
       beforeEach ->
-        iterator = regionMap[Symbol.iterator]()
+        iterator = regionMap.buildIterator()
         iterator.seek(Point(0, 2))
         iterator.splice(Point(0, 5), "abc")
 
@@ -207,7 +207,7 @@ describe "RegionMap", ->
 
     describe "seek", ->
       it "stops at the first region that starts at or contains", ->
-        iterator = regionMap[Symbol.iterator]()
+        iterator = regionMap.buildIterator()
         iterator.seek(Point(0, 2))
         iterator.splice(Point(0, 5), "")
 

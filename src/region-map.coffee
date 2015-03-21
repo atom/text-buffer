@@ -9,7 +9,7 @@ class RegionMap
       sourceExtent: Point.infinity()
     }]
 
-  @::[Symbol.iterator] = ->
+  buildIterator: ->
     new Iterator(this)
 
 class Iterator
