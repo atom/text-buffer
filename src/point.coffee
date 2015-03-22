@@ -18,6 +18,17 @@ class Point
     else
       right
 
+  @fromObject: (object, copy) ->
+    if object instanceof Point
+      if copy then object.copy() else object
+    else
+      if Array.isArray(object)
+        [row, column] = object
+      else
+        { row, column } = object
+
+      new Point(row, column)
+
   constructor: (row, column) ->
     unless this instanceof Point
       return new Point(row, column)
