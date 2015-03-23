@@ -59,7 +59,7 @@ class Point
     else
       @column > 0
 
-  sanitize: ->
+  sanitizeNegatives: ->
     if @row < 0
       new Point(0, 0)
     else if @column < 0
