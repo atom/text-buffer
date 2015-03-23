@@ -1,7 +1,7 @@
 Point = require "./point"
 
 module.exports =
-class RegionMap
+class Patch
   constructor: ->
     @regions = [{
       content: null
