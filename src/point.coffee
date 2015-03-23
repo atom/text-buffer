@@ -59,6 +59,14 @@ class Point
     else
       @column > 0
 
+  sanitize: ->
+    if @row < 0
+      new Point(0, 0)
+    else if @column < 0
+      new Point(@row, 0)
+    else
+      @copy()
+
   traverse: (delta) ->
     if delta.row is 0
       new Point(@row, @column + delta.column)
