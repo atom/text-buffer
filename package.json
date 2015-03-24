@@ -1,23 +1,23 @@
 {
-  "name": "text-transform",
+  "name": "text-document",
   "version": "0.0.0",
-  "description": "Incrementally transform text",
-  "main": "./lib/text-transform",
+  "description": "A Toolkit for editing and and displaying text documents",
+  "main": "./lib/index",
   "scripts": {
     "prepublish": "grunt clean lint coffee",
     "test": "grunt test"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/atom/text-transform.git"
+    "url": "https://github.com/atom/text-document.git"
   },
   "bugs": {
-    "url": "https://github.com/atom/text-transform/issues"
+    "url": "https://github.com/atom/text-document/issues"
   },
   "licenses": [
     {
       "type": "MIT",
-      "url": "http://github.com/atom/text-transform/raw/master/LICENSE.md"
+      "url": "http://github.com/atom/text-document/raw/master/LICENSE.md"
     }
   ],
   "dependencies": {
