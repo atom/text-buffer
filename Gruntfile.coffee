@@ -25,7 +25,10 @@ module.exports = (grunt) ->
 
     shell:
       test:
-        command: 'node node_modules/.bin/jasmine-focused --coffee --captureExceptions --forceexit spec'
+        command: (filter) ->
+          cmd = 'node -e "require(\'coffee-script/register\'); require(\'jasmine/bin/jasmine\')"'
+          cmd += " -- placeholder-arg --filter=#{filter}" if filter
+          cmd
         options:
           stdout: true
           stderr: true
