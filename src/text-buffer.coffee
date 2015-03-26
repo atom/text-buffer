@@ -93,6 +93,23 @@ class TextBuffer
   Section: Event Subscription
   ###
 
+  # Public: Invoke the given callback synchronously _before_ the content of the
+  # buffer changes.
+  #
+  # Because observers are invoked synchronously, it's important not to perform
+  # any expensive operations via this method.
+  #
+  # * `callback` {Function} to be called when the buffer changes.
+  #   * `event` {Object} with the following keys:
+  #     * `oldRange` {Range} of the old text.
+  #     * `newRange` {Range} of the new text.
+  #     * `oldText` {String} containing the text that was replaced.
+  #     * `newText` {String} containing the text that was inserted.
+  #
+  # Returns a {Disposable} on which `.dispose()` can be called to unsubscribe.
+  onWillChange: (callback) ->
+    @emitter.on 'will-change', callback
+
   # Public: Invoke the given callback synchronously when the content of the
   # buffer changes.
   #
@@ -628,6 +645,10 @@ class TextBuffer
     endRow = oldRange.end.row
     rowCount = endRow - startRow + 1
 
+    changeEvent = {oldRange, newRange, oldText, newText}
+
+    @emitter.emit 'will-change', changeEvent
+
     # Determine how to normalize the line endings of inserted text if enabled
     if normalizeLineEndings
       normalizedEnding = @lineEndingForRow(startRow)
@@ -671,8 +692,6 @@ class TextBuffer
 
     @markers?.pauseChangeEvents()
     @markers?.handleBufferChange(patch)
-
-    changeEvent = {oldRange, newRange, oldText, newText}
 
     @conflict = false if @conflict and !@isModified()
     @scheduleModifiedEvents()
