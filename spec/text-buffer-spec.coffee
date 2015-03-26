@@ -92,6 +92,20 @@ describe "TextBuffer", ->
       buffer.setTextInRange([[0, 2], [1, 3]], "y\nyou're o", normalizeLineEndings: false)
       expect(buffer.getText()).toEqual "hey\nyou're old\r\nhow are you doing?"
 
+    it "notifies ::onWillChange observers with the relevant details before a change", ->
+      changes = []
+      buffer.onWillChange (change) ->
+        expect(buffer.getText()).toBe "hello\nworld\r\nhow are you doing?"
+        changes.push(change)
+
+      buffer.setTextInRange([[0, 2], [2, 3]], "y there\r\ncat\nwhat", normalizeLineEndings: false)
+      expect(changes).toEqual [{
+        oldRange: [[0, 2], [2, 3]]
+        newRange: [[0, 2], [2, 4]]
+        oldText: "llo\nworld\r\nhow"
+        newText: "y there\r\ncat\nwhat"
+      }]
+
     it "notifies ::onDidChange observers with the relevant details after a change", ->
       changes = []
       buffer.onDidChange (change) -> changes.push(change)
