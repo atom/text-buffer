@@ -646,7 +646,6 @@ class TextBuffer
     rowCount = endRow - startRow + 1
 
     changeEvent = {oldRange, newRange, oldText, newText}
-
     @emitter.emit 'will-change', changeEvent
 
     # Determine how to normalize the line endings of inserted text if enabled
