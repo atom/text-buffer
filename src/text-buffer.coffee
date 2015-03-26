@@ -645,8 +645,7 @@ class TextBuffer
     endRow = oldRange.end.row
     rowCount = endRow - startRow + 1
 
-    changeEvent = {oldRange, newRange, oldText, newText}
-    @emitter.emit 'will-change', changeEvent
+    @emitter.emit 'will-change', {oldRange, newRange, oldText, newText}
 
     # Determine how to normalize the line endings of inserted text if enabled
     if normalizeLineEndings
@@ -691,6 +690,8 @@ class TextBuffer
 
     @markers?.pauseChangeEvents()
     @markers?.handleBufferChange(patch)
+
+    changeEvent = {oldRange, newRange, oldText, newText}
 
     @conflict = false if @conflict and !@isModified()
     @scheduleModifiedEvents()
