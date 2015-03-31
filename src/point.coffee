@@ -75,9 +75,15 @@ class Point
 
   traversalFrom: (other) ->
     if @row is other.row
-      new Point(0, @column - other.column)
+      if @column is Infinity and other.column is Infinity
+        new Point(0, 0)
+      else
+        new Point(0, @column - other.column)
     else
-      new Point(@row - other.row, @column)
+      if @row is Infinity and other.row is Infinity
+        new Point(0, @column)
+      else
+        new Point(@row - other.row, @column)
 
   toString: ->
     "(#{@row}, #{@column})"
