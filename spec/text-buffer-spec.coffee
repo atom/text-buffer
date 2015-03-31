@@ -183,14 +183,6 @@ describe "TextBuffer", ->
         expect(buffer.lineEndingForRow(4)).toBe '\r\n'
         expect(buffer.lineEndingForRow(5)).toBe ''
 
-      it "honors the newlines in the inserted text when the deprecated boolean is used", ->
-        buffer.setTextInRange([[1, 0], [1, 5]], "moon\norbiting\r\nhappily\nthere", false)
-        expect(buffer.lineEndingForRow(1)).toBe '\n'
-        expect(buffer.lineEndingForRow(2)).toBe '\r\n'
-        expect(buffer.lineEndingForRow(3)).toBe '\n'
-        expect(buffer.lineEndingForRow(4)).toBe '\r\n'
-        expect(buffer.lineEndingForRow(5)).toBe ''
-
   describe "::setText(text)", ->
     it "replaces the contents of the buffer with the given text", ->
       buffer = new TextBuffer("hello\nworld\r\nyou are cool")
