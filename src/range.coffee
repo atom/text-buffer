@@ -194,10 +194,7 @@ class Range
   traverse: (delta) ->
     new @constructor(@start.traverse(delta), @end.traverse(delta))
 
-  # Deprecated
-  add: (delta) ->
-    Grim.deprecate("Use Range::traverse instead")
-    @traverse(delta)
+
 
   ###
   Section: Comparison
@@ -264,7 +261,7 @@ class Range
   #   endpoints. Defaults to false.
   containsPoint: (point, exclusive) ->
     # Deprecated: Support options hash with exclusive
-    if exclusive? and typeof exclusive is 'object'
+    if Grim.includeDeprecatedAPIs and exclusive? and typeof exclusive is 'object'
       Grim.deprecate("The second param is no longer an object, it's a boolean argument named `exclusive`.")
       {exclusive} = exclusive
 
@@ -305,3 +302,8 @@ class Range
   # Public: Returns a string representation of the range.
   toString: ->
     "[#{@start} - #{@end}]"
+
+if Grim.includeDeprecatedAPIs
+  Range::add = (delta) ->
+    Grim.deprecate("Use Range::traverse instead")
+    @traverse(delta)
