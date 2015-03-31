@@ -1995,22 +1995,6 @@ describe "TextBuffer", ->
         expect(buffer.positionForCharacterIndex(13)).toEqual [2, 0]
         expect(buffer.positionForCharacterIndex(20)).toEqual [3, 0]
 
-  describe "::usesSoftTabs()", ->
-    beforeEach ->
-      filePath = require.resolve('./fixtures/sample.js')
-      buffer = new TextBuffer({filePath, load: true})
-
-      waitsFor ->
-        buffer.loaded
-
-    it "returns true if the first indented line begins with tabs", ->
-      buffer.setText("function() {\n  foo();\n}")
-      expect(buffer.usesSoftTabs()).toBeTruthy()
-      buffer.setText("function() {\n\tfoo();\n}")
-      expect(buffer.usesSoftTabs()).toBeFalsy()
-      buffer.setText("")
-      expect(buffer.usesSoftTabs()).toBeUndefined()
-
   describe "::isEmpty()", ->
     beforeEach ->
       filePath = require.resolve('./fixtures/sample.js')
