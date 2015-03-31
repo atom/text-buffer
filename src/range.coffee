@@ -194,8 +194,6 @@ class Range
   traverse: (delta) ->
     new @constructor(@start.traverse(delta), @end.traverse(delta))
 
-
-
   ###
   Section: Comparison
   ###
