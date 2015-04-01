@@ -1,5 +1,9 @@
 require 'coffee-cache'
 
+currentSpecResult = null
+jasmine.getEnv().addReporter specStarted: (result) -> currentSpecResult = result
+currentSpecFailed = -> currentSpecResult.failedExpectations.length > 0
+
 expectMapsToSource = (layer, sourcePosition, position, clip) ->
   expect(layer.toSourcePosition(position, clip)).toEqual(sourcePosition)
 
@@ -36,4 +40,4 @@ setToArray = (set) ->
   set.forEach (item) -> items.push(item)
   items
 
-module.exports = {expectMapsToSource, expectMapsFromSource, expectMapsSymmetrically, toEqualSet}
+module.exports = {currentSpecFailed, expectMapsToSource, expectMapsFromSource, expectMapsSymmetrically, toEqualSet}
