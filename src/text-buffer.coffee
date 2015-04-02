@@ -6,6 +6,7 @@ Serializable = require 'serializable'
 SpanSkipList = require 'span-skip-list'
 diff = require 'atom-diff'
 Q = require 'q'
+
 Point = require './point'
 Range = require './range'
 History = require './history'
