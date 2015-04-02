@@ -1318,7 +1318,7 @@ if Grim.includeDeprecatedAPIs
   EmitterMixin.includeInto(TextBuffer)
 
   {Subscriber} = require 'emissary'
-  Subscriber.includeInto(this)
+  Subscriber.includeInto(TextBuffer)
 
   TextBuffer::on = (eventName) ->
     switch eventName
