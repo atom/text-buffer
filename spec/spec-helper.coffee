@@ -38,6 +38,6 @@ formatSet = (set) ->
 setToArray = (set) ->
   items = []
   set.forEach (item) -> items.push(item)
-  items
+  items.sort()
 
 module.exports = {currentSpecFailed, expectMapsToSource, expectMapsFromSource, expectMapsSymmetrically, toEqualSet}
