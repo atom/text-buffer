@@ -502,6 +502,7 @@ if Grim.includeDeprecatedAPIs
     EmitterMixin::on.apply(this, arguments)
 
   Marker::matchesAttributes = (args...) ->
+    Grim.deprecate("Use Marker::matchesParams instead.")
     @matchesParams(args...)
 
   Marker::getAttributes = ->
