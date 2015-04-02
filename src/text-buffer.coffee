@@ -545,6 +545,7 @@ class TextBuffer
         else
           row += lineCount
           column = computeBufferColumn(change.value)
+      return
 
   # Public: Set the text in the given range.
   #
@@ -941,6 +942,7 @@ class TextBuffer
         lengthDelta += replacementText.length - matchLength unless reverse
 
       break unless global and keepLooping
+    return
 
   # Public: Scan regular expression matches in a given range in reverse order,
   # calling the given iterator function on each match.
@@ -1309,6 +1311,7 @@ class TextBuffer
     for row in [start..end]
       line = @lineForRow(row)
       console.log row, line, line.length
+    return
 
 if Grim.includeDeprecatedAPIs
   EmitterMixin = require('emissary').Emitter

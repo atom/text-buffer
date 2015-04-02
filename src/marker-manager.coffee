@@ -128,6 +128,7 @@ class MarkerManager
 
   handleBufferChange: (patch) ->
     marker.handleBufferChange(patch) for id, marker of @markers
+    return
 
   buildSnapshot: ->
     snapshot = {}
@@ -138,9 +139,12 @@ class MarkerManager
   applySnapshot: (snapshot) ->
     for id, params of snapshot
       @getMarker(id)?.update(params)
+    return
 
   pauseChangeEvents: ->
     marker.pauseChangeEvents() for marker in @getMarkers()
+    return
 
   resumeChangeEvents: ->
     marker.resumeChangeEvents() for marker in @getMarkers()
+    return

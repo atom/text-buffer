@@ -505,6 +505,7 @@ class Marker
       for event in deferredChangeEvents
         @emitter.emit 'did-change', event
         @emit 'changed', event if Grim.includeDeprecatedAPIs
+    return
 
 if Grim.includeDeprecatedAPIs
   EmitterMixin = require('emissary').Emitter
