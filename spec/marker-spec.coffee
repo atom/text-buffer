@@ -717,30 +717,29 @@ describe "Marker", ->
         buffer.append('bar')
         buffer.commitTransaction()
 
-        marker1 = buffer.markRange([[0, 0], [0, 3]], invalidate: 'never')
-        marker2 = buffer.markRange([[1, 0], [1, 3]], invalidate: 'never')
+        marker = buffer.markRange([[1, 0], [1, 3]], invalidate: 'never')
 
-        marker1Changes = []
-        marker2Changes = []
-        marker1.onDidChange (change) -> marker1Ranges.push(marker1.getRange())
-        marker2.onDidChange (change) -> marker2Ranges.push(marker2.getRange())
+        markerChanges = []
+        marker.onDidChange (change) -> markerChanges.push(change)
 
+        console.log ">>>>>>>>>>>>>"
         buffer.undo()
+        console.log "<<<<<<<<<<<<<"
 
         expect(buffer.getText()).toBe 'foo'
-        expect(marker1Ranges).toEqual [[[0, 0], [0, 3]], [[0, 0], [0, 3]]]
-        expect(marker1.getRange()).toEqual([[0, 0], [0, 3]])
-        expect(marker2Ranges).toEqual [[[1, 0], [1, 0]], [[0, 3], [0, 3]]]
-        expect(marker2.getRange()).toEqual([[0, 3], [0, 3]])
+        expect(markerChanges.length).toBe 1
+        expect(markerChanges[0].oldHeadPosition).toEqual [1, 3]
+        expect(markerChanges[0].oldTailPosition).toEqual [1, 0]
+        expect(markerChanges[0].newHeadPosition).toEqual [0, 3]
+        expect(markerChanges[0].newTailPosition).toEqual [0, 3]
 
-        marker1Ranges = []
-        marker2Ranges = []
         buffer.redo()
 
-        expect(marker1Ranges).toEqual [[[0, 0], [0, 3]], [[0, 0], [0, 3]]]
-        expect(marker1.getRange()).toEqual([[0, 0], [0, 3]])
-        expect(marker2Ranges).toEqual [[[1, 0], [1, 0]], [[1, 0], [1, 3]]]
-        expect(marker2.getRange()).toEqual([[1, 0], [1, 3]])
+        expect(markerChanges.length).toBe 2
+        expect(markerChanges[1].oldHeadPosition).toEqual [0, 3]
+        expect(markerChanges[1].oldTailPosition).toEqual [0, 3]
+        expect(markerChanges[1].newHeadPosition).toEqual [1, 3]
+        expect(markerChanges[1].newTailPosition).toEqual [1, 0]
 
   describe "destruction", ->
     it "removes the marker from the buffer, marks it destroyed and invalid, and notifies ::onDidDestroy observers", ->

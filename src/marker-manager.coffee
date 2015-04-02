@@ -128,13 +128,23 @@ class MarkerManager
       snapshot[id] = marker.toParams()
     snapshot
 
-  applySnapshot: (snapshot) ->
-    for id, params of snapshot
-      @getMarker(id)?.update(params)
+  applySnapshot: (oldSnapshot, newSnapshot) ->
+    for id, marker of @markers
+      oldParams = oldSnapshot[id]
+      if newParams = newSnapshot[id]
+        marker.update(newParams, oldParams)
+      else
+        marker.emitEventIfChanged(oldParams)
     return
 
   handleBufferChange: (patch) ->
     marker.handleBufferChange(patch) for id, marker of @markers
+
+  disableChangeEvents: ->
+    marker.disableChangeEvents() for marker in @getMarkers()
+
+  enableChangeEvents: ->
+    marker.enableChangeEvents() for marker in @getMarkers()
 
   pauseChangeEvents: ->
     marker.pauseChangeEvents() for marker in @getMarkers()

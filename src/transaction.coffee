@@ -33,8 +33,10 @@ class Transaction extends Serializable
     new @constructor(@patches.map((patch) -> patch.invert(buffer)).reverse(), 0, oldMarkersSnapshot, newMarkersSnapshot)
 
   applyTo: (buffer) ->
+    buffer.markers.disableChangeEvents()
     patch.applyTo(buffer) for patch in @patches
-    buffer.markers.applySnapshot(@newMarkersSnapshot) if @newMarkersSnapshot?
+    buffer.markers.enableChangeEvents()
+    buffer.markers.applySnapshot(@oldMarkersSnapshot, @newMarkersSnapshot) if @newMarkersSnapshot?
 
   isEmpty: ->
     @patches.length is 0

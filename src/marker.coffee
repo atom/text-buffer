@@ -83,6 +83,7 @@ class Marker
   @delegatesMethods 'clipPosition', 'clipRange', toProperty: 'manager'
 
   deferredChangeEvents: null
+  changeEventsDisabled: false
 
   constructor: (params) ->
     {@manager, @id, @range, @tailed, @reversed} = params
@@ -487,17 +488,24 @@ class Marker
       oldHeadPosition, newHeadPosition, oldTailPosition, newTailPosition
       wasValid, isValid, hadTail, hasTail, oldProperties, newProperties, textChanged
     }
-    if @deferredChangeEvents?
-      @deferredChangeEvents.push(event)
-    else
-      @emitter.emit 'did-change', event
-      @emit 'changed', event
+    unless @changeEventsDisabled
+      if @deferredChangeEvents?
+        @deferredChangeEvents.push(event)
+      else
+        @emitter.emit 'did-change', event
+        @emit 'changed', event
     true
 
   # Updates the interval index on the marker manager with the marker's current
   # range.
   updateIntervals: ->
     @manager.intervals.update(@id, @range.start, @range.end)
+
+  disableChangeEvents: ->
+    @changeEventsDisabled = true
+
+  enableChangeEvents: ->
+    @changeEventsDisabled = false
 
   pauseChangeEvents: ->
     @deferredChangeEvents = []
