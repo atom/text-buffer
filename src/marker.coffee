@@ -41,27 +41,6 @@ class Marker
       outputParams.properties = properties if size(properties) > 0
     outputParams
 
-  @handleDeprecatedParams: (params) ->
-    if params.isReversed?
-      Grim.deprecate("The option `isReversed` is deprecated, use `reversed` instead")
-      params.reversed = params.isReversed
-      delete params.isReversed
-
-    if params.hasTail?
-      Grim.deprecate("The option `hasTail` is deprecated, use `tailed` instead")
-      params.tailed = params.hasTail
-      delete params.hasTail
-
-    if params.persist?
-      Grim.deprecate("The option `persist` is deprecated, use `persistent` instead")
-      params.persistent = params.persist
-      delete params.persist
-
-    if params.invalidation
-      Grim.deprecate("The option `invalidation` is deprecated, use `invalidate` instead")
-      params.invalidate = params.invalidation
-      delete params.invalidation
-
   @serializeSnapshot: (snapshot) ->
     return unless snapshot?
     serializedSnapshot = {}
@@ -532,3 +511,24 @@ if Grim.includeDeprecatedAPIs
   Marker::setAttributes = (args...) ->
     Grim.deprecate("Use Marker::setProperties instead.")
     @setProperties(args...)
+
+  Marker.handleDeprecatedParams = (params) ->
+    if params.isReversed?
+      Grim.deprecate("The option `isReversed` is deprecated, use `reversed` instead")
+      params.reversed = params.isReversed
+      delete params.isReversed
+
+    if params.hasTail?
+      Grim.deprecate("The option `hasTail` is deprecated, use `tailed` instead")
+      params.tailed = params.hasTail
+      delete params.hasTail
+
+    if params.persist?
+      Grim.deprecate("The option `persist` is deprecated, use `persistent` instead")
+      params.persistent = params.persist
+      delete params.persist
+
+    if params.invalidation
+      Grim.deprecate("The option `invalidation` is deprecated, use `invalidate` instead")
+      params.invalidate = params.invalidation
+      delete params.invalidation
