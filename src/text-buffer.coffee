@@ -1,4 +1,3 @@
-_ = require 'underscore-plus'
 Delegator = require 'delegato'
 Grim = require 'grim'
 Serializable = require 'serializable'
