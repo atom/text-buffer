@@ -705,7 +705,7 @@ describe "Marker", ->
         expect(marker2.getRange()).toEqual [[0, 9], [0, 11]]
 
     describe "when multiple changes occur in a transaction", ->
-      it "correctly restores markers when the transaction is undone", ->
+      fit "restores new markers to their pre-undo state when the transaction is redone", ->
         buffer.setText('')
 
         buffer.beginTransaction()
@@ -720,11 +720,10 @@ describe "Marker", ->
         marker1 = buffer.markRange([[0, 0], [0, 3]], invalidate: 'never')
         marker2 = buffer.markRange([[1, 0], [1, 3]], invalidate: 'never')
 
-        marker1Ranges = []
-        marker2Ranges = []
-        buffer.onDidChange ->
-          marker1Ranges.push(marker1.getRange())
-          marker2Ranges.push(marker2.getRange())
+        marker1Changes = []
+        marker2Changes = []
+        marker1.onDidChange (change) -> marker1Ranges.push(marker1.getRange())
+        marker2.onDidChange (change) -> marker2Ranges.push(marker2.getRange())
 
         buffer.undo()
 
@@ -742,19 +741,6 @@ describe "Marker", ->
         expect(marker1.getRange()).toEqual([[0, 0], [0, 3]])
         expect(marker2Ranges).toEqual [[[1, 0], [1, 0]], [[1, 0], [1, 3]]]
         expect(marker2.getRange()).toEqual([[1, 0], [1, 3]])
-
-      it "only records marker patches for direct marker updates", ->
-        buffer.setText("abcd")
-        marker = buffer.markRange([[0, 3], [0, 3]])
-
-        buffer.transact ->
-          buffer.delete([[0, 0], [0, 1]])
-          marker.setHeadPosition([0, 4])
-          buffer.delete([[0, 3], [0, 4]])
-          marker.setHeadPosition([0, 3])
-
-        buffer.undo()
-        expect(marker.getRange()).toEqual [[0, 3], [0, 3]]
 
   describe "destruction", ->
     it "removes the marker from the buffer, marks it destroyed and invalid, and notifies ::onDidDestroy observers", ->

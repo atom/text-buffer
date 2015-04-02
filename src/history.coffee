@@ -86,13 +86,14 @@ class History extends Serializable
 
   beginTransaction: (groupingInterval) ->
     if ++@transactionDepth is 1
-      @currentTransaction = new Transaction([], groupingInterval)
+      markersSnapshot = @buffer.markers.buildSnapshot()
+      @currentTransaction = new Transaction([], groupingInterval, markersSnapshot, null)
 
   commitTransaction: ->
     throw new Error("No transaction is open") unless @transactionDepth > 0
 
     if --@transactionDepth is 0
-      if @currentTransaction.hasBufferPatches()
+      unless @currentTransaction.isEmpty()
         lastTransaction = last(@undoStack)
         if @currentTransaction.isOpenForGrouping?() and lastTransaction?.isOpenForGrouping?()
           lastTransaction.merge(@currentTransaction)

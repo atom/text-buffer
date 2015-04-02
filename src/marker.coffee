@@ -1,10 +1,9 @@
-{extend, isEqual, omit, pick, size} = require 'underscore-plus'
+{extend, defaults, isEqual, omit, pick, size} = require 'underscore-plus'
 EmitterMixin = require('emissary').Emitter
 {Emitter} = require 'event-kit'
 Grim = require 'grim'
 Delegator = require 'delegato'
 Serializable = require 'serializable'
-MarkerPatch = require './marker-patch'
 Point = require './point'
 Range = require './range'
 
@@ -67,15 +66,17 @@ class Marker
   @serializeSnapshot: (snapshot) ->
     return unless snapshot?
     serializedSnapshot = {}
-    for id, {range, valid} of snapshot
-      serializedSnapshot[id] = {range: range.serialize(), valid}
+    for id, params of snapshot
+      serializedParams = defaults({range: params.range.serialize()}, params)
+      serializedSnapshot[id] = serializedParams
     serializedSnapshot
 
   @deserializeSnapshot: (serializedSnapshot) ->
     return unless serializedSnapshot?
     snapshot = {}
-    for id, {range, valid} of serializedSnapshot
-      snapshot[id] = {range: Range.deserialize(range), valid}
+    for id, serializedParams of serializedSnapshot
+      params = defaults(range: Range.deserialize(serializedParams.range), serializedParams)
+      snapshot[id] = params
     snapshot
 
   @delegatesMethods 'containsPoint', 'containsRange', 'intersectsRow', toProperty: 'range'
@@ -401,11 +402,7 @@ class Marker
   # Adjusts the marker's start and end positions and possibly its validity
   # based on the given {BufferPatch}.
   handleBufferChange: (patch) ->
-    {oldRange, newRange, newMarkersSnapshot} = patch
-
-    if stateToRestore = newMarkersSnapshot?[@id]
-      return @update(stateToRestore, true)
-
+    {oldRange, newRange} = patch
     rowDelta = newRange.end.row - oldRange.end.row
     columnDelta = newRange.end.column - oldRange.end.column
     markerStart = @range.start
@@ -448,10 +445,6 @@ class Marker
     else if changeSurroundsMarkerEnd
       newMarkerRange.end = newRange.end
 
-    if not changePrecedesMarkerStart or valid isnt @valid
-      patch.oldMarkersSnapshot ?= {}
-      patch.oldMarkersSnapshot[@id] = {@range, @valid}
-
     @update({valid, range: newMarkerRange}, true)
 
   update: ({range, reversed, tailed, valid, properties}, textChanged=false) ->
@@ -461,44 +454,28 @@ class Marker
     hadTail = @hasTail()
     oldProperties = @getProperties()
 
-    patch = new MarkerPatch(@id)
-
     if range? and not range.isEqual(@range)
-      range = range.freeze()
-      patch.oldParams.range = @range
-      patch.newParams.range = range
-      @range = range
+      @range = range.freeze()
       @updateIntervals()
       updated = true
 
     if reversed? and reversed isnt @reversed
-      patch.oldParams.reversed = @reversed
-      patch.newParams.reversed = reversed
       @reversed = reversed
       updated = true
 
     if tailed? and tailed isnt @tailed
-      patch.oldParams.tailed = @tailed
-      patch.newParams.tailed = tailed
       @tailed = tailed
       updated = true
 
     if valid? and valid isnt @valid
-      patch.oldParams.valid = @valid
-      patch.newParams.valid = valid
       @valid = valid
       updated = true
 
     if properties? and not isEqual(properties, @properties)
-      properties = Object.freeze(properties)
-      patch.oldParams.properties = @properties
-      patch.newParams.properties = properties
-      @properties = properties
+      @properties = Object.freeze(properties)
       updated = true
 
     return false unless updated
-
-    @manager.recordMarkerPatch(patch) unless textChanged
 
     newHeadPosition = @getHeadPosition()
     newTailPosition = @getTailPosition()
