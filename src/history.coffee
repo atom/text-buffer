@@ -86,7 +86,7 @@ class History extends Serializable
 
   beginTransaction: (groupingInterval) ->
     if ++@transactionDepth is 1
-      @currentTransaction = new Transaction([], groupingInterval)
+      @currentTransaction = new Transaction([], groupingInterval, @buffer.markers.buildSnapshot())
 
   commitTransaction: ->
     throw new Error("No transaction is open") unless @transactionDepth > 0

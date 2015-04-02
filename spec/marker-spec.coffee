@@ -464,6 +464,9 @@ describe "Marker", ->
           expect(marker.getRange()).toEqual [[1, 10], [1, 13]]
           expect(marker.isValid()).toBe true
 
+        for marker in allStrategies
+          marker.setRange([[1, Infinity], [1, Infinity]])
+
         buffer.undo()
         for marker in allStrategies
           expect(marker.getRange()).toEqual [[0, 8], [0, 11]]
@@ -472,6 +475,14 @@ describe "Marker", ->
         buffer.undo()
         for marker in allStrategies
           expect(marker.getRange()).toEqual [[0, 6], [0, 9]]
+          expect(marker.isValid()).toBe true
+
+        for marker in allStrategies
+          marker.setRange([[1, Infinity], [1, Infinity]])
+
+        buffer.redo()
+        for marker in allStrategies
+          expect(marker.getRange()).toEqual [[0, 8], [0, 11]]
           expect(marker.isValid()).toBe true
 
     describe "when a change follows a marker", ->
