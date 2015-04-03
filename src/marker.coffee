@@ -1,5 +1,4 @@
 {extend, isEqual, omit, pick, size} = require 'underscore-plus'
-EmitterMixin = require('emissary').Emitter
 {Emitter} = require 'event-kit'
 Grim = require 'grim'
 Delegator = require 'delegato'
@@ -30,39 +29,17 @@ OptionKeys = ['reversed', 'tailed', 'invalidate', 'persistent']
 # deleted. See {TextBuffer::markRange} for invalidation strategies.
 module.exports =
 class Marker
-  EmitterMixin.includeInto(this)
   Delegator.includeInto(this)
   Serializable.includeInto(this)
 
   @extractParams: (inputParams) ->
     outputParams = {}
     if inputParams?
-      @handleDeprecatedParams(inputParams)
+      @handleDeprecatedParams(inputParams) if Grim.includeDeprecatedAPIs
       extend(outputParams, pick(inputParams, OptionKeys))
       properties = omit(inputParams, OptionKeys)
       outputParams.properties = properties if size(properties) > 0
     outputParams
-
-  @handleDeprecatedParams: (params) ->
-    if params.isReversed?
-      Grim.deprecate("The option `isReversed` is deprecated, use `reversed` instead")
-      params.reversed = params.isReversed
-      delete params.isReversed
-
-    if params.hasTail?
-      Grim.deprecate("The option `hasTail` is deprecated, use `tailed` instead")
-      params.tailed = params.hasTail
-      delete params.hasTail
-
-    if params.persist?
-      Grim.deprecate("The option `persist` is deprecated, use `persistent` instead")
-      params.persistent = params.persist
-      delete params.persist
-
-    if params.invalidation
-      Grim.deprecate("The option `invalidation` is deprecated, use `invalidate` instead")
-      params.invalidate = params.invalidation
-      delete params.invalidation
 
   @serializeSnapshot: (snapshot) ->
     return unless snapshot?
@@ -135,17 +112,6 @@ class Marker
   # Returns a {Disposable} on which `.dispose()` can be called to unsubscribe.
   onDidChange: (callback) ->
     @emitter.on 'did-change', callback
-
-  on: (eventName) ->
-    switch eventName
-      when 'changed'
-        Grim.deprecate("Use Marker::onDidChange instead")
-      when 'destroyed'
-        Grim.deprecate("Use Marker::onDidDestroy instead")
-      else
-        Grim.deprecate("Marker::on is deprecated. Use event subscription methods instead.")
-
-    EmitterMixin::on.apply(this, arguments)
 
   # Public: Returns the current {Range} of the marker. The range is immutable.
   getRange: ->
@@ -310,16 +276,6 @@ class Marker
   getInvalidationStrategy: ->
     @invalidate
 
-  # Deprecated: Use ::getProperties instead
-  getAttributes: ->
-    Grim.deprecate("Use Marker::getProperties instead.")
-    @getProperties()
-
-  # Deprecated: Use ::setProperties instead
-  setAttributes: (args...) ->
-    Grim.deprecate("Use Marker::setProperties instead.")
-    @setProperties(args...)
-
   # Public: Returns an {Object} containing any custom properties associated with
   # the marker.
   getProperties: ->
@@ -346,7 +302,7 @@ class Marker
     @manager.removeMarker(@id)
     @manager.intervals.remove(@id)
     @emitter.emit 'did-destroy'
-    @emit 'destroyed'
+    @emit 'destroyed' if Grim.includeDeprecatedAPIs
 
   extractParams: (params) ->
     params = @constructor.extractParams(params)
@@ -358,10 +314,6 @@ class Marker
   # * `other` {Marker}
   compare: (other) ->
     @range.compare(other.range)
-
-  # Deprecated: Use ::matchesParams instead
-  matchesAttributes: (args...) ->
-    @matchesParams(args...)
 
   # Returns whether this marker matches the given parameters. The parameters
   # are the same as {MarkerManager::findMarkers}.
@@ -514,7 +466,7 @@ class Marker
       @deferredChangeEvents.push(event)
     else
       @emitter.emit 'did-change', event
-      @emit 'changed', event
+      @emit 'changed', event if Grim.includeDeprecatedAPIs
     true
 
   # Updates the interval index on the marker manager with the marker's current
@@ -531,4 +483,53 @@ class Marker
 
       for event in deferredChangeEvents
         @emitter.emit 'did-change', event
-        @emit 'changed', event
+        @emit 'changed', event if Grim.includeDeprecatedAPIs
+    return
+
+if Grim.includeDeprecatedAPIs
+  EmitterMixin = require('emissary').Emitter
+  EmitterMixin.includeInto(Marker)
+
+  Marker::on = (eventName) ->
+    switch eventName
+      when 'changed'
+        Grim.deprecate("Use Marker::onDidChange instead")
+      when 'destroyed'
+        Grim.deprecate("Use Marker::onDidDestroy instead")
+      else
+        Grim.deprecate("Marker::on is deprecated. Use event subscription methods instead.")
+
+    EmitterMixin::on.apply(this, arguments)
+
+  Marker::matchesAttributes = (args...) ->
+    Grim.deprecate("Use Marker::matchesParams instead.")
+    @matchesParams(args...)
+
+  Marker::getAttributes = ->
+    Grim.deprecate("Use Marker::getProperties instead.")
+    @getProperties()
+
+  Marker::setAttributes = (args...) ->
+    Grim.deprecate("Use Marker::setProperties instead.")
+    @setProperties(args...)
+
+  Marker.handleDeprecatedParams = (params) ->
+    if params.isReversed?
+      Grim.deprecate("The option `isReversed` is deprecated, use `reversed` instead")
+      params.reversed = params.isReversed
+      delete params.isReversed
+
+    if params.hasTail?
+      Grim.deprecate("The option `hasTail` is deprecated, use `tailed` instead")
+      params.tailed = params.hasTail
+      delete params.hasTail
+
+    if params.persist?
+      Grim.deprecate("The option `persist` is deprecated, use `persistent` instead")
+      params.persistent = params.persist
+      delete params.persist
+
+    if params.invalidation
+      Grim.deprecate("The option `invalidation` is deprecated, use `invalidate` instead")
+      params.invalidate = params.invalidation
+      delete params.invalidation

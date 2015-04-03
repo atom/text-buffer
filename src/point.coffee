@@ -1,4 +1,4 @@
-{deprecate} = require 'grim'
+{includeDeprecatedAPIs, deprecate} = require 'grim'
 
 # Public: Represents a point in a buffer in row/column coordinates.
 #
@@ -121,10 +121,6 @@ class Point
 
     new Point(row, column)
 
-  add: (other) ->
-    deprecate("Use Point::traverse instead")
-    @traverse(other)
-
   splitAt: (column) ->
     if @row == 0
       rightColumn = @column - column
@@ -209,3 +205,9 @@ class Point
   # Public: Returns a string representation of the point.
   toString: ->
     "(#{@row}, #{@column})"
+
+
+if includeDeprecatedAPIs
+  Point::add = (other) ->
+    deprecate("Use Point::traverse instead")
+    @traverse(other)
