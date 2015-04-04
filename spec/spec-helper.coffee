@@ -7,15 +7,15 @@ currentSpecFailed = -> currentSpecResult.failedExpectations.length > 0
 
 beforeEach -> jasmine.addCustomEqualityTester(_.isEqual)
 
-expectMapsToSource = (layer, sourcePosition, position, clip) ->
-  expect(layer.toSourcePosition(position, clip)).toEqual(sourcePosition)
+expectMapsToInput = (layer, inputPosition, position, clip) ->
+  expect(layer.toInputPosition(position, clip)).toEqual(inputPosition)
 
-expectMapsFromSource = (layer, sourcePosition, position, clip) ->
-  expect(layer.fromSourcePosition(sourcePosition, clip)).toEqual(position)
+expectMapsFromInput = (layer, inputPosition, position, clip) ->
+  expect(layer.fromInputPosition(inputPosition, clip)).toEqual(position)
 
-expectMapsSymmetrically = (layer, sourcePosition, position) ->
-  expectMapsToSource(layer, sourcePosition, position)
-  expectMapsFromSource(layer, sourcePosition, position)
+expectMapsSymmetrically = (layer, inputPosition, position) ->
+  expectMapsToInput(layer, inputPosition, position)
+  expectMapsFromInput(layer, inputPosition, position)
 
 getAllIteratorValues = (iterator) ->
   values = []
@@ -50,6 +50,6 @@ setToArray = (set) ->
   items.sort()
 
 module.exports = {
-  currentSpecFailed, expectMapsToSource, expectMapsFromSource,
+  currentSpecFailed, expectMapsToInput, expectMapsFromInput,
   expectMapsSymmetrically, toEqualSet, getAllIteratorValues
 }

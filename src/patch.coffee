@@ -6,7 +6,7 @@ class Patch
     @hunks = [{
       content: null
       extent: Point.infinity()
-      sourceExtent: Point.infinity()
+      inputExtent: Point.infinity()
     }]
 
   buildIterator: ->
@@ -18,20 +18,20 @@ class PatchIterator
 
   seek: (@position) ->
     position = Point.zero()
-    sourcePosition = Point.zero()
+    inputPosition = Point.zero()
 
     for hunk, index in @patch.hunks
       nextPosition = position.traverse(hunk.extent)
-      nextSourcePosition = sourcePosition.traverse(hunk.sourceExtent)
+      nextInputPosition = inputPosition.traverse(hunk.inputExtent)
 
       if nextPosition.compare(@position) > 0 or position.compare(@position) is 0
         @index = index
         @hunkOffset = @position.traversalFrom(position)
-        @sourcePosition = Point.min(sourcePosition.traverse(@hunkOffset), nextSourcePosition)
+        @inputPosition = Point.min(inputPosition.traverse(@hunkOffset), nextInputPosition)
         return
 
       position = nextPosition
-      sourcePosition = nextSourcePosition
+      inputPosition = nextInputPosition
 
     # This shouldn't happen because the last hunk's extent is infinite.
     throw new Error("No hunk found for position #{@position}")
@@ -41,11 +41,11 @@ class PatchIterator
       value = hunk.content?.slice(@hunkOffset.column) ? null
 
       remainingExtent = hunk.extent.traversalFrom(@hunkOffset)
-      remainingSourceExtent = hunk.sourceExtent.traversalFrom(@hunkOffset)
+      remainingInputExtent = hunk.inputExtent.traversalFrom(@hunkOffset)
 
       @position = @position.traverse(remainingExtent)
-      if remainingSourceExtent.isPositive()
-        @sourcePosition = @sourcePosition.traverse(remainingSourceExtent)
+      if remainingInputExtent.isPositive()
+        @inputPosition = @inputPosition.traverse(remainingInputExtent)
 
       @index++
       @hunkOffset = Point.zero()
@@ -57,30 +57,30 @@ class PatchIterator
     newHunks = []
     startIndex = @index
     startPosition = @position
-    startSourcePosition = @sourcePosition
+    startInputPosition = @inputPosition
 
     unless @hunkOffset.isZero()
       hunkToSplit = @patch.hunks[@index]
       newHunks.push({
         extent: @hunkOffset
-        sourceExtent: Point.min(@hunkOffset, hunkToSplit.sourceExtent)
+        inputExtent: Point.min(@hunkOffset, hunkToSplit.inputExtent)
         content: hunkToSplit.content?.substring(0, @hunkOffset.column) ? null
       })
 
     @seek(@position.traverse(oldExtent))
 
-    sourceExtent = @sourcePosition.traversalFrom(startSourcePosition)
+    inputExtent = @inputPosition.traversalFrom(startInputPosition)
     newExtent = Point(0, newContent.length)
     newHunks.push({
       extent: newExtent
-      sourceExtent: sourceExtent
+      inputExtent: inputExtent
       content: newContent
     })
 
     hunkToSplit = @patch.hunks[@index]
     newHunks.push({
       extent: hunkToSplit.extent.traversalFrom(@hunkOffset)
-      sourceExtent: Point.max(Point.zero(), hunkToSplit.sourceExtent.traversalFrom(@hunkOffset))
+      inputExtent: Point.max(Point.zero(), hunkToSplit.inputExtent.traversalFrom(@hunkOffset))
       content: hunkToSplit.content?.slice(@hunkOffset.column)
     })
 
@@ -89,7 +89,7 @@ class PatchIterator
     for hunk in newHunks
       if lastHunk?.content? and hunk.content?
         lastHunk.content += hunk.content
-        lastHunk.sourceExtent = lastHunk.sourceExtent.traverse(hunk.sourceExtent)
+        lastHunk.inputExtent = lastHunk.inputExtent.traverse(hunk.inputExtent)
         lastHunk.extent = lastHunk.extent.traverse(hunk.extent)
       else
         spliceHunks.push(hunk)
@@ -102,5 +102,5 @@ class PatchIterator
   getPosition: ->
     @position.copy()
 
-  getSourcePosition: ->
-    @sourcePosition.copy()
+  getInputPosition: ->
+    @inputPosition.copy()
