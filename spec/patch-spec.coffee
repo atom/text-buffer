@@ -16,18 +16,18 @@ describe "Patch", ->
 
       expect(iterator.next()).toEqual(value: null, done: false)
       expect(iterator.getPosition()).toEqual(Point.infinity())
-      expect(iterator.getSourcePosition()).toEqual(Point.infinity())
+      expect(iterator.getInputPosition()).toEqual(Point.infinity())
 
       expect(iterator.next()).toEqual(value: null, done: true)
       expect(iterator.getPosition()).toEqual(Point.infinity())
-      expect(iterator.getSourcePosition()).toEqual(Point.infinity())
+      expect(iterator.getInputPosition()).toEqual(Point.infinity())
 
     expectHunks = (hunks...) ->
       iterator.seek(Point.zero())
-      for [value, position, sourcePosition] in hunks
+      for [value, position, inputPosition] in hunks
         expect(iterator.next()).toEqual {value, done: false}
         expect(iterator.getPosition()).toEqual position
-        expect(iterator.getSourcePosition()).toEqual sourcePosition
+        expect(iterator.getInputPosition()).toEqual inputPosition
       expect(iterator.next()).toEqual {value: null, done: true}
 
     describe "::splice(extent, content)", ->
@@ -39,7 +39,7 @@ describe "Patch", ->
 
         it "inserts new content into the map", ->
           expect(iterator.getPosition()).toEqual(Point(0, 9))
-          expect(iterator.getSourcePosition()).toEqual(Point(0, 7))
+          expect(iterator.getInputPosition()).toEqual(Point(0, 7))
 
           expectHunks(
             [null, Point(0, 4), Point(0, 4)]
@@ -48,17 +48,17 @@ describe "Patch", ->
           )
 
           iterator.seek(Point(0, 8))
-          expect(iterator.getSourcePosition()).toEqual(Point(0, 7))
+          expect(iterator.getInputPosition()).toEqual(Point(0, 7))
 
           expect(iterator.next()).toEqual(value: "e", done: false)
           expect(iterator.getPosition()).toEqual(Point(0, 9))
-          expect(iterator.getSourcePosition()).toEqual(Point(0, 7))
+          expect(iterator.getInputPosition()).toEqual(Point(0, 7))
 
         it "can apply a second splice that precedes the existing splice", ->
           iterator.seek(Point(0, 1))
           iterator.splice(Point(0, 2), "fgh")
           expect(iterator.getPosition()).toEqual(Point(0, 4))
-          expect(iterator.getSourcePosition()).toEqual(Point(0, 3))
+          expect(iterator.getInputPosition()).toEqual(Point(0, 3))
 
           expectHunks(
             [null, Point(0, 1), Point(0, 1)]
@@ -72,7 +72,7 @@ describe "Patch", ->
           iterator.seek(Point(0, 2))
           iterator.splice(Point(0, 2), "fgh")
           expect(iterator.getPosition()).toEqual(Point(0, 5))
-          expect(iterator.getSourcePosition()).toEqual(Point(0, 5))
+          expect(iterator.getInputPosition()).toEqual(Point(0, 5))
 
           expectHunks(
             [null, Point(0, 2), Point(0, 2)]
@@ -84,7 +84,7 @@ describe "Patch", ->
           iterator.seek(Point(0, 3))
           iterator.splice(Point(0, 2), "fghi")
           expect(iterator.getPosition()).toEqual(Point(0, 7))
-          expect(iterator.getSourcePosition()).toEqual(Point(0, 7))
+          expect(iterator.getInputPosition()).toEqual(Point(0, 7))
 
           expectHunks(
             [null, Point(0, 3), Point(0, 3)]
@@ -96,7 +96,7 @@ describe "Patch", ->
           iterator.seek(Point(0, 4))
           iterator.splice(Point(0, 2), "fghi")
           expect(iterator.getPosition()).toEqual(Point(0, 8))
-          expect(iterator.getSourcePosition()).toEqual(Point(0, 7))
+          expect(iterator.getInputPosition()).toEqual(Point(0, 7))
 
           expectHunks(
             [null, Point(0, 4), Point(0, 4)]
@@ -108,7 +108,7 @@ describe "Patch", ->
           iterator.seek(Point(0, 6))
           iterator.splice(Point(0, 2), "fghi")
           expect(iterator.getPosition()).toEqual(Point(0, 10))
-          expect(iterator.getSourcePosition()).toEqual(Point(0, 7))
+          expect(iterator.getInputPosition()).toEqual(Point(0, 7))
 
           expectHunks(
             [null, Point(0, 4), Point(0, 4)]
@@ -120,7 +120,7 @@ describe "Patch", ->
           iterator.seek(Point(0, 2))
           iterator.splice(Point(0, 8), "fghijklmno")
           expect(iterator.getPosition()).toEqual(Point(0, 12))
-          expect(iterator.getSourcePosition()).toEqual(Point(0, 8))
+          expect(iterator.getInputPosition()).toEqual(Point(0, 8))
 
           expectHunks(
             [null, Point(0, 2), Point(0, 2)]
@@ -132,7 +132,7 @@ describe "Patch", ->
           iterator.seek(Point(0, 6))
           iterator.splice(Point(0, 3), "fghij")
           expect(iterator.getPosition()).toEqual(Point(0, 11))
-          expect(iterator.getSourcePosition()).toEqual(Point(0, 7))
+          expect(iterator.getInputPosition()).toEqual(Point(0, 7))
 
           expectHunks(
             [null, Point(0, 4), Point(0, 4)]
@@ -144,7 +144,7 @@ describe "Patch", ->
           iterator.seek(Point(0, 8))
           iterator.splice(Point(0, 4), "fghijk")
           expect(iterator.getPosition()).toEqual(Point(0, 14))
-          expect(iterator.getSourcePosition()).toEqual(Point(0, 10))
+          expect(iterator.getInputPosition()).toEqual(Point(0, 10))
 
           expectHunks(
             [null, Point(0, 4), Point(0, 4)]
@@ -156,7 +156,7 @@ describe "Patch", ->
           iterator.seek(Point(0, 12))
           iterator.splice(Point(0, 3), "fghij")
           expect(iterator.getPosition()).toEqual(Point(0, 17))
-          expect(iterator.getSourcePosition()).toEqual(Point(0, 13))
+          expect(iterator.getInputPosition()).toEqual(Point(0, 13))
 
           expectHunks(
             [null, Point(0, 4), Point(0, 4)]
@@ -176,7 +176,7 @@ describe "Patch", ->
 
         it "inserts new content into the map", ->
           expect(iterator.getPosition()).toEqual(Point(0, 5))
-          expect(iterator.getSourcePosition()).toEqual(Point(0, 7))
+          expect(iterator.getInputPosition()).toEqual(Point(0, 7))
 
           expectHunks(
            [null, Point(0, 2), Point(0, 2)]
@@ -185,20 +185,20 @@ describe "Patch", ->
           )
 
           iterator.seek(Point(0, 5))
-          expect(iterator.getSourcePosition()).toEqual(Point(0, 7))
+          expect(iterator.getInputPosition()).toEqual(Point(0, 7))
 
           iterator.seek(Point(0, 3))
-          expect(iterator.getSourcePosition()).toEqual(Point(0, 3))
+          expect(iterator.getInputPosition()).toEqual(Point(0, 3))
 
           expect(iterator.next()).toEqual(value: "bc", done: false)
           expect(iterator.getPosition()).toEqual(Point(0, 5))
-          expect(iterator.getSourcePosition()).toEqual(Point(0, 7))
+          expect(iterator.getInputPosition()).toEqual(Point(0, 7))
 
         it "can apply a second splice that is contained within the existing splice", ->
           iterator.seek(Point(0, 3))
           iterator.splice(Point(0, 1), "")
           expect(iterator.getPosition()).toEqual(Point(0, 3))
-          expect(iterator.getSourcePosition()).toEqual(Point(0, 3))
+          expect(iterator.getInputPosition()).toEqual(Point(0, 3))
 
           expectHunks(
            [null, Point(0, 2), Point(0, 2)]
@@ -214,8 +214,8 @@ describe "Patch", ->
 
         iterator.seek(Point.zero())
         iterator.seek(Point(0, 2))
-        expect(iterator.getSourcePosition()).toEqual(Point(0, 2))
+        expect(iterator.getInputPosition()).toEqual(Point(0, 2))
 
         expect(iterator.next()).toEqual {value: "", done: false}
         expect(iterator.getPosition()).toEqual(Point(0, 2))
-        expect(iterator.getSourcePosition()).toEqual(Point(0, 7))
+        expect(iterator.getInputPosition()).toEqual(Point(0, 7))
