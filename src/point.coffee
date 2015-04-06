@@ -47,6 +47,9 @@ class Point
     else
       0
 
+  isEqual: (other) ->
+    @compare(Point.fromObject(other)) is 0
+
   copy: ->
     new Point(@row, @column)
 
