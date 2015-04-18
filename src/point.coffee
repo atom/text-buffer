@@ -71,6 +71,7 @@ class Point
       @copy()
 
   traverse: (delta) ->
+    delta = Point.fromObject(delta)
     if delta.row is 0
       new Point(@row, @column + delta.column)
     else
