@@ -83,7 +83,7 @@ class Range
 
   # Public: Call this with the result of {Range::serialize} to construct a new Range.
   #
-  # * `array` {array} of params to pass to the {::constructor}
+  # * `array` {Array} of params to pass to the {::constructor}
   @deserialize: (array) ->
     if Array.isArray(array)
       new this(array[0], array[1])
