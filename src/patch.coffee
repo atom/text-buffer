@@ -125,6 +125,42 @@ class Leaf
     else
       "#{indent}Leaf #{@inputExtent} #{@outputExtent}"
 
+class PatchIterator
+  constructor: (@node) ->
+    @inputPosition = Point.zero()
+    @outputPosition = Point.zero()
+    @nodeStack = []
+    @descend()
+
+  next: ->
+    if @node?
+      value = @node.content
+      @inputPosition = @inputPosition.traverse(@node.inputExtent)
+      @outputPosition = @outputPosition.traverse(@node.outputExtent)
+
+      @node = null
+      while parent = @nodeStack[@nodeStack.length - 1]
+        parent.index++
+        if nextChild = parent.node.children[parent.index]
+          @node = nextChild
+          @descend()
+          return {value, done: false}
+        else
+          @nodeStack.pop()
+
+    {value: null, done: true}
+
+  getPosition: ->
+    @outputPosition.copy()
+
+  getSourcePosition: ->
+    @inputPosition.copy()
+
+  descend: ->
+    while @node.children?
+      @nodeStack.push({@node, index: 0})
+      @node = @node.children[0]
+
 module.exports =
 class Patch
   constructor: ->
@@ -133,6 +169,9 @@ class Patch
   splice: (outputPosition, oldOutputExtent, newOutputExtent, content) ->
     if splitNodes = @rootNode.splice(outputPosition, oldOutputExtent, newOutputExtent, content)
       @rootNode = new Node(splitNodes)
+
+  buildIterator: ->
+    new PatchIterator(@rootNode)
 
   toInputPosition: (outputPosition) ->
 
