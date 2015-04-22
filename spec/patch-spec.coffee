@@ -129,3 +129,42 @@ describe "Patch", ->
           content: null
         }
       ]
+
+  describe "::buildIterator()", ->
+    it "returns an iterator that yields the content of each hunk", ->
+      patch.splice(Point(0, 5), Point(0, 3), Point(0, 4), "abcd")
+      patch.splice(Point(0, 12), Point(0, 4), Point(0, 3), "efg")
+      patch.splice(Point(0, 16), Point(0, 3), Point(0, 2), "hi")
+
+      iterator = patch.buildIterator()
+
+      expect(iterator.getPosition()).toEqual Point(0, 0)
+      expect(iterator.getSourcePosition()).toEqual Point(0, 0)
+
+      expect(iterator.next()).toEqual {value: null, done: false}
+      expect(iterator.getPosition()).toEqual Point(0, 5)
+      expect(iterator.getSourcePosition()).toEqual Point(0, 5)
+
+      expect(iterator.next()).toEqual {value: "abcd", done: false}
+      expect(iterator.getPosition()).toEqual Point(0, 9)
+      expect(iterator.getSourcePosition()).toEqual Point(0, 8)
+
+      expect(iterator.next()).toEqual {value: null, done: false}
+      expect(iterator.getPosition()).toEqual Point(0, 12)
+      expect(iterator.getSourcePosition()).toEqual Point(0, 11)
+
+      expect(iterator.next()).toEqual {value: "efg", done: false}
+      expect(iterator.getPosition()).toEqual Point(0, 15)
+      expect(iterator.getSourcePosition()).toEqual Point(0, 15)
+
+      expect(iterator.next()).toEqual {value: null, done: false}
+      expect(iterator.getPosition()).toEqual Point(0, 16)
+      expect(iterator.getSourcePosition()).toEqual Point(0, 16)
+
+      expect(iterator.next()).toEqual {value: "hi", done: false}
+      expect(iterator.getPosition()).toEqual Point(0, 18)
+      expect(iterator.getSourcePosition()).toEqual Point(0, 19)
+
+      expect(iterator.next()).toEqual {value: null, done: true}
+      expect(iterator.getPosition()).toEqual Point.infinity()
+      expect(iterator.getSourcePosition()).toEqual Point.infinity()
