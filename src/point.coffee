@@ -59,6 +59,8 @@ class Point
   isPositive: ->
     if @row > 0
       true
+    else if @row < 0
+      false
     else
       @column > 0
 
