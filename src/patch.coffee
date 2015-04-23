@@ -60,98 +60,131 @@ class Leaf
     else
       "#{indent}Leaf #{@inputExtent} #{@outputExtent}"
 
+last = (array) -> array[array.length - 1]
+
 class PatchIterator
   constructor: (@patch) ->
     @inputPosition = Point.zero()
     @outputPosition = Point.zero()
-    @nodeStack = []
-    @descend(@patch.rootNode)
+    @pathToCurrentLeaf = []
+    @descendToLeftmostLeaf(@patch.rootNode)
 
   next: ->
-    if @leaf?
-      value = @leaf.content?.slice(@leafOffset.column) ? null
-      @inputPosition = @inputPosition.traverse(Point.max(Point.zero(), @leaf.inputExtent.traversalFrom(@leafOffset)))
-      @outputPosition = @outputPosition.traverse(@leaf.outputExtent.traversalFrom(@leafOffset))
-      @leaf = null
+    if @pathToCurrentLeaf.length > 0
+      {node, offset} = last(@pathToCurrentLeaf)
+      leaf = node
 
-      while parent = @nodeStack[@nodeStack.length - 1]
-        parent.nextChildIndex++
-        if nextChild = parent.node.children[parent.nextChildIndex]
-          @descend(nextChild)
+      value = leaf.content?.slice(offset.column) ? null
+      @inputPosition = @inputPosition.traverse(Point.max(Point.zero(), leaf.inputExtent.traversalFrom(offset)))
+      @outputPosition = @outputPosition.traverse(leaf.outputExtent.traversalFrom(offset))
+
+      @pathToCurrentLeaf.pop()
+
+      while pathEntry = last(@pathToCurrentLeaf)
+        pathEntry.nextChildIndex++
+        if nextChild = pathEntry.node.children[pathEntry.nextChildIndex]
+          @descendToLeftmostLeaf(nextChild)
           break
         else
-          @nodeStack.pop()
+          @pathToCurrentLeaf.pop()
 
       {value, done: false}
     else
       {value: null, done: true}
 
-  seek: (outputPosition) ->
+  seek: (targetOutputPosition) ->
+    @pathToCurrentLeaf.length = 0
+
+    targetInputPosition = Point.zero()
     childInputStart = Point.zero()
     childOutputStart = Point.zero()
+    nodeOutputStart = Point.zero()
 
     node = @patch.rootNode
-    @nodeStack.length = 0
 
-    while node.children?
-      for child, nextChildIndex in node.children
-        childInputEnd = childInputStart.traverse(child.inputExtent)
-        childOutputEnd = childOutputStart.traverse(child.outputExtent)
+    loop
+      offset = targetOutputPosition.traversalFrom(nodeOutputStart)
+      pathEntry = {node, offset: offset}
+      @pathToCurrentLeaf.push(pathEntry)
 
-        if childOutputEnd.compare(outputPosition) > 0
-          foundChild = true
-          @nodeStack.push({node, nextChildIndex})
-          node = child
-          break
+      if node.children?
+        for child, childIndex in node.children
+          childInputEnd = childInputStart.traverse(child.inputExtent)
+          childOutputEnd = childOutputStart.traverse(child.outputExtent)
 
-        childOutputStart = childOutputEnd
-        childInputStart = childInputEnd
+          if childOutputEnd.compare(targetOutputPosition) > 0
+            pathEntry.nextChildIndex = childIndex
+            nodeOutputStart = childOutputStart
+            node = child
+            break
 
-    @leaf = node
-    @leafOffset = outputPosition.traversalFrom(childOutputStart)
-    @inputPosition = childInputStart.traverse(Point.min(@leafOffset, @leaf.inputExtent))
-    @outputPosition = outputPosition.copy()
+          childOutputStart = childOutputEnd
+          childInputStart = childInputEnd
+          targetInputPosition = targetInputPosition.traverse(child.inputExtent)
+      else
+        targetInputPosition = targetInputPosition.traverse(Point.min(offset, node.inputExtent))
+        break
+
+    @inputPosition = targetInputPosition
+    @outputPosition = targetOutputPosition.copy()
     this
 
   splice: (oldOutputExtent, newOutputExtent, newContent) ->
-    extentToCut = oldOutputExtent.traversalFrom(@leaf.outputExtent.traversalFrom(@leafOffset))
-    newNodeStack = []
+    pathToNewLeaf = []
+    pathIndex = @pathToCurrentLeaf.length - 1
 
-    oldOutputEnd = @leafOffset.traverse(oldOutputExtent)
-    if @leaf.content?
-      @leaf.inputExtent = @leaf.inputExtent
-        .traverse(Point.max(Point.zero(), oldOutputEnd.traversalFrom(@leaf.outputExtent)))
-      @leaf.outputExtent = @leafOffset
-        .traverse(newOutputExtent)
-        .traverse(Point.max(Point.zero(), @leaf.outputExtent.traversalFrom(oldOutputEnd)))
-      @leaf.content =
-        @leaf.content.slice(0, @leafOffset.column) +
-        newContent +
-        @leaf.content.slice(@leafOffset.column + oldOutputExtent.column)
-      if @leaf.inputExtent.isZero() and @leaf.outputExtent.isZero()
-        @leaf = null
+    {node, offset} = @pathToCurrentLeaf[pathIndex]
+
+    @outputPosition = @outputPosition.traverse(newOutputExtent)
+
+    extentToCut = Point.min(Point.zero(), oldOutputExtent.traversalFrom(node.outputExtent.traversalFrom(offset)))
+    nextOffset = offset.traverse(oldOutputExtent)
+
+    if node.content?
+      @inputPosition = @inputPosition.traverse(Point.min(node.inputExtent, newOutputExtent))
+      overshoot = Point.max(Point.zero(), nextOffset.traversalFrom(node.outputExtent))
+      node.inputExtent = node.inputExtent.traverse(overshoot)
+      undershoot = Point.max(Point.zero(), node.outputExtent.traversalFrom(nextOffset))
+      node.outputExtent = offset.traverse(newOutputExtent).traverse(undershoot)
+
+      if node.inputExtent.isZero() and node.outputExtent.isZero()
+        node = null
         splitNodes = []
       else
+        node.content =
+          node.content.slice(0, offset.column) +
+          newContent +
+          node.content.slice(offset.column + oldOutputExtent.column)
         splitNodes = null
+        pathToNewLeaf.unshift({node, offset: nextOffset})
     else
-      splicedInLeaf = new Leaf(oldOutputExtent, newOutputExtent, newContent)
-      splitNodes = [splicedInLeaf]
-      trailingExtent = @leaf.outputExtent.traversalFrom(oldOutputEnd)
-      if @leafOffset.isPositive()
-        splitNodes.unshift(new Leaf(@leafOffset, @leafOffset, null))
-        @leafOffset = Point.zero()
-      if trailingExtent.isPositive()
-        splitNodes.push(new Leaf(@leaf.inputExtent.traversalFrom(oldOutputEnd), trailingExtent, null))
-      @leaf = splicedInLeaf
+      @inputPosition = @inputPosition.traverse(oldOutputExtent)
 
-    previousChild = @leaf
-    for {node, nextChildIndex} in @nodeStack by -1
+      undershoot = node.outputExtent.traversalFrom(nextOffset)
+      node = new Leaf(oldOutputExtent, newOutputExtent, newContent)
+      splitNodes = [node]
+      if offset.isPositive()
+        splitNodes.unshift(new Leaf(offset, offset, null))
+      if undershoot.isPositive()
+        splitNodes.push(new Leaf(undershoot, undershoot, null))
+      pathToNewLeaf.unshift({node, offset: newOutputExtent})
+
+    previousChild = node
+    pathIndex--
+
+    while pathIndex >= 0
+      {node, offset, nextChildIndex} = @pathToCurrentLeaf[pathIndex]
+
       if splitNodes?
         node.children.splice(nextChildIndex, 1, splitNodes...)
         nextChildIndex += splitNodes.length
         splitNodes = null
       else
         nextChildIndex++
+
+      nextOffset = offset.traverse(oldOutputExtent)
+      undershoot = Point.min(Point.zero(), node.outputExtent.traversalFrom(nextOffset))
+      node.outputExtent = offset.traverse(oldOutputExtent).traverse(undershoot)
 
       while extentToCut.isPositive() and nextChildIndex < node.children.length
         child = node.children[nextChildIndex]
@@ -170,20 +203,18 @@ class PatchIterator
         else
           splitNodes[1]
 
-      newNodeStack.unshift({node, nextChildIndex: node.children.indexOf(previousChild)})
+      pathToNewLeaf.unshift({node, offset: nextOffset, nextChildIndex: node.children.indexOf(previousChild)})
       previousChild = node
+      pathIndex--
 
     if splitNodes?
       @patch.rootNode = new Node(splitNodes)
       node = @patch.rootNode
-      newNodeStack.unshift({node, nextChildIndex: node.children.indexOf(previousChild)})
+      pathToNewLeaf.unshift({node, offset: @outputPosition, nextChildIndex: node.children.indexOf(previousChild)})
 
-    @nodeStack = newNodeStack
-    if @leaf
-      @leafOffset = @leafOffset.traverse(newOutputExtent)
-      @outputPosition = @outputPosition.traverse(newOutputExtent)
-      @inputPosition = @inputPosition.traverse(Point.min(@leaf.inputExtent, newOutputExtent))
-      @next() if !@leaf? or @leafOffset.compare(@leaf.outputExtent) is 0
+    @pathToCurrentLeaf = pathToNewLeaf
+    lastPathEntry = last(@pathToCurrentLeaf)
+    @next() if lastPathEntry.offset.compare(lastPathEntry.node.outputExtent) is 0
     return
 
   getOutputPosition: ->
@@ -192,12 +223,15 @@ class PatchIterator
   getInputPosition: ->
     @inputPosition.copy()
 
-  descend: (node) ->
-    while node.children?
-      @nodeStack.push({node, nextChildIndex: 0})
-      node = node.children[0]
-    @leaf = node
-    @leafOffset = Point.zero()
+  descendToLeftmostLeaf: (node) ->
+    loop
+      pathEntry = {node, offset: Point.zero()}
+      @pathToCurrentLeaf.push(pathEntry)
+      if node.children?
+        pathEntry.nextChildIndex = 0
+        node = node.children[0]
+      else
+        break
 
 module.exports =
 class Patch
