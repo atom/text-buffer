@@ -75,8 +75,8 @@ class PatchIterator
       @leaf = null
 
       while parent = @nodeStack[@nodeStack.length - 1]
-        parent.childIndex++
-        if nextChild = parent.node.children[parent.childIndex]
+        parent.nextChildIndex++
+        if nextChild = parent.node.children[parent.nextChildIndex]
           @descend(nextChild)
           break
         else
@@ -94,13 +94,13 @@ class PatchIterator
     @nodeStack.length = 0
 
     while node.children?
-      for child, childIndex in node.children
+      for child, nextChildIndex in node.children
         childInputEnd = childInputStart.traverse(child.inputExtent)
         childOutputEnd = childOutputStart.traverse(child.outputExtent)
 
         if childOutputEnd.compare(outputPosition) > 0
           foundChild = true
-          @nodeStack.push({node, childIndex})
+          @nodeStack.push({node, nextChildIndex})
           node = child
           break
 
@@ -141,19 +141,19 @@ class PatchIterator
       @leaf = splicedInLeaf
 
     previousChild = @leaf
-    for {node, childIndex} in @nodeStack by -1
+    for {node, nextChildIndex} in @nodeStack by -1
       if splitNodes?
-        node.children.splice(childIndex, 1, splitNodes...)
-        childIndex += splitNodes.length
+        node.children.splice(nextChildIndex, 1, splitNodes...)
+        nextChildIndex += splitNodes.length
         splitNodes = null
       else
-        childIndex++
+        nextChildIndex++
 
-      while extentToCut.isPositive() and childIndex < node.children.length
-        child = node.children[childIndex]
+      while extentToCut.isPositive() and nextChildIndex < node.children.length
+        child = node.children[nextChildIndex]
         newExtentToCut = extentToCut.traversalFrom(child.outputExtent)
         if newExtentToCut.isPositive()
-          node.children.splice(childIndex, 1)
+          node.children.splice(nextChildIndex, 1)
         else
           child.cut(extentToCut)
         extentToCut = newExtentToCut
@@ -161,18 +161,18 @@ class PatchIterator
       if node.children.length > BRANCHING_THRESHOLD
         splitIndex = Math.ceil(node.children.length / BRANCHING_THRESHOLD)
         splitNodes = [new Node(node.children.slice(0, splitIndex)), new Node(node.children.slice(splitIndex))]
-        node = if childIndex < splitIndex
+        node = if nextChildIndex < splitIndex
           splitNodes[0]
         else
           splitNodes[1]
 
-      newNodeStack.unshift({node, childIndex: node.children.indexOf(previousChild)})
+      newNodeStack.unshift({node, nextChildIndex: node.children.indexOf(previousChild)})
       previousChild = node
 
     if splitNodes?
       @patch.rootNode = new Node(splitNodes)
       node = @patch.rootNode
-      newNodeStack.unshift({node, childIndex: node.children.indexOf(previousChild)})
+      newNodeStack.unshift({node, nextChildIndex: node.children.indexOf(previousChild)})
 
     @nodeStack = newNodeStack
     @leafOffset = @leafOffset.traverse(newOutputExtent)
@@ -189,7 +189,7 @@ class PatchIterator
 
   descend: (node) ->
     while node.children?
-      @nodeStack.push({node, childIndex: 0})
+      @nodeStack.push({node, nextChildIndex: 0})
       node = node.children[0]
     @leaf = node
     @leafOffset = Point.zero()
