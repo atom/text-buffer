@@ -1,11 +1,10 @@
 require 'coffee-cache'
-_ = require 'underscore-plus'
 
 currentSpecResult = null
 jasmine.getEnv().addReporter specStarted: (result) -> currentSpecResult = result
 currentSpecFailed = -> currentSpecResult.failedExpectations.length > 0
 
-beforeEach -> jasmine.addCustomEqualityTester(_.isEqual)
+beforeEach -> jasmine.addCustomEqualityTester (a, b) -> a?.isEqual?(b)
 
 expectMapsToInput = (layer, inputPosition, position, clip) ->
   expect(layer.toInputPosition(position, clip)).toEqual(inputPosition)
