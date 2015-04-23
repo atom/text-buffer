@@ -128,7 +128,11 @@ class PatchIterator
         @leaf.content.slice(0, @leafOffset.column) +
         newContent +
         @leaf.content.slice(@leafOffset.column + oldOutputExtent.column)
-      splitNodes = null
+      if @leaf.inputExtent.isZero() and @leaf.outputExtent.isZero()
+        @leaf = null
+        splitNodes = []
+      else
+        splitNodes = null
     else
       splicedInLeaf = new Leaf(oldOutputExtent, newOutputExtent, newContent)
       splitNodes = [splicedInLeaf]
@@ -175,10 +179,11 @@ class PatchIterator
       newNodeStack.unshift({node, nextChildIndex: node.children.indexOf(previousChild)})
 
     @nodeStack = newNodeStack
-    @leafOffset = @leafOffset.traverse(newOutputExtent)
-    @outputPosition = @outputPosition.traverse(newOutputExtent)
-    @inputPosition = @inputPosition.traverse(Point.min(@leaf.inputExtent, newOutputExtent))
-    @next() if @leafOffset.compare(@leaf.outputExtent) is 0
+    if @leaf
+      @leafOffset = @leafOffset.traverse(newOutputExtent)
+      @outputPosition = @outputPosition.traverse(newOutputExtent)
+      @inputPosition = @inputPosition.traverse(Point.min(@leaf.inputExtent, newOutputExtent))
+      @next() if !@leaf? or @leafOffset.compare(@leaf.outputExtent) is 0
     return
 
   getOutputPosition: ->

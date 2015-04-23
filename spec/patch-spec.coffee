@@ -227,3 +227,21 @@ describe "Patch", ->
             content: null
           }
         ]
+
+      it "deletes hunks for changes that are reverted", ->
+        iterator = patch.buildIterator()
+        iterator.seek(Point(0, 5)).splice(Point(0, 0), Point(0, 3), "abc")
+        iterator.seek(Point(0, 5)).splice(Point(0, 3), Point(0, 0), "")
+
+        expect(patch.getHunks()).toEqual [
+          {
+            inputExtent: Point(0, 5)
+            outputExtent: Point(0, 5)
+            content: null
+          }
+          {
+            inputExtent: Point.infinity()
+            outputExtent: Point.infinity()
+            content: null
+          }
+        ]
