@@ -159,3 +159,37 @@ describe "Point", ->
 
       expect(Point(1, 3).traverse(Point(4, 2)).isEqual([5, 2]))
       expect(Point(1, 3).traverse([5, 4]).isEqual([6, 4]))
+
+  describe "::traversalFrom(other)", ->
+    it "returns a point that other has to traverse to get to given point", ->
+      expect(Point(2, 5).traversalFrom(Point(2, 3)).isEqual(Point(0, 2)))
+      expect(Point(2, 3).traversalFrom(Point(2, 5)).isEqual(Point(0, -2)))
+      expect(Point(2, 3).traversalFrom(Point(2, 3)).isEqual(Point(0, 0)))
+
+      expect(Point(3, 4).traversalFrom(Point(2, 3)).isEqual(Point(1, 4)))
+      expect(Point(2, 3).traversalFrom(Point(3, 5)).isEqual(Point(-1, 3)))
+
+      expect(Point(2, 5).traversalFrom([2, 3]).isEqual([0, 2]))
+      expect(Point(2, 3).traversalFrom([2, 5]).isEqual([0, -2]))
+      expect(Point(2, 3).traversalFrom([2, 3]).isEqual([0, 0]))
+
+      expect(Point(3, 4).traversalFrom([2, 3]).isEqual([1, 4]))
+      expect(Point(2, 3).traversalFrom([3, 5]).isEqual([-1, 3]))
+
+  describe "::toArray()", ->
+    it "returns an array of row and column", ->
+      expect(Point(1, 3).toArray() is [1, 3])
+      expect(Point.zero().toArray() is [0, 0])
+      expect(Point.infinity().toArray() is [Infinity, Infinity])
+
+  describe "::serialize()", ->
+    it "returns an array of row and column", ->
+      expect(Point(1, 3).serialize()  is [1, 3])
+      expect(Point.zero().serialize() is [0, 0])
+      expect(Point.infinity().serialize() is [Infinity, Infinity])
+
+  describe "::toString()", ->
+    it "returns string representation of Point", ->
+      expect(Point(4, 5).toString()  is "(4, 5)")
+      expect(Point.zero().toString() is "(0, 0)")
+      expect(Point.infinity().toString() is "(Infinity, Infinity)")
