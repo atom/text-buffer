@@ -26,6 +26,76 @@ describe "Point", ->
       expect(Object.isFrozen(Point(3, 4).freeze()))
       expect(Object.isFrozen(Point.zero().freeze()))
 
+  describe "::compare(other)", ->
+    it "returns -1 for <, 0 for =, 1 for > comparisions", ->
+      expect(Point(2, 3).compare(Point(2, 6)) is -1)
+      expect(Point(2, 3).compare(Point(3, 4)) is -1)
+      expect(Point(1, 1).compare(Point(1, 1)) is 0)
+      expect(Point(2, 3).compare(Point(2, 0)) is 1)
+      expect(Point(2, 3).compare(Point(1, 3)) is 1)
+
+      expect(Point(2, 3).compare([2, 6]) is -1)
+      expect(Point(2, 3).compare([3, 4]) is -1)
+      expect(Point(1, 1).compare([1, 1]) is 0)
+      expect(Point(2, 3).compare([2, 0]) is 1)
+      expect(Point(2, 3).compare([1, 3]) is 1)
+
+  describe "::isLessThan(other)", ->
+    it "returns a boolean indicating whether a point precedes the given Point ", ->
+      expect(Point(2, 3).isLessThan(Point(2, 5))).toBe true
+      expect(Point(2, 3).isLessThan(Point(3, 4))).toBe true
+      expect(Point(2, 3).isLessThan(Point(2, 3))).toBe false
+      expect(Point(2, 3).isLessThan(Point(2, 1))).toBe false
+      expect(Point(2, 3).isLessThan(Point(1, 2))).toBe false
+
+      expect(Point(2, 3).isLessThan([2, 5])).toBe true
+      expect(Point(2, 3).isLessThan([3, 4])).toBe true
+      expect(Point(2, 3).isLessThan([2, 3])).toBe false
+      expect(Point(2, 3).isLessThan([2, 1])).toBe false
+      expect(Point(2, 3).isLessThan([1, 2])).toBe false
+
+  describe "::isLessThanOrEqual(other)", ->
+    it "returns a boolean indicating whether a point precedes or equal the given Point ", ->
+      expect(Point(2, 3).isLessThanOrEqual(Point(2, 5))).toBe true
+      expect(Point(2, 3).isLessThanOrEqual(Point(3, 4))).toBe true
+      expect(Point(2, 3).isLessThanOrEqual(Point(2, 3))).toBe true
+      expect(Point(2, 3).isLessThanOrEqual(Point(2, 1))).toBe false
+      expect(Point(2, 3).isLessThanOrEqual(Point(1, 2))).toBe false
+
+      expect(Point(2, 3).isLessThanOrEqual([2, 5])).toBe true
+      expect(Point(2, 3).isLessThanOrEqual([3, 4])).toBe true
+      expect(Point(2, 3).isLessThanOrEqual([2, 3])).toBe true
+      expect(Point(2, 3).isLessThanOrEqual([2, 1])).toBe false
+      expect(Point(2, 3).isLessThanOrEqual([1, 2])).toBe false
+
+  describe "::isGreaterThan(other)", ->
+    it "returns a boolean indicating whether a point follows the given Point ", ->
+      expect(Point(2, 3).isGreaterThan(Point(2, 5))).toBe false
+      expect(Point(2, 3).isGreaterThan(Point(3, 4))).toBe false
+      expect(Point(2, 3).isGreaterThan(Point(2, 3))).toBe false
+      expect(Point(2, 3).isGreaterThan(Point(2, 1))).toBe true
+      expect(Point(2, 3).isGreaterThan(Point(1, 2))).toBe true
+
+      expect(Point(2, 3).isGreaterThan([2, 5])).toBe false
+      expect(Point(2, 3).isGreaterThan([3, 4])).toBe false
+      expect(Point(2, 3).isGreaterThan([2, 3])).toBe false
+      expect(Point(2, 3).isGreaterThan([2, 1])).toBe true
+      expect(Point(2, 3).isGreaterThan([1, 2])).toBe true
+
+  describe "::isGreaterThanOrEqual(other)", ->
+    it "returns a boolean indicating whether a point follows or equal the given Point ", ->
+      expect(Point(2, 3).isGreaterThanOrEqual(Point(2, 5))).toBe false
+      expect(Point(2, 3).isGreaterThanOrEqual(Point(3, 4))).toBe false
+      expect(Point(2, 3).isGreaterThanOrEqual(Point(2, 3))).toBe true
+      expect(Point(2, 3).isGreaterThanOrEqual(Point(2, 1))).toBe true
+      expect(Point(2, 3).isGreaterThanOrEqual(Point(1, 2))).toBe true
+
+      expect(Point(2, 3).isGreaterThanOrEqual([2, 5])).toBe false
+      expect(Point(2, 3).isGreaterThanOrEqual([3, 4])).toBe false
+      expect(Point(2, 3).isGreaterThanOrEqual([2, 3])).toBe true
+      expect(Point(2, 3).isGreaterThanOrEqual([2, 1])).toBe true
+      expect(Point(2, 3).isGreaterThanOrEqual([1, 2])).toBe true
+
   describe "::isEqual()", ->
     it "returns if whether two points are equal", ->
       expect(Point(1, 1).isEqual(Point(1, 1))).toBe true
