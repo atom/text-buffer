@@ -34,6 +34,9 @@ class Point
       new Point(row, column)
 
   constructor: (row, column) ->
+    throw new TypeError("Invalid row: #{row}") unless isNumber(row)
+    throw new TypeError("Invalid column: #{column}") unless isNumber(column)
+
     unless this instanceof Point
       return new Point(row, column)
     @row = row
@@ -126,3 +129,6 @@ class Point
 
   toString: ->
     "(#{@row}, #{@column})"
+
+isNumber = (value) ->
+  (typeof value is 'number') and (not Number.isNaN(value))
