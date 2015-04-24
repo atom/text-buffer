@@ -55,8 +55,28 @@ class Point
   isEqual: (other) ->
     @compare(other) is 0
 
+  isLessThan: (other) ->
+    @compare(other) is -1
+
+  isLessThanOrEqual: (other) ->
+    cmp = @compare(other)
+    cmp is -1 or cmp is 0
+
+  isGreaterThan: (other) ->
+    @compare(other) is 1
+
+  isGreaterThanOrEqual: (other) ->
+    cmp = @compare(other)
+    cmp is 1 or cmp is 0
+
   copy: ->
     new Point(@row, @column)
+
+  negate: ->
+    new Point(-@row, -@column)
+
+  freeze: ->
+    Object.freeze(this)
 
   isZero: ->
     @row is 0 and @column is 0
@@ -77,6 +97,10 @@ class Point
     else
       @copy()
 
+  translate: (delta) ->
+    delta = Point.fromObject(delta)
+    new Point(@row + delta.row, @column + delta.column)
+
   traverse: (delta) ->
     delta = Point.fromObject(delta)
     if delta.row is 0
@@ -96,6 +120,12 @@ class Point
         new Point(0, @column)
       else
         new Point(@row - other.row, @column)
+
+  toArray: ->
+    [@row, @column]
+
+  serialize: ->
+    @toArray()
 
   toString: ->
     "(#{@row}, #{@column})"

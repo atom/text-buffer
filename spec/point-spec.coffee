@@ -11,6 +11,21 @@ describe "Point", ->
       expect(Point.fromObject(origin, false) is origin).toBe true
       expect(Point.fromObject(origin, true) is origin).toBe false
 
+  describe "::copy()", ->
+    it "returns a copy of the object", ->
+      expect(Point(3, 4).copy().isEqual(Point(3, 4)))
+      expect(Point.zero().copy().isEqual([0, 0]))
+
+  describe "::negate()", ->
+    it "returns a new point with row and column negated", ->
+      expect(Point(3, 4).negate().isEqual(Point(-3, -4)))
+      expect(Point.zero().negate().isEqual(Point.zero()))
+
+  describe "::freeze()", ->
+    it "returns the immutable copy of object", ->
+      expect(Object.isFrozen(Point(3, 4).freeze()))
+      expect(Object.isFrozen(Point.zero().freeze()))
+
   describe "::isEqual()", ->
     it "returns if whether two points are equal", ->
       expect(Point(1, 1).isEqual(Point(1, 1))).toBe true
@@ -60,6 +75,14 @@ describe "Point", ->
       expect(Point(5, -Infinity).sanitizeNegatives().isEqual(Point(5, 0)))
       expect(Point(5, 5).sanitizeNegatives().isEqual(Point(5, 5)))
 
+  describe "::translate(delta)", ->
+    it "returns a new point by adding corresponding coordinates", ->
+      expect(Point(1, 1).translate(Point(2, 3)).isEqual(Point(3, 4)))
+      expect(Point.infinity().translate(Point(2, 3)).isEqual(Point.infinity()))
+
+      expect(Point.zero().translate([5, 6]).isEqual([5, 6]))
+      expect(Point(1, 1).translate([3, 4]).isEqual([4, 5]))
+
   describe "::traverse(delta)", ->
     it "returns a new point by traversing given rows and columns", ->
       expect(Point(2, 3).traverse(Point(0, 3)).isEqual(Point(2, 5)))
@@ -67,3 +90,21 @@ describe "Point", ->
 
       expect(Point(1, 3).traverse(Point(4, 2)).isEqual([5, 2]))
       expect(Point(1, 3).traverse([5, 4]).isEqual([6, 4]))
+
+  describe "::toArray()", ->
+    it "returns an array of row and column", ->
+      expect(Point(1, 3).toArray() is [1, 3])
+      expect(Point.zero().toArray() is [0, 0])
+      expect(Point.infinity().toArray() is [Infinity, Infinity])
+
+  describe "::serialize()", ->
+    it "returns an array of row and column", ->
+      expect(Point(1, 3).serialize()  is [1, 3])
+      expect(Point.zero().serialize() is [0, 0])
+      expect(Point.infinity().serialize() is [Infinity, Infinity])
+
+  describe "::toString()", ->
+    it "returns string representation of Point", ->
+      expect(Point(4, 5).toString()  is "(4, 5)")
+      expect(Point.zero().toString() is "(0, 0)")
+      expect(Point.infinity().toString() is "(Infinity, Infinity)")
