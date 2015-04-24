@@ -7,12 +7,16 @@ class Point
     new Point(Infinity, Infinity)
 
   @min: (left, right) ->
+    left = Point.fromObject(left)
+    right = Point.fromObject(right)
     if left.compare(right) <= 0
       left
     else
       right
 
   @max: (left, right) ->
+    left = Point.fromObject(left)
+    right = Point.fromObject(right)
     if left.compare(right) >= 0
       left
     else
@@ -36,6 +40,7 @@ class Point
     @column = column
 
   compare: (other) ->
+    other = Point.fromObject(other)
     if @row > other.row
       1
     else if @row < other.row
@@ -48,7 +53,7 @@ class Point
       0
 
   isEqual: (other) ->
-    @compare(Point.fromObject(other)) is 0
+    @compare(other) is 0
 
   copy: ->
     new Point(@row, @column)
@@ -80,6 +85,7 @@ class Point
       new Point(@row + delta.row, delta.column)
 
   traversalFrom: (other) ->
+    other = Point.fromObject(other)
     if @row is other.row
       if @column is Infinity and other.column is Infinity
         new Point(0, 0)
