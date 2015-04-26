@@ -22,7 +22,7 @@ describe "Point", ->
       expect(Point.zero().negate().isEqual(Point.zero()))
 
   describe "::freeze()", ->
-    it "returns the immutable copy of object", ->
+    it "makes the Point object immutable", ->
       expect(Object.isFrozen(Point(3, 4).freeze()))
       expect(Object.isFrozen(Point.zero().freeze()))
 
