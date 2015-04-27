@@ -10,8 +10,8 @@ describe "Point", ->
 
   describe "::fromObject(object, copy)", ->
     it "returns a new Point if object is point-compatible array ", ->
-      expect(Point.fromObject([1, 3]).isEqual(Point(1, 3)))
-      expect(Point.fromObject([Infinity, Infinity]).isEqual(Point.infinity()))
+      expect(Point.fromObject([1, 3])).toEqual Point(1, 3)
+      expect(Point.fromObject([Infinity, Infinity])).toEqual Point.infinity()
 
     it "returns the copy of object if it is an instanceof Point", ->
       origin = Point(0, 0)
@@ -20,32 +20,32 @@ describe "Point", ->
 
   describe "::copy()", ->
     it "returns a copy of the object", ->
-      expect(Point(3, 4).copy().isEqual(Point(3, 4)))
-      expect(Point.zero().copy().isEqual([0, 0]))
+      expect(Point(3, 4).copy()).toEqual Point(3, 4)
+      expect(Point.zero().copy()).toEqual [0, 0]
 
   describe "::negate()", ->
     it "returns a new point with row and column negated", ->
-      expect(Point(3, 4).negate().isEqual(Point(-3, -4)))
-      expect(Point.zero().negate().isEqual(Point.zero()))
+      expect(Point(3, 4).negate()).toEqual Point(-3, -4)
+      expect(Point.zero().negate()).toEqual [0, 0]
 
   describe "::freeze()", ->
-    it "returns the immutable copy of object", ->
-      expect(Object.isFrozen(Point(3, 4).freeze()))
-      expect(Object.isFrozen(Point.zero().freeze()))
+    it "makes the Point object immutable", ->
+      expect(Object.isFrozen(Point(3, 4).freeze())).toBe true
+      expect(Object.isFrozen(Point.zero().freeze())).toBe true
 
   describe "::compare(other)", ->
     it "returns -1 for <, 0 for =, 1 for > comparisions", ->
-      expect(Point(2, 3).compare(Point(2, 6)) is -1)
-      expect(Point(2, 3).compare(Point(3, 4)) is -1)
-      expect(Point(1, 1).compare(Point(1, 1)) is 0)
-      expect(Point(2, 3).compare(Point(2, 0)) is 1)
-      expect(Point(2, 3).compare(Point(1, 3)) is 1)
+      expect(Point(2, 3).compare(Point(2, 6))).toBe -1
+      expect(Point(2, 3).compare(Point(3, 4))).toBe -1
+      expect(Point(1, 1).compare(Point(1, 1))).toBe  0
+      expect(Point(2, 3).compare(Point(2, 0))).toBe  1
+      expect(Point(2, 3).compare(Point(1, 3))).toBe  1
 
-      expect(Point(2, 3).compare([2, 6]) is -1)
-      expect(Point(2, 3).compare([3, 4]) is -1)
-      expect(Point(1, 1).compare([1, 1]) is 0)
-      expect(Point(2, 3).compare([2, 0]) is 1)
-      expect(Point(2, 3).compare([1, 3]) is 1)
+      expect(Point(2, 3).compare([2, 6])).toBe -1
+      expect(Point(2, 3).compare([3, 4])).toBe -1
+      expect(Point(1, 1).compare([1, 1])).toBe  0
+      expect(Point(2, 3).compare([2, 0])).toBe  1
+      expect(Point(2, 3).compare([1, 3])).toBe  1
 
   describe "::isLessThan(other)", ->
     it "returns a boolean indicating whether a point precedes the given Point ", ->
@@ -130,66 +130,74 @@ describe "Point", ->
 
   describe "::min(a, b)", ->
     it "returns the minimum of two points", ->
-      expect(Point.min(Point(3, 4), Point(1, 1)).isEqual(Point(1, 1)))
-      expect(Point.min(Point(1, 2), Point(5, 6)).isEqual(Point(1, 2)))
-      expect(Point.min([3, 4], [1, 1]).isEqual([1, 1]))
-      expect(Point.min([1, 2], [5, 6]).isEqual([1, 2]))
+      expect(Point.min(Point(3, 4), Point(1, 1))).toEqual Point(1, 1)
+      expect(Point.min(Point(1, 2), Point(5, 6))).toEqual Point(1, 2)
+      expect(Point.min([3, 4], [1, 1])).toEqual [1, 1]
+      expect(Point.min([1, 2], [5, 6])).toEqual [1, 2]
 
   describe "::max(a, b)", ->
     it "returns the minimum of two points", ->
-      expect(Point.max(Point(3, 4), Point(1, 1)).isEqual(Point(3, 4)))
-      expect(Point.max(Point(1, 2), Point(5, 6)).isEqual(Point(5, 6)))
-      expect(Point.min([3, 4], [1, 1]).isEqual([3, 4]))
-      expect(Point.min([1, 2], [5, 6]).isEqual([5, 6]))
+      expect(Point.max(Point(3, 4), Point(1, 1))).toEqual Point(3, 4)
+      expect(Point.max(Point(1, 2), Point(5, 6))).toEqual Point(5, 6)
+      expect(Point.max([3, 4], [1, 1])).toEqual [3, 4]
+      expect(Point.max([1, 2], [5, 6])).toEqual [5, 6]
 
   describe "::sanitizeNegatives()", ->
     it "returns the point so that it has valid buffer coordinates", ->
-      expect(Point(-1, -1).sanitizeNegatives().isEqual(Point(0, 0)))
-      expect(Point(-1, 0).sanitizeNegatives().isEqual(Point(0, 0)))
-      expect(Point(-1, Infinity).sanitizeNegatives().isEqual(Point(0, 0)))
+      expect(Point(-1, -1).sanitizeNegatives()).toEqual Point(0, 0)
+      expect(Point(-1, 0).sanitizeNegatives()).toEqual Point(0, 0)
+      expect(Point(-1, Infinity).sanitizeNegatives()).toEqual Point(0, 0)
 
-      expect(Point(5, -1).sanitizeNegatives().isEqual(Point(5, 0)))
-      expect(Point(5, -Infinity).sanitizeNegatives().isEqual(Point(5, 0)))
-      expect(Point(5, 5).sanitizeNegatives().isEqual(Point(5, 5)))
+      expect(Point(5, -1).sanitizeNegatives()).toEqual Point(5, 0)
+      expect(Point(5, -Infinity).sanitizeNegatives()).toEqual Point(5, 0)
+      expect(Point(5, 5).sanitizeNegatives()).toEqual Point(5, 5)
+
+  describe "::translate(delta)", ->
+    it "returns a new point by adding corresponding coordinates", ->
+      expect(Point(1, 1).translate(Point(2, 3))).toEqual Point(3, 4)
+      expect(Point.infinity().translate(Point(2, 3))).toEqual Point.infinity()
+
+      expect(Point.zero().translate([5, 6])).toEqual [5, 6]
+      expect(Point(1, 1).translate([3, 4])).toEqual [4, 5]
 
   describe "::traverse(delta)", ->
     it "returns a new point by traversing given rows and columns", ->
-      expect(Point(2, 3).traverse(Point(0, 3)).isEqual(Point(2, 5)))
-      expect(Point(2, 3).traverse([0, 3]).isEqual([2, 5]))
+      expect(Point(2, 3).traverse(Point(0, 3))).toEqual Point(2, 6)
+      expect(Point(2, 3).traverse([0, 3])).toEqual [2, 6]
 
-      expect(Point(1, 3).traverse(Point(4, 2)).isEqual([5, 2]))
-      expect(Point(1, 3).traverse([5, 4]).isEqual([6, 4]))
+      expect(Point(1, 3).traverse(Point(4, 2))).toEqual [5, 2]
+      expect(Point(1, 3).traverse([5, 4])).toEqual [6, 4]
 
   describe "::traversalFrom(other)", ->
     it "returns a point that other has to traverse to get to given point", ->
-      expect(Point(2, 5).traversalFrom(Point(2, 3)).isEqual(Point(0, 2)))
-      expect(Point(2, 3).traversalFrom(Point(2, 5)).isEqual(Point(0, -2)))
-      expect(Point(2, 3).traversalFrom(Point(2, 3)).isEqual(Point(0, 0)))
+      expect(Point(2, 5).traversalFrom(Point(2, 3))).toEqual Point(0, 2)
+      expect(Point(2, 3).traversalFrom(Point(2, 5))).toEqual Point(0, -2)
+      expect(Point(2, 3).traversalFrom(Point(2, 3))).toEqual Point(0, 0)
 
-      expect(Point(3, 4).traversalFrom(Point(2, 3)).isEqual(Point(1, 4)))
-      expect(Point(2, 3).traversalFrom(Point(3, 5)).isEqual(Point(-1, 3)))
+      expect(Point(3, 4).traversalFrom(Point(2, 3))).toEqual Point(1, 4)
+      expect(Point(2, 3).traversalFrom(Point(3, 5))).toEqual Point(-1, 3)
 
-      expect(Point(2, 5).traversalFrom([2, 3]).isEqual([0, 2]))
-      expect(Point(2, 3).traversalFrom([2, 5]).isEqual([0, -2]))
-      expect(Point(2, 3).traversalFrom([2, 3]).isEqual([0, 0]))
+      expect(Point(2, 5).traversalFrom([2, 3])).toEqual [0, 2]
+      expect(Point(2, 3).traversalFrom([2, 5])).toEqual [0, -2]
+      expect(Point(2, 3).traversalFrom([2, 3])).toEqual [0, 0]
 
-      expect(Point(3, 4).traversalFrom([2, 3]).isEqual([1, 4]))
-      expect(Point(2, 3).traversalFrom([3, 5]).isEqual([-1, 3]))
+      expect(Point(3, 4).traversalFrom([2, 3])).toEqual [1, 4]
+      expect(Point(2, 3).traversalFrom([3, 5])).toEqual [-1, 3]
 
   describe "::toArray()", ->
     it "returns an array of row and column", ->
-      expect(Point(1, 3).toArray() is [1, 3])
-      expect(Point.zero().toArray() is [0, 0])
-      expect(Point.infinity().toArray() is [Infinity, Infinity])
+      expect(Point(1, 3).toArray()).toEqual [1, 3]
+      expect(Point.zero().toArray()).toEqual [0, 0]
+      expect(Point.infinity().toArray()).toEqual [Infinity, Infinity]
 
   describe "::serialize()", ->
     it "returns an array of row and column", ->
-      expect(Point(1, 3).serialize()  is [1, 3])
-      expect(Point.zero().serialize() is [0, 0])
-      expect(Point.infinity().serialize() is [Infinity, Infinity])
+      expect(Point(1, 3).serialize()).toEqual [1, 3]
+      expect(Point.zero().serialize()).toEqual [0, 0]
+      expect(Point.infinity().serialize()).toEqual [Infinity, Infinity]
 
   describe "::toString()", ->
     it "returns string representation of Point", ->
-      expect(Point(4, 5).toString()  is "(4, 5)")
-      expect(Point.zero().toString() is "(0, 0)")
-      expect(Point.infinity().toString() is "(Infinity, Infinity)")
+      expect(Point(4, 5).toString()).toBe "(4, 5)"
+      expect(Point.zero().toString()).toBe "(0, 0)"
+      expect(Point.infinity().toString()).toBe "(Infinity, Infinity)"
