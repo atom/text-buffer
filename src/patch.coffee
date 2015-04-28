@@ -13,8 +13,6 @@ class Node
       @children.splice(childIndex, 1, newChildren...)
       childIndex = @children.indexOf(oldChild)
 
-    extentToCut = @cut(extentToCut, childIndex + 1)
-
     if previousChild = @children[childIndex - 1]
       if previousChild.shouldMergeRightNeighbor(@children[childIndex])
         @children[childIndex].mergeLeftNeighbor(previousChild)
@@ -43,19 +41,23 @@ class Node
     {splitNodes, inputOffset, outputOffset, extentToCut, childIndex}
 
   cut: (extentToCut, cutIndex=0) ->
-    if cutIndex is 0
-      @outputExtent = @outputExtent.traversalFrom(extentToCut)
-      @inputExtent = @inputExtent.traversalFrom(extentToCut).sanitizeNegatives()
+    originalExtentToCut = extentToCut
 
-    while extentToCut.isPositive() and child = @children[cutIndex]
-      extentToCutAfterChild = extentToCut.traversalFrom(child.outputExtent)
-      if extentToCutAfterChild.isPositive()
+    inputCut = Point.zero()
+    while (child = @children[cutIndex]) and extentToCut.isPositive()
+      if extentToCut.compare(child.outputExtent) >= 0
         @children.splice(cutIndex, 1)
+        inputCut = inputCut.traverse(child.inputExtent)
+        extentToCut = extentToCut.traversalFrom(child.outputExtent)
       else
-        child.cut(extentToCut, 0)
-      extentToCut = extentToCutAfterChild
+        {extentToCut, inputCut: childInputCut} = child.cut(extentToCut, 0)
+        inputCut = inputCut.traverse(childInputCut)
 
-    extentToCut
+    if cutIndex is 0
+      @inputExtent = @inputExtent.traversalFrom(inputCut)
+      @outputExtent = @outputExtent.traversalFrom(originalExtentToCut).sanitizeNegatives()
+
+    {extentToCut, inputCut}
 
   calculateExtent: (childIndex) ->
     result = {inputOffset: null, outputOffset: null}
@@ -101,15 +103,12 @@ class Leaf
 
   splice: (outputOffset, spliceOldExtent, spliceNewExtent, spliceContent) ->
     spliceOldEnd = outputOffset.traverse(spliceOldExtent)
-    extentToCut = spliceOldEnd.traversalFrom(@outputExtent).sanitizeNegatives()
     extentAfterSplice = @outputExtent.traversalFrom(spliceOldEnd).sanitizeNegatives()
 
     if @content? or spliceContent is ""
       @content = @content.slice(0, outputOffset.column) +
         spliceContent +
         @content.slice(spliceOldEnd.column) if @content?
-      @inputExtent = @inputExtent
-        .traverse(spliceOldEnd.traversalFrom(@outputExtent).sanitizeNegatives())
       @outputExtent = outputOffset
         .traverse(spliceNewExtent)
         .traverse(extentAfterSplice)
@@ -121,30 +120,38 @@ class Leaf
       splitNodes = []
       if outputOffset.isPositive()
         splitNodes.push(new Leaf(outputOffset, outputOffset, null))
+        @inputExtent = @inputExtent.traversalFrom(outputOffset).sanitizeNegatives()
       splitNodes.push(this)
       if extentAfterSplice.isPositive()
         splitNodes.push(new Leaf(extentAfterSplice, extentAfterSplice, null))
+        @inputExtent = spliceOldExtent
 
-      @content = spliceContent
-      @inputExtent = spliceOldExtent
+      @content = spliceContent if spliceContent.length > 0
       @outputExtent = spliceNewExtent
       outputOffset = @outputExtent
       inputOffset = Point.min(outputOffset, @inputExtent)
 
-    {splitNodes, inputOffset, outputOffset, extentToCut}
+    {splitNodes, inputOffset, outputOffset}
 
-  cut: (extent) ->
-    @content = @content?.slice(extent.column) ? null
-    @outputExtent = @outputExtent.traversalFrom(extent)
-    @inputExtent = Point.max(Point.zero(), @inputExtent.traversalFrom(extent))
-    Point.zero()
+  cut: (extentToCut) ->
+    @content = @content?.slice(extentToCut.column) ? null
+    @outputExtent = @outputExtent.traversalFrom(extentToCut)
+    if extentToCut.compare(@inputExtent) >= 0
+      inputCut = @inputExtent
+      @inputExtent = Point.zero()
+    else
+      inputCut = extentToCut
+      @inputExtent = @inputExtent.traversalFrom(extentToCut)
+    {inputCut, extentToCut: Point.zero()}
 
   mergeLeftNeighbor: (leftNeighbor) ->
     leftNeighbor.mergeRightNeighbor(this)
     {@content, @outputExtent, @inputExtent} = leftNeighbor
 
   mergeRightNeighbor: (rightNeighbor) ->
-    @content = @content + rightNeighbor.content if @content?
+    if @outputExtent.isZero()
+      @content = null
+    @content = @content + rightNeighbor.content if @content? and rightNeighbor.content?
     @outputExtent = @outputExtent.traverse(rightNeighbor.outputExtent)
     @inputExtent = @inputExtent.traverse(rightNeighbor.inputExtent)
 
@@ -235,10 +242,20 @@ class PatchIterator
 
     for {node, outputOffset, childIndex} in @stack by -1
       if node instanceof Leaf
-        {splitNodes, inputOffset, outputOffset, extentToCut} =
+        extentToCut = outputOffset
+          .traverse(oldOutputExtent)
+          .traversalFrom(node.outputExtent)
+          .sanitizeNegatives()
+
+        {splitNodes, inputOffset, outputOffset} =
           node.splice(outputOffset, oldOutputExtent, newOutputExtent, newContent)
       else
-        {splitNodes, inputOffset, outputOffset, extentToCut, childIndex} =
+        if extentToCut.isPositive()
+          {extentToCut, inputCut} = node.cut(extentToCut, childIndex + 1)
+          for newEntry, i in newStack
+            newEntry.node.inputExtent = newEntry.node.inputExtent.traverse(inputCut)
+
+        {splitNodes, inputOffset, outputOffset, childIndex} =
           node.splice(childIndex, splitNodes, extentToCut)
 
       newStack.unshift({node, inputOffset, outputOffset, childIndex})
@@ -251,6 +268,14 @@ class PatchIterator
       @patch.rootNode = node
 
     @stack = newStack
+
+    while @patch.rootNode.children?.length is 1
+      @patch.rootNode = @patch.rootNode.children[0]
+      @stack.shift()
+
+    leafEntry = last(@stack)
+    leafEntry.inputOffset = Point.min(leafEntry.outputOffset, leafEntry.node.inputExtent)
+
     return
 
   getOutputPosition: ->
@@ -270,7 +295,7 @@ class PatchIterator
 
   descendToLeftmostLeaf: (node) ->
     while node
-      entry = {node, outputOffset: Point.zero(), inputOffset: Point.zero()}
+      entry = {node, outputOffset: Point.zero(), inputOffset: Point.zero(), childIndex: null}
       @stack.push(entry)
       if node.children?
         entry.childIndex = 0
