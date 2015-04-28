@@ -242,3 +242,10 @@ describe "Patch", ->
         expectHunks iterator, [
           [Point.infinity(), Point.infinity(), null]
         ]
+
+        iterator.seek(Point(0, 0)).splice(Point(0, 0), Point(0, 3), "abc")
+        iterator.seek(Point(0, 0)).splice(Point(0, 3), Point(0, 0), "")
+
+        expectHunks patch.buildIterator(), [
+          [Point.infinity(), Point.infinity(), null]
+        ]
