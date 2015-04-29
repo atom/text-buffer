@@ -127,6 +127,40 @@ describe "Patch", ->
           [Point.infinity(), Point.infinity(), null]
         ]
 
+      it "can perform a single deletion", ->
+        iterator = patch.buildIterator()
+        iterator.seek(Point(0, 5)).splice(Point(0, 3), Point(0, 0), "")
+
+        expectHunks patch.buildIterator(), [
+          [Point(0, 5), Point(0, 5), null]
+          [Point(0, 8), Point(0, 5), ""]
+          [Point.infinity(), Point.infinity(), null]
+        ]
+
+        expect(iterator.getInputPosition()).toEqual Point(0, 8)
+        expect(iterator.getOutputPosition()).toEqual Point(0, 5)
+        expectHunks iterator, [
+          [Point.infinity(), Point.infinity(), null]
+        ]
+
+      it "can delete the start of an existing change", ->
+        iterator = patch.buildIterator()
+        iterator.seek(Point(0, 5)).splice(Point(0, 8), Point(0, 5), "abcde")
+        iterator.seek(Point(0, 3)).splice(Point(0, 6), Point(0, 0), "")
+
+        expectHunks patch.buildIterator(), [
+          [Point(0, 3), Point(0, 3), null]
+          [Point(0, 13), Point(0, 4), "e"]
+          [Point.infinity(), Point.infinity(), null]
+        ]
+
+        expect(iterator.getInputPosition()).toEqual Point(0, 3)
+        expect(iterator.getOutputPosition()).toEqual Point(0, 3)
+        expectHunks iterator, [
+          [Point(0, 13), Point(0, 4), "e"]
+          [Point.infinity(), Point.infinity(), null]
+        ]
+
       it "can insert a change within a change", ->
         iterator = patch.buildIterator()
         iterator.seek(Point(0, 3)).splice(Point(0, 5), Point(0, 8), "abcdefgh")
@@ -228,7 +262,7 @@ describe "Patch", ->
           [Point.infinity(), Point.infinity(), null]
         ]
 
-      it "deletes hunks for changes that are reverted", ->
+      xit "deletes hunks for changes that are reverted", ->
         iterator = patch.buildIterator()
         iterator.seek(Point(0, 5)).splice(Point(0, 0), Point(0, 3), "abc")
         iterator.seek(Point(0, 5)).splice(Point(0, 3), Point(0, 0), "")
@@ -247,5 +281,19 @@ describe "Patch", ->
         iterator.seek(Point(0, 0)).splice(Point(0, 3), Point(0, 0), "")
 
         expectHunks patch.buildIterator(), [
+          [Point.infinity(), Point.infinity(), null]
+        ]
+
+      it "does nothing if both ranges are empty", ->
+        iterator = patch.buildIterator()
+        iterator.seek(Point(0, 5)).splice(Point(0, 0), Point(0, 0), "")
+
+        expectHunks patch.buildIterator(), [
+          [Point.infinity(), Point.infinity(), null]
+        ]
+
+        expect(iterator.getInputPosition()).toEqual Point(0, 5)
+        expect(iterator.getOutputPosition()).toEqual Point(0, 5)
+        expectHunks iterator, [
           [Point.infinity(), Point.infinity(), null]
         ]

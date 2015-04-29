@@ -92,20 +92,20 @@ class Leaf
     spliceOldEnd = outputOffset.traverse(spliceOldExtent)
     extentAfterSplice = @outputExtent.traversalFrom(spliceOldEnd).sanitizeNegatives()
 
-    if @content? or spliceNewExtent.isZero()
+    if @content?
       @content = @content.slice(0, outputOffset.column) +
         spliceContent +
-        @content.slice(spliceOldEnd.column) if @content?
+        @content.slice(spliceOldEnd.column)
       @outputExtent = outputOffset
         .traverse(spliceNewExtent)
         .traverse(extentAfterSplice)
       outputOffset = outputOffset.traverse(spliceNewExtent)
       inputOffset = Point.min(outputOffset, @inputExtent)
 
-    else
+    else if spliceOldExtent.isPositive() or spliceNewExtent.isPositive()
       splitNodes = []
       if outputOffset.isPositive()
-        splitNodes.push(new Leaf(outputOffset, outputOffset, null))
+        splitNodes.push(new Leaf(Point.min(outputOffset, @inputExtent), outputOffset, null))
         @inputExtent = @inputExtent.traversalFrom(outputOffset).sanitizeNegatives()
       @content = spliceContent
       @outputExtent = spliceNewExtent
@@ -119,10 +119,13 @@ class Leaf
     {splitNodes, inputOffset, outputOffset}
 
   cut: (extentToCut) ->
-    inputCut = Point.min(extentToCut, @inputExtent)
-    @content = @content?.slice(extentToCut.column) ? null
     @outputExtent = @outputExtent.traversalFrom(extentToCut)
-    @inputExtent = @inputExtent.traversalFrom(inputCut)
+    if @content?
+      inputCut = Point.zero()
+      @content = @content.slice(extentToCut.column)
+    else
+      inputCut = extentToCut
+      @inputExtent = @inputExtent.traversalFrom(extentToCut)
     {inputCut, extentToCut: Point.zero()}
 
   merge: (rightNeighbor) ->
@@ -132,12 +135,10 @@ class Leaf
       (rightNeighbor.inputExtent.isZero() and rightNeighbor.outputExtent.isZero())
 
     if shouldMerge
-      @content = null if @outputExtent.isZero()
-      rightNeighbor.content = null if rightNeighbor.outputExtent.isZero()
-      if @content? and rightNeighbor.content?
-        @content = @content + rightNeighbor.content
       @outputExtent = @outputExtent.traverse(rightNeighbor.outputExtent)
       @inputExtent = @inputExtent.traverse(rightNeighbor.inputExtent)
+      @content = (@content ? "") + (rightNeighbor.content ? "")
+      @content = null if @content is "" and @outputExtent.isPositive()
       true
 
   toString: (indentLevel=0) ->
@@ -155,7 +156,9 @@ class PatchIterator
     @descendToLeftmostLeaf(@patch.rootNode)
 
   next: ->
-    while (entry = last(@path)) and (entry.outputOffset.compare(entry.node.outputExtent) is 0)
+    while ((entry = last(@path)) and
+            entry.inputOffset.isEqual(entry.node.inputExtent) and
+            entry.outputOffset.isEqual(entry.node.outputExtent))
       @path.pop()
       if parentEntry = last(@path)
         parentEntry.childIndex++
@@ -259,10 +262,10 @@ class PatchIterator
     # Adjust the input offset into the leaf node, since its input-extent may have been
     # updated as subsequent nodes within the slice were cut.
     leafEntry = last(newPath)
-    leafEntry.inputOffset = Point.max(
-      leafEntry.inputOffset,
-      Point.min(leafEntry.outputOffset, leafEntry.node.inputExtent)
-    )
+    if leafEntry.outputOffset.isEqual(leafEntry.node.outputExtent)
+      leafEntry.inputOffset = leafEntry.node.inputExtent
+    else
+      leafEntry.inputOffset = Point.min(leafEntry.node.inputExtent, leafEntry.outputOffset)
     @path = newPath
     return
 
@@ -275,10 +278,7 @@ class PatchIterator
   getInputPosition: ->
     result = Point.zero()
     for {node, inputOffset, outputOffset} in @path
-      if node instanceof Leaf and outputOffset.isEqual(node.outputExtent)
-        result = result.traverse(node.inputExtent)
-      else
-        result = result.traverse(inputOffset)
+      result = result.traverse(inputOffset)
     result
 
   descendToLeftmostLeaf: (node) ->
