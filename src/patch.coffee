@@ -80,7 +80,7 @@ class Node
     indent += " " for i in [0...indentLevel] by 1
 
     """
-      #{indent}Node #{@inputExtent} #{@outputExtent}
+      #{indent}[Node #{@inputExtent} #{@outputExtent}]
       #{@children.map((c) -> c.toString(indentLevel + 2)).join("\n")}
     """
 
@@ -146,9 +146,9 @@ class Leaf
     indent += " " for i in [0...indentLevel] by 1
 
     if @content?
-      "#{indent}Leaf #{@inputExtent} #{@outputExtent} #{JSON.stringify(@content)}"
+      "#{indent}[Leaf #{@inputExtent} #{@outputExtent} #{JSON.stringify(@content)}]"
     else
-      "#{indent}Leaf #{@inputExtent} #{@outputExtent}"
+      "#{indent}[Leaf #{@inputExtent} #{@outputExtent}]"
 
 class PatchIterator
   constructor: (@patch) ->
