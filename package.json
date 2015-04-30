@@ -34,6 +34,7 @@
     "jasmine": "^2.2.1",
     "random-seed": "^0.2.0",
     "rimraf": "^2.2.2",
-    "temp": "^0.8.1"
+    "temp": "^0.8.1",
+    "underscore": "^1.8.3"
   }
 }
