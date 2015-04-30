@@ -20,6 +20,11 @@ describe "Patch", ->
       expect(iterator.getOutputPosition()).toEqual Point.infinity()
       expect(iterator.getInputPosition()).toEqual Point.infinity()
 
+    logTree = ->
+      console.log ''
+      console.log patch.rootNode.toString()
+      console.log ''
+
     describe "::seek(position)", ->
       it "moves the iterator to the given position in the patch", ->
         patch.splice(Point(0, 5), Point(0, 2), Point(0, 4), "abcd")
@@ -154,7 +159,7 @@ describe "Patch", ->
           [Point.infinity(), Point.infinity(), null]
         ]
 
-        expect(iterator.getInputPosition()).toEqual Point(0, 3)
+        expect(iterator.getInputPosition()).toEqual Point(0, 9)
         expect(iterator.getOutputPosition()).toEqual Point(0, 3)
         expectHunks iterator, [
           [Point(0, 13), Point(0, 4), "e"]
@@ -172,7 +177,7 @@ describe "Patch", ->
           [Point.infinity(), Point.infinity(), null]
         ]
 
-        expect(iterator.getInputPosition()).toEqual Point(0, 7)
+        expect(iterator.getInputPosition()).toEqual Point(0, 6)
         expect(iterator.getOutputPosition()).toEqual Point(0, 7)
         expectHunks iterator, [
           [Point(0, 8), Point(0, 12), "defgh"]
@@ -187,7 +192,7 @@ describe "Patch", ->
           [Point.infinity(), Point.infinity(), null]
         ]
 
-        expect(iterator.getInputPosition()).toEqual Point(0, 5)
+        expect(iterator.getInputPosition()).toEqual Point(0, 7)
         expect(iterator.getOutputPosition()).toEqual Point(0, 5)
         expectHunks iterator, [
           [Point(0, 8), Point(0, 10), "defgh"]
@@ -236,7 +241,7 @@ describe "Patch", ->
           [Point.infinity(), Point.infinity(), null]
         ]
 
-        expect(iterator.getInputPosition()).toEqual Point(0, 8)
+        expect(iterator.getInputPosition()).toEqual Point(0, 10)
         expect(iterator.getOutputPosition()).toEqual Point(0, 8)
         expectHunks iterator, [
           [Point(0, 12), Point(0, 11), "cde"]
@@ -255,14 +260,14 @@ describe "Patch", ->
           [Point.infinity(), Point.infinity(), null]
         ]
 
-        expect(iterator.getInputPosition()).toEqual Point(0, 11)
+        expect(iterator.getInputPosition()).toEqual Point(0, 13)
         expect(iterator.getOutputPosition()).toEqual Point(0, 11)
         expectHunks iterator, [
           [Point(0, 14), Point(0, 13), "gh"]
           [Point.infinity(), Point.infinity(), null]
         ]
 
-      xit "deletes hunks for changes that are reverted", ->
+      it "deletes hunks for changes that are reverted", ->
         iterator = patch.buildIterator()
         iterator.seek(Point(0, 5)).splice(Point(0, 0), Point(0, 3), "abc")
         iterator.seek(Point(0, 5)).splice(Point(0, 3), Point(0, 0), "")
