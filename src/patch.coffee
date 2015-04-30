@@ -1,5 +1,6 @@
 Point = require "./point"
 last = (array) -> array[array.length - 1]
+isEmpty = (node) -> node.inputExtent.isZero() and node.outputExtent.isZero()
 
 BRANCHING_THRESHOLD = 3
 
@@ -9,17 +10,23 @@ class Node
 
   splice: (childIndex, splitChildren) ->
     spliceChild = @children[childIndex]
+    leftMergeIndex = rightMergeIndex = childIndex
 
     if splitChildren?
       @children.splice(childIndex, 1, splitChildren...)
       childIndex += splitChildren.indexOf(spliceChild)
+      rightMergeIndex += splitChildren.length - 1
 
-    i = childIndex
-    while (child = @children[i]) and (nextChild = @children[i + 1])
-      if child.merge(nextChild)
-        @children.splice(i + 1, 1)
-      else
-        i++
+    if leftNeighbor = @children[leftMergeIndex - 1]
+      if leftNeighbor.merge(@children[leftMergeIndex])
+        @children[leftMergeIndex].assign(leftNeighbor)
+        @children.splice(leftMergeIndex - 1, 1)
+        childIndex--
+        rightMergeIndex--
+
+    if rightNeighbor = @children[rightMergeIndex + 1]
+      if @children[rightMergeIndex].merge(rightNeighbor)
+        @children.splice(rightMergeIndex + 1, 1)
 
     splitIndex = Math.ceil(@children.length / BRANCHING_THRESHOLD)
     if splitIndex > 1
@@ -32,36 +39,20 @@ class Node
     {inputOffset, outputOffset} = @calculateExtent(childIndex)
     {splitNodes, inputOffset, outputOffset, childIndex}
 
-  cut: (extentToCut, cutIndex=0) ->
-    inputCut = Point.zero()
-    totalExtentToCut = extentToCut
-    while extentToCut.isPositive() and (child = @children[cutIndex])
-      if extentToCut.compare(child.outputExtent) >= 0
-        @children.splice(cutIndex, 1)
-        inputCut = inputCut.traverse(child.inputExtent)
-        extentToCut = extentToCut.traversalFrom(child.outputExtent)
-      else
-        result = child.cut(extentToCut, 0)
-        inputCut = inputCut.traverse(result.inputCut)
-        extentToCut = result.extentToCut
-    if cutIndex is 0
-      @inputExtent = @inputExtent.traversalFrom(inputCut)
-      @outputExtent = @outputExtent.traversalFrom(totalExtentToCut)
-    {extentToCut, inputCut}
-
   merge: (rightNeighbor) ->
     totalChildCount = @children.length + rightNeighbor.children.length
-    shouldMerge =
-      (totalChildCount <= BRANCHING_THRESHOLD) or
-      ((totalChildCount is BRANCHING_THRESHOLD + 1) and
-        last(@children).merge(rightNeighbor.children[0]) and
-        rightNeighbor.children.shift())
+    if totalChildCount <= BRANCHING_THRESHOLD + 1
+      if last(@children).merge(rightNeighbor.children[0])
+        rightNeighbor.children.shift()
+        totalChildCount--
 
-    if shouldMerge
+    if totalChildCount <= BRANCHING_THRESHOLD
       @inputExtent = @inputExtent.traverse(rightNeighbor.inputExtent)
       @outputExtent = @outputExtent.traverse(rightNeighbor.outputExtent)
       @children.push(rightNeighbor.children...)
       true
+
+  assign: ({@inputExtent, @outputExtent, @children}) ->
 
   calculateExtent: (childIndex) ->
     result = {inputOffset: null, outputOffset: null}
@@ -87,59 +78,47 @@ class Node
 class Leaf
   constructor: (@inputExtent, @outputExtent, @content) ->
 
-  splice: (outputOffset, spliceOldExtent, spliceNewExtent, spliceContent) ->
-    splitNodes = null
-    spliceOldEnd = outputOffset.traverse(spliceOldExtent)
-    extentAfterSplice = @outputExtent.traversalFrom(spliceOldEnd).sanitizeNegatives()
+  insert: (inputOffset, outputOffset, newInputExtent, newOutputExtent, newContent) ->
+    inputExtentAfterOffset = @inputExtent.traversalFrom(inputOffset)
+    outputExtentAfterOffset = @outputExtent.traversalFrom(outputOffset)
 
     if @content?
-      @content = @content.slice(0, outputOffset.column) +
-        spliceContent +
-        @content.slice(spliceOldEnd.column)
+      @inputExtent = inputOffset
+        .traverse(newInputExtent)
+        .traverse(inputExtentAfterOffset)
       @outputExtent = outputOffset
-        .traverse(spliceNewExtent)
-        .traverse(extentAfterSplice)
-      outputOffset = outputOffset.traverse(spliceNewExtent)
-      inputOffset = Point.min(outputOffset, @inputExtent)
+        .traverse(newOutputExtent)
+        .traverse(outputExtentAfterOffset)
+      @content = @content.slice(0, outputOffset.column) +
+        newContent +
+        @content.slice(outputOffset.column)
+      inputOffset = inputOffset.traverse(newInputExtent)
+      outputOffset = outputOffset.traverse(newOutputExtent)
 
-    else if spliceOldExtent.isPositive() or spliceNewExtent.isPositive()
+    else if newInputExtent.isPositive() or newOutputExtent.isPositive()
       splitNodes = []
       if outputOffset.isPositive()
-        splitNodes.push(new Leaf(Point.min(outputOffset, @inputExtent), outputOffset, null))
-        @inputExtent = @inputExtent.traversalFrom(outputOffset).sanitizeNegatives()
-      @content = spliceContent
-      @outputExtent = spliceNewExtent
+        splitNodes.push(new Leaf(inputOffset, outputOffset, null))
+      @inputExtent = newInputExtent
+      @outputExtent = newOutputExtent
+      @content = newContent
       splitNodes.push(this)
-      if extentAfterSplice.isPositive()
-        splitNodes.push(new Leaf(extentAfterSplice, extentAfterSplice, null))
-        @inputExtent = spliceOldExtent
-      outputOffset = @outputExtent
+      if outputExtentAfterOffset.isPositive()
+        splitNodes.push(new Leaf(inputExtentAfterOffset, outputExtentAfterOffset, null))
       inputOffset = @inputExtent
+      outputOffset = @outputExtent
 
     {splitNodes, inputOffset, outputOffset}
 
-  cut: (extentToCut) ->
-    @outputExtent = @outputExtent.traversalFrom(extentToCut)
-    if @content?
-      inputCut = Point.zero()
-      @content = @content.slice(extentToCut.column)
-    else
-      inputCut = extentToCut
-      @inputExtent = @inputExtent.traversalFrom(extentToCut)
-    {inputCut, extentToCut: Point.zero()}
-
   merge: (rightNeighbor) ->
-    shouldMerge =
-      (@content? is rightNeighbor.content?) or
-      (@inputExtent.isZero() and @outputExtent.isZero()) or
-      (rightNeighbor.inputExtent.isZero() and rightNeighbor.outputExtent.isZero())
-
-    if shouldMerge
+    if (@content? is rightNeighbor.content?) or isEmpty(this) or isEmpty(rightNeighbor)
       @outputExtent = @outputExtent.traverse(rightNeighbor.outputExtent)
       @inputExtent = @inputExtent.traverse(rightNeighbor.inputExtent)
       @content = (@content ? "") + (rightNeighbor.content ? "")
       @content = null if @content is "" and @outputExtent.isPositive()
       true
+
+  assign: ({@inputExtent, @outputExtent, @content}) ->
 
   toString: (indentLevel=0) ->
     indent = ""
@@ -151,9 +130,10 @@ class Leaf
       "#{indent}[Leaf #{@inputExtent} #{@outputExtent}]"
 
 class PatchIterator
-  constructor: (@patch) ->
-    @path = []
-    @descendToLeftmostLeaf(@patch.rootNode)
+  constructor: (@patch, @path) ->
+    unless @path?
+      @path = []
+      @descendToLeftmostLeaf(@patch.rootNode)
 
   next: ->
     while ((entry = last(@path)) and
@@ -208,66 +188,11 @@ class PatchIterator
 
     this
 
-  splice: (oldOutputExtent, newOutputExtent, newContent) ->
-    newPath = []
-    splitNodes = null
-    extentToCut = null
-    previousNode = null
-
-    for {node, outputOffset, childIndex} in @path by -1
-      if node instanceof Leaf
-
-        # Determine how far the splice extends beyond this leaf. Subsequent
-        # nodes will need to be shrunk or removed to make room for the splice.
-        extentToCut = outputOffset
-          .traverse(oldOutputExtent)
-          .traversalFrom(node.outputExtent)
-
-        # Insert the new content into the leaf.
-        {splitNodes, inputOffset, outputOffset} = node.splice(
-          outputOffset,
-          oldOutputExtent,
-          newOutputExtent,
-          newContent
-        )
-      else
-
-        # Shrink or remove any subsequent nodes that fall within the splice,
-        # transferring the removed input extent onto the spliced nodes.
-        {extentToCut, inputCut} = node.cut(extentToCut, childIndex + 1)
-        for entry in newPath
-          entry.node.inputExtent = entry.node.inputExtent.traverse(inputCut)
-
-        # If the spliced child node has split, insert the split-off children.
-        {splitNodes, inputOffset, outputOffset, childIndex} = node.splice(
-          childIndex,
-          splitNodes
-        )
-
-      previousNode = node
-      newPath.unshift({node, inputOffset, outputOffset, childIndex})
-
-    # If the root node has split, create a new root node and add an entry
-    # for it at the beginning of the iterator's path.
-    if splitNodes?
-      node = @patch.rootNode = new Node([previousNode])
-      {inputOffset, outputOffset, childIndex} = node.splice(0, splitNodes)
-      newPath.unshift({node, inputOffset, outputOffset, childIndex})
-
-    # If the root node's children have all merged, remove the root node.
-    while @patch.rootNode.children?.length is 1
-      @patch.rootNode = @patch.rootNode.children[0]
-      newPath.shift()
-
-    # Adjust the input offset into the leaf node, since its input-extent may have been
-    # updated as subsequent nodes within the slice were cut.
-    leafEntry = last(newPath)
-    if leafEntry.outputOffset.isEqual(leafEntry.node.outputExtent)
-      leafEntry.inputOffset = leafEntry.node.inputExtent
-    else
-      leafEntry.inputOffset = Point.min(leafEntry.node.inputExtent, leafEntry.outputOffset)
-    @path = newPath
-    return
+  splice: (oldOutputExtent, newExtent, newContent) ->
+    rightEdge = @copy().seek(@getOutputPosition().traverse(oldOutputExtent))
+    oldInputExtent = rightEdge.getInputPosition().traversalFrom(@getInputPosition())
+    @deleteUntil(rightEdge)
+    @insert(oldInputExtent, newExtent, newContent)
 
   getOutputPosition: ->
     result = Point.zero()
@@ -281,6 +206,9 @@ class PatchIterator
       result = result.traverse(inputOffset)
     result
 
+  copy: ->
+    new PatchIterator(@patch, @path.slice())
+
   descendToLeftmostLeaf: (node) ->
     loop
       entry = {node, outputOffset: Point.zero(), inputOffset: Point.zero(), childIndex: null}
@@ -290,6 +218,88 @@ class PatchIterator
         node = node.children[0]
       else
         break
+
+  deleteUntil: (rightIterator) ->
+    meetingIndex = null
+
+    # Delete content to the right of the left iterator.
+    totalInputOffset = Point.zero()
+    totalOutputOffset = Point.zero()
+    for {node, inputOffset, outputOffset, childIndex}, i in @path by -1
+      if node is rightIterator.path[i].node
+        meetingIndex = i
+        break
+      if node.content?
+        node.content = node.content.slice(0, outputOffset.column)
+      else if node.children?
+        node.children.splice(childIndex + 1)
+      totalInputOffset = inputOffset.traverse(totalInputOffset)
+      totalOutputOffset = outputOffset.traverse(totalOutputOffset)
+      node.inputExtent = totalInputOffset
+      node.outputExtent = totalOutputOffset
+
+    # Delete content to the left of the right iterator.
+    totalInputOffset = Point.zero()
+    totalOutputOffset = Point.zero()
+    for {node, inputOffset, outputOffset, childIndex}, i in rightIterator.path by -1
+      if i is meetingIndex
+        break
+      if node.content?
+        node.content = node.content.slice(outputOffset.column)
+      else if node.children?
+        node.children.splice(childIndex, 1) if isEmpty(node.children[childIndex])
+        node.children.splice(0, childIndex)
+      totalInputOffset = inputOffset.traverse(totalInputOffset)
+      totalOutputOffset = outputOffset.traverse(totalOutputOffset)
+      node.inputExtent = node.inputExtent.traversalFrom(totalInputOffset)
+      node.outputExtent = node.outputExtent.traversalFrom(totalOutputOffset)
+
+    # Delete content between the two iterators in the same node.
+    left = @path[meetingIndex]
+    right = rightIterator.path[meetingIndex]
+    {node} = left
+    node.outputExtent = left.outputOffset.traverse(node.outputExtent.traversalFrom(right.outputOffset))
+    node.inputExtent = left.inputOffset.traverse(node.inputExtent.traversalFrom(right.inputOffset))
+    if node.content?
+      node.content =
+        node.content.slice(0, left.outputOffset.column) +
+        node.content.slice(right.outputOffset.column)
+    else if node.children?
+      spliceIndex = left.childIndex + 1
+      node.children.splice(right.childIndex, 1) if isEmpty(node.children[right.childIndex])
+      node.children.splice(spliceIndex, right.childIndex - spliceIndex)
+    this
+
+  insert: (newInputExtent, newOutputExtent, newContent) ->
+    newPath = []
+    splitNodes = null
+    for {node, inputOffset, outputOffset, childIndex} in @path by -1
+      if node instanceof Leaf
+        {splitNodes, inputOffset, outputOffset} = node.insert(
+          inputOffset,
+          outputOffset,
+          newInputExtent,
+          newOutputExtent,
+          newContent
+        )
+      else
+        {splitNodes, inputOffset, outputOffset, childIndex} = node.splice(
+          childIndex,
+          splitNodes
+        )
+      newPath.unshift({node, inputOffset, outputOffset, childIndex})
+
+    if splitNodes?
+      node = @patch.rootNode = new Node([node])
+      {inputOffset, outputOffset, childIndex} = node.splice(0, splitNodes)
+      newPath.unshift({node, inputOffset, outputOffset, childIndex})
+
+    while @patch.rootNode.children?.length is 1
+      @patch.rootNode = @patch.rootNode.children[0]
+      newPath.shift()
+
+    @path = newPath
+    this
 
   toString: ->
     entries = for {node, inputOffset, outputOffset, childIndex} in @path
