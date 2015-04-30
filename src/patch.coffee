@@ -18,14 +18,16 @@ class Node
       rightMergeIndex += splitChildren.length - 1
 
     if leftNeighbor = @children[leftMergeIndex - 1]
-      if leftNeighbor.merge(@children[leftMergeIndex])
+      leftNeighbor.merge(@children[leftMergeIndex])
+      if isEmpty(@children[leftMergeIndex])
         @children[leftMergeIndex].assign(leftNeighbor)
         @children.splice(leftMergeIndex - 1, 1)
         childIndex--
         rightMergeIndex--
 
     if rightNeighbor = @children[rightMergeIndex + 1]
-      if @children[rightMergeIndex].merge(rightNeighbor)
+      @children[rightMergeIndex].merge(rightNeighbor)
+      if isEmpty(rightNeighbor)
         @children.splice(rightMergeIndex + 1, 1)
 
     splitIndex = Math.ceil(@children.length / BRANCHING_THRESHOLD)
@@ -40,17 +42,21 @@ class Node
     {splitNodes, inputOffset, outputOffset, childIndex}
 
   merge: (rightNeighbor) ->
-    totalChildCount = @children.length + rightNeighbor.children.length
-    if totalChildCount <= BRANCHING_THRESHOLD + 1
-      if last(@children).merge(rightNeighbor.children[0])
-        rightNeighbor.children.shift()
-        totalChildCount--
-
-    if totalChildCount <= BRANCHING_THRESHOLD
+    childMerge = last(@children)?.merge(rightNeighbor.children[0])
+    rightNeighbor.children.shift() if isEmpty(rightNeighbor.children[0])
+    if @children.length + rightNeighbor.children.length <= BRANCHING_THRESHOLD
       @inputExtent = @inputExtent.traverse(rightNeighbor.inputExtent)
       @outputExtent = @outputExtent.traverse(rightNeighbor.outputExtent)
       @children.push(rightNeighbor.children...)
-      true
+      result = {inputExtent: rightNeighbor.inputExtent, outputExtent: rightNeighbor.outputExtent}
+      rightNeighbor.inputExtent = rightNeighbor.outputExtent = Point.zero()
+      result
+    else if childMerge?
+      @inputExtent = @inputExtent.traverse(childMerge.inputExtent)
+      @outputExtent = @outputExtent.traverse(childMerge.outputExtent)
+      rightNeighbor.inputExtent = rightNeighbor.inputExtent.traversalFrom(childMerge.inputExtent)
+      rightNeighbor.outputExtent = rightNeighbor.outputExtent.traversalFrom(childMerge.outputExtent)
+      childMerge
 
   assign: ({@inputExtent, @outputExtent, @children}) ->
 
@@ -116,7 +122,9 @@ class Leaf
       @inputExtent = @inputExtent.traverse(rightNeighbor.inputExtent)
       @content = (@content ? "") + (rightNeighbor.content ? "")
       @content = null if @content is "" and @outputExtent.isPositive()
-      true
+      result = {inputExtent: rightNeighbor.inputExtent, outputExtent: rightNeighbor.outputExtent}
+      rightNeighbor.inputExtent = rightNeighbor.outputExtent = Point.zero()
+      result
 
   assign: ({@inputExtent, @outputExtent, @content}) ->
 
