@@ -68,6 +68,38 @@ describe "Patch", ->
           [Point.infinity(), Point.infinity(), null]
         ]
 
+    describe "::seekToInputPosition(position)", ->
+      it "moves the iterator to the given input position in the patch", ->
+        patch.splice(Point(0, 5), Point(0, 2), Point(0, 4), "abcd")
+        patch.splice(Point(0, 12), Point(0, 4), Point(0, 3), "efg")
+        patch.splice(Point(0, 16), Point(0, 3), Point(0, 2), "hi")
+
+        iterator = patch.buildIterator()
+
+        iterator.seekToInputPosition(Point(0, 3))
+        expect(iterator.getInputPosition()).toEqual(Point(0, 3))
+        expect(iterator.getOutputPosition()).toEqual(Point(0, 3))
+        expectHunks iterator, [
+          [Point(0, 5), Point(0, 5), null]
+          [Point(0, 7), Point(0, 9), "abcd"]
+          [Point(0, 10), Point(0, 12), null]
+          [Point(0, 14), Point(0, 15), "efg"]
+          [Point(0, 15), Point(0, 16), null]
+          [Point(0, 18), Point(0, 18), "hi"]
+          [Point.infinity(), Point.infinity(), null]
+        ]
+
+        iterator.seekToInputPosition(Point(0, 7))
+        expect(iterator.getInputPosition()).toEqual(Point(0, 7))
+        expect(iterator.getOutputPosition()).toEqual(Point(0, 9))
+        expectHunks iterator, [
+          [Point(0, 10), Point(0, 12), null]
+          [Point(0, 14), Point(0, 15), "efg"]
+          [Point(0, 15), Point(0, 16), null]
+          [Point(0, 18), Point(0, 18), "hi"]
+          [Point.infinity(), Point.infinity(), null]
+        ]
+
     describe "::splice(oldOutputExtent, newOutputExtent, content)", ->
       it "can insert a single change", ->
         iterator = patch.buildIterator()
