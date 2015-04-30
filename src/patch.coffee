@@ -167,11 +167,10 @@ class PatchIterator
   seek: (targetOutputOffset) ->
     @path.length = 0
 
+    node = @patch.rootNode
     childInputStart = Point.zero()
     childOutputStart = Point.zero()
-
-    node = @patch.rootNode
-    while node
+    loop
       if node.children?
         childInputEnd = Point.zero()
         childOutputEnd = Point.zero()
@@ -188,19 +187,54 @@ class PatchIterator
             node = child
             break
       else
-        inputOffset = Point.min(targetOutputOffset, node.inputExtent)
+        if targetOutputOffset.isEqual(node.outputExtent)
+          inputOffset = node.inputExtent
+        else
+          inputOffset = Point.min(node.inputExtent, targetOutputOffset)
         outputOffset = targetOutputOffset
         childIndex = null
         @path.push({node, inputOffset, outputOffset, childIndex})
-        node = null
+        break
+    this
 
+  seekToInputPosition: (targetInputOffset) ->
+    @path.length = 0
+
+    node = @patch.rootNode
+    childInputStart = Point.zero()
+    childOutputStart = Point.zero()
+    loop
+      if node.children?
+        childInputEnd = Point.zero()
+        childOutputEnd = Point.zero()
+        for child, childIndex in node.children
+          childInputStart = childInputEnd
+          childOutputStart = childOutputEnd
+          childInputEnd = childInputStart.traverse(child.inputExtent)
+          childOutputEnd = childOutputStart.traverse(child.outputExtent)
+          if childInputEnd.compare(targetInputOffset) >= 0
+            inputOffset = childInputStart
+            outputOffset = childOutputStart
+            @path.push({node, childIndex, inputOffset, outputOffset})
+            targetInputOffset = targetInputOffset.traversalFrom(childInputStart)
+            node = child
+            break
+      else
+        inputOffset = targetInputOffset
+        if targetInputOffset.isEqual(node.inputExtent)
+          outputOffset = node.outputExtent
+        else
+          outputOffset = Point.min(node.outputExtent, targetInputOffset)
+        childIndex = null
+        @path.push({node, inputOffset, outputOffset, childIndex})
+        break
     this
 
   splice: (oldOutputExtent, newExtent, newContent) ->
     rightEdge = @copy().seek(@getOutputPosition().traverse(oldOutputExtent))
-    oldInputExtent = rightEdge.getInputPosition().traversalFrom(@getInputPosition())
+    inputExtent = rightEdge.getInputPosition().traversalFrom(@getInputPosition())
     @deleteUntil(rightEdge)
-    @insert(oldInputExtent, newExtent, newContent)
+    @insert(inputExtent, newExtent, newContent)
 
   getOutputPosition: ->
     result = Point.zero()
