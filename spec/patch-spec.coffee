@@ -9,9 +9,11 @@ describe "Patch", ->
     patch = new Patch
 
   describe "iterator", ->
+    iterator = null
+
     expectHunks = (iterator, hunks) ->
       for [inputPosition, outputPosition, value], i in hunks
-        expect(iterator.next()).toEqual {value, done: false}
+        expect(iterator.next()).toEqual {value, done: false}, "value for hunk #{i}"
         expect(iterator.getInputPosition()).toEqual inputPosition, "input position for hunk #{i}"
         expect(iterator.getOutputPosition()).toEqual outputPosition, "output position for hunk #{i}"
         return if currentSpecFailed()
@@ -99,6 +101,44 @@ describe "Patch", ->
           [Point(0, 18), Point(0, 18), "hi"]
           [Point.infinity(), Point.infinity(), null]
         ]
+
+      describe "boundaries", ->
+        beforeEach ->
+          iterator = patch.buildIterator()
+
+          iterator.seekToInputPosition(Point(0, 5))
+          iterator.insertBoundary()
+          iterator.splice(Point(0, 3), Point(0, 4), "abcd")
+
+          iterator.seekToInputPosition(Point(0, 10))
+          iterator.splice(Point(0, 2), Point(0, 3), "efg")
+
+          iterator.seekToInputPosition(Point(0, 15))
+          iterator.insertBoundary()
+
+          iterator.seekToInputPosition(Point(0, 17))
+          iterator.splice(Point(0, 4), Point(0, 2), "hi")
+
+        it "can seek to the boundary to the left of the given position", ->
+          iterator.seekToLeftBoundaryForInputPosition(Point(0, 9))
+          expect(iterator.getInputPosition()).toEqual Point(0, 5)
+          expect(iterator.getOutputPosition()).toEqual Point(0, 5)
+
+          iterator.seekToLeftBoundaryForInputPosition(Point(0, 13))
+          expect(iterator.getInputPosition()).toEqual Point(0, 5)
+          expect(iterator.getOutputPosition()).toEqual Point(0, 5)
+
+          iterator.seekToLeftBoundaryForInputPosition(Point(0, 5))
+          expect(iterator.getInputPosition()).toEqual Point(0, 5)
+          expect(iterator.getOutputPosition()).toEqual Point(0, 5)
+
+          iterator.seekToLeftBoundaryForInputPosition(Point(0, 4))
+          expect(iterator.getInputPosition()).toEqual Point(0, 0)
+          expect(iterator.getOutputPosition()).toEqual Point(0, 0)
+
+          iterator.seekToLeftBoundaryForInputPosition(Point(0, 25))
+          expect(iterator.getInputPosition()).toEqual Point(0, 15)
+          expect(iterator.getOutputPosition()).toEqual Point(0, 17)
 
     describe "::splice(oldOutputExtent, newOutputExtent, content)", ->
       it "can insert a single change", ->
