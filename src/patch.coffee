@@ -168,8 +168,6 @@ class PatchIterator
     @path.length = 0
 
     node = @patch.rootNode
-    childInputStart = Point.zero()
-    childOutputStart = Point.zero()
     loop
       if node.children?
         childInputEnd = Point.zero()
@@ -201,8 +199,6 @@ class PatchIterator
     @path.length = 0
 
     node = @patch.rootNode
-    childInputStart = Point.zero()
-    childOutputStart = Point.zero()
     loop
       if node.children?
         childInputEnd = Point.zero()
