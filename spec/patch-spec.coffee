@@ -140,6 +140,27 @@ describe "Patch", ->
           expect(iterator.getInputPosition()).toEqual Point(0, 15)
           expect(iterator.getOutputPosition()).toEqual Point(0, 17)
 
+        it "can seek to the boundary to the right of the given position", ->
+          iterator.seekToRightBoundaryForInputPosition(Point(0, 2))
+          expect(iterator.getInputPosition()).toEqual Point(0, 5)
+          expect(iterator.getOutputPosition()).toEqual Point(0, 5)
+
+          iterator.seekToRightBoundaryForInputPosition(Point(0, 5))
+          expect(iterator.getInputPosition()).toEqual Point(0, 5)
+          expect(iterator.getOutputPosition()).toEqual Point(0, 5)
+
+          iterator.seekToRightBoundaryForInputPosition(Point(0, 6))
+          expect(iterator.getInputPosition()).toEqual Point(0, 15)
+          expect(iterator.getOutputPosition()).toEqual Point(0, 17)
+
+          iterator.seekToRightBoundaryForInputPosition(Point(0, 10))
+          expect(iterator.getInputPosition()).toEqual Point(0, 15)
+          expect(iterator.getOutputPosition()).toEqual Point(0, 17)
+
+          iterator.seekToRightBoundaryForInputPosition(Point(0, 15))
+          expect(iterator.getInputPosition()).toEqual Point(0, 15)
+          expect(iterator.getOutputPosition()).toEqual Point(0, 17)
+
     describe "::splice(oldOutputExtent, newOutputExtent, content)", ->
       it "can insert a single change", ->
         iterator = patch.buildIterator()
