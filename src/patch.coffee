@@ -69,12 +69,17 @@ class Node
 
   assign: ({@inputExtent, @outputExtent, @children}) -> this
 
-  hasBoundaryBefore: (inputPosition) ->
-    inputStart = Point.zero()
+  hasBoundary: (minInputPosition, maxInputPosition=Point.infinity()) ->
+    inputEnd = Point.zero()
     for child in @children
-      break if inputStart.isGreaterThan(inputPosition)
-      return true if child.hasBoundaryBefore(inputPosition.traversalFrom(inputStart))
-      inputStart = inputStart.traverse(child.inputExtent)
+      inputStart = inputEnd
+      inputEnd = inputStart.traverse(child.inputExtent)
+      break if inputStart.isGreaterThan(maxInputPosition)
+      continue if inputEnd.isLessThan(minInputPosition)
+      return true if child.hasBoundary(
+        minInputPosition.traversalFrom(inputStart)
+        maxInputPosition.traversalFrom(inputStart)
+      )
     false
 
   calculateExtent: (childIndex) ->
@@ -160,7 +165,7 @@ class Leaf
 
   assign: ({@inputExtent, @outputExtent, @content}) -> this
 
-  hasBoundaryBefore: (inputExtent) ->
+  hasBoundary: (minInputPosition) ->
     @content instanceof Boundary
 
   toString: (indentLevel=0) ->
@@ -193,7 +198,6 @@ class PatchIterator
         if nextChild = parentEntry.node.children[parentEntry.childIndex]
           @descendToLeftmostLeaf(nextChild)
           entry = last(@path)
-          break
       else
         @path.push(entry)
         return {value: null, done: true}
@@ -206,7 +210,6 @@ class PatchIterator
 
   seek: (targetOutputOffset) ->
     @path.length = 0
-
     node = @patch.rootNode
     loop
       if node.children?
@@ -237,7 +240,6 @@ class PatchIterator
 
   seekToInputPosition: (targetInputOffset) ->
     @path.length = 0
-
     node = @patch.rootNode
     loop
       if node.children?
@@ -283,7 +285,7 @@ class PatchIterator
           childOutputStart = childOutputEnd
           childInputEnd = childInputStart.traverse(child.inputExtent)
           childOutputEnd = childOutputStart.traverse(child.outputExtent)
-          if child.hasBoundaryBefore(targetInputOffset.traversalFrom(childInputStart))
+          if child.hasBoundary(Point.zero(), targetInputOffset.traversalFrom(childInputStart))
             boundaryChild = child
             boundaryChildIndex = childIndex
             boundaryChildInputStart = childInputStart
@@ -303,6 +305,34 @@ class PatchIterator
               @path.length = 0
               @descendToLeftmostLeaf(@patch.rootNode)
               return this
+      else
+        inputOffset = Point.zero()
+        outputOffset = Point.zero()
+        childIndex = null
+        @path.push({node, inputOffset, outputOffset, childIndex})
+        break
+    this
+
+  seekToRightBoundaryForInputPosition: (targetInputOffset) ->
+    @path.length = 0
+    node = @patch.rootNode
+    loop
+      if node.children?
+        childInputEnd = Point.zero()
+        childOutputEnd = Point.zero()
+        for child, childIndex in node.children
+          childInputStart = childInputEnd
+          childOutputStart = childOutputEnd
+          childInputEnd = childInputStart.traverse(child.inputExtent)
+          childOutputEnd = childOutputStart.traverse(child.outputExtent)
+          if (childInputEnd.compare(targetInputOffset) >= 0 and
+              child.hasBoundary(targetInputOffset.traversalFrom(childInputStart)))
+            inputOffset = childInputStart
+            outputOffset = childOutputStart
+            @path.push({node, childIndex, inputOffset, outputOffset})
+            targetInputOffset = targetInputOffset.traversalFrom(childInputStart)
+            node = child
+            break
       else
         inputOffset = Point.zero()
         outputOffset = Point.zero()
