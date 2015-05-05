@@ -719,14 +719,12 @@ describe "Marker", ->
       it "correctly restores markers when the transaction is undone", ->
         buffer.setText('')
 
-        buffer.beginTransaction()
-        buffer.append('foo')
-        buffer.commitTransaction()
+        buffer.transact ->
+          buffer.append('foo')
 
-        buffer.beginTransaction()
-        buffer.append('\n')
-        buffer.append('bar')
-        buffer.commitTransaction()
+        buffer.transact ->
+          buffer.append('\n')
+          buffer.append('bar')
 
         marker1 = buffer.markRange([[0, 0], [0, 3]], invalidate: 'never')
         marker2 = buffer.markRange([[1, 0], [1, 3]], invalidate: 'never')
@@ -749,9 +747,9 @@ describe "Marker", ->
         marker2Ranges = []
         buffer.redo()
 
-        expect(marker1Ranges).toEqual [[[0, 0], [0, 3]], [[0, 0], [0, 3]]]
+        expect(marker1Ranges).toEqual [[[0, 0], [1, 0]], [[0, 0], [1, 3]]]
         expect(marker1.getRange()).toEqual([[0, 0], [0, 3]])
-        expect(marker2Ranges).toEqual [[[1, 0], [1, 0]], [[1, 0], [1, 3]]]
+        expect(marker2Ranges).toEqual [[[0, 3], [1, 0]], [[0, 3], [1, 3]]]
         expect(marker2.getRange()).toEqual([[1, 0], [1, 3]])
 
       it "only records marker patches for direct marker updates", ->

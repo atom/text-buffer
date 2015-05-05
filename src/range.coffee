@@ -99,6 +99,9 @@ class Range
   # * `pointA` {Point} or Point compatible {Array} (default: [0,0])
   # * `pointB` {Point} or Point compatible {Array} (default: [0,0])
   constructor: (pointA = new Point(0, 0), pointB = new Point(0, 0)) ->
+    unless this instanceof Range
+      return new Range(pointA, pointB)
+
     pointA = Point.fromObject(pointA)
     pointB = Point.fromObject(pointB)
 
@@ -284,6 +287,9 @@ class Range
   intersectsRowRange: (startRow, endRow) ->
     [startRow, endRow] = [endRow, startRow] if startRow > endRow
     @end.row >= startRow and endRow >= @start.row
+
+  getExtent: ->
+    @end.traversalFrom(@start)
 
   ###
   Section: Conversion
