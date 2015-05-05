@@ -50,7 +50,7 @@ class Marker
     @invalidate ?= 'overlap'
     @persistent ?= true
     @properties ?= {}
-    @destroyed = false
+    @rangeWhenDestroyed = null
     Object.freeze(@properties)
     @store.setMarkerHasTail(@id, @tailed)
     @previousEventState = @getEventState(range)
@@ -90,7 +90,7 @@ class Marker
 
   # Public: Returns the current {Range} of the marker. The range is immutable.
   getRange: ->
-    @store.getMarkerRange(@id)
+    @rangeWhenDestroyed ? @store.getMarkerRange(@id)
 
   # Public: Sets the range of the marker.
   #
@@ -176,12 +176,12 @@ class Marker
   # Public: Returns a {Point} representing the start position of the marker,
   # which could be the head or tail position, depending on its orientation.
   getStartPosition: ->
-    @getRange().start
+    @rangeWhenDestroyed?.start ? @store.getMarkerStartPosition(@id)
 
   # Public: Returns a {Point} representing the end position of the marker,
   # which could be the head or tail position, depending on its orientation.
   getEndPosition: ->
-    @getRange().end
+    @rangeWhenDestroyed?.end ? @store.getMarkerEndPosition(@id)
 
   # Public: Removes the marker's tail. After calling the marker's head position
   # will be reported as its current tail position until the tail is planted
@@ -225,7 +225,7 @@ class Marker
   #
   # Returns a {Boolean}.
   isDestroyed: ->
-    @destroyed
+    @rangeWhenDestroyed?
 
   # Public: Returns a {Boolean} indicating whether this marker is equivalent to
   # another marker, meaning they have the same range and options.
@@ -271,8 +271,8 @@ class Marker
   # Public: Destroys the marker, causing it to emit the 'destroyed' event. Once
   # destroyed, a marker cannot be restored by undo/redo operations.
   destroy: ->
+    @rangeWhenDestroyed = @getRange()
     @store.destroyMarker(@id)
-    @destroyed = true
     @emitter.emit 'did-destroy'
     @emit 'destroyed' if Grim.includeDeprecatedAPIs
 
