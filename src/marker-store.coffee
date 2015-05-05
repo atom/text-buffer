@@ -44,62 +44,45 @@ class MarkerStore
     marker for id, marker of @markersById
 
   findMarkers: (params) ->
-    markerIds = new Set(Object.keys(@markersById))
+    markerIds = null
 
-    if params.startPosition?
-      point = Point.fromObject(params.startPosition)
-      intersectSet(markerIds, @index.findStartingIn(point))
-      delete params.startPosition
+    for key in Object.keys(params)
+      value = params[key]
+      switch key
+        when 'startPosition'
+          markerIds = filterSet(markerIds, @index.findStartingIn(Point.fromObject(value)))
+        when 'endPosition'
+          markerIds = filterSet(markerIds, @index.findEndingIn(Point.fromObject(value)))
+        when 'containsPoint'
+          markerIds = filterSet(markerIds, @index.findContaining(point = Point.fromObject(value)))
+        when 'containsRange'
+          {start, end} = Range.fromObject(value)
+          markerIds = filterSet(markerIds, @index.findContaining(start, end))
+        when 'intersectsRange'
+          {start, end} = Range.fromObject(value)
+          markerIds = filterSet(markerIds, @index.findIntersecting(start, end))
+        when 'startRow'
+          markerIds = filterSet(markerIds, @index.findStartingIn(Point(value, 0), Point(value, Infinity)))
+        when 'endRow'
+          markerIds = filterSet(markerIds, @index.findEndingIn(Point(value, 0), Point(value, Infinity)))
+        when 'intersectsRow'
+          markerIds = filterSet(markerIds, @index.findIntersecting(Point(value, 0), Point(value, Infinity)))
+        when 'intersectsRowRange'
+          markerIds = filterSet(markerIds, @index.findIntersecting(Point(value[0], 0), Point(value[1], Infinity)))
+        when 'containedInRange'
+          {start, end} = Range.fromObject(value)
+          markerIds = filterSet(markerIds, @index.findContainedIn(start, end))
+        else
+          continue
+      delete params[key]
 
-    if params.endPosition?
-      point = Point.fromObject(params.endPosition)
-      intersectSet(markerIds, @index.findEndingIn(point))
-      delete params.endPosition
-
-    if params.containsPoint?
-      point = Point.fromObject(params.containsPoint)
-      intersectSet(markerIds, @index.findContaining(point))
-      delete params.containsPoint
-
-    if params.containsRange?
-      {start, end} = Range.fromObject(params.containsRange)
-      intersectSet(markerIds, @index.findContaining(start, end))
-      delete params.containsRange
-
-    if params.intersectsRange?
-      {start, end} = Range.fromObject(params.intersectsRange)
-      intersectSet(markerIds, @index.findIntersecting(start, end))
-      delete params.intersectsRange
-
-    if params.startRow?
-      row = params.startRow
-      intersectSet(markerIds, @index.findStartingIn(Point(row, 0), Point(row, Infinity)))
-      delete params.startRow
-
-    if params.endRow?
-      row = params.endRow
-      intersectSet(markerIds, @index.findEndingIn(Point(row, 0), Point(row, Infinity)))
-      delete params.endRow
-
-    if params.intersectsRow?
-      row = params.intersectsRow
-      intersectSet(markerIds, @index.findIntersecting(Point(row, 0), Point(row, Infinity)))
-      delete params.intersectsRow
-
-    if params.intersectsRowRange?
-      [startRow, endRow] = params.intersectsRowRange
-      intersectSet(markerIds, @index.findIntersecting(Point(startRow, 0), Point(endRow, Infinity)))
-      delete params.intersectsRowRange
-
-    if params.containedInRange?
-      {start, end} = Range.fromObject(params.containedInRange)
-      intersectSet(markerIds, @index.findContainedIn(start, end))
-      delete params.containedInRange
+    markerIds ?= new Set(Object.keys(@markersById))
 
     result = []
-    for id, marker of @markersById
-      result.push(marker) if markerIds.has(id) and marker.matchesParams(params)
-    result.sort (marker1, marker2) -> marker1.compare(marker2)
+    markerIds.forEach (id) =>
+      marker = @markersById[id]
+      result.push(marker) if marker.matchesParams(params)
+    result.sort (a, b) -> a.compare(b)
 
   markRange: (range, options={}) ->
     range = Range.fromObject(range)
@@ -150,8 +133,10 @@ class MarkerStore
         marker.update(marker.getRange(), snapshot, true)
 
   emitChangeEvents: ->
-    for id, marker of @markersById
-      marker.emitChangeEvent(marker.getRange(), true, false)
+    snapshot = @index.dump()
+    for id in Object.keys(@markersById)
+      marker = @markersById[id]
+      marker.emitChangeEvent(snapshot[id].range, true, false)
 
   createSnapshot: (filterPersistent) ->
     markerSnapshots = @index.dump()
@@ -210,3 +195,10 @@ class MarkerStore
 
   setMarkerHasTail: (id, hasTail) ->
     @index.setExclusive(id, not hasTail)
+
+filterSet = (set1, set2) ->
+  if set1
+    intersectSet(set1, set2)
+    set1
+  else
+    set2
