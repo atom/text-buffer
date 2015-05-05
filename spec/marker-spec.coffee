@@ -778,6 +778,15 @@ describe "Marker", ->
       expect(marker.isDestroyed()).toBe true
       expect(marker.isValid()).toBe false
 
+    it "allows the position to be retrieved after destruction", ->
+      marker = buffer.markRange([[0, 3], [0, 6]])
+      marker.destroy()
+      expect(marker.getRange()).toEqual [[0, 3], [0, 6]]
+      expect(marker.getHeadPosition()).toEqual [0, 6]
+      expect(marker.getTailPosition()).toEqual [0, 3]
+      expect(marker.getStartPosition()).toEqual [0, 3]
+      expect(marker.getEndPosition()).toEqual [0, 6]
+
   describe "TextBuffer::findMarkers(properties)", ->
     [marker1, marker2, marker3, marker4] = []
 

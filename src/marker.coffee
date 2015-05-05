@@ -32,6 +32,7 @@ class Marker
     @emitter = new Emitter
     @valid = true
     @destroyed = false
+    @rangeWhenDestroyed = null
 
     @persistent = @properties.persistent ? true
     delete @properties.persistent
@@ -83,6 +84,7 @@ class Marker
 
   # Public: Returns the current {Range} of the marker. The range is immutable.
   getRange: ->
+    return @rangeWhenDestroyed if @destroyed
     @store.getMarkerRange(@id)
 
   # Public: Sets the range of the marker.
@@ -132,12 +134,14 @@ class Marker
   # Public: Returns a {Point} representing the start position of the marker,
   # which could be the head or tail position, depending on its orientation.
   getStartPosition: ->
-    @getRange().start
+    return @rangeWhenDestroyed.start if @destroyed
+    @store.getMarkerStartPosition(@id)
 
   # Public: Returns a {Point} representing the end position of the marker,
   # which could be the head or tail position, depending on its orientation.
   getEndPosition: ->
-    @getRange().end
+    return @rangeWhenDestroyed.end if @destroyed
+    @store.getMarkerEndPosition(@id)
 
   # Public: Removes the marker's tail. After calling the marker's head position
   # will be reported as its current tail position until the tail is planted
@@ -207,6 +211,7 @@ class Marker
   # Public: Destroys the marker, causing it to emit the 'destroyed' event. Once
   # destroyed, a marker cannot be restored by undo/redo operations.
   destroy: ->
+    @rangeWhenDestroyed = @getRange()
     @store.destroyMarker(@id)
     @destroyed = true
     @valid = false
