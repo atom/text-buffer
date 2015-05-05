@@ -1,13 +1,8 @@
-{extend, isEqual, omit, pick, size} = require 'underscore-plus'
+{extend} = require 'underscore-plus'
 {Emitter} = require 'event-kit'
-Grim = require 'grim'
 Delegator = require 'delegato'
-Serializable = require 'serializable'
-MarkerPatch = require './marker-patch'
 Point = require './point'
 Range = require './range'
-
-OptionKeys = ['reversed', 'tailed', 'invalidate', 'persistent']
 
 # Private: Represents a buffer annotation that remains logically stationary
 # even as the buffer changes. This is used to represent cursors, folds, snippet
@@ -30,59 +25,32 @@ OptionKeys = ['reversed', 'tailed', 'invalidate', 'persistent']
 module.exports =
 class Marker
   Delegator.includeInto(this)
-  Serializable.includeInto(this)
-
-  @extractParams: (inputParams) ->
-    outputParams = {}
-    if inputParams?
-      @handleDeprecatedParams(inputParams) if Grim.includeDeprecatedAPIs
-      extend(outputParams, pick(inputParams, OptionKeys))
-      properties = omit(inputParams, OptionKeys)
-      outputParams.properties = properties if size(properties) > 0
-    outputParams
-
-  @serializeSnapshot: (snapshot) ->
-    return unless snapshot?
-    serializedSnapshot = {}
-    for id, {range, valid} of snapshot
-      serializedSnapshot[id] = {range: range.serialize(), valid}
-    serializedSnapshot
-
-  @deserializeSnapshot: (serializedSnapshot) ->
-    return unless serializedSnapshot?
-    snapshot = {}
-    for id, {range, valid} of serializedSnapshot
-      snapshot[id] = {range: Range.deserialize(range), valid}
-    snapshot
 
   @delegatesMethods 'containsPoint', 'containsRange', 'intersectsRow', toProperty: 'range'
-  @delegatesMethods 'clipPosition', 'clipRange', toProperty: 'manager'
 
-  deferredChangeEvents: null
-
-  constructor: (params) ->
-    {@manager, @id, @range, @tailed, @reversed} = params
-    {@valid, @invalidate, @persistent, @properties} = params
+  constructor: (@id, @store, range, @properties) ->
     @emitter = new Emitter
-    @tailed ?= true
-    @reversed ?= false
-    @valid ?= true
-    @invalidate ?= 'overlap'
-    @persistent ?= true
-    @properties ?= {}
+    @valid = true
     @destroyed = false
-    Object.freeze(@properties)
-    @updateIntervals()
 
-  # Used by {Serializable} during serialization.
-  serializeParams: ->
-    range = @range.serialize()
-    {@id, range, @tailed, @reversed, @valid, @invalidate, @persistent, @properties}
+    @persistent = @properties.persistent ? true
+    delete @properties.persistent
 
-  # Used by {Serializable} during deserialization.
-  deserializeParams: (state) ->
-    state.range = Range.deserialize(state.range)
-    state
+    @tailed = @properties.tailed ? true
+    delete @properties.tailed
+
+    @reversed = @properties.reversed ? false
+    delete @properties.reversed
+
+    @invalidationStrategy = @properties.invalidate ? 'overlap'
+    delete @properties.invalidate
+
+    @store.setMarkerHasTail(@id, @tailed)
+    @previousEventState = @getEventState(range)
+
+  ###
+  Section: Event Subscription
+  ###
 
   # Public: Invoke the given callback when the marker is destroyed.
   #
@@ -115,7 +83,7 @@ class Marker
 
   # Public: Returns the current {Range} of the marker. The range is immutable.
   getRange: ->
-    @range
+    @store.getMarkerRange(@id)
 
   # Public: Sets the range of the marker.
   #
@@ -124,17 +92,17 @@ class Marker
   # * `properties` (optional) {Object} properties to associate with the marker.
   #   * `reversed`  {Boolean} If true, the marker will to be in a reversed orientation.
   setRange: (range, properties) ->
-    params = @extractParams(properties)
-    params.tailed = true
-    params.range = @clipRange(Range.fromObject(range, true))
-    @update(params)
+    if properties?.reversed?
+      reversed = properties.reversed
+      delete properties.reversed
+    @update({range: Range.fromObject(range), tailed: true, reversed, properties})
 
   # Public: Returns a {Point} representing the marker's current head position.
   getHeadPosition: ->
     if @reversed
-      @range.start
+      @getStartPosition()
     else
-      @range.end
+      @getEndPosition()
 
   # Public: Sets the head position of the marker.
   #
@@ -142,104 +110,50 @@ class Marker
   #   clipped before it is assigned.
   # * `properties` (optional) {Object} properties to associate with the marker.
   setHeadPosition: (position, properties) ->
-    position = @clipPosition(Point.fromObject(position, true))
-    params = @extractParams(properties)
-
-    if @hasTail()
-      if @isReversed()
-        if position.isLessThan(@range.end)
-          params.range = new Range(position, @range.end)
-        else
-          params.reversed = false
-          params.range = new Range(@range.end, position)
-      else
-        if position.isLessThan(@range.start)
-          params.reversed = true
-          params.range = new Range(position, @range.start)
-        else
-          params.range = new Range(@range.start, position)
-    else
-      params.range = new Range(position, position)
-
-
-    @update(params)
+    @update({headPosition: Point.fromObject(position), properties})
 
   # Public: Returns a {Point} representing the marker's current tail position.
   # If the marker has no tail, the head position will be returned instead.
   getTailPosition: ->
-    if @hasTail()
-      if @reversed
-        @range.end
-      else
-        @range.start
+    if @reversed
+      @getEndPosition()
     else
-      @getHeadPosition()
+      @getStartPosition()
 
-  # Public: Sets the head position of the marker. If the marker doesn't have a
+  # Public: Sets the tail position of the marker. If the marker doesn't have a
   # tail, it will after calling this method.
   #
   # * `position` A {Point} or point-compatible {Array}. The position will be
   #   clipped before it is assigned.
   # * `properties` (optional) {Object} properties to associate with the marker.
   setTailPosition: (position, properties) ->
-    position = @clipPosition(Point.fromObject(position, true))
-    params = @extractParams(properties)
-    params.tailed = true
-
-    if @reversed
-      if position.isLessThan(@range.start)
-        params.reversed = false
-        params.range = new Range(position, @range.start)
-      else
-        params.range = new Range(@range.start, position)
-    else
-      if position.isLessThan(@range.end)
-        params.range = new Range(position, @range.end)
-      else
-        params.reversed = true
-        params.range = new Range(@range.end, position)
-
-    @update(params)
+    @update({tailPosition: Point.fromObject(position), properties})
 
   # Public: Returns a {Point} representing the start position of the marker,
   # which could be the head or tail position, depending on its orientation.
   getStartPosition: ->
-    if @reversed
-      @getHeadPosition()
-    else
-      @getTailPosition()
+    @getRange().start
 
   # Public: Returns a {Point} representing the end position of the marker,
   # which could be the head or tail position, depending on its orientation.
   getEndPosition: ->
-    if @reversed
-      @getTailPosition()
-    else
-      @getHeadPosition()
+    @getRange().end
 
   # Public: Removes the marker's tail. After calling the marker's head position
   # will be reported as its current tail position until the tail is planted
   # again.
   #
   # * `properties` (optional) {Object} properties to associate with the marker.
-  clearTail: (properties) ->
-    params = @extractParams(properties)
-    params.tailed = false
-    headPosition = @getHeadPosition()
-    params.range = new Range(headPosition, headPosition)
-    @update(params)
+  clearTail: ->
+    @update({tailed: false})
 
   # Public: Plants the marker's tail at the current head position. After calling
   # the marker's tail position will be its head position at the time of the
   # call, regardless of where the marker's head is moved.
   #
   # * `properties` (optional) {Object} properties to associate with the marker.
-  plantTail: (properties) ->
-    params = @extractParams(properties)
-    unless @hasTail()
-      params.tailed = true
-      params.range = new Range(@getHeadPosition(), @getHeadPosition())
-    @update(params)
+  plantTail: ->
+    @update({tailed: true})
 
   # Public: Returns a {Boolean} indicating whether the head precedes the tail.
   isReversed: ->
@@ -261,20 +175,13 @@ class Marker
   isDestroyed: ->
     @destroyed
 
-  # Public: Returns a {Boolean} indicating whether this marker is equivalent to
-  # another marker, meaning they have the same range and options.
-  #
-  # * `other` {Marker} other marker
-  isEqual: (other) ->
-    isEqual(@toParams(true), other.toParams(true))
-
   # Public: Get the invalidation strategy for this marker.
   #
   # Valid values include: `never`, `surround`, `overlap`, `inside`, and `touch`.
   #
   # Returns a {String}.
   getInvalidationStrategy: ->
-    @invalidate
+    @invalidationStrategy
 
   # Public: Returns an {Object} containing any custom properties associated with
   # the marker.
@@ -286,250 +193,141 @@ class Marker
   #
   # * `properties` {Object}
   setProperties: (properties) ->
-    @update(properties: extend({}, @getProperties(), properties))
+    @update({properties})
 
   # Public: Creates and returns a new {Marker} with the same properties as this
   # marker.
   #
   # * `params` {Object}
-  copy: (params) ->
-    @manager.createMarker(extend(@toParams(), @extractParams(params)))
+  copy: (options) ->
+    properties = clone(@properties)
+    properties[key] = value for key, value of options
+    @store.markRange(@getRange(), options)
 
   # Public: Destroys the marker, causing it to emit the 'destroyed' event. Once
   # destroyed, a marker cannot be restored by undo/redo operations.
   destroy: ->
+    @store.destroyMarker(@id)
     @destroyed = true
-    @manager.removeMarker(@id)
-    @manager.intervals.remove(@id)
-    @emitter.emit 'did-destroy'
-    @emit 'destroyed' if Grim.includeDeprecatedAPIs
-
-  extractParams: (params) ->
-    params = @constructor.extractParams(params)
-    params.properties = extend({}, @properties, params.properties) if params.properties?
-    params
+    @valid = false
+    @emitter.emit("did-destroy")
 
   # Public: Compares this marker to another based on their ranges.
   #
   # * `other` {Marker}
   compare: (other) ->
-    @range.compare(other.range)
+    @getRange().compare(other.getRange())
 
   # Returns whether this marker matches the given parameters. The parameters
   # are the same as {MarkerManager::findMarkers}.
   matchesParams: (params) ->
     for key, value of params
-      return false unless @matchesParam(key, value)
+      if key is 'invalidate'
+        return false unless @invalidationStrategy is value
+      else
+        return false unless @properties[key] is value
     true
 
-  # Returns whether this marker matches the given parameter name and value.
-  # The parameters are the same as {MarkerManager::findMarkers}.
-  matchesParam: (key, value) ->
-    switch key
-      when 'startPosition'
-        @getStartPosition().isEqual(value)
-      when 'endPosition'
-        @getEndPosition().isEqual(value)
-      when 'containsPoint', 'containsPosition'
-        @containsPoint(value)
-      when 'containsRange'
-        @containsRange(value)
-      when 'startRow'
-        @getStartPosition().row is value
-      when 'endRow'
-        @getEndPosition().row is value
-      when 'intersectsRow'
-        @intersectsRow(value)
-      when 'invalidate', 'reversed', 'tailed', 'persistent'
-        isEqual(@[key], value)
-      else
-        isEqual(@properties[key], value)
+  update: ({range, reversed, tailed, valid, headPosition, tailPosition, properties}, textChanged=false) ->
+    changed = propertiesChanged = false
 
-  toParams: (omitId) ->
-    params = {@range, @reversed, @tailed, @invalidate, @persistent, @properties, @valid}
-    params.id = @id unless omitId
-    params
-
-  # Adjusts the marker's start and end positions and possibly its validity
-  # based on the given {BufferPatch}.
-  handleBufferChange: (patch) ->
-    {oldRange, newRange, newMarkersSnapshot} = patch
-
-    if stateToRestore = newMarkersSnapshot?[@id]
-      return @update(stateToRestore, true)
-
-    rowDelta = newRange.end.row - oldRange.end.row
-    columnDelta = newRange.end.column - oldRange.end.column
-    markerStart = @range.start
-    markerEnd = @range.end
-
-    return if markerEnd.isLessThan(oldRange.start)
-
-    switch @getInvalidationStrategy()
-      when 'never'
-        valid = true
-      when 'surround'
-        valid = markerStart.isLessThan(oldRange.start) or oldRange.end.isLessThanOrEqual(markerEnd)
-      when 'overlap'
-        valid = !oldRange.containsPoint(markerStart, true) and !oldRange.containsPoint(markerEnd, true)
-      when 'inside'
-        if @hasTail()
-          valid = oldRange.end.isLessThanOrEqual(markerStart) or markerEnd.isLessThanOrEqual(oldRange.start)
-        else
-          valid = @valid
-      when 'touch'
-        valid = oldRange.end.isLessThan(markerStart) or markerEnd.isLessThan(oldRange.start)
-
-    newMarkerRange = @range.copy()
-
-    exclusive = not @hasTail() or @getInvalidationStrategy() is 'inside'
-    changePrecedesMarkerStart = oldRange.end.isLessThan(markerStart) or (exclusive and oldRange.end.isLessThanOrEqual(markerStart))
-    changeSurroundsMarkerStart = not changePrecedesMarkerStart and oldRange.start.isLessThan(markerStart)
-    changePrecedesMarkerEnd = changePrecedesMarkerStart or oldRange.end.isLessThan(markerEnd) or (not exclusive and oldRange.end.isLessThanOrEqual(markerEnd))
-    changeSurroundsMarkerEnd = not changePrecedesMarkerEnd and oldRange.start.isLessThan(markerEnd)
-
-    if changePrecedesMarkerStart
-      newMarkerRange.start.row += rowDelta
-      newMarkerRange.start.column += columnDelta if oldRange.end.row is markerStart.row
-    else if changeSurroundsMarkerStart
-      newMarkerRange.start = newRange.end
-
-    if changePrecedesMarkerEnd
-      newMarkerRange.end.row += rowDelta
-      newMarkerRange.end.column += columnDelta if oldRange.end.row is markerEnd.row
-    else if changeSurroundsMarkerEnd
-      newMarkerRange.end = newRange.end
-
-    if not changePrecedesMarkerStart or valid isnt @valid
-      patch.oldMarkersSnapshot ?= {}
-      patch.oldMarkersSnapshot[@id] = {@range, @valid}
-
-    @update({valid, range: newMarkerRange}, true)
-
-  update: ({range, reversed, tailed, valid, properties}, textChanged=false) ->
-    oldHeadPosition = @getHeadPosition()
-    oldTailPosition = @getTailPosition()
-    wasValid = @isValid()
-    hadTail = @hasTail()
-    oldProperties = @getProperties()
-
-    patch = new MarkerPatch(@id)
-
-    if range? and not range.isEqual(@range)
-      range = range.freeze()
-      patch.oldParams.range = @range
-      patch.newParams.range = range
-      @range = range
-      @updateIntervals()
-      updated = true
+    wasTailed = @tailed
+    newRange = oldRange = @getRange()
+    if @reversed
+      oldHeadPosition = oldRange.start
+      oldTailPosition = oldRange.end
+    else
+      oldHeadPosition = oldRange.end
+      oldTailPosition = oldRange.start
 
     if reversed? and reversed isnt @reversed
-      patch.oldParams.reversed = @reversed
-      patch.newParams.reversed = reversed
       @reversed = reversed
-      updated = true
-
-    if tailed? and tailed isnt @tailed
-      patch.oldParams.tailed = @tailed
-      patch.newParams.tailed = tailed
-      @tailed = tailed
-      updated = true
+      changed = true
 
     if valid? and valid isnt @valid
-      patch.oldParams.valid = @valid
-      patch.newParams.valid = valid
       @valid = valid
-      updated = true
+      changed = true
 
-    if properties? and not isEqual(properties, @properties)
-      properties = Object.freeze(properties)
-      patch.oldParams.properties = @properties
-      patch.newParams.properties = properties
-      @properties = properties
-      updated = true
+    if tailed? and tailed isnt @tailed
+      @tailed = tailed
+      changed = true
+      unless @tailed
+        @reversed = false
+        newRange = Range(oldHeadPosition, oldHeadPosition)
 
-    return false unless updated
+    if properties? and not @matchesParams(properties)
+      extend(@properties, properties)
+      changed = true
+      propertiesChanged = true
 
-    @manager.recordMarkerPatch(patch) unless textChanged
+    if range?
+      newRange = range
 
-    newHeadPosition = @getHeadPosition()
-    newTailPosition = @getTailPosition()
-    isValid = @isValid()
-    hasTail = @hasTail()
-    newProperties = @getProperties()
-
-    event = {
-      oldHeadPosition, newHeadPosition, oldTailPosition, newTailPosition
-      wasValid, isValid, hadTail, hasTail, oldProperties, newProperties, textChanged
-    }
-    if @deferredChangeEvents?
-      @deferredChangeEvents.push(event)
-    else
-      @emitter.emit 'did-change', event
-      @emit 'changed', event if Grim.includeDeprecatedAPIs
-    true
-
-  # Updates the interval index on the marker manager with the marker's current
-  # range.
-  updateIntervals: ->
-    @manager.intervals.update(@id, @range.start, @range.end)
-
-  pauseChangeEvents: ->
-    @deferredChangeEvents = []
-
-  resumeChangeEvents: ->
-    if deferredChangeEvents = @deferredChangeEvents
-      @deferredChangeEvents = null
-
-      for event in deferredChangeEvents
-        @emitter.emit 'did-change', event
-        @emit 'changed', event if Grim.includeDeprecatedAPIs
-    return
-
-if Grim.includeDeprecatedAPIs
-  EmitterMixin = require('emissary').Emitter
-  EmitterMixin.includeInto(Marker)
-
-  Marker::on = (eventName) ->
-    switch eventName
-      when 'changed'
-        Grim.deprecate("Use Marker::onDidChange instead")
-      when 'destroyed'
-        Grim.deprecate("Use Marker::onDidDestroy instead")
+    if headPosition? and not headPosition.isEqual(oldHeadPosition)
+      changed = true
+      if not @tailed
+        newRange = Range(headPosition, headPosition)
+      else if headPosition.compare(oldTailPosition) < 0
+        @reversed = true
+        newRange = Range(headPosition, oldTailPosition)
       else
-        Grim.deprecate("Marker::on is deprecated. Use event subscription methods instead.")
+        @reversed = false
+        newRange = Range(oldTailPosition, headPosition)
 
-    EmitterMixin::on.apply(this, arguments)
+    if tailPosition? and not tailPosition.isEqual(oldTailPosition)
+      changed = true
+      @tailed = true
+      if tailPosition.compare(oldHeadPosition) < 0
+        @reversed = false
+        newRange = Range(tailPosition, oldHeadPosition)
+      else
+        @reversed = true
+        newRange = Range(oldHeadPosition, tailPosition)
+      changed = true
 
-  Marker::matchesAttributes = (args...) ->
-    Grim.deprecate("Use Marker::matchesParams instead.")
-    @matchesParams(args...)
+    unless newRange.isEqual(oldRange)
+      @store.setMarkerRange(@id, newRange)
+    unless @tailed is wasTailed
+      @store.setMarkerHasTail(@id, @tailed)
+    @emitChangeEvent(newRange, textChanged, propertiesChanged)
+    changed
 
-  Marker::getAttributes = ->
-    Grim.deprecate("Use Marker::getProperties instead.")
-    @getProperties()
+  toString: ->
+    "[Marker #{@id}, #{@getRange()}]"
 
-  Marker::setAttributes = (args...) ->
-    Grim.deprecate("Use Marker::setProperties instead.")
-    @setProperties(args...)
+  ###
+  Section: Private
+  ###
 
-  Marker.handleDeprecatedParams = (params) ->
-    if params.isReversed?
-      Grim.deprecate("The option `isReversed` is deprecated, use `reversed` instead")
-      params.reversed = params.isReversed
-      delete params.isReversed
+  emitChangeEvent: (currentRange, textChanged, propertiesChanged) ->
+    oldState = @previousEventState
+    newState = @previousEventState = @getEventState(currentRange)
 
-    if params.hasTail?
-      Grim.deprecate("The option `hasTail` is deprecated, use `tailed` instead")
-      params.tailed = params.hasTail
-      delete params.hasTail
+    return unless propertiesChanged or
+      oldState.valid isnt newState.valid or
+      oldState.tailed isnt newState.tailed or
+      oldState.headPosition.compare(newState.headPosition) isnt 0 or
+      oldState.tailPosition.compare(newState.tailPosition) isnt 0
 
-    if params.persist?
-      Grim.deprecate("The option `persist` is deprecated, use `persistent` instead")
-      params.persistent = params.persist
-      delete params.persist
+    @emitter.emit("did-change", {
+      wasValid: oldState.valid, isValid: newState.valid
+      hadTail: oldState.tailed, hasTail: newState.tailed
+      oldProperties: oldState.properties, newProperties: newState.properties
+      oldHeadPosition: oldState.headPosition, newHeadPosition: newState.headPosition
+      oldTailPosition: oldState.tailPosition, newTailPosition: newState.tailPosition
+      textChanged: textChanged
+    })
 
-    if params.invalidation
-      Grim.deprecate("The option `invalidation` is deprecated, use `invalidate` instead")
-      params.invalidate = params.invalidation
-      delete params.invalidation
+  getEventState: (range) ->
+    {
+      headPosition: (if @reversed then range.start else range.end)
+      tailPosition: (if @reversed then range.end else range.start)
+      properties: clone(@properties)
+      tailed: @tailed
+      valid: true
+    }
+
+clone = (object) ->
+  result = {}
+  result[key] = value for key, value of object
+  result

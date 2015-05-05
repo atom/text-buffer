@@ -719,14 +719,12 @@ describe "Marker", ->
       it "correctly restores markers when the transaction is undone", ->
         buffer.setText('')
 
-        buffer.beginTransaction()
-        buffer.append('foo')
-        buffer.commitTransaction()
+        buffer.transact ->
+          buffer.append('foo')
 
-        buffer.beginTransaction()
-        buffer.append('\n')
-        buffer.append('bar')
-        buffer.commitTransaction()
+        buffer.transact ->
+          buffer.append('\n')
+          buffer.append('bar')
 
         marker1 = buffer.markRange([[0, 0], [0, 3]], invalidate: 'never')
         marker2 = buffer.markRange([[1, 0], [1, 3]], invalidate: 'never')
