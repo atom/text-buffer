@@ -248,10 +248,10 @@ class Leaf
   dump: (offset, snapshot) ->
     end = offset.traverse(@extent)
     @ids.forEach (id) ->
-      if snapshot[id].range?
-        snapshot[id].range.end = end
+      if snapshot[id]?
+        snapshot[id].end = end
       else
-        snapshot[id].range = Range(offset, end)
+        snapshot[id] = Range(offset, end)
     end
 
   findContaining: (point, set) ->
@@ -365,17 +365,8 @@ class MarkerIndex
 
   dump: ->
     snapshot = {}
-    @rootNode.ids.forEach (id) =>
-      snapshot[id] = {range: null, isExclusive: @exclusiveIds.has(id)}
     @rootNode.dump(Point.zero(), snapshot)
     snapshot
-
-  load: (snapshot) ->
-    @clear()
-    for id, {range: {start, end}, isExclusive} of snapshot
-      @insert(id, start, end)
-      @setExclusive(id, isExclusive)
-    return
 
   ###
   Section: Private

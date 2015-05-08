@@ -133,26 +133,26 @@ class MarkerStore
         marker.update(marker.getRange(), snapshot, true)
 
   emitChangeEvents: ->
-    snapshot = @index.dump()
+    ranges = @index.dump()
     for id in Object.keys(@markersById)
       marker = @markersById[id]
-      marker.emitChangeEvent(snapshot[id].range, true, false)
+      marker.emitChangeEvent(ranges[id], true, false)
 
   createSnapshot: (filterPersistent) ->
-    markerSnapshots = @index.dump()
-    for id, marker of @markersById
-      if filterPersistent and not marker.persistent
-        delete markerSnapshots[id]
-        continue
-
-      snapshot = markerSnapshots[id]
-      delete snapshot.isExclusive
-      snapshot.reversed = marker.isReversed()
-      snapshot.tailed = marker.hasTail()
-      snapshot.invalidate = marker.invalidationStrategy
-      snapshot.valid = marker.isValid()
-      snapshot.properties = clone(marker.properties)
-    markerSnapshots
+    result = {}
+    ranges = @index.dump()
+    for id in Object.keys(@markersById)
+      marker = @markersById[id]
+      unless filterPersistent and not marker.persistent
+        result[id] = {
+          range: ranges[id]
+          reversed: marker.isReversed()
+          tailed: marker.hasTail()
+          invalidate: marker.invalidationStrategy
+          valid: marker.isValid()
+          properties: clone(marker.properties)
+        }
+    result
 
   serialize: ->
     version: SerializationVersion
