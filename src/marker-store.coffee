@@ -110,7 +110,8 @@ class MarkerStore
     startingIn = @index.findStartingIn(start.traverse(Point(0, 1)), end.traverse(Point(0, -1)))
     endingIn = @index.findEndingIn(start.traverse(Point(0, 1)), end.traverse(Point(0, -1)))
 
-    for id, marker of @markersById
+    for id in Object.keys(@markersById)
+      marker = @markersById[id]
       switch marker.getInvalidationStrategy()
         when 'touch'
           invalid = intersecting.has(id)
@@ -127,8 +128,9 @@ class MarkerStore
     @index.splice(start, oldExtent, newExtent)
 
   restoreFromSnapshot: (snapshots) ->
-    for id, marker of @markersById
+    for id in Object.keys(@markersById)
       if snapshot = snapshots[id]
+        marker = @markersById[id]
         marker.properties = {}
         marker.update(marker.getRange(), snapshot, true)
 
@@ -144,14 +146,7 @@ class MarkerStore
     for id in Object.keys(@markersById)
       marker = @markersById[id]
       unless filterPersistent and not marker.persistent
-        result[id] = {
-          range: ranges[id]
-          reversed: marker.isReversed()
-          tailed: marker.hasTail()
-          invalidate: marker.invalidationStrategy
-          valid: marker.isValid()
-          properties: clone(marker.properties)
-        }
+        result[id] = marker.getSnapshot(ranges[id], false)
     result
 
   serialize: ->

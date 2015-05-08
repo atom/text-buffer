@@ -53,7 +53,7 @@ class Marker
     @rangeWhenDestroyed = null
     Object.freeze(@properties)
     @store.setMarkerHasTail(@id, @tailed)
-    @previousEventState = @getEventState(range)
+    @previousEventState = @getSnapshot(range, true)
 
   ###
   Section: Event Subscription
@@ -345,6 +345,9 @@ class Marker
     @emitChangeEvent(range ? oldRange, textChanged, propertiesChanged)
     updated
 
+  getSnapshot: (range, propertiesChanged) ->
+    {range, @properties, @reversed, @tailed, @valid, @invalidate}
+
   toString: ->
     "[Marker #{@id}, #{@getRange()}]"
 
@@ -354,31 +357,34 @@ class Marker
 
   emitChangeEvent: (currentRange, textChanged, propertiesChanged) ->
     oldState = @previousEventState
-    newState = @previousEventState = @getEventState(currentRange)
+    newState = @previousEventState = @getSnapshot(currentRange, propertiesChanged)
 
     return unless propertiesChanged or
       oldState.valid isnt newState.valid or
       oldState.tailed isnt newState.tailed or
-      oldState.headPosition.compare(newState.headPosition) isnt 0 or
-      oldState.tailPosition.compare(newState.tailPosition) isnt 0
+      oldState.range.compare(newState.range) isnt 0
+
+    if oldState.reversed
+      oldHeadPosition = oldState.range.start
+      oldTailPosition = oldState.range.end
+    else
+      oldHeadPosition = oldState.range.end
+      oldTailPosition = oldState.range.start
+
+    if newState.reversed
+      newHeadPosition = newState.range.start
+      newTailPosition = newState.range.end
+    else
+      newHeadPosition = newState.range.end
+      newTailPosition = newState.range.start
 
     @emitter.emit("did-change", {
       wasValid: oldState.valid, isValid: newState.valid
       hadTail: oldState.tailed, hasTail: newState.tailed
       oldProperties: oldState.properties, newProperties: newState.properties
-      oldHeadPosition: oldState.headPosition, newHeadPosition: newState.headPosition
-      oldTailPosition: oldState.tailPosition, newTailPosition: newState.tailPosition
-      textChanged: textChanged
+      oldHeadPosition, newHeadPosition, oldTailPosition, newTailPosition
+      textChanged
     })
-
-  getEventState: (range) ->
-    {
-      headPosition: (if @reversed then range.start else range.end)
-      tailPosition: (if @reversed then range.end else range.start)
-      properties: @properties
-      tailed: @tailed
-      valid: true
-    }
 
 if Grim.includeDeprecatedAPIs
   EmitterMixin = require('emissary').Emitter
