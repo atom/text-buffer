@@ -126,11 +126,9 @@ class Node
     end
 
   dump: (offset, snapshot) ->
-    childEnd = offset
     for child in @children
-      childStart = childEnd
-      childEnd = childStart.traverse(child.extent)
-      child.dump(childStart, snapshot)
+      offset = child.dump(offset, snapshot)
+    offset
 
   findContaining: (point, set) ->
     childEnd = Point.zero()
@@ -140,6 +138,7 @@ class Node
       continue if childEnd.compare(point) < 0
       break if childStart.compare(point) > 0
       child.findContaining(point.traversalFrom(childStart), set)
+    return
 
   findIntersecting: (start, end, set) ->
     if start.isZero() and end.compare(@extent) is 0
@@ -157,6 +156,7 @@ class Node
         Point.min(child.extent, end.traversalFrom(childStart)),
         set
       )
+    return
 
   hasEmptyRightmostLeaf: ->
     @children[@children.length - 1].hasEmptyRightmostLeaf()
@@ -252,6 +252,7 @@ class Leaf
         snapshot[id].range.end = end
       else
         snapshot[id].range = Range(offset, end)
+    end
 
   findContaining: (point, set) ->
     addSet(set, @ids)
@@ -374,6 +375,7 @@ class MarkerIndex
     for id, {range: {start, end}, isExclusive} of snapshot
       @insert(id, start, end)
       @setExclusive(id, isExclusive)
+    return
 
   ###
   Section: Private
@@ -382,6 +384,7 @@ class MarkerIndex
   condenseIfNeeded: ->
     while @rootNode.children?.length is 1
       @rootNode = @rootNode.children[0]
+    return
 
 assertValidId = (id) ->
   unless typeof id is 'string'
