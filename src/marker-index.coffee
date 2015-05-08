@@ -2,6 +2,7 @@ Point = require "./point"
 Range = require "./range"
 {addSet, subtractSet, intersectSet, setEqual} = require "./set-helpers"
 
+Zero = Point.zero()
 BRANCHING_THRESHOLD = 3
 
 class Node
@@ -248,10 +249,8 @@ class Leaf
   dump: (offset, snapshot) ->
     end = offset.traverse(@extent)
     @ids.forEach (id) ->
-      if snapshot[id]?
-        snapshot[id].end = end
-      else
-        snapshot[id] = Range(offset, end)
+      snapshot[id].start ?= offset
+      snapshot[id].end = end
     end
 
   findContaining: (point, set) ->
@@ -292,15 +291,18 @@ class MarkerIndex
 
   insert: (id, start, end) ->
     assertValidId(id)
+    @rangeCache[id] = Range(start, end)
     if splitNodes = @rootNode.insert(new Set().add(id + ""), start, end)
       @rootNode = new Node(splitNodes)
 
   delete: (id) ->
     assertValidId(id)
+    delete @rangeCache[id]
     @rootNode.delete(id)
     @condenseIfNeeded()
 
   splice: (position, oldExtent, newExtent) ->
+    @clearRangeCache()
     if splitNodes = @rootNode.splice(position, oldExtent, newExtent, @exclusiveIds, new Set)
       @rootNode = new Node(splitNodes)
     @condenseIfNeeded()
@@ -320,10 +322,12 @@ class MarkerIndex
       Range(start, @getEnd(id))
 
   getStart: (id) ->
-    @rootNode.getStart(id)
+    if entry = @rangeCache[id]
+      entry.start ?= @rootNode.getStart(id)
 
   getEnd: (id) ->
-    @rootNode.getEnd(id)
+    if entry = @rangeCache[id]
+      entry.end ?= @rootNode.getEnd(id)
 
   findContaining: (start, end) ->
     containing = new Set
@@ -360,17 +364,24 @@ class MarkerIndex
     result
 
   clear: ->
-    @exclusiveIds = new Set
     @rootNode = new Leaf(Point.infinity(), new Set)
+    @exclusiveIds = new Set
+    @clearRangeCache()
 
   dump: ->
-    snapshot = {}
-    @rootNode.dump(Point.zero(), snapshot)
-    snapshot
+    unless @rangeCacheFresh
+      @rootNode.dump(Point.zero(), @rangeCache)
+      @rangeCacheFresh = true
+    @rangeCache
 
   ###
   Section: Private
   ###
+
+  clearRangeCache: ->
+    @rangeCache = {}
+    @rootNode.ids.forEach (id) => @rangeCache[id] = templateRange()
+    @rangeCacheFresh = false
 
   condenseIfNeeded: ->
     while @rootNode.children?.length is 1
@@ -380,3 +391,8 @@ class MarkerIndex
 assertValidId = (id) ->
   unless typeof id is 'string'
     throw new TypeError("Marker ID must be a string")
+
+templateRange = ->
+  range = new Range(Zero, Zero)
+  range.start = range.end = null
+  range
