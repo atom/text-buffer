@@ -159,6 +159,25 @@ class Node
       )
     return
 
+  findStartingAt: (position, result, previousIds) ->
+    for child in @children
+      break if position.isNegative()
+      nextPosition = position.traversalFrom(child.extent)
+      unless nextPosition.isPositive()
+        child.findStartingAt(position, result, previousIds)
+      previousIds = child.ids
+      position = nextPosition
+    return
+
+  findEndingAt: (position, result) ->
+    for child in @children
+      break if position.isNegative()
+      nextPosition = position.traversalFrom(child.extent)
+      unless nextPosition.isPositive()
+        child.findEndingAt(position, result)
+      position = nextPosition
+    return
+
   hasEmptyRightmostLeaf: ->
     @children[@children.length - 1].hasEmptyRightmostLeaf()
 
@@ -252,6 +271,19 @@ class Leaf
       snapshot[id].start ?= offset
       snapshot[id].end = end
     end
+
+  findEndingAt: (position, result) ->
+    if position.isEqual(@extent)
+      addSet(result, @ids)
+    else if position.isZero()
+      subtractSet(result, @ids)
+    return
+
+  findStartingAt: (position, result, previousIds) ->
+    if position.isZero()
+      @ids.forEach (id) ->
+        result.add(id) unless previousIds.has(id)
+    return
 
   findContaining: (point, set) ->
     addSet(set, @ids)
@@ -348,20 +380,30 @@ class MarkerIndex
     @rootNode.findIntersecting(start, end, intersecting)
     intersecting
 
-  findStartingIn: (start, end = start) ->
-    result = @findIntersecting(start, end)
-    if start.isPositive()
-      if start.column is 0
-        previousPoint = Point(start.row - 1, Infinity)
-      else
-        previousPoint = Point(start.row, start.column - 1)
-      subtractSet(result, @findIntersecting(previousPoint))
-    result
+  findStartingIn: (start, end) ->
+    if end?
+      result = @findIntersecting(start, end)
+      if start.isPositive()
+        if start.column is 0
+          previousPoint = Point(start.row - 1, Infinity)
+        else
+          previousPoint = Point(start.row, start.column - 1)
+        subtractSet(result, @findIntersecting(previousPoint))
+      result
+    else
+      result = new Set
+      @rootNode.findStartingAt(start, result, new Set)
+      result
 
-  findEndingIn: (start, end = start) ->
-    result = @findIntersecting(start, end)
-    subtractSet(result, @findIntersecting(end.traverse(Point(0, 1))))
-    result
+  findEndingIn: (start, end) ->
+    if end?
+      result = @findIntersecting(start, end)
+      subtractSet(result, @findIntersecting(end.traverse(Point(0, 1))))
+      result
+    else
+      result = new Set
+      @rootNode.findEndingAt(start, result)
+      result
 
   clear: ->
     @rootNode = new Leaf(Point.infinity(), new Set)

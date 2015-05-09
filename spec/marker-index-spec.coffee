@@ -105,7 +105,7 @@ describe "MarkerIndex", ->
       expect(markerIndex.findIntersecting(Point(0, 7))).toEqualSet ["b"]
 
   describe "::findStartingIn(start, end)", ->
-    it "returns markers ending at the given point", ->
+    it "returns markers starting at the given point", ->
       markerIndex.insert("a", Point(0, 0), Point(0, 0))
       markerIndex.insert("b", Point(0, 2), Point(0, 5))
       markerIndex.insert("c", Point(0, 2), Point(0, 7))
@@ -124,7 +124,9 @@ describe "MarkerIndex", ->
       # point queries
       expect(markerIndex.findStartingIn(Point(0, 1))).toEqualSet []
       expect(markerIndex.findStartingIn(Point(0, 2))).toEqualSet ["b", "c"]
+      expect(markerIndex.findStartingIn(Point(0, 3))).toEqualSet []
       expect(markerIndex.findStartingIn(Point(0, 4))).toEqualSet ["d"]
+      expect(markerIndex.findStartingIn(Point(0, 5))).toEqualSet []
 
   describe "::findEndingIn(start, end)", ->
     it "returns markers ending at the given point", ->
@@ -143,7 +145,9 @@ describe "MarkerIndex", ->
       # point queries
       expect(markerIndex.findEndingIn(Point(0, 4))).toEqualSet []
       expect(markerIndex.findEndingIn(Point(0, 5))).toEqualSet ["a"]
+      expect(markerIndex.findEndingIn(Point(0, 6))).toEqualSet []
       expect(markerIndex.findEndingIn(Point(0, 7))).toEqualSet ["b", "c"]
+      expect(markerIndex.findEndingIn(Point(0, 8))).toEqualSet []
 
   describe "::splice(position, oldExtent, newExtent)", ->
     describe "when the change has a non-empty old extent and new extent", ->

@@ -229,6 +229,14 @@ class Point
     else
       @column > 0
 
+  isNegative: ->
+    if @row < 0
+      true
+    else if @row > 0
+      false
+    else
+      @column < 0
+
   ###
   Section: Conversion
   ###
