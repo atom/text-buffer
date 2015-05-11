@@ -61,7 +61,7 @@ class Node
       @children[i].delete(id)
       i++ unless @mergeChildrenIfNeeded(i - 1)
 
-  splice: (position, oldExtent, newExtent, exclusiveIds, precedingIds) ->
+  splice: (position, oldExtent, newExtent, exclusiveIds, precedingIds, followingIds) ->
     oldRangeIsEmpty = oldExtent.isZero()
     spliceOldEnd = position.traverse(oldExtent)
     spliceNewEnd = position.traverse(newExtent)
@@ -93,15 +93,19 @@ class Node
             remainderToDelete = remainderToDelete.traversalFrom(previousExtent)
             childEnd = childStart.traverse(child.extent)
         else
-          relativeStart = position.traversalFrom(childStart)
-          if splitNodes = child.splice(relativeStart, oldExtent, newExtent, exclusiveIds, precedingIds)
-            @children.splice(i, 1, splitNodes...)
+          splitNodes = child.splice(
+            position.traversalFrom(childStart),
+            oldExtent,
+            newExtent,
+            exclusiveIds,
+            @children[i - 1]?.ids ? precedingIds,
+            @children[i + 1]?.ids ? followingIds
+          )
+          @children.splice(i, 1, splitNodes...) if splitNodes
           remainderToDelete = spliceOldEnd.traversalFrom(childEnd)
           childEnd = childStart.traverse(child.extent)
 
       i++ unless @mergeChildrenIfNeeded(i - 1)
-      precedingIds = child.ids
-
     @splitIfNeeded()
 
   getStart: (id) ->
@@ -245,13 +249,18 @@ class Leaf
   delete: (id) ->
     @ids.delete(id)
 
-  splice: (position, spliceOldExtent, spliceNewExtent, exclusiveIds, precedingIds) ->
+  splice: (position, spliceOldExtent, spliceNewExtent, exclusiveIds, precedingIds, followingIds) ->
     if position.isZero() and spliceOldExtent.isZero()
-      boundaryIds = new Set
-      addSet(boundaryIds, precedingIds)
-      addSet(boundaryIds, @ids)
-      subtractSet(boundaryIds, exclusiveIds)
-      [new Leaf(spliceNewExtent, boundaryIds), this]
+
+      leftIds = new Set(precedingIds)
+      addSet(leftIds, @ids)
+      subtractSet(leftIds, exclusiveIds)
+
+      if @extent.isZero()
+        precedingIds.forEach (id) =>
+          @ids.delete(id) unless followingIds.has(id)
+
+      [new Leaf(spliceNewExtent, leftIds), this]
     else
       spliceOldEnd = position.traverse(spliceOldExtent)
       spliceNewEnd = position.traverse(spliceNewExtent)
@@ -335,7 +344,7 @@ class MarkerIndex
 
   splice: (position, oldExtent, newExtent) ->
     @clearRangeCache()
-    if splitNodes = @rootNode.splice(position, oldExtent, newExtent, @exclusiveIds, new Set)
+    if splitNodes = @rootNode.splice(position, oldExtent, newExtent, @exclusiveIds, new Set, new Set)
       @rootNode = new Node(splitNodes)
     @condenseIfNeeded()
 

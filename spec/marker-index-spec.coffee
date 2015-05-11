@@ -207,44 +207,61 @@ describe "MarkerIndex", ->
       describe "when there is no marker boundary at the splice location", ->
         it "treats the change as being inside markers that it intersects", ->
           markerIndex.insert("surrounds-point", Point(0, 3), Point(0, 8))
+          markerIndex.insert("surrounds-point-exclusive", Point(0, 3), Point(0, 8))
+          markerIndex.setExclusive("surrounds-point-exclusive", true)
 
           markerIndex.splice(Point(0, 5), Point(0, 0), Point(0, 4))
 
           expect(markerIndex.getRange("surrounds-point")).toEqual Range(Point(0, 3), Point(0, 12))
+          expect(markerIndex.getRange("surrounds-point-exclusive")).toEqual Range(Point(0, 3), Point(0, 12))
 
       describe "when a non-empty marker starts or ends at the splice position", ->
         it "treats the change as being inside markers that it intersects unless they are exclusive", ->
+          markerIndex.insert("surrounds-point", Point(0, 3), Point(0, 8))
+          markerIndex.insert("surrounds-point-exclusive", Point(0, 3), Point(0, 8))
           markerIndex.insert("starts-at-point", Point(0, 5), Point(0, 8))
-          markerIndex.insert("ends-at-point", Point(0, 3), Point(0, 5))
-
           markerIndex.insert("starts-at-point-exclusive", Point(0, 5), Point(0, 8))
+          markerIndex.insert("ends-at-point", Point(0, 3), Point(0, 5))
           markerIndex.insert("ends-at-point-exclusive", Point(0, 3), Point(0, 5))
+
+          markerIndex.setExclusive("surrounds-point-exclusive", true)
           markerIndex.setExclusive("starts-at-point-exclusive", true)
           markerIndex.setExclusive("ends-at-point-exclusive", true)
 
-          expect(markerIndex.isExclusive("starts-at-point")).toBe false
-          expect(markerIndex.isExclusive("starts-at-point-exclusive")).toBe true
-
           markerIndex.splice(Point(0, 5), Point(0, 0), Point(0, 4))
 
+          expect(markerIndex.getRange("surrounds-point")).toEqual Range(Point(0, 3), Point(0, 12))
+          expect(markerIndex.getRange("surrounds-point-exclusive")).toEqual Range(Point(0, 3), Point(0, 12))
           expect(markerIndex.getRange("starts-at-point")).toEqual Range(Point(0, 5), Point(0, 12))
-          expect(markerIndex.getRange("ends-at-point")).toEqual Range(Point(0, 3), Point(0, 9))
           expect(markerIndex.getRange("starts-at-point-exclusive")).toEqual Range(Point(0, 9), Point(0, 12))
+          expect(markerIndex.getRange("ends-at-point")).toEqual Range(Point(0, 3), Point(0, 9))
           expect(markerIndex.getRange("ends-at-point-exclusive")).toEqual Range(Point(0, 3), Point(0, 5))
 
-      describe "when there is an empty marker at the splice position", ->
-        it "treats the change as being inside markers that it intersects", ->
+      describe "when there is a non-empty marker boundary and an empty marker at the splice location", ->
+        it "treats the change as being inside markers that it intersects unless they are exclusive", ->
+          markerIndex.insert("surrounds-point", Point(0, 3), Point(0, 8))
+          markerIndex.insert("surrounds-point-exclusive", Point(0, 3), Point(0, 8))
           markerIndex.insert("starts-at-point", Point(0, 5), Point(0, 8))
+          markerIndex.insert("starts-at-point-exclusive", Point(0, 5), Point(0, 8))
           markerIndex.insert("ends-at-point", Point(0, 3), Point(0, 5))
-          markerIndex.insert("at-point-inclusive", Point(0, 5), Point(0, 5))
+          markerIndex.insert("ends-at-point-exclusive", Point(0, 3), Point(0, 5))
+          markerIndex.insert("at-point", Point(0, 5), Point(0, 5))
           markerIndex.insert("at-point-exclusive", Point(0, 5), Point(0, 5))
+
+          markerIndex.setExclusive("surrounds-point-exclusive", true)
+          markerIndex.setExclusive("starts-at-point-exclusive", true)
+          markerIndex.setExclusive("ends-at-point-exclusive", true)
           markerIndex.setExclusive("at-point-exclusive", true)
 
           markerIndex.splice(Point(0, 5), Point(0, 0), Point(0, 4))
 
+          expect(markerIndex.getRange("surrounds-point")).toEqual Range(Point(0, 3), Point(0, 12))
+          expect(markerIndex.getRange("surrounds-point-exclusive")).toEqual Range(Point(0, 3), Point(0, 12))
           expect(markerIndex.getRange("starts-at-point")).toEqual Range(Point(0, 5), Point(0, 12))
+          expect(markerIndex.getRange("starts-at-point-exclusive")).toEqual Range(Point(0, 9), Point(0, 12))
           expect(markerIndex.getRange("ends-at-point")).toEqual Range(Point(0, 3), Point(0, 9))
-          expect(markerIndex.getRange("at-point-inclusive")).toEqual Range(Point(0, 5), Point(0, 9))
+          expect(markerIndex.getRange("ends-at-point-exclusive")).toEqual Range(Point(0, 3), Point(0, 5))
+          expect(markerIndex.getRange("at-point")).toEqual Range(Point(0, 5), Point(0, 9))
           expect(markerIndex.getRange("at-point-exclusive")).toEqual Range(Point(0, 9), Point(0, 9))
 
     describe "when the change spans multiple rows", ->
