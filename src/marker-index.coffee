@@ -3,20 +3,19 @@ Range = require "./range"
 {last} = require "underscore-plus"
 {addSet, subtractSet, intersectSet, setEqual} = require "./set-helpers"
 
-Zero = Point.zero()
 BRANCHING_THRESHOLD = 3
 
 class Node
   constructor: (@children) ->
     @ids = new Set
-    @extent = Point.zero()
+    @extent = Point.ZERO
     for child in @children
       @extent = @extent.traverse(child.extent)
       addSet(@ids, child.ids)
 
   insert: (ids, start, end) ->
     rangeIsEmpty = start.compare(end) is 0
-    childEnd = Point.zero()
+    childEnd = Point.ZERO
     i = 0
     while i < @children.length
       child = @children[i++]
@@ -42,7 +41,7 @@ class Node
         when 0  then childFollowsRange = not (child.hasEmptyLeftmostLeaf() or rangeIsEmpty)
       break if childFollowsRange
 
-      relativeStart = Point.max(Point.zero(), start.traversalFrom(childStart))
+      relativeStart = Point.max(Point.ZERO, start.traversalFrom(childStart))
       relativeEnd = Point.min(child.extent, end.traversalFrom(childStart))
       if newChildren = child.insert(ids, relativeStart, relativeEnd)
         @children.splice(i - 1, 1, newChildren...)
@@ -67,7 +66,7 @@ class Node
     spliceOldEnd = position.traverse(oldExtent)
     spliceNewEnd = position.traverse(newExtent)
     extentAfterChange = @extent.traversalFrom(spliceOldEnd)
-    @extent = spliceNewEnd.traverse(Point.max(Point.zero(), extentAfterChange))
+    @extent = spliceNewEnd.traverse(Point.max(Point.ZERO, extentAfterChange))
 
     if position.isZero() and oldRangeIsEmpty
       precedingIds?.forEach (id) =>
@@ -75,7 +74,7 @@ class Node
           @ids.add(id)
 
     i = 0
-    childEnd = Point.zero()
+    childEnd = Point.ZERO
     while i < @children.length
       child = @children[i]
       childStart = childEnd
@@ -90,7 +89,7 @@ class Node
         if remainderToDelete?
           if remainderToDelete.isPositive()
             previousExtent = child.extent
-            child.splice(Point.zero(), remainderToDelete, Point.zero())
+            child.splice(Point.ZERO, remainderToDelete, Point.ZERO)
             remainderToDelete = remainderToDelete.traversalFrom(previousExtent)
             childEnd = childStart.traverse(child.extent)
         else
@@ -114,7 +113,7 @@ class Node
 
   getStart: (id) ->
     return unless @ids.has(id)
-    childEnd = Point.zero()
+    childEnd = Point.ZERO
     for child in @children
       childStart = childEnd
       childEnd = childStart.traverse(child.extent)
@@ -124,7 +123,7 @@ class Node
 
   getEnd: (id) ->
     return unless @ids.has(id)
-    childEnd = Point.zero()
+    childEnd = Point.ZERO
     for child in @children
       childStart = childEnd
       childEnd = childStart.traverse(child.extent)
@@ -140,7 +139,7 @@ class Node
     offset
 
   findContaining: (point, set) ->
-    childEnd = Point.zero()
+    childEnd = Point.ZERO
     for child in @children
       childStart = childEnd
       childEnd = childStart.traverse(child.extent)
@@ -154,14 +153,14 @@ class Node
       addSet(set, @ids)
       return
 
-    childEnd = Point.zero()
+    childEnd = Point.ZERO
     for child in @children
       childStart = childEnd
       childEnd = childStart.traverse(child.extent)
       continue if childEnd.compare(start) < 0
       break if childStart.compare(end) > 0
       child.findIntersecting(
-        Point.max(Point.zero(), start.traversalFrom(childStart)),
+        Point.max(Point.ZERO, start.traversalFrom(childStart)),
         Point.min(child.extent, end.traversalFrom(childStart)),
         set
       )
@@ -275,11 +274,11 @@ class Leaf
       spliceOldEnd = position.traverse(spliceOldExtent)
       spliceNewEnd = position.traverse(spliceNewExtent)
       extentAfterChange = @extent.traversalFrom(spliceOldEnd)
-      @extent = spliceNewEnd.traverse(Point.max(Point.zero(), extentAfterChange))
+      @extent = spliceNewEnd.traverse(Point.max(Point.ZERO, extentAfterChange))
       return
 
   getStart: (id) ->
-    Point.zero() if @ids.has(id)
+    Point.ZERO if @ids.has(id)
 
   getEnd: (id) ->
     @extent if @ids.has(id)
@@ -431,13 +430,13 @@ class MarkerIndex
       result
 
   clear: ->
-    @rootNode = new Leaf(Point.infinity(), new Set)
+    @rootNode = new Leaf(Point.INFINITY, new Set)
     @exclusiveIds = new Set
     @clearRangeCache()
 
   dump: ->
     unless @rangeCacheFresh
-      @rootNode.dump(Point.zero(), @rangeCache)
+      @rootNode.dump(Point.ZERO, @rangeCache)
       @rangeCacheFresh = true
     @rangeCache
 
@@ -460,6 +459,6 @@ assertValidId = (id) ->
     throw new TypeError("Marker ID must be a string")
 
 templateRange = ->
-  range = new Range(Zero, Zero)
+  range = new Range(Point.ZERO, Point.ZERO)
   range.start = range.end = null
   range

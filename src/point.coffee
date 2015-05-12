@@ -60,11 +60,9 @@ class Point
     else
       point2
 
-  @zero: ->
-    new Point(0, 0)
+  @ZERO: Object.freeze(new Point(0, 0))
 
-  @infinity: ->
-    new Point(Infinity, Infinity)
+  @INFINITY: Object.freeze(new Point(Infinity, Infinity))
 
   ###
   Section: Construction

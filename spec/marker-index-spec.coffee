@@ -340,7 +340,7 @@ describe "MarkerIndex", ->
     getSplice = ->
       start = Point(random(20), random(20))
       if random(10) > 7
-        oldExtent = Point.zero()
+        oldExtent = Point.ZERO
       else
         oldExtent = Point(random(20 - start.row), random(20))
       newExtent = Point(random(20 - start.row), random(20))
