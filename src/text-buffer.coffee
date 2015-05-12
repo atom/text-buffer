@@ -12,7 +12,8 @@ History = require './history'
 MarkerStore = require "./marker-store"
 {spliceArray, newlineRegex} = require './helpers'
 
-TransactionAborted = Symbol("transaction aborted")
+class TransactionAbortedError extends Error
+  constructor: -> super
 
 # Extended: A mutable text container with undo/redo support and the ability to
 # annotate logical regions in the text.
@@ -836,7 +837,7 @@ class TextBuffer
       result = fn()
     catch exception
       @revertToCheckpoint(checkpoint)
-      throw exception unless exception is TransactionAborted
+      throw exception unless exception instanceof TransactionAbortedError
       return
     finally
       @transactCallDepth--
@@ -850,7 +851,7 @@ class TextBuffer
     result
 
   abortTransaction: ->
-    throw TransactionAborted
+    throw new TransactionAbortedError("Transaction aborted.")
 
   # Public: Clear the undo stack.
   clearUndoStack: -> @history.clearUndoStack()
