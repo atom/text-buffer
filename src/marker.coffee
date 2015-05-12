@@ -41,7 +41,6 @@ class Marker
   @delegatesMethods 'containsPoint', 'containsRange', 'intersectsRow', toProperty: 'range'
 
   constructor: (@id, @store, range, params) ->
-    params = Marker.extractParams(params)
     {@tailed, @reversed, @valid, @invalidate, @persistent, @properties} = params
     @emitter = new Emitter
     @tailed ?= true
@@ -263,10 +262,14 @@ class Marker
   # marker.
   #
   # * `params` {Object}
-  copy: (options) ->
-    properties = @properties
-    properties[key] = value for key, value of options
-    @store.markRange(@getRange(), options)
+  copy: (options={}) ->
+    snapshot = @getSnapshot()
+    options = Marker.extractParams(options)
+    @store.createMarker(@getRange(), extend(
+      snapshot,
+      options,
+      properties: extend({}, snapshot.properties, options.properties)
+    ))
 
   # Public: Destroys the marker, causing it to emit the 'destroyed' event. Once
   # destroyed, a marker cannot be restored by undo/redo operations.

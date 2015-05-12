@@ -88,21 +88,11 @@ class MarkerStore
     result.sort (a, b) -> a.compare(b)
 
   markRange: (range, options={}) ->
-    range = Range.fromObject(range)
-    id = String(@nextMarkerId++)
-    marker = new Marker(id, this, range, options)
-    @markersById[id] = marker
-    @index.insert(id, range.start, range.end)
-    if marker.getInvalidationStrategy() is 'inside'
-      @index.setExclusive(id, true)
-    @delegate.markerCreated(marker)
-    marker
+    @createMarker(Range.fromObject(range), Marker.extractParams(options))
 
-  markPosition: (position, options) ->
-    properties = {}
-    properties[key] = value for key, value of options
-    properties.tailed = false
-    @markRange(Range(position, position), properties)
+  markPosition: (position, options={}) ->
+    options.tailed ?= false
+    @markRange(Range(position, position), options)
 
   splice: (start, oldExtent, newExtent) ->
     end = start.traverse(oldExtent)
@@ -132,10 +122,11 @@ class MarkerStore
 
   restoreFromSnapshot: (snapshots) ->
     for id in Object.keys(@markersById)
+      marker = @markersById[id]
       if snapshot = snapshots[id]
-        marker = @markersById[id]
-        marker.properties = {}
         marker.update(marker.getRange(), snapshot, true)
+      else
+        marker.emitChangeEvent(marker.getRange(), true, false)
 
   emitChangeEvents: ->
     ranges = @index.dump()
@@ -164,8 +155,7 @@ class MarkerStore
       range = Range.fromObject(markerState.range)
       delete markerState.range
       @index.insert(id, range.start, range.end)
-      marker = new Marker(id, this, range, {})
-      marker.update(marker.getRange(), markerState, false)
+      marker = new Marker(id, this, range, markerState)
       @markersById[id] = marker
     return
 
@@ -193,6 +183,16 @@ class MarkerStore
 
   setMarkerHasTail: (id, hasTail) ->
     @index.setExclusive(id, not hasTail)
+
+  createMarker: (range, params) ->
+    id = String(@nextMarkerId++)
+    marker = new Marker(id, this, range, params)
+    @markersById[id] = marker
+    @index.insert(id, range.start, range.end)
+    if marker.getInvalidationStrategy() is 'inside'
+      @index.setExclusive(id, true)
+    @delegate.markerCreated(marker)
+    marker
 
 filterSet = (set1, set2) ->
   if set1
