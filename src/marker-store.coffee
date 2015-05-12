@@ -131,8 +131,8 @@ class MarkerStore
   emitChangeEvents: ->
     ranges = @index.dump()
     for id in Object.keys(@markersById)
-      marker = @markersById[id]
-      marker.emitChangeEvent(ranges[id], true, false)
+      if marker = @markersById[id]
+        marker.emitChangeEvent(ranges[id], true, false)
 
   createSnapshot: (filterPersistent) ->
     result = {}

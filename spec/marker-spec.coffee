@@ -778,6 +778,19 @@ describe "Marker", ->
       expect(marker.isDestroyed()).toBe true
       expect(marker.isValid()).toBe false
 
+    it "handles markers deleted in event handlers", ->
+      marker1 = buffer.markRange([[0, 3], [0, 6]])
+      marker2 = marker1.copy()
+      marker3 = marker1.copy()
+
+      marker1.onDidChange ->
+        marker1.destroy()
+        marker2.destroy()
+        marker3.destroy()
+
+      # doesn't blow up.
+      buffer.insert([0, 0], "!")
+
     it "allows the position to be retrieved after destruction", ->
       marker = buffer.markRange([[0, 3], [0, 6]])
       marker.destroy()
