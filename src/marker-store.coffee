@@ -43,6 +43,9 @@ class MarkerStore
   getMarkers: ->
     marker for id, marker of @markersById
 
+  getMarkerCount: ->
+    Object.keys(@markersById).length
+
   findMarkers: (params) ->
     markerIds = null
 
