@@ -69,7 +69,7 @@ class Node
     extentAfterChange = @extent.traversalFrom(spliceOldEnd)
     @extent = spliceNewEnd.traverse(Point.max(Point.zero(), extentAfterChange))
 
-    if position.isZero() and oldExtent.isZero()
+    if position.isZero() and oldRangeIsEmpty
       precedingIds?.forEach (id) =>
         unless exclusiveIds.has(id)
           @ids.add(id)
@@ -94,13 +94,16 @@ class Node
             remainderToDelete = remainderToDelete.traversalFrom(previousExtent)
             childEnd = childStart.traverse(child.extent)
         else
+          if oldRangeIsEmpty
+            previousChildIds = @children[i - 1]?.getRightmostIds() ? precedingIds
+            nextChildIds = @children[i + 1]?.getLeftmostIds() ? followingIds
           splitNodes = child.splice(
             position.traversalFrom(childStart),
             oldExtent,
             newExtent,
             exclusiveIds,
-            @children[i - 1]?.getRightmostIds() ? precedingIds,
-            @children[i + 1]?.getLeftmostIds() ? followingIds
+            previousChildIds,
+            nextChildIds
           )
           @children.splice(i, 1, splitNodes...) if splitNodes
           remainderToDelete = spliceOldEnd.traversalFrom(childEnd)
