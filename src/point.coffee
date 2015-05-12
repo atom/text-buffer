@@ -13,6 +13,16 @@
 module.exports =
 class Point
   ###
+  Section: Properties
+  ###
+
+  # Public: A zero-indexed {Number} representing the row of the {Point}
+  row: null
+
+  # Public: A zero-indexed {Number} representing the column of the {Point}
+  column: null
+
+  ###
   Section: Construction
   ###
 
