@@ -365,6 +365,7 @@ class Marker
     return unless propertiesChanged or
       oldState.valid isnt newState.valid or
       oldState.tailed isnt newState.tailed or
+      oldState.reversed isnt newState.reversed or
       oldState.range.compare(newState.range) isnt 0
 
     if oldState.reversed
