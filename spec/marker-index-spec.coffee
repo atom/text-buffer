@@ -2,7 +2,7 @@ Point = require "../src/point"
 Range = require "../src/range"
 MarkerIndex = require "../src/marker-index"
 Random = require "random-seed"
-
+{addSet} = require "../src/set-helpers"
 {currentSpecFailed, toEqualSet} = require "./spec-helper"
 
 describe "MarkerIndex", ->
@@ -323,6 +323,9 @@ describe "MarkerIndex", ->
 
           # console.log markerIndex.rootNode.toString()
 
+          expectContiguousIds(markerIndex, seed)
+          expectCorrectIdAggregation(markerIndex.rootNode, seed)
+
           for {id, start, end} in markers
             expect(markerIndex.getStart(id)).toEqual start, "(Marker #{id} start; Seed: #{seed})"
             expect(markerIndex.getEnd(id)).toEqual end, "(Marker #{id} end; Seed: #{seed})"
@@ -335,9 +338,12 @@ describe "MarkerIndex", ->
           return if currentSpecFailed()
 
     getSplice = ->
-      start = Point(random(100), random(100))
-      oldExtent = Point(random(100 - start.row), random(100))
-      newExtent = Point(random(100 - start.row), random(100))
+      start = Point(random(20), random(20))
+      if random(10) > 7
+        oldExtent = Point.zero()
+      else
+        oldExtent = Point(random(20 - start.row), random(20))
+      newExtent = Point(random(20 - start.row), random(20))
       [start, oldExtent, newExtent]
 
     spliceMarkers = (spliceStart, oldExtent, newExtent) ->
@@ -392,12 +398,12 @@ describe "MarkerIndex", ->
             marker.end = spliceNewEnd
 
     getRange = ->
-      start = Point(random(100), random(100))
-      endRow = random.intBetween(start.row, 100)
+      start = Point(random(20), random(20))
+      endRow = random.intBetween(start.row, 20)
       if endRow is start.row
-        endColumn = random.intBetween(start.column, 100)
+        endColumn = random.intBetween(start.column, 20)
       else
-        endColumn = random.intBetween(0, 100)
+        endColumn = random.intBetween(0, 20)
       end = Point(endRow, endColumn)
       [start, end]
 
@@ -407,3 +413,30 @@ describe "MarkerIndex", ->
         if marker.start.compare(start) <= 0 and end.compare(marker.end) <= 0
           expected.push(marker.id)
       expected
+
+    expectContiguousIds = (index, seed) ->
+      started = new Set
+      ended = new Set
+      for leaf in getLeaves(index.rootNode)
+        leaf.ids.forEach (id) ->
+          started.add(id)
+          throw new Error("Inconsistent index state. Seed: #{seed}") if ended.has(id)
+
+        started.forEach (id) ->
+          ended.add(id) unless leaf.ids.has(id)
+
+    expectCorrectIdAggregation = (node, seed) ->
+      if node.children?
+        allChildIds = new Set
+        for child in node.children
+          addSet(allChildIds, child.ids)
+      expect(node.ids).toEqualSet allChildIds
+
+    getLeaves = (node) ->
+      if node.children?
+        result = []
+        for child in node.children
+          result.push(getLeaves(child)...)
+        result
+      else
+        [node]

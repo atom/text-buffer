@@ -1,5 +1,6 @@
 Point = require "./point"
 Range = require "./range"
+{last} = require "underscore-plus"
 {addSet, subtractSet, intersectSet, setEqual} = require "./set-helpers"
 
 Zero = Point.zero()
@@ -98,8 +99,8 @@ class Node
             oldExtent,
             newExtent,
             exclusiveIds,
-            @children[i - 1]?.ids ? precedingIds,
-            @children[i + 1]?.ids ? followingIds
+            @children[i - 1]?.getRightmostIds() ? precedingIds,
+            @children[i + 1]?.getLeftmostIds() ? followingIds
           )
           @children.splice(i, 1, splitNodes...) if splitNodes
           remainderToDelete = spliceOldEnd.traversalFrom(childEnd)
@@ -187,6 +188,12 @@ class Node
 
   hasEmptyLeftmostLeaf: ->
     @children[0].hasEmptyLeftmostLeaf()
+
+  getLeftmostIds: ->
+    @children[0].getLeftmostIds()
+
+  getRightmostIds: ->
+    last(@children).getRightmostIds()
 
   shouldMergeWith: (other) ->
     childCount = @children.length + other.children.length
@@ -305,6 +312,12 @@ class Leaf
 
   hasEmptyLeftmostLeaf: ->
     @extent.isZero()
+
+  getLeftmostIds: ->
+    @ids
+
+  getRightmostIds: ->
+    @ids
 
   shouldMergeWith: (other) ->
     setEqual(@ids, other.ids) or @extent.isZero() and other.extent.isZero()
