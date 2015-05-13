@@ -56,8 +56,8 @@ class MarkerStore
           markerIds = filterSet(markerIds, @index.findStartingIn(Point.fromObject(value)))
         when 'endPosition'
           markerIds = filterSet(markerIds, @index.findEndingIn(Point.fromObject(value)))
-        when 'containsPoint'
-          markerIds = filterSet(markerIds, @index.findContaining(point = Point.fromObject(value)))
+        when 'containsPoint', 'containsPosition'
+          markerIds = filterSet(markerIds, @index.findContaining(Point.fromObject(value)))
         when 'containsRange'
           {start, end} = Range.fromObject(value)
           markerIds = filterSet(markerIds, @index.findContaining(start, end))

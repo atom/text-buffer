@@ -38,7 +38,7 @@ class Marker
       outputParams.properties = properties if size(properties) > 0
     outputParams
 
-  @delegatesMethods 'containsPoint', 'containsRange', 'intersectsRow', toProperty: 'range'
+  @delegatesMethods 'containsPoint', 'containsRange', 'intersectsRow', toMethod: 'getRange'
 
   constructor: (@id, @store, range, params) ->
     {@tailed, @reversed, @valid, @invalidate, @persistent, @properties} = params
