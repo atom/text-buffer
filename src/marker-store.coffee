@@ -122,11 +122,11 @@ class MarkerStore
 
   restoreFromSnapshot: (snapshots) ->
     for id in Object.keys(@markersById)
-      marker = @markersById[id]
-      if snapshot = snapshots[id]
-        marker.update(marker.getRange(), snapshot, true)
-      else
-        marker.emitChangeEvent(marker.getRange(), true, false)
+      if marker = @markersById[id]
+        if snapshot = snapshots[id]
+          marker.update(marker.getRange(), snapshot, true)
+        else
+          marker.emitChangeEvent(marker.getRange(), true, false)
 
   emitChangeEvents: ->
     ranges = @index.dump()
