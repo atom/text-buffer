@@ -5,7 +5,7 @@ Delegator = require 'delegato'
 Point = require './point'
 Range = require './range'
 
-OptionKeys = ['reversed', 'tailed', 'invalidate', 'persistent']
+OptionKeys = new Set(['reversed', 'tailed', 'invalidate', 'persistent'])
 
 # Private: Represents a buffer annotation that remains logically stationary
 # even as the buffer changes. This is used to represent cursors, folds, snippet
@@ -33,9 +33,12 @@ class Marker
     outputParams = {}
     if inputParams?
       @handleDeprecatedParams(inputParams) if Grim.includeDeprecatedAPIs
-      extend(outputParams, pick(inputParams, OptionKeys))
-      properties = omit(inputParams, OptionKeys)
-      outputParams.properties = properties if size(properties) > 0
+      for key in Object.keys(inputParams)
+        if OptionKeys.has(key)
+          outputParams[key] = inputParams[key]
+        else
+          outputParams.properties ?= {}
+          outputParams.properties[key] = inputParams[key]
     outputParams
 
   @delegatesMethods 'containsPoint', 'containsRange', 'intersectsRow', toMethod: 'getRange'
@@ -293,8 +296,8 @@ class Marker
   # Returns whether this marker matches the given parameters. The parameters
   # are the same as {MarkerManager::findMarkers}.
   matchesParams: (params) ->
-    for key, value of params
-      return false unless @matchesParam(key, value)
+    for key in Object.keys(params)
+      return false unless @matchesParam(key, params[key])
     true
 
   # Returns whether this marker matches the given parameter name and value.
