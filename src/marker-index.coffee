@@ -197,18 +197,19 @@ class Node
   getRightmostIds: ->
     last(@children).getRightmostIds()
 
-  shouldMergeWith: (other) ->
-    childCount = @children.length + other.children.length
-    if @children[@children.length - 1].shouldMergeWith(other.children[0])
-      childCount--
-    childCount <= BRANCHING_THRESHOLD
-
   merge: (other) ->
-    children = @children.concat(other.children)
-    joinIndex = @children.length - 1
-    if children[joinIndex].shouldMergeWith(children[joinIndex + 1])
-      children.splice(joinIndex, 2, children[joinIndex].merge(children[joinIndex + 1]))
-    new Node(children)
+    childCount = @children.length + other.children.length
+    if childCount <= BRANCHING_THRESHOLD + 1
+      if last(@children).merge(other.children[0])
+        other.children.shift()
+        childCount--
+
+      if childCount <= BRANCHING_THRESHOLD
+        @extent = @extent.traverse(other.extent)
+        addSet(@ids, other.ids)
+        @children.push(other.children...)
+        return true
+    false
 
   splitIfNeeded: ->
     if (branchingRatio = @children.length / BRANCHING_THRESHOLD) > 1
@@ -216,8 +217,8 @@ class Node
       [new Node(@children.slice(0, splitIndex)), new Node(@children.slice(splitIndex))]
 
   mergeChildrenIfNeeded: (i) ->
-    if @children[i]?.shouldMergeWith(@children[i + 1])
-      @children.splice(i, 2, @children[i].merge(@children[i + 1]))
+    if @children[i]?.merge(@children[i + 1])
+      @children.splice(i + 1, 1)
       true
     else
       false
@@ -285,7 +286,9 @@ class Leaf
 
   dump: (offset, snapshot) ->
     end = offset.traverse(@extent)
-    @ids.forEach (id) ->
+    iterator = @ids.values()
+    until (next = iterator.next()).done
+      id = next.value
       snapshot[id].start ?= offset
       snapshot[id].end = end
     end
@@ -321,13 +324,13 @@ class Leaf
   getRightmostIds: ->
     @ids
 
-  shouldMergeWith: (other) ->
-    setEqual(@ids, other.ids) or @extent.isZero() and other.extent.isZero()
-
   merge: (other) ->
-    ids = new Set(@ids)
-    other.ids.forEach (id) -> ids.add(id)
-    new Leaf(@extent.traverse(other.extent), ids)
+    if setEqual(@ids, other.ids) or @extent.isZero() and other.extent.isZero()
+      @extent = @extent.traverse(other.extent)
+      addSet(@ids, other.ids)
+      true
+    else
+      false
 
   toString: (indentLevel=0) ->
     indent = ""
