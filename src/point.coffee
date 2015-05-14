@@ -62,6 +62,18 @@ class Point
     else
       point2
 
+  @max: (point1, point2) ->
+    point1 = Point.fromObject(point1)
+    point2 = Point.fromObject(point2)
+    if point1.compare(point2) >= 0
+      point1
+    else
+      point2
+
+  @ZERO: Object.freeze(new Point(0, 0))
+
+  @INFINITY: Object.freeze(new Point(Infinity, Infinity))
+
   ###
   Section: Construction
   ###
@@ -70,7 +82,11 @@ class Point
   #
   # * `row` {Number} row
   # * `column` {Number} column
-  constructor: (@row=0, @column=0) ->
+  constructor: (row=0, column=0) ->
+    unless this instanceof Point
+      return new Point(row, column)
+    @row = row
+    @column = column
 
   # Public: Returns a new {Point} with the same row and column.
   copy: ->
@@ -130,6 +146,16 @@ class Point
       column = other.column
 
     new Point(row, column)
+
+  traversalFrom: (other) ->
+    other = Point.fromObject(other)
+    if @row is other.row
+      if @column is Infinity and other.column is Infinity
+        new Point(0, 0)
+      else
+        new Point(0, @column - other.column)
+    else
+      new Point(@row - other.row, @column)
 
   splitAt: (column) ->
     if @row == 0
@@ -200,6 +226,25 @@ class Point
   isGreaterThanOrEqual: (other) ->
     @compare(other) >= 0
 
+  isZero: ->
+    @row is 0 and @column is 0
+
+  isPositive: ->
+    if @row > 0
+      true
+    else if @row < 0
+      false
+    else
+      @column > 0
+
+  isNegative: ->
+    if @row < 0
+      true
+    else if @row > 0
+      false
+    else
+      @column < 0
+
   ###
   Section: Conversion
   ###
@@ -221,3 +266,6 @@ if includeDeprecatedAPIs
   Point::add = (other) ->
     deprecate("Use Point::traverse instead")
     @traverse(other)
+
+isNumber = (value) ->
+  (typeof value is 'number') and (not Number.isNaN(value))

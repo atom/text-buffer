@@ -1,4 +1,3 @@
-Delegator = require 'delegato'
 Grim = require 'grim'
 Serializable = require 'serializable'
 {Emitter, CompositeDisposable} = require 'event-kit'
@@ -10,19 +9,21 @@ Q = require 'q'
 Point = require './point'
 Range = require './range'
 History = require './history'
-MarkerManager = require './marker-manager'
-BufferPatch = require './buffer-patch'
+MarkerStore = require "./marker-store"
 {spliceArray, newlineRegex} = require './helpers'
+
+class TransactionAbortedError extends Error
+  constructor: -> super
 
 # Extended: A mutable text container with undo/redo support and the ability to
 # annotate logical regions in the text.
 module.exports =
 class TextBuffer
+  @version: 2
   @Point: Point
   @Range: Range
   @newlineRegex: newlineRegex
 
-  Delegator.includeInto(this)
   Serializable.includeInto(this)
 
   cachedText: null
@@ -34,9 +35,6 @@ class TextBuffer
   file: null
   refcount: 0
   fileSubscriptions: null
-
-  @delegatesMethods 'undo', 'redo', 'transact', 'beginTransaction', 'commitTransaction',
-    'abortTransaction', 'isTransacting', 'clearUndoStack', toProperty: 'history'
 
   ###
   Section: Construction
@@ -57,28 +55,29 @@ class TextBuffer
     @offsetIndex = new SpanSkipList('rows', 'characters')
     @setTextInRange([[0, 0], [0, 0]], text ? params?.text ? '', normalizeLineEndings: false)
     @history = params?.history ? new History(this)
-    @markers = params?.markers ? new MarkerManager(this)
+    @markerStore = params?.markerStore ? new MarkerStore(this)
     @setEncoding(params?.encoding)
 
     @loaded = false
+    @transactCallDepth = 0
     @digestWhenLastPersisted = params?.digestWhenLastPersisted ? false
     @modifiedWhenLastPersisted = params?.modifiedWhenLastPersisted ? false
     @useSerializedText = @modifiedWhenLastPersisted isnt false
 
     @setPath(params.filePath) if params?.filePath
-    @load() if params?.load
+    @load(true) if params?.load
 
   # Called by {Serializable} mixin during deserialization.
   deserializeParams: (params) ->
-    params.markers = MarkerManager.deserialize(params.markers, buffer: this)
-    params.history = History.deserialize(params.history, buffer: this)
+    params.markerStore = MarkerStore.deserialize(this, params.markerStore)
+    params.history = History.deserialize(this, params.history)
     params.load = true
     params
 
   # Called by {Serializable} mixin during serialization.
   serializeParams: ->
     text: @getText()
-    markers: @markers.serialize()
+    markerStore: @markerStore.serialize()
     history: @history.serialize()
     encoding: @getEncoding()
     filePath: @getPath()
@@ -503,7 +502,7 @@ class TextBuffer
   # given text.
   #
   # * `text` A {String} containing the new buffer contents.
-  setTextViaDiff: (text) ->
+  setTextViaDiff: (text, skipUndo) ->
     currentText = @getText()
     return if currentText == text
 
@@ -526,6 +525,7 @@ class TextBuffer
 
       lineDiff = diff.diffLines(currentText, text)
       changeOptions = normalizeLineEndings: false
+      changeOptions.undo = 'skip' if skipUndo
 
       for change in lineDiff
         lineCount = change.value.match(newlineRegex)?.length ? 0
@@ -556,7 +556,10 @@ class TextBuffer
   #   * `undo` (optional) {String} 'skip' will skip the undo system
   #
   # Returns the {Range} of the inserted text.
-  setTextInRange: (range, text, options) ->
+  setTextInRange: (range, newText, options) ->
+    if @transactCallDepth is 0
+      return @transact => @setTextInRange(range, newText, options)
+
     if Grim.includeDeprecatedAPIs and typeof options is 'boolean'
       normalizeLineEndings = options
       Grim.deprecate("The normalizeLineEndings argument is now an options hash. Use {normalizeLineEndings: #{options}} instead")
@@ -564,10 +567,11 @@ class TextBuffer
       {normalizeLineEndings, undo} = options
     normalizeLineEndings ?= true
 
-    patch = @buildPatch(range, text, normalizeLineEndings)
-    @history?.recordNewPatch(patch) unless undo is 'skip'
-    @applyPatch(patch)
-    patch.newRange
+    oldRange = @clipRange(range)
+    oldText = @getTextInRange(oldRange)
+    newRange = Range.fromText(oldRange.start, newText)
+    @applyChange({oldRange, newRange, oldText, newText, normalizeLineEndings}, (undo is 'skip'))
+    newRange
 
   # Public: Insert text at the given position.
   #
@@ -593,25 +597,20 @@ class TextBuffer
   append: (text, options) ->
     @insert(@getEndPosition(), text, options)
 
-  # Builds a {BufferPatch}, which is used to modify the buffer and is also
-  # pushed into the undo history so it can be undone.
-  buildPatch: (oldRange, newText, normalizeLineEndings) ->
-    oldRange = @clipRange(oldRange)
-    oldText = @getTextInRange(oldRange)
-    newRange = Range.fromText(oldRange.start, newText)
-    new BufferPatch(oldRange, newRange, oldText, newText, normalizeLineEndings)
+  # Applies a change to the buffer based on its old range and new text.
+  applyChange: (change, skipUndo) ->
+    {oldRange, newRange, oldText, newText, normalizeLineEndings} = change
+    changeEvent = Object.freeze({oldRange, newRange, oldText, newText})
 
-  # Applies a {BufferPatch} to the buffer based on its old range and new text.
-  # Also applies any {MarkerPatch}es associated with the {BufferPatch}.
-  applyPatch: (patch) ->
-    {oldRange, newRange, oldText, newText, normalizeLineEndings} = patch
     @cachedText = null
 
     startRow = oldRange.start.row
     endRow = oldRange.end.row
     rowCount = endRow - startRow + 1
+    oldExtent = oldRange.getExtent()
+    newExtent = newRange.getExtent()
 
-    @emitter.emit 'will-change', {oldRange, newRange, oldText, newText}
+    @emitter.emit 'will-change', changeEvent
 
     # Determine how to normalize the line endings of inserted text if enabled
     if normalizeLineEndings
@@ -654,18 +653,13 @@ class TextBuffer
       {rows: 1, characters: line.length + lineEndings[index].length}
     @offsetIndex.spliceArray('rows', startRow, rowCount, offsets)
 
-    @markers?.pauseChangeEvents()
-    @markers?.handleBufferChange(patch)
-
-    changeEvent = {oldRange, newRange, oldText, newText}
+    @markerStore?.splice(oldRange.start, oldRange.getExtent(), newRange.getExtent())
+    @history?.pushChange(change) unless skipUndo
 
     @conflict = false if @conflict and !@isModified()
     @scheduleModifiedEvents()
     @emitter.emit 'did-change', changeEvent
     @emit 'changed', changeEvent if Grim.includeDeprecatedAPIs
-    @markers?.resumeChangeEvents()
-    @emitter.emit 'did-update-markers'
-    @emit 'markers-updated' if Grim.includeDeprecatedAPIs
 
   # Public: Delete the text in the given range.
   #
@@ -748,7 +742,7 @@ class TextBuffer
   #       start or start at the marker's end. This is the most fragile strategy.
   #
   # Returns a {Marker}.
-  markRange: (range, properties) -> @markers.markRange(range, properties)
+  markRange: (range, properties) -> @markerStore.markRange(@clipRange(range), properties)
 
   # Public: Create a marker at the given position with no tail.
   #
@@ -756,19 +750,19 @@ class TextBuffer
   # * `properties` This is the same as the `properties` parameter in {::markRange}
   #
   # Returns a {Marker}.
-  markPosition: (position, properties) -> @markers.markPosition(position, properties)
+  markPosition: (position, properties) -> @markerStore.markPosition(@clipPosition(position), properties)
 
   # Public: Get all existing markers on the buffer.
   #
   # Returns an {Array} of {Marker}s.
-  getMarkers: -> @markers.getMarkers()
+  getMarkers: -> @markerStore.getMarkers()
 
   # Public: Get an existing marker by its id.
   #
   # * `id` {Number} id of the marker to retrieve
   #
   # Returns a {Marker}.
-  getMarker: (id) -> @markers.getMarker(id)
+  getMarker: (id) -> @markerStore.getMarker(id)
 
   # Public: Find markers conforming to the given parameters.
   #
@@ -788,12 +782,12 @@ class TextBuffer
   #   * `intersectsRow` Only include markers that intersect the given row {Number}.
   #
   # Returns an {Array} of {Marker}s.
-  findMarkers: (params) -> @markers.findMarkers(params)
+  findMarkers: (params) -> @markerStore.findMarkers(params)
 
   # Public: Get the number of markers in the buffer.
   #
   # Returns a {Number}.
-  getMarkerCount: -> @markers.getMarkerCount()
+  getMarkerCount: -> @markerStore.getMarkerCount()
 
   destroyMarker: (id) ->
     @getMarker(id)?.destroy()
@@ -803,10 +797,20 @@ class TextBuffer
   ###
 
   # Public: Undo the last operation. If a transaction is in progress, aborts it.
-  undo: -> @history.undo()
+  undo: ->
+    if pop = @history.popUndoStack(@markerStore.createSnapshot())
+      @applyChange(change, true) for change in pop.changes
+      @markerStore.restoreFromSnapshot(pop.snapshot)
+      @emitter.emit 'did-update-markers'
+      @emit 'markers-updated' if Grim.includeDeprecatedAPIs
 
   # Public: Redo the last operation
-  redo: -> @history.redo()
+  redo: ->
+    if pop = @history.popRedoStack(@markerStore.createSnapshot())
+      @applyChange(change, true) for change in pop.changes
+      @markerStore.restoreFromSnapshot(pop.snapshot)
+      @emitter.emit 'did-update-markers'
+      @emit 'markers-updated' if Grim.includeDeprecatedAPIs
 
   # Public: Batch multiple operations as a single undo/redo step.
   #
@@ -821,7 +825,33 @@ class TextBuffer
   #   transaction is still open for grouping, the two transactions are merged with
   #   respect to undo and redo.
   # * `fn` A {Function} to call inside the transaction.
-  transact: (groupingInterval, fn) -> @history.transact(groupingInterval, fn)
+  transact: (groupingInterval, fn) ->
+    if typeof groupingInterval is 'function'
+      fn = groupingInterval
+      groupingInterval = 0
+
+    checkpoint = @createCheckpoint()
+
+    try
+      @transactCallDepth++
+      result = fn()
+    catch exception
+      @revertToCheckpoint(checkpoint)
+      throw exception unless exception instanceof TransactionAbortedError
+      return
+    finally
+      @transactCallDepth--
+
+    @history.groupChangesSinceCheckpoint(checkpoint)
+    @history.applyCheckpointGroupingInterval(checkpoint, groupingInterval)
+
+    @markerStore.emitChangeEvents()
+    @emitter.emit 'did-update-markers'
+    @emit 'markers-updated' if Grim.includeDeprecatedAPIs
+    result
+
+  abortTransaction: ->
+    throw new TransactionAbortedError("Transaction aborted.")
 
   # Public: Clear the undo stack.
   clearUndoStack: -> @history.clearUndoStack()
@@ -830,7 +860,8 @@ class TextBuffer
   # with {::revertToCheckpoint} and {::groupChangesSinceCheckpoint}.
   #
   # Returns a checkpoint value.
-  createCheckpoint: -> @history.createCheckpoint()
+  createCheckpoint: ->
+    @history.createCheckpoint(@markerStore.createSnapshot())
 
   # Public: Revert the buffer to the state it was in when the given
   # checkpoint was created.
@@ -841,7 +872,15 @@ class TextBuffer
   # return `false`.
   #
   # Returns a {Boolean} indicating whether the operation succeeded.
-  revertToCheckpoint: (checkpoint) -> @history.revertToCheckpoint(checkpoint)
+  revertToCheckpoint: (checkpoint) ->
+    if truncated = @history.truncateUndoStack(checkpoint)
+      @applyChange(change, true) for change in truncated.changes
+      @markerStore.restoreFromSnapshot(truncated.snapshot)
+      @emitter.emit 'did-update-markers'
+      @emit 'markers-updated' if Grim.includeDeprecatedAPIs
+      true
+    else
+      false
 
   # Public: Group all changes since the given checkpoint into a single
   # transaction for purposes of undo/redo.
@@ -850,7 +889,8 @@ class TextBuffer
   # grouping will be performed and this method will return `false`.
   #
   # Returns a {Boolean} indicating whether the operation succeeded.
-  groupChangesSinceCheckpoint: (checkpoint) -> @history.groupChangesSinceCheckpoint(checkpoint)
+  groupChangesSinceCheckpoint: (checkpoint) ->
+    @history.groupChangesSinceCheckpoint(checkpoint)
 
   ###
   Section: Search And Replace
@@ -1173,10 +1213,10 @@ class TextBuffer
   # Public: Reload the buffer's contents from disk.
   #
   # Sets the buffer's content to the cached disk contents
-  reload: ->
+  reload: (skipUndo) ->
     @emitter.emit 'will-reload'
     @emit 'will-reload' if Grim.includeDeprecatedAPIs
-    @setTextViaDiff(@cachedDiskContents)
+    @setTextViaDiff(@cachedDiskContents, skipUndo)
     @emitModifiedStatusChanged(false)
     @emitter.emit 'did-reload'
     @emit 'reloaded' if Grim.includeDeprecatedAPIs
@@ -1200,24 +1240,20 @@ class TextBuffer
   Section: Private Utility Methods
   ###
 
-  markerCreated: (marker) ->
-    @emitter.emit 'did-create-marker', marker
-    @emit 'marker-created', marker if Grim.includeDeprecatedAPIs
-
   loadSync: ->
     @updateCachedDiskContentsSync()
     @finishLoading()
 
-  load: ->
-    @updateCachedDiskContents().then => @finishLoading()
+  load: (skipUndo) ->
+    @updateCachedDiskContents().then => @finishLoading(skipUndo)
 
-  finishLoading: ->
+  finishLoading: (skipUndo) ->
     if @isAlive()
       @loaded = true
       if @useSerializedText and @digestWhenLastPersisted is @file?.getDigestSync()
         @emitModifiedStatusChanged(true)
       else
-        @reload()
+        @reload(skipUndo)
       @clearUndoStack()
     this
 
@@ -1313,6 +1349,48 @@ class TextBuffer
       console.log row, line, line.length
     return
 
+  ###
+  Section: Private History Delegate Methods
+  ###
+
+  invertChange: (change) ->
+    Object.freeze({
+      oldRange: change.newRange
+      newRange: change.oldRange
+      oldText: change.newText
+      newText: change.oldText
+    })
+
+  serializeChange: (change) ->
+    {
+      oldRange: change.oldRange.serialize()
+      newRange: change.newRange.serialize()
+      oldText: change.oldText
+      newText: change.newText
+    }
+
+  deserializeChange: (change) ->
+    {
+      oldRange: Range.deserialize(change.oldRange)
+      newRange: Range.deserialize(change.newRange)
+      oldText: change.oldText
+      newText: change.newText
+    }
+
+  serializeSnapshot: (snapshot) ->
+    MarkerStore.serializeSnapshot(snapshot)
+
+  deserializeSnapshot: (snapshot) ->
+    MarkerStore.deserializeSnapshot(snapshot)
+
+  ###
+  Section: Private MarkerStore Delegate Methods
+  ###
+
+  markerCreated: (marker) ->
+    @emitter.emit 'did-create-marker', marker
+    @emit 'marker-created', marker if Grim.includeDeprecatedAPIs
+
 if Grim.includeDeprecatedAPIs
   EmitterMixin = require('emissary').Emitter
   EmitterMixin.includeInto(TextBuffer)
@@ -1368,12 +1446,6 @@ if Grim.includeDeprecatedAPIs
 
   TextBuffer::beginTransaction = (groupingInterval) ->
     Grim.deprecate("Open-ended transactions are deprecated. Use checkpoints instead.")
-    @history.beginTransaction(groupingInterval)
 
   TextBuffer::commitTransaction = ->
     Grim.deprecate("Open-ended transactions are deprecated. Use checkpoints instead.")
-    @history.commitTransaction()
-
-  TextBuffer::abortTransaction = ->
-    Grim.deprecate("Open-ended transactions are deprecated. Use checkpoints instead.")
-    @history.abortTransaction()

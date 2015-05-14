@@ -719,14 +719,12 @@ describe "Marker", ->
       it "correctly restores markers when the transaction is undone", ->
         buffer.setText('')
 
-        buffer.beginTransaction()
-        buffer.append('foo')
-        buffer.commitTransaction()
+        buffer.transact ->
+          buffer.append('foo')
 
-        buffer.beginTransaction()
-        buffer.append('\n')
-        buffer.append('bar')
-        buffer.commitTransaction()
+        buffer.transact ->
+          buffer.append('\n')
+          buffer.append('bar')
 
         marker1 = buffer.markRange([[0, 0], [0, 3]], invalidate: 'never')
         marker2 = buffer.markRange([[1, 0], [1, 3]], invalidate: 'never')
@@ -749,9 +747,9 @@ describe "Marker", ->
         marker2Ranges = []
         buffer.redo()
 
-        expect(marker1Ranges).toEqual [[[0, 0], [0, 3]], [[0, 0], [0, 3]]]
+        expect(marker1Ranges).toEqual [[[0, 0], [1, 0]], [[0, 0], [1, 3]]]
         expect(marker1.getRange()).toEqual([[0, 0], [0, 3]])
-        expect(marker2Ranges).toEqual [[[1, 0], [1, 0]], [[1, 0], [1, 3]]]
+        expect(marker2Ranges).toEqual [[[0, 3], [1, 0]], [[0, 3], [1, 3]]]
         expect(marker2.getRange()).toEqual([[1, 0], [1, 3]])
 
       it "only records marker patches for direct marker updates", ->
@@ -780,6 +778,40 @@ describe "Marker", ->
       expect(marker.isDestroyed()).toBe true
       expect(marker.isValid()).toBe false
 
+    it "handles markers deleted in event handlers", ->
+      marker1 = buffer.markRange([[0, 3], [0, 6]])
+      marker2 = marker1.copy()
+      marker3 = marker1.copy()
+
+      marker1.onDidChange ->
+        marker1.destroy()
+        marker2.destroy()
+        marker3.destroy()
+
+      # doesn't blow up.
+      buffer.insert([0, 0], "!")
+
+      marker1 = buffer.markRange([[0, 3], [0, 6]])
+      marker2 = marker1.copy()
+      marker3 = marker1.copy()
+
+      marker1.onDidChange ->
+        marker1.destroy()
+        marker2.destroy()
+        marker3.destroy()
+
+      # doesn't blow up.
+      buffer.undo()
+
+    it "allows the position to be retrieved after destruction", ->
+      marker = buffer.markRange([[0, 3], [0, 6]])
+      marker.destroy()
+      expect(marker.getRange()).toEqual [[0, 3], [0, 6]]
+      expect(marker.getHeadPosition()).toEqual [0, 6]
+      expect(marker.getTailPosition()).toEqual [0, 3]
+      expect(marker.getStartPosition()).toEqual [0, 3]
+      expect(marker.getEndPosition()).toEqual [0, 6]
+
   describe "TextBuffer::findMarkers(properties)", ->
     [marker1, marker2, marker3, marker4] = []
 
@@ -807,6 +839,7 @@ describe "Marker", ->
       expect(buffer.findMarkers(endPosition: [0, 7], class: 'b')).toEqual [marker4]
 
     it "can find markers that contain a given point", ->
+      expect(buffer.findMarkers(containsPosition: [0, 0])).toEqual [marker4, marker2, marker1]
       expect(buffer.findMarkers(containsPoint: [0, 0])).toEqual [marker4, marker2, marker1]
       expect(buffer.findMarkers(containsPoint: [0, 1], class: 'a')).toEqual [marker2, marker1]
       expect(buffer.findMarkers(containsPoint: [0, 4])).toEqual [marker4, marker2, marker3]

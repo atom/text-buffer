@@ -1,153 +1,152 @@
-Serializable = require 'serializable'
-Transaction = require './transaction'
-BufferPatch = require './buffer-patch'
-Checkpoint = require './checkpoint'
-{last} = require 'underscore-plus'
+SerializationVersion = 2
 
-TransactionAborted = new Error("Transaction Aborted")
+class Checkpoint
+  constructor: (@id, @snapshot) ->
 
 # Manages undo/redo for {TextBuffer}
 module.exports =
-class History extends Serializable
-  @version: 1
-  @registerDeserializers(Transaction, BufferPatch)
+class History
+  @deserialize: (delegate, state) ->
+    history = new History(delegate)
+    history.deserialize(state)
+    history
 
-  currentTransaction: null
-  transactionDepth: 0
-  transactCallDepth: 0
+  constructor: (@delegate) ->
+    @nextCheckpointId = 0
+    @undoStack = []
+    @redoStack = []
 
-  constructor: (@buffer, @undoStack=[], @redoStack=[]) ->
+  createCheckpoint: (snapshot) ->
+    checkpoint = new Checkpoint(@nextCheckpointId++, snapshot)
+    @undoStack.push(checkpoint)
+    checkpoint.id
 
-  # Private: Used by {Serializable} during serialization
-  serializeParams: ->
-    undoStack: @undoStack.map (patch) -> patch.serialize()
-    redoStack: @redoStack.map (patch) -> patch.serialize()
+  groupChangesSinceCheckpoint: (checkpointId) ->
+    checkpointIndex = @getCheckpointIndex(checkpointId)
+    return false unless checkpointIndex?
+    for entry, i in @undoStack by -1
+      break if i is checkpointIndex
+      if @undoStack[i] instanceof Checkpoint
+        @undoStack.splice(i, 1)
+    true
 
-  # Private: Used by {Serializable} during deserialization
-  deserializeParams: (params) ->
-    params.undoStack = params.undoStack.map (patchState) => @constructor.deserialize(patchState)
-    params.redoStack = params.redoStack.map (patchState) => @constructor.deserialize(patchState)
-    params
+  applyCheckpointGroupingInterval: (checkpointId, groupingInterval) ->
+    return if groupingInterval is 0
 
-  # Called by {TextBuffer} to store a patch in the undo stack. Clears the redo
-  # stack
-  recordNewPatch: (patch) ->
-    if @currentTransaction?
-      @currentTransaction.push(patch)
-      if patch instanceof BufferPatch
-        @clearRedoStack()
-    else
-      @beginTransaction()
-      @currentTransaction.push(patch)
-      @commitTransaction()
-      @clearRedoStack()
+    checkpointIndex = @getCheckpointIndex(checkpointId)
+    checkpoint = @undoStack[checkpointIndex]
+    return unless checkpointIndex?
 
-  undo: ->
-    throw new Error("Can't undo with an open transaction") if @currentTransaction?
-
-    if last(@undoStack) instanceof Checkpoint
-      return unless @undoStack.length > 1 # Abort unless changes exist before checkpoint
-      @redoStack.push(@undoStack.pop())
-
-    if patch = @undoStack.pop()
-      inverse = patch.invert(@buffer)
-      @redoStack.push(inverse)
-      inverse.applyTo(@buffer)
-
-  redo: ->
-    throw new Error("Can't redo with an open transaction") if @currentTransaction?
-
-    if patch = @redoStack.pop()
-      inverse = patch.invert(@buffer)
-      @undoStack.push(inverse)
-      inverse.applyTo(@buffer)
-
-      if last(@redoStack) instanceof Checkpoint
-        @undoStack.push(@redoStack.pop())
-
-  transact: (groupingInterval, fn) ->
-    unless fn?
-      fn = groupingInterval
-      groupingInterval = undefined
-
-    @beginTransaction(groupingInterval)
-    try
-      ++@transactCallDepth
-      result = fn()
-      --@transactCallDepth
-      @commitTransaction()
-      result
-    catch error
-      if --@transactCallDepth is 0
-        @abortTransaction()
-        throw error unless error is TransactionAborted
-      else
-        throw error
-
-  beginTransaction: (groupingInterval) ->
-    if ++@transactionDepth is 1
-      @currentTransaction = new Transaction([], groupingInterval, @buffer.markers.buildSnapshot())
-
-  commitTransaction: ->
-    throw new Error("No transaction is open") unless @transactionDepth > 0
-
-    if --@transactionDepth is 0
-      if @currentTransaction.hasBufferPatches()
-        lastTransaction = last(@undoStack)
-        if @currentTransaction.isOpenForGrouping?() and lastTransaction?.isOpenForGrouping?()
-          lastTransaction.merge(@currentTransaction)
+    now = Date.now()
+    groupedCheckpoint = null
+    for i in [checkpointIndex - 1..0] by -1
+      entry = @undoStack[i]
+      if entry instanceof Checkpoint
+        if (entry.timestamp + Math.min(entry.groupingInterval, groupingInterval)) >= now
+          @undoStack.splice(checkpointIndex, 1)
+          groupedCheckpoint = entry
         else
-          @undoStack.push(@currentTransaction)
-      @currentTransaction = null
+          groupedCheckpoint = checkpoint
+        break
 
-  abortTransaction: ->
-    throw new Error("No transaction is open") unless @transactionDepth > 0
+    if groupedCheckpoint?
+      groupedCheckpoint.timestamp = now
+      groupedCheckpoint.groupingInterval = groupingInterval
 
-    if @transactCallDepth is 0
-      inverse = @currentTransaction.invert(@buffer)
-      @currentTransaction = null
-      @transactionDepth = 0
-      inverse.applyTo(@buffer)
-    else
-      throw TransactionAborted
+  pushChange: (change) ->
+    @undoStack.push(change)
+    @clearRedoStack()
 
-  createCheckpoint: ->
-    throw new Error("Cannot create a checkpoint inside of a transaction") if @isTransacting()
-    if last(@undoStack) instanceof Checkpoint
-      last(@undoStack)
-    else
-      checkpoint = new Checkpoint
-      @undoStack.push(checkpoint)
-      checkpoint
-
-  revertToCheckpoint: (checkpoint) ->
-    if checkpoint in @undoStack
-      @undo() until last(@undoStack) is checkpoint
-      @clearRedoStack()
-      true
+  popUndoStack: (snapshot) ->
+    if (checkpointIndex = @getBoundaryCheckpointIndex(@undoStack))?
+      @redoStack.push(new Checkpoint(@nextCheckpointId++, snapshot))
+      result = @popChanges(@undoStack, @redoStack, checkpointIndex)
+      result.changes = (@delegate.invertChange(change) for change in result.changes)
+      result
     else
       false
 
-  groupChangesSinceCheckpoint: (checkpoint) ->
-    index = @undoStack.indexOf(checkpoint) + 1
+  popRedoStack: (snapshot) ->
+    if (checkpointIndex = @getBoundaryCheckpointIndex(@redoStack))?
+      @undoStack.push(new Checkpoint(@nextCheckpointId++, snapshot))
+      @popChanges(@redoStack, @undoStack, checkpointIndex)
+    else
+      false
 
-    return false if index is 0
-    return false if index is @undoStack.length
-
-    changesSinceCheckpoint = @undoStack.splice(index, @undoStack.length - index)
-    groupedTransaction = changesSinceCheckpoint.shift()
-    for patch in changesSinceCheckpoint
-      unless patch instanceof Checkpoint
-        groupedTransaction.merge(patch)
-
-    @undoStack.push(groupedTransaction)
-    true
-
-  isTransacting: ->
-    @currentTransaction?
+  truncateUndoStack: (checkpointId) ->
+    if (checkpointIndex = @getCheckpointIndex(checkpointId))?
+      result = @popChanges(@undoStack, null, checkpointIndex)
+      result.changes = (@delegate.invertChange(change) for change in result.changes)
+      result
+    else
+      false
 
   clearUndoStack: ->
     @undoStack.length = 0
 
   clearRedoStack: ->
     @redoStack.length = 0
+
+  serialize: ->
+    version: SerializationVersion
+    nextCheckpointId: @nextCheckpointId
+    undoStack: @serializeStack(@undoStack)
+    redoStack: @serializeStack(@redoStack)
+
+  deserialize: (state) ->
+    return unless state.version is SerializationVersion
+    @nextCheckpointId = state.nextCheckpointId
+    @undoStack = @deserializeStack(state.undoStack)
+    @redoStack = @deserializeStack(state.redoStack)
+
+  ###
+  Section: Private
+  ###
+
+  getCheckpointIndex: (checkpointId) ->
+    for entry, i in @undoStack by -1
+      if entry instanceof Checkpoint and entry.id is checkpointId
+        return i
+    return null
+
+  getBoundaryCheckpointIndex: (stack) ->
+    hasSeenChanges = false
+    for entry, i in stack by -1
+      if entry instanceof Checkpoint
+        return i if hasSeenChanges
+      else
+        hasSeenChanges = true
+    null
+
+  popChanges: (fromStack, toStack, checkpointIndex) ->
+    changes = []
+    snapshot = fromStack[checkpointIndex].snapshot
+    for entry in fromStack.splice(checkpointIndex) by -1
+      toStack?.push(entry)
+      changes.push(entry) unless entry instanceof Checkpoint
+    {changes, snapshot}
+
+  serializeStack: (stack) ->
+    for entry in stack
+      if entry instanceof Checkpoint
+        {
+          type: 'checkpoint'
+          id: entry.id
+          snapshot: @delegate.serializeSnapshot(entry.snapshot)
+        }
+      else
+        {
+          type: 'change'
+          content: @delegate.serializeChange(entry)
+        }
+
+  deserializeStack: (stack) ->
+    for entry in stack
+      switch entry.type
+        when 'checkpoint'
+          new Checkpoint(
+            entry.id
+            @delegate.deserializeSnapshot(entry.snapshot)
+          )
+        when 'change'
+          @delegate.deserializeChange(entry.content)
