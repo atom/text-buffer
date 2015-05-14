@@ -17,6 +17,15 @@ Point = require './point'
 # ```
 module.exports =
 class Range
+  ###
+  Section: Properties
+  ###
+
+  # Public: A {Point} representing the start of the {Range}.
+  start: null
+
+  # Public: A {Point} representing the end of the {Range}.
+  end: null
 
   ###
   Section: Construction
