@@ -26,14 +26,6 @@ class Node
       childIndex += splitChildren.indexOf(spliceChild)
       rightMergeIndex += splitChildren.length - 1
 
-    if leftNeighbor = @children[leftMergeIndex - 1]
-      leftNeighbor.merge(@children[leftMergeIndex])
-      if isEmpty(@children[leftMergeIndex])
-        @children[leftMergeIndex].assign(leftNeighbor)
-        @children.splice(leftMergeIndex - 1, 1)
-        childIndex--
-        rightMergeIndex--
-
     if rightNeighbor = @children[rightMergeIndex + 1]
       @children[rightMergeIndex].merge(rightNeighbor)
       if isEmpty(rightNeighbor)
@@ -66,8 +58,6 @@ class Node
       rightNeighbor.inputExtent = rightNeighbor.inputExtent.traversalFrom(childMerge.inputExtent)
       rightNeighbor.outputExtent = rightNeighbor.outputExtent.traversalFrom(childMerge.outputExtent)
       childMerge
-
-  assign: ({@inputExtent, @outputExtent, @children}) -> this
 
   hasBoundary: (minInputPosition, maxInputPosition=Point.infinity()) ->
     inputEnd = Point.zero()
@@ -125,7 +115,7 @@ class Leaf
 
     else if @content instanceof Boundary
       splitNodes = [
-        new Leaf().assign(this),
+        new Leaf(Point.zero(), Point.zero(), @content)
         this
       ]
       @inputExtent = newInputExtent
@@ -162,8 +152,6 @@ class Leaf
       rightNeighbor.inputExtent = rightNeighbor.outputExtent = Point.zero()
       rightNeighbor.content = null
       result
-
-  assign: ({@inputExtent, @outputExtent, @content}) -> this
 
   hasBoundary: (minInputPosition) ->
     @content instanceof Boundary
