@@ -50,7 +50,7 @@ class Node
       @outputExtent = @outputExtent.traverse(rightNeighbor.outputExtent)
       @children.push(rightNeighbor.children...)
       result = {inputExtent: rightNeighbor.inputExtent, outputExtent: rightNeighbor.outputExtent}
-      rightNeighbor.inputExtent = rightNeighbor.outputExtent = Point.zero()
+      rightNeighbor.inputExtent = rightNeighbor.outputExtent = Point.ZERO
       result
     else if childMerge?
       @inputExtent = @inputExtent.traverse(childMerge.inputExtent)
@@ -59,8 +59,8 @@ class Node
       rightNeighbor.outputExtent = rightNeighbor.outputExtent.traversalFrom(childMerge.outputExtent)
       childMerge
 
-  hasBoundary: (minInputPosition, maxInputPosition=Point.infinity()) ->
-    inputEnd = Point.zero()
+  hasBoundary: (minInputPosition, maxInputPosition=Point.INFINITY) ->
+    inputEnd = Point.ZERO
     for child in @children
       inputStart = inputEnd
       inputEnd = inputStart.traverse(child.inputExtent)
@@ -74,8 +74,8 @@ class Node
 
   calculateExtent: (childIndex) ->
     result = {inputOffset: null, outputOffset: null}
-    @inputExtent = Point.zero()
-    @outputExtent = Point.zero()
+    @inputExtent = Point.ZERO
+    @outputExtent = Point.ZERO
     for child, i in @children
       if i is childIndex
         result.inputOffset = @inputExtent
@@ -115,7 +115,7 @@ class Leaf
 
     else if @content instanceof Boundary
       splitNodes = [
-        new Leaf(Point.zero(), Point.zero(), @content)
+        new Leaf(Point.ZERO, Point.ZERO, @content)
         this
       ]
       @inputExtent = newInputExtent
@@ -149,7 +149,7 @@ class Leaf
       @content = (@content ? "") + (rightNeighbor.content ? "")
       @content = null if @content is "" and @outputExtent.isPositive()
       result = {inputExtent: rightNeighbor.inputExtent, outputExtent: rightNeighbor.outputExtent}
-      rightNeighbor.inputExtent = rightNeighbor.outputExtent = Point.zero()
+      rightNeighbor.inputExtent = rightNeighbor.outputExtent = Point.ZERO
       rightNeighbor.content = null
       result
 
@@ -201,8 +201,8 @@ class PatchIterator
     node = @patch.rootNode
     loop
       if node.children?
-        childInputEnd = Point.zero()
-        childOutputEnd = Point.zero()
+        childInputEnd = Point.ZERO
+        childOutputEnd = Point.ZERO
         for child, childIndex in node.children
           childInputStart = childInputEnd
           childOutputStart = childOutputEnd
@@ -231,8 +231,8 @@ class PatchIterator
     node = @patch.rootNode
     loop
       if node.children?
-        childInputEnd = Point.zero()
-        childOutputEnd = Point.zero()
+        childInputEnd = Point.ZERO
+        childOutputEnd = Point.ZERO
         for child, childIndex in node.children
           childInputStart = childInputEnd
           childOutputStart = childOutputEnd
@@ -265,15 +265,15 @@ class PatchIterator
         boundaryChildIndex = null
         boundaryChildInputStart = null
         boundaryChildOutputStart = null
-        childInputEnd = Point.zero()
-        childOutputEnd = Point.zero()
+        childInputEnd = Point.ZERO
+        childOutputEnd = Point.ZERO
         lastChild = last(node.children)
         for child, childIndex in node.children
           childInputStart = childInputEnd
           childOutputStart = childOutputEnd
           childInputEnd = childInputStart.traverse(child.inputExtent)
           childOutputEnd = childOutputStart.traverse(child.outputExtent)
-          if child.hasBoundary(Point.zero(), targetInputOffset.traversalFrom(childInputStart))
+          if child.hasBoundary(Point.ZERO, targetInputOffset.traversalFrom(childInputStart))
             boundaryChild = child
             boundaryChildIndex = childIndex
             boundaryChildInputStart = childInputStart
@@ -294,8 +294,8 @@ class PatchIterator
               @descendToLeftmostLeaf(@patch.rootNode)
               return this
       else
-        inputOffset = Point.zero()
-        outputOffset = Point.zero()
+        inputOffset = Point.ZERO
+        outputOffset = Point.ZERO
         childIndex = null
         @path.push({node, inputOffset, outputOffset, childIndex})
         break
@@ -306,8 +306,8 @@ class PatchIterator
     node = @patch.rootNode
     loop
       if node.children?
-        childInputEnd = Point.zero()
-        childOutputEnd = Point.zero()
+        childInputEnd = Point.ZERO
+        childOutputEnd = Point.ZERO
         for child, childIndex in node.children
           childInputStart = childInputEnd
           childOutputStart = childOutputEnd
@@ -322,8 +322,8 @@ class PatchIterator
             node = child
             break
       else
-        inputOffset = Point.zero()
-        outputOffset = Point.zero()
+        inputOffset = Point.ZERO
+        outputOffset = Point.ZERO
         childIndex = null
         @path.push({node, inputOffset, outputOffset, childIndex})
         break
@@ -341,26 +341,26 @@ class PatchIterator
     @insert(oldInputExtent, newExtent, newContent)
 
   getOutputPosition: ->
-    result = Point.zero()
+    result = Point.ZERO
     for entry in @path
       result = result.traverse(entry.outputOffset)
     result
 
   getInputPosition: ->
-    result = Point.zero()
+    result = Point.ZERO
     for {node, inputOffset, outputOffset} in @path
       result = result.traverse(inputOffset)
     result
 
   insertBoundary: ->
-    @insert(Point.zero(), Point.zero(), new Boundary)
+    @insert(Point.ZERO, Point.ZERO, new Boundary)
 
   copy: ->
     new PatchIterator(@patch, @path.slice())
 
   descendToLeftmostLeaf: (node) ->
     loop
-      entry = {node, outputOffset: Point.zero(), inputOffset: Point.zero(), childIndex: null}
+      entry = {node, outputOffset: Point.ZERO, inputOffset: Point.ZERO, childIndex: null}
       @path.push(entry)
       if node.children?
         entry.childIndex = 0
@@ -372,8 +372,8 @@ class PatchIterator
     meetingIndex = null
 
     # Delete content to the right of the left iterator.
-    totalInputOffset = Point.zero()
-    totalOutputOffset = Point.zero()
+    totalInputOffset = Point.ZERO
+    totalOutputOffset = Point.ZERO
     for {node, inputOffset, outputOffset, childIndex}, i in @path by -1
       if node is rightIterator.path[i].node
         meetingIndex = i
@@ -388,8 +388,8 @@ class PatchIterator
       node.outputExtent = totalOutputOffset
 
     # Delete content to the left of the right iterator.
-    totalInputOffset = Point.zero()
-    totalOutputOffset = Point.zero()
+    totalInputOffset = Point.ZERO
+    totalOutputOffset = Point.ZERO
     for {node, inputOffset, outputOffset, childIndex}, i in rightIterator.path by -1
       if i is meetingIndex
         break
@@ -458,7 +458,7 @@ class PatchIterator
 module.exports =
 class Patch
   constructor: ->
-    @rootNode = new Leaf(Point.infinity(), Point.infinity(), null)
+    @rootNode = new Leaf(Point.INFINITY, Point.INFINITY, null)
 
   splice: (spliceOutputStart, oldOutputExtent, newOutputExtent, content) ->
     iterator = @buildIterator()

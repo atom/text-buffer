@@ -19,8 +19,8 @@ describe "Patch", ->
         return if currentSpecFailed()
 
       expect(iterator.next()).toEqual {value: null, done: true}
-      expect(iterator.getOutputPosition()).toEqual Point.infinity()
-      expect(iterator.getInputPosition()).toEqual Point.infinity()
+      expect(iterator.getOutputPosition()).toEqual Point.INFINITY
+      expect(iterator.getInputPosition()).toEqual Point.INFINITY
 
     logTree = ->
       console.log ''
@@ -45,7 +45,7 @@ describe "Patch", ->
           [Point(0, 14), Point(0, 15), "efg"]
           [Point(0, 15), Point(0, 16), null]
           [Point(0, 18), Point(0, 18), "hi"]
-          [Point.infinity(), Point.infinity(), null]
+          [Point.INFINITY, Point.INFINITY, null]
         ]
 
         iterator.seek(Point(0, 8))
@@ -57,7 +57,7 @@ describe "Patch", ->
           [Point(0, 14), Point(0, 15), "efg"]
           [Point(0, 15), Point(0, 16), null]
           [Point(0, 18), Point(0, 18), "hi"]
-          [Point.infinity(), Point.infinity(), null]
+          [Point.INFINITY, Point.INFINITY, null]
         ]
 
         iterator.seek(Point(0, 13))
@@ -67,7 +67,7 @@ describe "Patch", ->
           [Point(0, 14), Point(0, 15), "fg"]
           [Point(0, 15), Point(0, 16), null]
           [Point(0, 18), Point(0, 18), "hi"]
-          [Point.infinity(), Point.infinity(), null]
+          [Point.INFINITY, Point.INFINITY, null]
         ]
 
     describe "::seekToInputPosition(position)", ->
@@ -88,7 +88,7 @@ describe "Patch", ->
           [Point(0, 14), Point(0, 15), "efg"]
           [Point(0, 15), Point(0, 16), null]
           [Point(0, 18), Point(0, 18), "hi"]
-          [Point.infinity(), Point.infinity(), null]
+          [Point.INFINITY, Point.INFINITY, null]
         ]
 
         iterator.seekToInputPosition(Point(0, 7))
@@ -99,7 +99,7 @@ describe "Patch", ->
           [Point(0, 14), Point(0, 15), "efg"]
           [Point(0, 15), Point(0, 16), null]
           [Point(0, 18), Point(0, 18), "hi"]
-          [Point.infinity(), Point.infinity(), null]
+          [Point.INFINITY, Point.INFINITY, null]
         ]
 
       describe "boundaries", ->
@@ -128,7 +128,7 @@ describe "Patch", ->
             [Point(0, 15), Point(0, 17), null]
             [Point(0, 17), Point(0, 19), null]
             [Point(0, 21), Point(0, 21), "hi"]
-            [Point.infinity(), Point.infinity(), null]
+            [Point.INFINITY, Point.INFINITY, null]
           ]
 
         it "can seek to the boundary to the left of the given position", ->
@@ -181,13 +181,13 @@ describe "Patch", ->
         expectHunks patch.buildIterator(), [
           [Point(0, 5), Point(0, 5), null]
           [Point(0, 8), Point(0, 9), "abcd"]
-          [Point.infinity(), Point.infinity(), null]
+          [Point.INFINITY, Point.INFINITY, null]
         ]
 
         expect(iterator.getInputPosition()).toEqual Point(0, 8)
         expect(iterator.getOutputPosition()).toEqual Point(0, 9)
         expectHunks iterator, [
-          [Point.infinity(), Point.infinity(), null]
+          [Point.INFINITY, Point.INFINITY, null]
         ]
 
       it "can insert two disjoint changes", ->
@@ -200,7 +200,7 @@ describe "Patch", ->
           [Point(0, 8), Point(0, 9), "abcd"]
           [Point(0, 12), Point(0, 13), null]
           [Point(0, 16), Point(0, 16), "efg"]
-          [Point.infinity(), Point.infinity(), null]
+          [Point.INFINITY, Point.INFINITY, null]
         ]
 
         expect(iterator.getInputPosition()).toEqual Point(0, 8)
@@ -208,7 +208,7 @@ describe "Patch", ->
         expectHunks iterator, [
           [Point(0, 12), Point(0, 13), null]
           [Point(0, 16), Point(0, 16), "efg"]
-          [Point.infinity(), Point.infinity(), null]
+          [Point.INFINITY, Point.INFINITY, null]
         ]
 
       it "can insert three disjoint changes", ->
@@ -224,7 +224,7 @@ describe "Patch", ->
           [Point(0, 15), Point(0, 15), "efg"]
           [Point(0, 16), Point(0, 16), null]
           [Point(0, 19), Point(0, 18), "hi"]
-          [Point.infinity(), Point.infinity(), null]
+          [Point.INFINITY, Point.INFINITY, null]
         ]
 
         expect(iterator.getInputPosition()).toEqual Point(0, 8)
@@ -234,7 +234,7 @@ describe "Patch", ->
           [Point(0, 15), Point(0, 15), "efg"]
           [Point(0, 16), Point(0, 16), null]
           [Point(0, 19), Point(0, 18), "hi"]
-          [Point.infinity(), Point.infinity(), null]
+          [Point.INFINITY, Point.INFINITY, null]
         ]
 
       it "can perform a single deletion", ->
@@ -244,13 +244,13 @@ describe "Patch", ->
         expectHunks patch.buildIterator(), [
           [Point(0, 5), Point(0, 5), null]
           [Point(0, 8), Point(0, 5), ""]
-          [Point.infinity(), Point.infinity(), null]
+          [Point.INFINITY, Point.INFINITY, null]
         ]
 
         expect(iterator.getInputPosition()).toEqual Point(0, 8)
         expect(iterator.getOutputPosition()).toEqual Point(0, 5)
         expectHunks iterator, [
-          [Point.infinity(), Point.infinity(), null]
+          [Point.INFINITY, Point.INFINITY, null]
         ]
 
       it "can delete the start of an existing change", ->
@@ -261,14 +261,14 @@ describe "Patch", ->
         expectHunks patch.buildIterator(), [
           [Point(0, 3), Point(0, 3), null]
           [Point(0, 13), Point(0, 4), "e"]
-          [Point.infinity(), Point.infinity(), null]
+          [Point.INFINITY, Point.INFINITY, null]
         ]
 
         expect(iterator.getInputPosition()).toEqual Point(0, 9)
         expect(iterator.getOutputPosition()).toEqual Point(0, 3)
         expectHunks iterator, [
           [Point(0, 13), Point(0, 4), "e"]
-          [Point.infinity(), Point.infinity(), null]
+          [Point.INFINITY, Point.INFINITY, null]
         ]
 
       it "can insert a change within a change", ->
@@ -279,14 +279,14 @@ describe "Patch", ->
         expectHunks patch.buildIterator(), [
           [Point(0, 3), Point(0, 3), null]
           [Point(0, 8), Point(0, 12), "aijkdefgh"]
-          [Point.infinity(), Point.infinity(), null]
+          [Point.INFINITY, Point.INFINITY, null]
         ]
 
         expect(iterator.getInputPosition()).toEqual Point(0, 6)
         expect(iterator.getOutputPosition()).toEqual Point(0, 7)
         expectHunks iterator, [
           [Point(0, 8), Point(0, 12), "defgh"]
-          [Point.infinity(), Point.infinity(), null]
+          [Point.INFINITY, Point.INFINITY, null]
         ]
 
         iterator.seek(Point(0, 4)).splice(Point(0, 3), Point(0, 1), "l")
@@ -294,14 +294,14 @@ describe "Patch", ->
         expectHunks patch.buildIterator(), [
           [Point(0, 3), Point(0, 3), null]
           [Point(0, 8), Point(0, 10), "aldefgh"]
-          [Point.infinity(), Point.infinity(), null]
+          [Point.INFINITY, Point.INFINITY, null]
         ]
 
         expect(iterator.getInputPosition()).toEqual Point(0, 7)
         expect(iterator.getOutputPosition()).toEqual Point(0, 5)
         expectHunks iterator, [
           [Point(0, 8), Point(0, 10), "defgh"]
-          [Point.infinity(), Point.infinity(), null]
+          [Point.INFINITY, Point.INFINITY, null]
         ]
 
       it "can insert a change that overlaps the end of an existing change", ->
@@ -312,13 +312,13 @@ describe "Patch", ->
         expectHunks patch.buildIterator(), [
           [Point(0, 5), Point(0, 5), null]
           [Point(0, 11), Point(0, 13), "abcefghi"]
-          [Point.infinity(), Point.infinity(), null]
+          [Point.INFINITY, Point.INFINITY, null]
         ]
 
         expect(iterator.getInputPosition()).toEqual Point(0, 11)
         expect(iterator.getOutputPosition()).toEqual Point(0, 13)
         expectHunks iterator, [
-          [Point.infinity(), Point.infinity(), null]
+          [Point.INFINITY, Point.INFINITY, null]
         ]
 
         iterator.seek(Point(0, 9)).splice(Point(0, 6), Point(0, 3), "jkl")
@@ -326,13 +326,13 @@ describe "Patch", ->
         expectHunks patch.buildIterator(), [
           [Point(0, 5), Point(0, 5), null]
           [Point(0, 13), Point(0, 12), "abcejkl"]
-          [Point.infinity(), Point.infinity(), null]
+          [Point.INFINITY, Point.INFINITY, null]
         ]
 
         expect(iterator.getInputPosition()).toEqual Point(0, 13)
         expect(iterator.getOutputPosition()).toEqual Point(0, 12)
         expectHunks iterator, [
-          [Point.infinity(), Point.infinity(), null]
+          [Point.INFINITY, Point.INFINITY, null]
         ]
 
       it "can insert a change that overlaps the start of an existing change", ->
@@ -343,14 +343,14 @@ describe "Patch", ->
         expectHunks patch.buildIterator(), [
           [Point(0, 5), Point(0, 5), null]
           [Point(0, 12), Point(0, 11), "fghcde"]
-          [Point.infinity(), Point.infinity(), null]
+          [Point.INFINITY, Point.INFINITY, null]
         ]
 
         expect(iterator.getInputPosition()).toEqual Point(0, 10)
         expect(iterator.getOutputPosition()).toEqual Point(0, 8)
         expectHunks iterator, [
           [Point(0, 12), Point(0, 11), "cde"]
-          [Point.infinity(), Point.infinity(), null]
+          [Point.INFINITY, Point.INFINITY, null]
         ]
 
       it "can insert a change that joins two existing changes", ->
@@ -362,14 +362,14 @@ describe "Patch", ->
         expectHunks patch.buildIterator(), [
           [Point(0, 5), Point(0, 5), null]
           [Point(0, 14), Point(0, 13), "abijklgh"]
-          [Point.infinity(), Point.infinity(), null]
+          [Point.INFINITY, Point.INFINITY, null]
         ]
 
         expect(iterator.getInputPosition()).toEqual Point(0, 13)
         expect(iterator.getOutputPosition()).toEqual Point(0, 11)
         expectHunks iterator, [
           [Point(0, 14), Point(0, 13), "gh"]
-          [Point.infinity(), Point.infinity(), null]
+          [Point.INFINITY, Point.INFINITY, null]
         ]
 
       it "deletes hunks for changes that are reverted", ->
@@ -378,20 +378,20 @@ describe "Patch", ->
         iterator.seek(Point(0, 5)).splice(Point(0, 3), Point(0, 0), "")
 
         expectHunks patch.buildIterator(), [
-          [Point.infinity(), Point.infinity(), null]
+          [Point.INFINITY, Point.INFINITY, null]
         ]
 
         expect(iterator.getInputPosition()).toEqual Point(0, 5)
         expect(iterator.getOutputPosition()).toEqual Point(0, 5)
         expectHunks iterator, [
-          [Point.infinity(), Point.infinity(), null]
+          [Point.INFINITY, Point.INFINITY, null]
         ]
 
         iterator.seek(Point(0, 0)).splice(Point(0, 0), Point(0, 3), "abc")
         iterator.seek(Point(0, 0)).splice(Point(0, 3), Point(0, 0), "")
 
         expectHunks patch.buildIterator(), [
-          [Point.infinity(), Point.infinity(), null]
+          [Point.INFINITY, Point.INFINITY, null]
         ]
 
       it "does nothing if both ranges are empty", ->
@@ -399,11 +399,11 @@ describe "Patch", ->
         iterator.seek(Point(0, 5)).splice(Point(0, 0), Point(0, 0), "")
 
         expectHunks patch.buildIterator(), [
-          [Point.infinity(), Point.infinity(), null]
+          [Point.INFINITY, Point.INFINITY, null]
         ]
 
         expect(iterator.getInputPosition()).toEqual Point(0, 5)
         expect(iterator.getOutputPosition()).toEqual Point(0, 5)
         expectHunks iterator, [
-          [Point.infinity(), Point.infinity(), null]
+          [Point.INFINITY, Point.INFINITY, null]
         ]
