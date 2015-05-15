@@ -1,7 +1,7 @@
 {
-  "name": "text-document",
+  "name": "atom-patch",
   "version": "0.0.0",
-  "description": "A Toolkit for editing and and displaying text documents",
+  "description": "A data structure for managing changes to text",
   "main": "./lib/index",
   "scripts": {
     "prepublish": "grunt clean lint coffee",
@@ -9,15 +9,15 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/atom/text-document.git"
+    "url": "https://github.com/atom/patch.git"
   },
   "bugs": {
-    "url": "https://github.com/atom/text-document/issues"
+    "url": "https://github.com/atom/patch/issues"
   },
   "licenses": [
     {
       "type": "MIT",
-      "url": "http://github.com/atom/text-document/raw/master/LICENSE.md"
+      "url": "http://github.com/atom/patch/raw/master/LICENSE.md"
     }
   ],
   "dependencies": {
