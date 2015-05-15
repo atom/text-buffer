@@ -1,6 +1,6 @@
 {
   "name": "atom-patch",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "description": "A data structure for managing changes to text",
   "main": "./lib/index",
   "scripts": {
