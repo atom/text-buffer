@@ -716,6 +716,50 @@ describe "Marker", ->
         expect(marker2.getRange()).toEqual [[0, 9], [0, 11]]
 
     describe "when multiple changes occur in a transaction", ->
+      it "emits one change event for each marker that was indirectly updated", ->
+        for marker in allStrategies
+          do (marker) ->
+            marker.changes = []
+            marker.onDidChange (change) ->
+              marker.changes.push(change)
+
+        buffer.transact ->
+          buffer.insert([0, 7], ".")
+          buffer.append("!")
+
+          for marker in allStrategies
+            expect(marker.changes.length).toBe 0
+
+          neverMarker.setRange([[0, 0], [0, 1]])
+
+        expect(neverMarker.changes).toEqual [{
+          oldHeadPosition: [0, 9]
+          newHeadPosition: [0, 1]
+          oldTailPosition: [0, 6]
+          newTailPosition: [0, 0]
+          wasValid: true
+          isValid: true
+          hadTail: true
+          hasTail: true
+          oldProperties: {}
+          newProperties: {}
+          textChanged: false
+        }]
+
+        expect(insideMarker.changes).toEqual [{
+          oldHeadPosition: [0, 9]
+          newHeadPosition: [0, 10]
+          oldTailPosition: [0, 6]
+          newTailPosition: [0, 6]
+          wasValid: true
+          isValid: false
+          hadTail: true
+          hasTail: true
+          oldProperties: {}
+          newProperties: {}
+          textChanged: true
+        }]
+
       it "correctly restores markers when the transaction is undone", ->
         buffer.setText('')
 

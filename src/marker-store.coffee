@@ -116,7 +116,7 @@ class MarkerStore
           invalid = startingIn.has(id) and endingIn.has(id)
         when 'never'
           invalid = false
-      marker.valid = not invalid
+      marker.valid = false if invalid
 
     @index.splice(start, oldExtent, newExtent)
 
