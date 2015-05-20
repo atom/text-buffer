@@ -55,7 +55,7 @@ class Marker
     @rangeWhenDestroyed = null
     Object.freeze(@properties)
     @store.setMarkerHasTail(@id, @tailed)
-    @previousEventState = @getSnapshot(range, true)
+    @previousEventState = @getSnapshot(range)
 
   ###
   Section: Event Subscription
@@ -266,9 +266,10 @@ class Marker
   #
   # * `params` {Object}
   copy: (options={}) ->
-    snapshot = @getSnapshot()
+    snapshot = @getSnapshot(null)
     options = Marker.extractParams(options)
     @store.createMarker(@getRange(), extend(
+      {}
       snapshot,
       options,
       properties: extend({}, snapshot.properties, options.properties)
@@ -351,8 +352,8 @@ class Marker
     @emitChangeEvent(range ? oldRange, textChanged, propertiesChanged)
     updated
 
-  getSnapshot: (range, propertiesChanged) ->
-    {range, @properties, @reversed, @tailed, @valid, @invalidate}
+  getSnapshot: (range) ->
+    Object.freeze({range, @properties, @reversed, @tailed, @valid, @invalidate})
 
   toString: ->
     "[Marker #{@id}, #{@getRange()}]"
