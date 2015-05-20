@@ -407,3 +407,37 @@ describe "Patch", ->
         expectHunks iterator, [
           [Point.INFINITY, Point.INFINITY, null]
         ]
+
+  describe "::changes()", ->
+    it "yields a sequence of splices that summarize that patch's changes", ->
+      changes = patch.changes()
+      expect(changes.next()).toEqual {done: true, value: null}
+
+      iterator = patch.buildIterator()
+      iterator.seek(Point(0, 12)).splice(Point(0, 4), Point(0, 3), "efg")
+      iterator.seek(Point(0, 5)).splice(Point(0, 3), Point(0, 4), "abcd")
+
+      changes = patch.changes()
+
+      expect(changes.next()).toEqual {
+        done: false
+        value: {
+          position: Point(0, 5),
+          oldExtent: Point(0, 3),
+          newExtent: Point(0, 4),
+          content: "abcd"
+        }
+      }
+
+      expect(changes.next()).toEqual {
+        done: false
+        value: {
+          position: Point(0, 13),
+          oldExtent: Point(0, 4),
+          newExtent: Point(0, 3),
+          content: "efg"
+        }
+      }
+
+      expect(changes.next()).toEqual {done: true, value: null}
+      expect(changes.next()).toEqual {done: true, value: null}

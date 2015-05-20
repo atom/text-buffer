@@ -455,18 +455,42 @@ class PatchIterator
       "  {inputOffset:#{inputOffset}, outputOffset:#{outputOffset}, childIndex:#{childIndex}}"
     "[PatchIterator\n#{entries.join("\n")}]"
 
+class ChangeIterator
+  constructor: (@patchIterator) ->
+    @inputPosition = Point.ZERO
+    @outputPosition = Point.ZERO
+
+  next: ->
+    until (next = @patchIterator.next()).done
+      lastInputPosition = @inputPosition
+      lastOutputPosition = @outputPosition
+      @inputPosition = @patchIterator.getInputPosition()
+      @outputPosition = @patchIterator.getOutputPosition()
+      if (content = next.value)?
+        position = lastOutputPosition
+        oldExtent = @inputPosition.traversalFrom(lastInputPosition)
+        newExtent = @outputPosition.traversalFrom(lastOutputPosition)
+        return {done: false, value: {position, oldExtent, newExtent, content}}
+    return {done: true, value: null}
+
 module.exports =
 class Patch
   constructor: ->
-    @rootNode = new Leaf(Point.INFINITY, Point.INFINITY, null)
+    @clear()
 
   splice: (spliceOutputStart, oldOutputExtent, newOutputExtent, content) ->
     iterator = @buildIterator()
     iterator.seek(spliceOutputStart)
     iterator.splice(oldOutputExtent, newOutputExtent, content)
 
+  clear: ->
+    @rootNode = new Leaf(Point.INFINITY, Point.INFINITY, null)
+
   buildIterator: ->
     new PatchIterator(this)
+
+  changes: ->
+    new ChangeIterator(@buildIterator())
 
   toInputPosition: (outputPosition) ->
 
