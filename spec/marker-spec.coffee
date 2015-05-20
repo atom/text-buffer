@@ -286,6 +286,21 @@ describe "Marker", ->
         marker.setRange([[-100, -100], [100, 100]])
         expect(marker.getRange()).toEqual [[0, 0], [0, 26]]
 
+      it "emits the right events when called inside of an ::onDidChange handler", ->
+        marker.onDidChange (change) ->
+          if marker.getHeadPosition().isEqual([0, 5])
+            marker.setHeadPosition([0, 6])
+
+        marker.setHeadPosition([0, 5])
+
+        headPositions = for {oldHeadPosition, newHeadPosition} in changes
+          {old: oldHeadPosition, new: newHeadPosition}
+
+        expect(headPositions).toEqual [
+          {old: [0, 9], new: [0, 5]}
+          {old: [0, 5], new: [0, 6]}
+        ]
+
     describe "::clearTail() / ::plantTail()", ->
       it "clears the tail / plants the tail at the current head position", ->
         marker.setRange([[0, 6], [0, 9]], reversed: true)

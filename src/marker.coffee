@@ -364,13 +364,14 @@ class Marker
 
   emitChangeEvent: (currentRange, textChanged, propertiesChanged) ->
     oldState = @previousEventState
-    newState = @previousEventState = @getSnapshot(currentRange, propertiesChanged)
 
     return unless propertiesChanged or
-      oldState.valid isnt newState.valid or
-      oldState.tailed isnt newState.tailed or
-      oldState.reversed isnt newState.reversed or
-      oldState.range.compare(newState.range) isnt 0
+      oldState.valid isnt @valid or
+      oldState.tailed isnt @tailed or
+      oldState.reversed isnt @reversed or
+      oldState.range.compare(currentRange) isnt 0
+
+    newState = @previousEventState = @getSnapshot(currentRange)
 
     if oldState.reversed
       oldHeadPosition = oldState.range.start
