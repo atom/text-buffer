@@ -447,6 +447,12 @@ class PatchIterator
       @patch.rootNode = @patch.rootNode.children[0]
       newPath.shift()
 
+    entry = last(newPath)
+    if entry.outputOffset.isEqual(entry.node.outputExtent)
+      entry.inputOffset = entry.node.inputExtent
+    else
+      entry.inputOffset = Point.min(entry.node.inputExtent, entry.outputOffset)
+
     @path = newPath
     this
 
