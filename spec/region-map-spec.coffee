@@ -29,7 +29,7 @@ describe "RegionMap", ->
         iterator.splice(Point(0, 3), "abcde")
 
       it "inserts new content into the map", ->
-        iterator.seek(Point(0, 0))
+        iterator.seek(Point.zero())
 
         expect(iterator.next()).toEqual(value: null, done: false)
         expect(iterator.getPosition()).toEqual(Point(0, 2))
@@ -49,6 +49,26 @@ describe "RegionMap", ->
         expect(iterator.next()).toEqual(value: "e", done: false)
         expect(iterator.getPosition()).toEqual(Point(0, 7))
         expect(iterator.getSourcePosition()).toEqual(Point(0, 5))
+
+      describe "expanding an existing positive-delta splice", ->
+        beforeEach ->
+          iterator.seek(Point(0, 4))
+          iterator.splice(Point(0, 2), "fghi")
+
+        it "stretches the existing splice region", ->
+          iterator.seek(Point.zero())
+
+          expect(iterator.next()).toEqual(value: null, done: false)
+          expect(iterator.getPosition()).toEqual(Point(0, 2))
+          expect(iterator.getSourcePosition()).toEqual(Point(0, 2))
+
+          expect(iterator.next()).toEqual(value: "abfghie", done: false)
+          expect(iterator.getPosition()).toEqual(Point(0, 9))
+          expect(iterator.getSourcePosition()).toEqual(Point(0, 5))
+
+          expect(iterator.next()).toEqual(value: null, done: false)
+          expect(iterator.getPosition()).toEqual(Point.infinity())
+          expect(iterator.getSourcePosition()).toEqual(Point.infinity())
 
     describe "splicing with a negative delta", ->
       iterator = null

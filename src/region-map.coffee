@@ -22,7 +22,7 @@ class Iterator
 
     for region, index in @regionMap.regions
       nextPosition = position.traverse(region.extent)
-      nextSourcePosition = position.traverse(region.sourceExtent)
+      nextSourcePosition = sourcePosition.traverse(region.sourceExtent)
 
       if nextPosition.compare(@position) > 0
         @index = index
@@ -54,25 +54,50 @@ class Iterator
       {value: null, done: true}
 
   splice: (oldExtent, newContent) ->
+    newRegions = []
+    startIndex = @index
+    startSourcePosition = @sourcePosition
+
     unless @regionOffset.isZero()
-      @regionMap.regions.splice(@index, 0,
+      regionToSplit = @regionMap.regions[@index]
+      newRegions.push({
         extent: @regionOffset
         sourceExtent: @regionOffset
-        content: @regionMap.regions[@index].content
-      )
-      @regionOffset = Point.zero()
-      @index++
+        content: regionToSplit.content?.substring(0, @regionOffset.column) ? null
+      })
 
+    @seek(@position.traverse(oldExtent))
+
+    spliceEndIndex = @index + 1
+
+    sourceExtent = @sourcePosition.traversalFrom(startSourcePosition)
     newExtent = Point(0, newContent.length)
-    @regionMap.regions.splice(@index, 0, {
+    newRegions.push({
       extent: newExtent
-      sourceExtent: oldExtent
+      sourceExtent: sourceExtent
       content: newContent
     })
-    @index++
 
-    @position = @position.traverse(newExtent)
-    @sourcePosition = @sourcePosition.traverse(oldExtent)
+    unless @regionOffset.isZero()
+      regionToSplit = @regionMap.regions[@index]
+      newRegions.push({
+        extent: regionToSplit.extent.traversalFrom(@regionOffset)
+        sourceExtent: Point.max(Point.zero(), regionToSplit.sourceExtent.traversalFrom(@regionOffset))
+        content: regionToSplit.content?.slice(@regionOffset.column)
+      })
+
+    spliceRegions = []
+    lastRegion = null
+    for region in newRegions
+      if lastRegion?.content? and region.content?
+        lastRegion.content += region.content
+        lastRegion.sourceExtent = lastRegion.sourceExtent.traverse(region.sourceExtent)
+        lastRegion.extent = lastRegion.extent.traverse(region.extent)
+      else
+        spliceRegions.push(region)
+        lastRegion = region
+
+    @regionMap.regions.splice(startIndex, @index - startIndex + 1, spliceRegions...)
 
   getPosition: ->
     @position
