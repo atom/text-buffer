@@ -3,99 +3,99 @@ Point = require "./point"
 module.exports =
 class Patch
   constructor: ->
-    @regions = [{
+    @hunks = [{
       content: null
       extent: Point.infinity()
       sourceExtent: Point.infinity()
     }]
 
   buildIterator: ->
-    new Iterator(this)
+    new PatchIterator(this)
 
-class Iterator
-  constructor: (@regionMap) ->
+class PatchIterator
+  constructor: (@patch) ->
     @seek(Point.zero())
 
   seek: (@position) ->
     position = Point.zero()
     sourcePosition = Point.zero()
 
-    for region, index in @regionMap.regions
-      nextPosition = position.traverse(region.extent)
-      nextSourcePosition = sourcePosition.traverse(region.sourceExtent)
+    for hunk, index in @patch.hunks
+      nextPosition = position.traverse(hunk.extent)
+      nextSourcePosition = sourcePosition.traverse(hunk.sourceExtent)
 
       if nextPosition.compare(@position) > 0 or position.compare(@position) is 0
         @index = index
-        @regionOffset = @position.traversalFrom(position)
-        @sourcePosition = Point.min(sourcePosition.traverse(@regionOffset), nextSourcePosition)
+        @hunkOffset = @position.traversalFrom(position)
+        @sourcePosition = Point.min(sourcePosition.traverse(@hunkOffset), nextSourcePosition)
         return
 
       position = nextPosition
       sourcePosition = nextSourcePosition
 
-    # This shouldn't happen because the last region's extent is infinite.
-    throw new Error("No region found for position #{@position}")
+    # This shouldn't happen because the last hunk's extent is infinite.
+    throw new Error("No hunk found for position #{@position}")
 
   next: ->
-    if region = @regionMap.regions[@index]
-      value = region.content?.slice(@regionOffset.column) ? null
+    if hunk = @patch.hunks[@index]
+      value = hunk.content?.slice(@hunkOffset.column) ? null
 
-      remainingExtent = region.extent.traversalFrom(@regionOffset)
-      remainingSourceExtent = region.sourceExtent.traversalFrom(@regionOffset)
+      remainingExtent = hunk.extent.traversalFrom(@hunkOffset)
+      remainingSourceExtent = hunk.sourceExtent.traversalFrom(@hunkOffset)
 
       @position = @position.traverse(remainingExtent)
       if remainingSourceExtent.isPositive()
         @sourcePosition = @sourcePosition.traverse(remainingSourceExtent)
 
       @index++
-      @regionOffset = Point.zero()
+      @hunkOffset = Point.zero()
       {value, done: false}
     else
       {value: null, done: true}
 
   splice: (oldExtent, newContent) ->
-    newRegions = []
+    newHunks = []
     startIndex = @index
     startPosition = @position
     startSourcePosition = @sourcePosition
 
-    unless @regionOffset.isZero()
-      regionToSplit = @regionMap.regions[@index]
-      newRegions.push({
-        extent: @regionOffset
-        sourceExtent: Point.min(@regionOffset, regionToSplit.sourceExtent)
-        content: regionToSplit.content?.substring(0, @regionOffset.column) ? null
+    unless @hunkOffset.isZero()
+      hunkToSplit = @patch.hunks[@index]
+      newHunks.push({
+        extent: @hunkOffset
+        sourceExtent: Point.min(@hunkOffset, hunkToSplit.sourceExtent)
+        content: hunkToSplit.content?.substring(0, @hunkOffset.column) ? null
       })
 
     @seek(@position.traverse(oldExtent))
 
     sourceExtent = @sourcePosition.traversalFrom(startSourcePosition)
     newExtent = Point(0, newContent.length)
-    newRegions.push({
+    newHunks.push({
       extent: newExtent
       sourceExtent: sourceExtent
       content: newContent
     })
 
-    regionToSplit = @regionMap.regions[@index]
-    newRegions.push({
-      extent: regionToSplit.extent.traversalFrom(@regionOffset)
-      sourceExtent: Point.max(Point.zero(), regionToSplit.sourceExtent.traversalFrom(@regionOffset))
-      content: regionToSplit.content?.slice(@regionOffset.column)
+    hunkToSplit = @patch.hunks[@index]
+    newHunks.push({
+      extent: hunkToSplit.extent.traversalFrom(@hunkOffset)
+      sourceExtent: Point.max(Point.zero(), hunkToSplit.sourceExtent.traversalFrom(@hunkOffset))
+      content: hunkToSplit.content?.slice(@hunkOffset.column)
     })
 
-    spliceRegions = []
-    lastRegion = null
-    for region in newRegions
-      if lastRegion?.content? and region.content?
-        lastRegion.content += region.content
-        lastRegion.sourceExtent = lastRegion.sourceExtent.traverse(region.sourceExtent)
-        lastRegion.extent = lastRegion.extent.traverse(region.extent)
+    spliceHunks = []
+    lastHunk = null
+    for hunk in newHunks
+      if lastHunk?.content? and hunk.content?
+        lastHunk.content += hunk.content
+        lastHunk.sourceExtent = lastHunk.sourceExtent.traverse(hunk.sourceExtent)
+        lastHunk.extent = lastHunk.extent.traverse(hunk.extent)
       else
-        spliceRegions.push(region)
-        lastRegion = region
+        spliceHunks.push(hunk)
+        lastHunk = hunk
 
-    @regionMap.regions.splice(startIndex, @index - startIndex + 1, spliceRegions...)
+    @patch.hunks.splice(startIndex, @index - startIndex + 1, spliceHunks...)
 
     @seek(startPosition.traverse(newExtent))
 
