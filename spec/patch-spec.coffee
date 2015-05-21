@@ -1,17 +1,17 @@
 Point = require "../src/point"
-RegionMap = require "../src/region-map"
+Patch = require "../src/patch"
 
-describe "RegionMap", ->
-  regionMap = null
+describe "Patch", ->
+  patch = null
 
   beforeEach ->
-    regionMap = new RegionMap
+    patch = new Patch
 
   describe "iterator", ->
     iterator = null
 
-    it "terminates after traversing to infinity when the region map is empty", ->
-      iterator = regionMap.buildIterator()
+    it "terminates after traversing to infinity when the patch is empty", ->
+      iterator = patch.buildIterator()
       expect(iterator.getPosition()).toEqual(Point.zero())
 
       expect(iterator.next()).toEqual(value: null, done: false)
@@ -22,9 +22,9 @@ describe "RegionMap", ->
       expect(iterator.getPosition()).toEqual(Point.infinity())
       expect(iterator.getSourcePosition()).toEqual(Point.infinity())
 
-    expectRegions = (regions...) ->
+    expectHunks = (hunks...) ->
       iterator.seek(Point.zero())
-      for [value, position, sourcePosition] in regions
+      for [value, position, sourcePosition] in hunks
         expect(iterator.next()).toEqual {value, done: false}
         expect(iterator.getPosition()).toEqual position
         expect(iterator.getSourcePosition()).toEqual sourcePosition
@@ -32,7 +32,7 @@ describe "RegionMap", ->
 
     describe "splicing with a positive delta", ->
       beforeEach ->
-        iterator = regionMap.buildIterator()
+        iterator = patch.buildIterator()
         iterator.seek(Point(0, 4))
         iterator.splice(Point(0, 3), "abcde")
 
@@ -40,7 +40,7 @@ describe "RegionMap", ->
         expect(iterator.getPosition()).toEqual(Point(0, 9))
         expect(iterator.getSourcePosition()).toEqual(Point(0, 7))
 
-        expectRegions(
+        expectHunks(
           [null, Point(0, 4), Point(0, 4)]
           ["abcde", Point(0, 9), Point(0, 7)]
           [null, Point.infinity(), Point.infinity()]
@@ -59,7 +59,7 @@ describe "RegionMap", ->
         expect(iterator.getPosition()).toEqual(Point(0, 4))
         expect(iterator.getSourcePosition()).toEqual(Point(0, 3))
 
-        expectRegions(
+        expectHunks(
           [null, Point(0, 1), Point(0, 1)]
           ["fgh", Point(0, 4), Point(0, 3)]
           [null, Point(0, 5), Point(0, 4)]
@@ -73,7 +73,7 @@ describe "RegionMap", ->
         expect(iterator.getPosition()).toEqual(Point(0, 5))
         expect(iterator.getSourcePosition()).toEqual(Point(0, 5))
 
-        expectRegions(
+        expectHunks(
           [null, Point(0, 2), Point(0, 2)]
           ["fghabcde", Point(0, 10), Point(0, 7)]
           [null, Point.infinity(), Point.infinity()]
@@ -85,7 +85,7 @@ describe "RegionMap", ->
         expect(iterator.getPosition()).toEqual(Point(0, 7))
         expect(iterator.getSourcePosition()).toEqual(Point(0, 7))
 
-        expectRegions(
+        expectHunks(
           [null, Point(0, 3), Point(0, 3)]
           ["fghibcde", Point(0, 11), Point(0, 7)]
           [null, Point.infinity(), Point.infinity()]
@@ -97,7 +97,7 @@ describe "RegionMap", ->
         expect(iterator.getPosition()).toEqual(Point(0, 8))
         expect(iterator.getSourcePosition()).toEqual(Point(0, 7))
 
-        expectRegions(
+        expectHunks(
           [null, Point(0, 4), Point(0, 4)]
           ["fghicde", Point(0, 11), Point(0, 7)]
           [null, Point.infinity(), Point.infinity()]
@@ -109,7 +109,7 @@ describe "RegionMap", ->
         expect(iterator.getPosition()).toEqual(Point(0, 10))
         expect(iterator.getSourcePosition()).toEqual(Point(0, 7))
 
-        expectRegions(
+        expectHunks(
           [null, Point(0, 4), Point(0, 4)]
           ["abfghie", Point(0, 11), Point(0, 7)]
           [null, Point.infinity(), Point.infinity()]
@@ -121,7 +121,7 @@ describe "RegionMap", ->
         expect(iterator.getPosition()).toEqual(Point(0, 12))
         expect(iterator.getSourcePosition()).toEqual(Point(0, 8))
 
-        expectRegions(
+        expectHunks(
           [null, Point(0, 2), Point(0, 2)]
           ["fghijklmno", Point(0, 12), Point(0, 8)]
           [null, Point.infinity(), Point.infinity()]
@@ -133,7 +133,7 @@ describe "RegionMap", ->
         expect(iterator.getPosition()).toEqual(Point(0, 11))
         expect(iterator.getSourcePosition()).toEqual(Point(0, 7))
 
-        expectRegions(
+        expectHunks(
           [null, Point(0, 4), Point(0, 4)]
           ["abfghij", Point(0, 11), Point(0, 7)]
           [null, Point.infinity(), Point.infinity()]
@@ -145,7 +145,7 @@ describe "RegionMap", ->
         expect(iterator.getPosition()).toEqual(Point(0, 14))
         expect(iterator.getSourcePosition()).toEqual(Point(0, 10))
 
-        expectRegions(
+        expectHunks(
           [null, Point(0, 4), Point(0, 4)]
           ["abcdfghijk", Point(0, 14), Point(0, 10)]
           [null, Point.infinity(), Point.infinity()]
@@ -157,7 +157,7 @@ describe "RegionMap", ->
         expect(iterator.getPosition()).toEqual(Point(0, 17))
         expect(iterator.getSourcePosition()).toEqual(Point(0, 13))
 
-        expectRegions(
+        expectHunks(
           [null, Point(0, 4), Point(0, 4)]
           ["abcde", Point(0, 9), Point(0, 7)]
           [null, Point(0, 12), Point(0, 10)]
@@ -169,7 +169,7 @@ describe "RegionMap", ->
       iterator = null
 
       beforeEach ->
-        iterator = regionMap.buildIterator()
+        iterator = patch.buildIterator()
         iterator.seek(Point(0, 2))
         iterator.splice(Point(0, 5), "abc")
 
@@ -177,7 +177,7 @@ describe "RegionMap", ->
         expect(iterator.getPosition()).toEqual(Point(0, 5))
         expect(iterator.getSourcePosition()).toEqual(Point(0, 7))
 
-        expectRegions(
+        expectHunks(
          [null, Point(0, 2), Point(0, 2)]
          ["abc", Point(0, 5), Point(0, 7)]
          [null, Point.infinity(), Point.infinity()]
@@ -199,15 +199,15 @@ describe "RegionMap", ->
         expect(iterator.getPosition()).toEqual(Point(0, 3))
         expect(iterator.getSourcePosition()).toEqual(Point(0, 3))
 
-        expectRegions(
+        expectHunks(
          [null, Point(0, 2), Point(0, 2)]
          ["ac", Point(0, 4), Point(0, 7)]
          [null, Point.infinity(), Point.infinity()]
         )
 
-    describe "seek", ->
-      it "stops at the first region that starts at or contains", ->
-        iterator = regionMap.buildIterator()
+    describe "::seek(position)", ->
+      it "stops at the first hunk that starts at or contains the given position", ->
+        iterator = patch.buildIterator()
         iterator.seek(Point(0, 2))
         iterator.splice(Point(0, 5), "")
 
