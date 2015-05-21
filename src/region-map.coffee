@@ -56,6 +56,7 @@ class Iterator
   splice: (oldExtent, newContent) ->
     newRegions = []
     startIndex = @index
+    startPosition = @position
     startSourcePosition = @sourcePosition
 
     unless @regionOffset.isZero()
@@ -96,6 +97,8 @@ class Iterator
         lastRegion = region
 
     @regionMap.regions.splice(startIndex, @index - startIndex + 1, spliceRegions...)
+
+    @seek(startPosition.traverse(newExtent))
 
   getPosition: ->
     @position
