@@ -77,13 +77,12 @@ class Iterator
       content: newContent
     })
 
-    unless @regionOffset.isZero()
-      regionToSplit = @regionMap.regions[@index]
-      newRegions.push({
-        extent: regionToSplit.extent.traversalFrom(@regionOffset)
-        sourceExtent: Point.max(Point.zero(), regionToSplit.sourceExtent.traversalFrom(@regionOffset))
-        content: regionToSplit.content?.slice(@regionOffset.column)
-      })
+    regionToSplit = @regionMap.regions[@index]
+    newRegions.push({
+      extent: regionToSplit.extent.traversalFrom(@regionOffset)
+      sourceExtent: Point.max(Point.zero(), regionToSplit.sourceExtent.traversalFrom(@regionOffset))
+      content: regionToSplit.content?.slice(@regionOffset.column)
+    })
 
     spliceRegions = []
     lastRegion = null
