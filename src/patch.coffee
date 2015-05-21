@@ -1,106 +1,147 @@
 Point = require "./point"
 
+BRANCHING_THRESHOLD = 3
+
+class Node
+  constructor: (@children) ->
+    @inputExtent = Point.zero()
+    @outputExtent = Point.zero()
+    for child in @children
+      @inputExtent = @inputExtent.traverse(child.inputExtent)
+      @outputExtent = @outputExtent.traverse(child.outputExtent)
+
+  splice: (spliceOutputStart, oldOutputExtent, newOutputExtent, content) ->
+    spliceOldOutputEnd = spliceOutputStart.traverse(oldOutputExtent)
+
+    i = 0
+    childOutputEnd = Point.zero()
+    while i < @children.length
+      child = @children[i]
+      childOutputStart = childOutputEnd
+      childOutputEnd = childOutputStart.traverse(child.outputExtent)
+
+      if extentToCut?
+        newExtentToCut = extentToCut.traversalFrom(child.outputExtent)
+        if newExtentToCut.isPositive()
+          @children.splice(i, 1)
+          extentToCut = newExtentToCut
+        else
+          child.cut(extentToCut)
+          break
+      else
+        if childOutputEnd.compare(spliceOutputStart) > 0
+          relativeSpliceOutputStart = spliceOutputStart.traversalFrom(childOutputStart)
+          extentToCut = spliceOldOutputEnd.traversalFrom(childOutputEnd)
+          if splitNodes = child.splice(relativeSpliceOutputStart, oldOutputExtent, newOutputExtent, content)
+            @children.splice(i, 1, splitNodes...)
+            i += splitNodes.length
+          else
+            i++
+        else
+          i++
+
+    if @children.length > BRANCHING_THRESHOLD
+      splitIndex = Math.ceil(@children.length / BRANCHING_THRESHOLD)
+      [new Node(@children.slice(0, splitIndex)), new Node(@children.slice(splitIndex))]
+    else
+      null
+
+  cut: (extentToCut) ->
+    @inputExtent = Point.max(Point.zero(), @inputExtent.traversalFrom(extent))
+    @outputExtent = @outputExtent.traversalFrom(extent)
+
+    i = 0
+    while i < @children.length
+      child = @children[i]
+
+      newExtentToCut = extentToCut.traversalFrom(child.outputExtent)
+      if newExtentToCut.isPositive()
+        @children.splice(i, 1)
+        extentToCut = newExtentToCut
+      else
+        child.cut(extentToCut)
+        break
+
+  mergeChildrenIfNeeded: (i) ->
+    if @children[i]?.shouldMergeWith(@children[i + 1])
+      @children.splice(i, 2, @children[i].merge(@children[i + 1]))
+      true
+    else
+      false
+
+  getHunks: ->
+    result = []
+    for child in @children
+      result = result.concat(child.getHunks())
+    result
+
+  toString: (indentLevel=0) ->
+    indent = ""
+    indent += " " for i in [0...indentLevel] by 1
+
+    """
+      #{indent}Node #{@inputExtent} #{@outputExtent}
+      #{@children.map((c) -> c.toString(indentLevel + 2)).join("\n")}
+    """
+
+class Leaf
+  constructor: (@inputExtent, @outputExtent, @content) ->
+
+  splice: (outputStart, oldOutputExtent, newOutputExtent, newContent) ->
+    oldOutputEnd = outputStart.traverse(oldOutputExtent)
+    if @content?
+      @inputExtent = @inputExtent
+        .traverse(Point.max(Point.zero(), oldOutputEnd.traversalFrom(@outputExtent)))
+      @outputExtent = outputStart
+        .traverse(newOutputExtent)
+        .traverse(Point.max(Point.zero(), @outputExtent.traversalFrom(oldOutputEnd)))
+      @content =
+        @content.slice(0, outputStart.column) +
+        newContent +
+        @content.slice(outputStart.column + oldOutputExtent.column)
+      return
+    else
+      splitLeaves = [new Leaf(oldOutputExtent, newOutputExtent, newContent)]
+      trailingExtent = @outputExtent.traversalFrom(oldOutputEnd)
+      if outputStart.isPositive()
+        splitLeaves.unshift(new Leaf(outputStart, outputStart, null))
+      if trailingExtent.isPositive()
+        splitLeaves.push(new Leaf(@inputExtent.traversalFrom(oldOutputEnd), trailingExtent, null))
+      splitLeaves
+
+  cut: (extent) ->
+    @outputExtent = @outputExtent.traversalFrom(extent)
+    @inputExtent = Point.max(Point.zero(), @inputExtent.traversalFrom(extent))
+
+  getHunks: ->
+    [{@inputExtent, @outputExtent, @content}]
+
+  toString: (indentLevel=0) ->
+    indent = ""
+    indent += " " for i in [0...indentLevel] by 1
+
+    if @content?
+      "#{indent}Leaf #{@inputExtent} #{@outputExtent} \"#{@content}\""
+    else
+      "#{indent}Leaf #{@inputExtent} #{@outputExtent}"
+
 module.exports =
 class Patch
   constructor: ->
-    @hunks = [{
-      content: null
-      extent: Point.infinity()
-      inputExtent: Point.infinity()
-    }]
+    @rootNode = new Leaf(Point.infinity(), Point.infinity(), null)
 
-  buildIterator: ->
-    new PatchIterator(this)
+  splice: (outputPosition, oldOutputExtent, newOutputExtent, content) ->
+    if splitNodes = @rootNode.splice(outputPosition, oldOutputExtent, newOutputExtent, content)
+      @rootNode = new Node(splitNodes)
 
-class PatchIterator
-  constructor: (@patch) ->
-    @seek(Point.zero())
+  toInputPosition: (outputPosition) ->
 
-  seek: (@position) ->
-    position = Point.zero()
-    inputPosition = Point.zero()
+  toOutputPosition: (inputPosition) ->
 
-    for hunk, index in @patch.hunks
-      nextPosition = position.traverse(hunk.extent)
-      nextInputPosition = inputPosition.traverse(hunk.inputExtent)
+  getHunks: ->
+    @rootNode.getHunks()
 
-      if nextPosition.compare(@position) > 0 or position.compare(@position) is 0
-        @index = index
-        @hunkOffset = @position.traversalFrom(position)
-        @inputPosition = Point.min(inputPosition.traverse(@hunkOffset), nextInputPosition)
-        return
-
-      position = nextPosition
-      inputPosition = nextInputPosition
-
-    # This shouldn't happen because the last hunk's extent is infinite.
-    throw new Error("No hunk found for position #{@position}")
-
-  next: ->
-    if hunk = @patch.hunks[@index]
-      value = hunk.content?.slice(@hunkOffset.column) ? null
-
-      remainingExtent = hunk.extent.traversalFrom(@hunkOffset)
-      remainingInputExtent = hunk.inputExtent.traversalFrom(@hunkOffset)
-
-      @position = @position.traverse(remainingExtent)
-      if remainingInputExtent.isPositive()
-        @inputPosition = @inputPosition.traverse(remainingInputExtent)
-
-      @index++
-      @hunkOffset = Point.zero()
-      {value, done: false}
-    else
-      {value: null, done: true}
-
-  splice: (oldExtent, newContent) ->
-    newHunks = []
-    startIndex = @index
-    startPosition = @position
-    startInputPosition = @inputPosition
-
-    unless @hunkOffset.isZero()
-      hunkToSplit = @patch.hunks[@index]
-      newHunks.push({
-        extent: @hunkOffset
-        inputExtent: Point.min(@hunkOffset, hunkToSplit.inputExtent)
-        content: hunkToSplit.content?.substring(0, @hunkOffset.column) ? null
-      })
-
-    @seek(@position.traverse(oldExtent))
-
-    inputExtent = @inputPosition.traversalFrom(startInputPosition)
-    newExtent = Point(0, newContent.length)
-    newHunks.push({
-      extent: newExtent
-      inputExtent: inputExtent
-      content: newContent
-    })
-
-    hunkToSplit = @patch.hunks[@index]
-    newHunks.push({
-      extent: hunkToSplit.extent.traversalFrom(@hunkOffset)
-      inputExtent: Point.max(Point.zero(), hunkToSplit.inputExtent.traversalFrom(@hunkOffset))
-      content: hunkToSplit.content?.slice(@hunkOffset.column)
-    })
-
-    spliceHunks = []
-    lastHunk = null
-    for hunk in newHunks
-      if lastHunk?.content? and hunk.content?
-        lastHunk.content += hunk.content
-        lastHunk.inputExtent = lastHunk.inputExtent.traverse(hunk.inputExtent)
-        lastHunk.extent = lastHunk.extent.traverse(hunk.extent)
-      else
-        spliceHunks.push(hunk)
-        lastHunk = hunk
-
-    @patch.hunks.splice(startIndex, @index - startIndex + 1, spliceHunks...)
-
-    @seek(startPosition.traverse(newExtent))
-
-  getPosition: ->
-    @position.copy()
-
-  getInputPosition: ->
-    @inputPosition.copy()
+  toString: ->
+    result = "[Patch"
+    for hunk in @getHunks()
+      result += "\n  "
