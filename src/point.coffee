@@ -177,6 +177,7 @@ class Point
   # Returns `0` if this point is equivalent to the argument.
   # Returns `1` if this point follows the argument.
   compare: (other) ->
+    other = Point.fromObject(other)
     if @row > other.row
       1
     else if @row < other.row
