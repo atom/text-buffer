@@ -134,9 +134,9 @@ class PatchIterator
 
   next: ->
     if @node?
-      value = @node.content
-      @inputPosition = @inputPosition.traverse(@node.inputExtent)
-      @outputPosition = @outputPosition.traverse(@node.outputExtent)
+      value = @node.content?.slice(@leafOffset.column) ? null
+      @inputPosition = @inputPosition.traverse(Point.max(Point.zero(), @node.inputExtent.traversalFrom(@leafOffset)))
+      @outputPosition = @outputPosition.traverse(@node.outputExtent.traversalFrom(@leafOffset))
 
       @node = null
       while parent = @nodeStack[@nodeStack.length - 1]
@@ -150,6 +150,32 @@ class PatchIterator
 
     {value: null, done: true}
 
+  seek: (outputPosition) ->
+    childInputStart = Point.zero()
+    childOutputStart = Point.zero()
+
+    if @nodeStack.length > 0
+      @node = @nodeStack[0].node
+      @nodeStack.length = 0
+
+      while @node.children?
+        for child, index in @node.children
+          childInputEnd = childInputStart.traverse(child.inputExtent)
+          childOutputEnd = childOutputStart.traverse(child.outputExtent)
+
+          if childOutputEnd.compare(outputPosition) > 0
+            foundChild = true
+            @nodeStack.push({@node, index})
+            @node = child
+            break
+
+          childOutputStart = childOutputEnd
+          childInputStart = childInputEnd
+
+    @leafOffset = outputPosition.traversalFrom(childOutputStart)
+    @inputPosition = childInputStart.traverse(Point.min(@leafOffset, @node.inputExtent))
+    @outputPosition = outputPosition.copy()
+
   getPosition: ->
     @outputPosition.copy()
 
@@ -157,6 +183,7 @@ class PatchIterator
     @inputPosition.copy()
 
   descend: ->
+    @leafOffset = Point.zero()
     while @node.children?
       @nodeStack.push({@node, index: 0})
       @node = @node.children[0]
