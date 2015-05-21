@@ -142,16 +142,6 @@ describe "Point", ->
       expect(Point.max([3, 4], [1, 1])).toEqual [3, 4]
       expect(Point.max([1, 2], [5, 6])).toEqual [5, 6]
 
-  describe "::sanitizeNegatives()", ->
-    it "returns the point so that it has valid buffer coordinates", ->
-      expect(Point(-1, -1).sanitizeNegatives()).toEqual Point(0, 0)
-      expect(Point(-1, 0).sanitizeNegatives()).toEqual Point(0, 0)
-      expect(Point(-1, Infinity).sanitizeNegatives()).toEqual Point(0, 0)
-
-      expect(Point(5, -1).sanitizeNegatives()).toEqual Point(5, 0)
-      expect(Point(5, -Infinity).sanitizeNegatives()).toEqual Point(5, 0)
-      expect(Point(5, 5).sanitizeNegatives()).toEqual Point(5, 5)
-
   describe "::translate(delta)", ->
     it "returns a new point by adding corresponding coordinates", ->
       expect(Point(1, 1).translate(Point(2, 3))).toEqual Point(3, 4)
