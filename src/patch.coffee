@@ -126,7 +126,7 @@ class Leaf
     else
       "#{indent}[Leaf #{@inputExtent} #{@outputExtent}]"
 
-class PatchIterator
+class RegionIterator
   constructor: (@patch, @path) ->
     unless @path?
       @path = []
@@ -234,7 +234,7 @@ class PatchIterator
     result
 
   copy: ->
-    new PatchIterator(@patch, @path.slice())
+    new RegionIterator(@patch, @path.slice())
 
   descendToLeftmostLeaf: (node) ->
     loop
@@ -337,7 +337,7 @@ class PatchIterator
   toString: ->
     entries = for {node, inputOffset, outputOffset, childIndex} in @path
       "  {inputOffset:#{inputOffset}, outputOffset:#{outputOffset}, childIndex:#{childIndex}}"
-    "[PatchIterator\n#{entries.join("\n")}]"
+    "[RegionIterator\n#{entries.join("\n")}]"
 
 class ChangeIterator
   constructor: (@patchIterator) ->
@@ -363,21 +363,21 @@ class Patch
     @clear()
 
   splice: (spliceOutputStart, oldOutputExtent, newOutputExtent, content) ->
-    iterator = @buildIterator()
+    iterator = @regions()
     iterator.seek(spliceOutputStart)
     iterator.splice(oldOutputExtent, newOutputExtent, content)
 
   clear: ->
     @rootNode = new Leaf(Point.INFINITY, Point.INFINITY, null)
 
-  buildIterator: ->
-    new PatchIterator(this)
+  regions: ->
+    new RegionIterator(this)
 
   changes: ->
-    new ChangeIterator(@buildIterator())
+    new ChangeIterator(@regions())
 
   toInputPosition: (outputPosition) ->
-    @buildIterator().seek(outputPosition).getInputPosition()
+    @regions().seek(outputPosition).getInputPosition()
 
   toOutputPosition: (inputPosition) ->
-    @buildIterator().seekToInputPosition(inputPosition).getOutputPosition()
+    @regions().seekToInputPosition(inputPosition).getOutputPosition()

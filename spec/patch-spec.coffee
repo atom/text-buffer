@@ -9,9 +9,9 @@ describe "Patch", ->
   beforeEach ->
     patch = new Patch
 
-  describe "::buildIterator()", ->
-    expectHunks = (iterator, hunks) ->
-      for [inputPosition, outputPosition, value], i in hunks
+  describe "::regions()", ->
+    expectRegions = (iterator, regions) ->
+      for [inputPosition, outputPosition, value], i in regions
         expect(iterator.next()).toEqual {value, done: false}
         expect(iterator.getInputPosition()).toEqual inputPosition, "input position for hunk #{i}"
         expect(iterator.getOutputPosition()).toEqual outputPosition, "output position for hunk #{i}"
@@ -32,12 +32,12 @@ describe "Patch", ->
         patch.splice(Point(0, 12), Point(0, 4), Point(0, 3), "efg")
         patch.splice(Point(0, 16), Point(0, 3), Point(0, 2), "hi")
 
-        iterator = patch.buildIterator()
+        iterator = patch.regions()
 
         iterator.seek(Point(0, 3))
         expect(iterator.getInputPosition()).toEqual Point(0, 3)
         expect(iterator.getOutputPosition()).toEqual Point(0, 3)
-        expectHunks iterator, [
+        expectRegions iterator, [
           [Point(0, 5), Point(0, 5), null]
           [Point(0, 7), Point(0, 9), "abcd"]
           [Point(0, 10), Point(0, 12), null]
@@ -50,7 +50,7 @@ describe "Patch", ->
         iterator.seek(Point(0, 8))
         expect(iterator.getInputPosition()).toEqual Point(0, 7)
         expect(iterator.getOutputPosition()).toEqual Point(0, 8)
-        expectHunks iterator, [
+        expectRegions iterator, [
           [Point(0, 7), Point(0, 9), "d"]
           [Point(0, 10), Point(0, 12), null]
           [Point(0, 14), Point(0, 15), "efg"]
@@ -62,7 +62,7 @@ describe "Patch", ->
         iterator.seek(Point(0, 13))
         expect(iterator.getInputPosition()).toEqual Point(0, 11)
         expect(iterator.getOutputPosition()).toEqual Point(0, 13)
-        expectHunks iterator, [
+        expectRegions iterator, [
           [Point(0, 14), Point(0, 15), "fg"]
           [Point(0, 15), Point(0, 16), null]
           [Point(0, 18), Point(0, 18), "hi"]
@@ -75,12 +75,12 @@ describe "Patch", ->
         patch.splice(Point(0, 12), Point(0, 4), Point(0, 3), "efg")
         patch.splice(Point(0, 16), Point(0, 3), Point(0, 2), "hi")
 
-        iterator = patch.buildIterator()
+        iterator = patch.regions()
 
         iterator.seekToInputPosition(Point(0, 3))
         expect(iterator.getInputPosition()).toEqual(Point(0, 3))
         expect(iterator.getOutputPosition()).toEqual(Point(0, 3))
-        expectHunks iterator, [
+        expectRegions iterator, [
           [Point(0, 5), Point(0, 5), null]
           [Point(0, 7), Point(0, 9), "abcd"]
           [Point(0, 10), Point(0, 12), null]
@@ -93,7 +93,7 @@ describe "Patch", ->
         iterator.seekToInputPosition(Point(0, 7))
         expect(iterator.getInputPosition()).toEqual(Point(0, 7))
         expect(iterator.getOutputPosition()).toEqual(Point(0, 9))
-        expectHunks iterator, [
+        expectRegions iterator, [
           [Point(0, 10), Point(0, 12), null]
           [Point(0, 14), Point(0, 15), "efg"]
           [Point(0, 15), Point(0, 16), null]
@@ -103,10 +103,10 @@ describe "Patch", ->
 
     describe "::splice(oldOutputExtent, newOutputExtent, content)", ->
       it "can insert a single change", ->
-        iterator = patch.buildIterator()
+        iterator = patch.regions()
         iterator.seek(Point(0, 5)).splice(Point(0, 3), Point(0, 4), "abcd")
 
-        expectHunks patch.buildIterator(), [
+        expectRegions patch.regions(), [
           [Point(0, 5), Point(0, 5), null]
           [Point(0, 8), Point(0, 9), "abcd"]
           [Point.INFINITY, Point.INFINITY, null]
@@ -114,16 +114,16 @@ describe "Patch", ->
 
         expect(iterator.getInputPosition()).toEqual Point(0, 8)
         expect(iterator.getOutputPosition()).toEqual Point(0, 9)
-        expectHunks iterator, [
+        expectRegions iterator, [
           [Point.INFINITY, Point.INFINITY, null]
         ]
 
       it "can insert two disjoint changes", ->
-        iterator = patch.buildIterator()
+        iterator = patch.regions()
         iterator.seek(Point(0, 12)).splice(Point(0, 4), Point(0, 3), "efg")
         iterator.seek(Point(0, 5)).splice(Point(0, 3), Point(0, 4), "abcd")
 
-        expectHunks patch.buildIterator(), [
+        expectRegions patch.regions(), [
           [Point(0, 5), Point(0, 5), null]
           [Point(0, 8), Point(0, 9), "abcd"]
           [Point(0, 12), Point(0, 13), null]
@@ -133,19 +133,19 @@ describe "Patch", ->
 
         expect(iterator.getInputPosition()).toEqual Point(0, 8)
         expect(iterator.getOutputPosition()).toEqual Point(0, 9)
-        expectHunks iterator, [
+        expectRegions iterator, [
           [Point(0, 12), Point(0, 13), null]
           [Point(0, 16), Point(0, 16), "efg"]
           [Point.INFINITY, Point.INFINITY, null]
         ]
 
       it "can insert three disjoint changes", ->
-        iterator = patch.buildIterator()
+        iterator = patch.regions()
         iterator.seek(Point(0, 11)).splice(Point(0, 4), Point(0, 3), "efg")
         iterator.seek(Point(0, 15)).splice(Point(0, 3), Point(0, 2), "hi")
         iterator.seek(Point(0, 5)).splice(Point(0, 3), Point(0, 4), "abcd")
 
-        expectHunks patch.buildIterator(), [
+        expectRegions patch.regions(), [
           [Point(0, 5), Point(0, 5), null]
           [Point(0, 8), Point(0, 9), "abcd"]
           [Point(0, 11), Point(0, 12), null]
@@ -157,7 +157,7 @@ describe "Patch", ->
 
         expect(iterator.getInputPosition()).toEqual Point(0, 8)
         expect(iterator.getOutputPosition()).toEqual Point(0, 9)
-        expectHunks iterator, [
+        expectRegions iterator, [
           [Point(0, 11), Point(0, 12), null]
           [Point(0, 15), Point(0, 15), "efg"]
           [Point(0, 16), Point(0, 16), null]
@@ -166,10 +166,10 @@ describe "Patch", ->
         ]
 
       it "can perform a single deletion", ->
-        iterator = patch.buildIterator()
+        iterator = patch.regions()
         iterator.seek(Point(0, 5)).splice(Point(0, 3), Point(0, 0), "")
 
-        expectHunks patch.buildIterator(), [
+        expectRegions patch.regions(), [
           [Point(0, 5), Point(0, 5), null]
           [Point(0, 8), Point(0, 5), ""]
           [Point.INFINITY, Point.INFINITY, null]
@@ -177,16 +177,16 @@ describe "Patch", ->
 
         expect(iterator.getInputPosition()).toEqual Point(0, 8)
         expect(iterator.getOutputPosition()).toEqual Point(0, 5)
-        expectHunks iterator, [
+        expectRegions iterator, [
           [Point.INFINITY, Point.INFINITY, null]
         ]
 
       it "can delete the start of an existing change", ->
-        iterator = patch.buildIterator()
+        iterator = patch.regions()
         iterator.seek(Point(0, 5)).splice(Point(0, 8), Point(0, 5), "abcde")
         iterator.seek(Point(0, 3)).splice(Point(0, 6), Point(0, 0), "")
 
-        expectHunks patch.buildIterator(), [
+        expectRegions patch.regions(), [
           [Point(0, 3), Point(0, 3), null]
           [Point(0, 13), Point(0, 4), "e"]
           [Point.INFINITY, Point.INFINITY, null]
@@ -194,17 +194,17 @@ describe "Patch", ->
 
         expect(iterator.getInputPosition()).toEqual Point(0, 3)
         expect(iterator.getOutputPosition()).toEqual Point(0, 3)
-        expectHunks iterator, [
+        expectRegions iterator, [
           [Point(0, 13), Point(0, 4), "e"]
           [Point.INFINITY, Point.INFINITY, null]
         ]
 
       it "can insert a change within a change", ->
-        iterator = patch.buildIterator()
+        iterator = patch.regions()
         iterator.seek(Point(0, 3)).splice(Point(0, 5), Point(0, 8), "abcdefgh")
         iterator.seek(Point(0, 4)).splice(Point(0, 2), Point(0, 3), "ijk")
 
-        expectHunks patch.buildIterator(), [
+        expectRegions patch.regions(), [
           [Point(0, 3), Point(0, 3), null]
           [Point(0, 8), Point(0, 12), "aijkdefgh"]
           [Point.INFINITY, Point.INFINITY, null]
@@ -212,14 +212,14 @@ describe "Patch", ->
 
         expect(iterator.getInputPosition()).toEqual Point(0, 7)
         expect(iterator.getOutputPosition()).toEqual Point(0, 7)
-        expectHunks iterator, [
+        expectRegions iterator, [
           [Point(0, 8), Point(0, 12), "defgh"]
           [Point.INFINITY, Point.INFINITY, null]
         ]
 
         iterator.seek(Point(0, 4)).splice(Point(0, 3), Point(0, 1), "l")
 
-        expectHunks patch.buildIterator(), [
+        expectRegions patch.regions(), [
           [Point(0, 3), Point(0, 3), null]
           [Point(0, 8), Point(0, 10), "aldefgh"]
           [Point.INFINITY, Point.INFINITY, null]
@@ -227,17 +227,17 @@ describe "Patch", ->
 
         expect(iterator.getInputPosition()).toEqual Point(0, 5)
         expect(iterator.getOutputPosition()).toEqual Point(0, 5)
-        expectHunks iterator, [
+        expectRegions iterator, [
           [Point(0, 8), Point(0, 10), "defgh"]
           [Point.INFINITY, Point.INFINITY, null]
         ]
 
       it "can insert a change that overlaps the end of an existing change", ->
-        iterator = patch.buildIterator()
+        iterator = patch.regions()
         iterator.seek(Point(0, 5)).splice(Point(0, 3), Point(0, 4), "abcd")
         iterator.seek(Point(0, 8)).splice(Point(0, 4), Point(0, 5), "efghi")
 
-        expectHunks patch.buildIterator(), [
+        expectRegions patch.regions(), [
           [Point(0, 5), Point(0, 5), null]
           [Point(0, 11), Point(0, 13), "abcefghi"]
           [Point.INFINITY, Point.INFINITY, null]
@@ -245,13 +245,13 @@ describe "Patch", ->
 
         expect(iterator.getInputPosition()).toEqual Point(0, 11)
         expect(iterator.getOutputPosition()).toEqual Point(0, 13)
-        expectHunks iterator, [
+        expectRegions iterator, [
           [Point.INFINITY, Point.INFINITY, null]
         ]
 
         iterator.seek(Point(0, 9)).splice(Point(0, 6), Point(0, 3), "jkl")
 
-        expectHunks patch.buildIterator(), [
+        expectRegions patch.regions(), [
           [Point(0, 5), Point(0, 5), null]
           [Point(0, 13), Point(0, 12), "abcejkl"]
           [Point.INFINITY, Point.INFINITY, null]
@@ -259,16 +259,16 @@ describe "Patch", ->
 
         expect(iterator.getInputPosition()).toEqual Point(0, 13)
         expect(iterator.getOutputPosition()).toEqual Point(0, 12)
-        expectHunks iterator, [
+        expectRegions iterator, [
           [Point.INFINITY, Point.INFINITY, null]
         ]
 
       it "can insert a change that overlaps the start of an existing change", ->
-        iterator = patch.buildIterator()
+        iterator = patch.regions()
         iterator.seek(Point(0, 8)).splice(Point(0, 4), Point(0, 5), "abcde")
 
         iterator.seek(Point(0, 5)).splice(Point(0, 5), Point(0, 3), "fgh")
-        expectHunks patch.buildIterator(), [
+        expectRegions patch.regions(), [
           [Point(0, 5), Point(0, 5), null]
           [Point(0, 12), Point(0, 11), "fghcde"]
           [Point.INFINITY, Point.INFINITY, null]
@@ -276,18 +276,18 @@ describe "Patch", ->
 
         expect(iterator.getInputPosition()).toEqual Point(0, 8)
         expect(iterator.getOutputPosition()).toEqual Point(0, 8)
-        expectHunks iterator, [
+        expectRegions iterator, [
           [Point(0, 12), Point(0, 11), "cde"]
           [Point.INFINITY, Point.INFINITY, null]
         ]
 
       it "can insert a change that joins two existing changes", ->
-        iterator = patch.buildIterator()
+        iterator = patch.regions()
         iterator.seek(Point(0, 5)).splice(Point(0, 3), Point(0, 4), "abcd")
         iterator.seek(Point(0, 12)).splice(Point(0, 3), Point(0, 4), "efgh")
         iterator.seek(Point(0, 7)).splice(Point(0, 7), Point(0, 4), "ijkl")
 
-        expectHunks patch.buildIterator(), [
+        expectRegions patch.regions(), [
           [Point(0, 5), Point(0, 5), null]
           [Point(0, 14), Point(0, 13), "abijklgh"]
           [Point.INFINITY, Point.INFINITY, null]
@@ -295,67 +295,53 @@ describe "Patch", ->
 
         expect(iterator.getInputPosition()).toEqual Point(0, 11)
         expect(iterator.getOutputPosition()).toEqual Point(0, 11)
-        expectHunks iterator, [
+        expectRegions iterator, [
           [Point(0, 14), Point(0, 13), "gh"]
           [Point.INFINITY, Point.INFINITY, null]
         ]
 
-      it "deletes hunks for changes that are reverted", ->
-        iterator = patch.buildIterator()
+      it "deletes changes that are reverted", ->
+        iterator = patch.regions()
         iterator.seek(Point(0, 5)).splice(Point(0, 0), Point(0, 3), "abc")
         iterator.seek(Point(0, 5)).splice(Point(0, 3), Point(0, 0), "")
 
-        expectHunks patch.buildIterator(), [
+        expectRegions patch.regions(), [
           [Point.INFINITY, Point.INFINITY, null]
         ]
 
         expect(iterator.getInputPosition()).toEqual Point(0, 5)
         expect(iterator.getOutputPosition()).toEqual Point(0, 5)
-        expectHunks iterator, [
+        expectRegions iterator, [
           [Point.INFINITY, Point.INFINITY, null]
         ]
 
         iterator.seek(Point(0, 0)).splice(Point(0, 0), Point(0, 3), "abc")
         iterator.seek(Point(0, 0)).splice(Point(0, 3), Point(0, 0), "")
 
-        expectHunks patch.buildIterator(), [
+        expectRegions patch.regions(), [
           [Point.INFINITY, Point.INFINITY, null]
         ]
 
       it "does nothing if both ranges are empty", ->
-        iterator = patch.buildIterator()
+        iterator = patch.regions()
         iterator.seek(Point(0, 5)).splice(Point(0, 0), Point(0, 0), "")
 
-        expectHunks patch.buildIterator(), [
+        expectRegions patch.regions(), [
           [Point.INFINITY, Point.INFINITY, null]
         ]
 
         expect(iterator.getInputPosition()).toEqual Point(0, 5)
         expect(iterator.getOutputPosition()).toEqual Point(0, 5)
-        expectHunks iterator, [
+        expectRegions iterator, [
           [Point.INFINITY, Point.INFINITY, null]
         ]
 
-  describe "::toInputPosition() and ::toOutputPosition()", ->
-    it "converts between input and output positions", ->
-      patch.splice(Point(0, 3), Point(0, 3), Point(0, 5), "abcde")
-
-      expect(patch.toInputPosition(Point(0, 3))).toEqual Point(0, 3)
-      expect(patch.toInputPosition(Point(0, 5))).toEqual Point(0, 5)
-      expect(patch.toInputPosition(Point(0, 8))).toEqual Point(0, 6)
-      expect(patch.toInputPosition(Point(0, 9))).toEqual Point(0, 7)
-
-      expect(patch.toOutputPosition(Point(0, 3))).toEqual Point(0, 3)
-      expect(patch.toOutputPosition(Point(0, 5))).toEqual Point(0, 5)
-      expect(patch.toOutputPosition(Point(0, 6))).toEqual Point(0, 8)
-      expect(patch.toOutputPosition(Point(0, 7))).toEqual Point(0, 9)
-
   describe "::changes()", ->
-    it "yields a sequence of splices that summarize that patch's changes", ->
+    it "yields change objects that summarize the patch's aggregated changes", ->
       changes = patch.changes()
       expect(changes.next()).toEqual {done: true, value: null}
 
-      iterator = patch.buildIterator()
+      iterator = patch.regions()
       iterator.seek(Point(0, 12)).splice(Point(0, 4), Point(0, 3), "efg")
       iterator.seek(Point(0, 5)).splice(Point(0, 3), Point(0, 4), "abcd")
 
@@ -383,6 +369,20 @@ describe "Patch", ->
 
       expect(changes.next()).toEqual {done: true, value: null}
       expect(changes.next()).toEqual {done: true, value: null}
+
+  describe "::toInputPosition() and ::toOutputPosition()", ->
+    it "converts between input and output positions", ->
+      patch.splice(Point(0, 3), Point(0, 3), Point(0, 5), "abcde")
+
+      expect(patch.toInputPosition(Point(0, 3))).toEqual Point(0, 3)
+      expect(patch.toInputPosition(Point(0, 5))).toEqual Point(0, 5)
+      expect(patch.toInputPosition(Point(0, 8))).toEqual Point(0, 6)
+      expect(patch.toInputPosition(Point(0, 9))).toEqual Point(0, 7)
+
+      expect(patch.toOutputPosition(Point(0, 3))).toEqual Point(0, 3)
+      expect(patch.toOutputPosition(Point(0, 5))).toEqual Point(0, 5)
+      expect(patch.toOutputPosition(Point(0, 6))).toEqual Point(0, 8)
+      expect(patch.toOutputPosition(Point(0, 7))).toEqual Point(0, 9)
 
   describe "random mutation", ->
     LETTERS = Array(10).join("abcdefghijklmnopqrstuvwxyz")
@@ -457,7 +457,7 @@ describe "Patch", ->
 
     expectCorrectHunkMerging = (patch) ->
       lastHunkWasChange = null
-      iterator = patch.buildIterator()
+      iterator = patch.regions()
       until (next = iterator.next()).done
         hunkIsChange = next.value?
         if lastHunkWasChange?
@@ -478,7 +478,7 @@ describe "Patch", ->
           # console.log "#{j}: #{reference}"
           # console.log "splice(#{position.column}, #{oldExtent.column}, #{newExtent.column}, '#{content}')"
 
-          iterator = patch.buildIterator()
+          iterator = patch.regions()
           iterator.seek(position).splice(oldExtent, newExtent, content)
           reference = spliceString(reference, position, oldExtent, newExtent, content)
 
