@@ -602,8 +602,6 @@ class TextBuffer
   # Applies a change to the buffer based on its old range and new text.
   applyChange: (change, skipUndo) ->
     {oldRange, newRange, oldText, newText, normalizeLineEndings} = change
-    changeEvent = Object.freeze({oldRange, newRange, oldText, newText})
-
     @cachedText = null
 
     startRow = oldRange.start.row
@@ -611,8 +609,6 @@ class TextBuffer
     rowCount = endRow - startRow + 1
     oldExtent = oldRange.getExtent()
     newExtent = newRange.getExtent()
-
-    @emitter.emit 'will-change', changeEvent
 
     # Determine how to normalize the line endings of inserted text if enabled
     if normalizeLineEndings
@@ -627,14 +623,23 @@ class TextBuffer
     lines = []
     lineEndings = []
     lineStartIndex = 0
+    normalizedNewText = ""
     while result = newlineRegex.exec(newText)
-      lines.push(newText[lineStartIndex...result.index])
-      lineEndings.push(normalizedEnding ? result[0])
+      line = newText[lineStartIndex...result.index]
+      ending = normalizedEnding ? result[0]
+      lines.push(line)
+      lineEndings.push(ending)
+      normalizedNewText += line + ending
       lineStartIndex = newlineRegex.lastIndex
 
     lastLine = newText[lineStartIndex..]
     lines.push(lastLine)
     lineEndings.push('')
+    normalizedNewText += lastLine
+
+    newText = normalizedNewText
+    changeEvent = Object.freeze({oldRange, newRange, oldText, newText})
+    @emitter.emit 'will-change', changeEvent
 
     # Update first and last line so replacement preserves existing prefix and suffix of oldRange
     prefix = @lineForRow(startRow)[0...oldRange.start.column]
