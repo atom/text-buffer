@@ -1,17 +1,8 @@
 Point = require "./point"
-
 last = (array) -> array[array.length - 1]
-
-isEmpty = (node) ->
-  node.inputExtent.isZero() and
-    node.outputExtent.isZero() and
-    not (node.content instanceof Boundary)
+isEmpty = (node) -> node.inputExtent.isZero() and node.outputExtent.isZero()
 
 BRANCHING_THRESHOLD = 3
-
-class Boundary
-  nextId = 0
-  constructor: -> @id = nextId++
 
 class Node
   constructor: (@children) ->
@@ -59,19 +50,6 @@ class Node
       rightNeighbor.outputExtent = rightNeighbor.outputExtent.traversalFrom(childMerge.outputExtent)
       childMerge
 
-  hasBoundary: (minInputPosition, maxInputPosition=Point.INFINITY) ->
-    inputEnd = Point.ZERO
-    for child in @children
-      inputStart = inputEnd
-      inputEnd = inputStart.traverse(child.inputExtent)
-      break if inputStart.isGreaterThan(maxInputPosition)
-      continue if inputEnd.isLessThan(minInputPosition)
-      return true if child.hasBoundary(
-        minInputPosition.traversalFrom(inputStart)
-        maxInputPosition.traversalFrom(inputStart)
-      )
-    false
-
   calculateExtent: (childIndex) ->
     result = {inputOffset: null, outputOffset: null}
     @inputExtent = Point.ZERO
@@ -100,7 +78,7 @@ class Leaf
     inputExtentAfterOffset = @inputExtent.traversalFrom(inputOffset)
     outputExtentAfterOffset = @outputExtent.traversalFrom(outputOffset)
 
-    if (typeof @content) is (typeof newContent) is 'string'
+    if @content?
       @inputExtent = inputOffset
         .traverse(newInputExtent)
         .traverse(inputExtentAfterOffset)
@@ -113,36 +91,22 @@ class Leaf
       inputOffset = inputOffset.traverse(newInputExtent)
       outputOffset = outputOffset.traverse(newOutputExtent)
 
-    else if @content instanceof Boundary
-      splitNodes = [
-        new Leaf(Point.ZERO, Point.ZERO, @content)
-        this
-      ]
-      @inputExtent = newInputExtent
-      @outputExtent = newOutputExtent
-      @content = newContent
-      inputOffset = @inputExtent
-      outputOffset = @outputExtent
-
-    else if newInputExtent.isPositive() or newOutputExtent.isPositive() or (newContent instanceof Boundary)
+    else if newInputExtent.isPositive() or newOutputExtent.isPositive()
       splitNodes = []
       if outputOffset.isPositive()
-        splitNodes.push(new Leaf(inputOffset, outputOffset, @content?.slice(0, outputOffset.column) ? null))
-      splitNodes.push(this)
-      if outputExtentAfterOffset.isPositive()
-        splitNodes.push(new Leaf(inputExtentAfterOffset, outputExtentAfterOffset, @content?.slice(outputOffset.column) ? null))
+        splitNodes.push(new Leaf(inputOffset, outputOffset, null))
       @inputExtent = newInputExtent
       @outputExtent = newOutputExtent
       @content = newContent
+      splitNodes.push(this)
+      if outputExtentAfterOffset.isPositive()
+        splitNodes.push(new Leaf(inputExtentAfterOffset, outputExtentAfterOffset, null))
       inputOffset = @inputExtent
       outputOffset = @outputExtent
 
     {splitNodes, inputOffset, outputOffset}
 
   merge: (rightNeighbor) ->
-    if (@content instanceof Boundary) or (rightNeighbor.content instanceof Boundary)
-      return null
-
     if (@content? is rightNeighbor.content?) or isEmpty(this) or isEmpty(rightNeighbor)
       @outputExtent = @outputExtent.traverse(rightNeighbor.outputExtent)
       @inputExtent = @inputExtent.traverse(rightNeighbor.inputExtent)
@@ -153,20 +117,14 @@ class Leaf
       rightNeighbor.content = null
       result
 
-  hasBoundary: (minInputPosition) ->
-    @content instanceof Boundary
-
   toString: (indentLevel=0) ->
     indent = ""
     indent += " " for i in [0...indentLevel] by 1
 
-    switch @content?.constructor
-      when String
-        "#{indent}[Leaf #{@inputExtent} #{@outputExtent} '#{@content}']"
-      when Boundary
-        "#{indent}[Leaf boundary-#{@content.id}]"
-      else
-        "#{indent}[Leaf #{@inputExtent} #{@outputExtent}]"
+    if @content?
+      "#{indent}[Leaf #{@inputExtent} #{@outputExtent} #{JSON.stringify(@content)}]"
+    else
+      "#{indent}[Leaf #{@inputExtent} #{@outputExtent}]"
 
 class PatchIterator
   constructor: (@patch, @path) ->
@@ -186,13 +144,11 @@ class PatchIterator
         if nextChild = parentEntry.node.children[parentEntry.childIndex]
           @descendToLeftmostLeaf(nextChild)
           entry = last(@path)
-          break
       else
         @path.push(entry)
         return {value: null, done: true}
 
-    value = entry.node.content
-    value = value.slice(entry.outputOffset.column) if typeof value is 'string'
+    value = entry.node.content?.slice(entry.outputOffset.column) ? null
     entry.outputOffset = entry.node.outputExtent
     entry.inputOffset = entry.node.inputExtent
     {value, done: false}
@@ -259,61 +215,11 @@ class PatchIterator
         break
     this
 
-  seekToLeftBoundaryForInputPosition: (targetInputOffset) ->
-    @path.length = 0
-    node = @patch.rootNode
-    loop
-      if node.children?
-        boundaryChild = null
-        boundaryChildIndex = null
-        boundaryChildInputStart = null
-        boundaryChildOutputStart = null
-        childInputEnd = Point.ZERO
-        childOutputEnd = Point.ZERO
-        lastChild = last(node.children)
-        for child, childIndex in node.children
-          childInputStart = childInputEnd
-          childOutputStart = childOutputEnd
-          childInputEnd = childInputStart.traverse(child.inputExtent)
-          childOutputEnd = childOutputStart.traverse(child.outputExtent)
-          if child.hasBoundary(Point.ZERO, targetInputOffset.traversalFrom(childInputStart))
-            boundaryChild = child
-            boundaryChildIndex = childIndex
-            boundaryChildInputStart = childInputStart
-            boundaryChildOutputStart = childOutputStart
-          if (childInputEnd.compare(targetInputOffset) > 0) or child is lastChild
-            if boundaryChild?
-              @path.push({
-                node
-                childIndex: boundaryChildIndex
-                inputOffset: boundaryChildInputStart
-                outputOffset: boundaryChildOutputStart
-              })
-              node = boundaryChild
-              targetInputOffset = targetInputOffset.traversalFrom(boundaryChildInputStart)
-              break
-            else
-              @path.length = 0
-              @descendToLeftmostLeaf(@patch.rootNode)
-              return this
-      else
-        inputOffset = Point.ZERO
-        outputOffset = Point.ZERO
-        childIndex = null
-        @path.push({node, inputOffset, outputOffset, childIndex})
-        break
-    this
-
   splice: (oldOutputExtent, newExtent, newContent) ->
     rightEdge = @copy().seek(@getOutputPosition().traverse(oldOutputExtent))
     inputExtent = rightEdge.getInputPosition().traversalFrom(@getInputPosition())
     @deleteUntil(rightEdge)
     @insert(inputExtent, newExtent, newContent)
-
-  spliceInput: (oldInputExtent, newExtent, newContent) ->
-    rightEdge = @copy().seekToInputPosition(@getInputPosition().traverse(oldInputExtent))
-    @deleteUntil(rightEdge)
-    @insert(oldInputExtent, newExtent, newContent)
 
   getOutputPosition: ->
     result = Point.ZERO
@@ -326,9 +232,6 @@ class PatchIterator
     for {node, inputOffset, outputOffset} in @path
       result = result.traverse(inputOffset)
     result
-
-  insertBoundary: ->
-    @insert(Point.ZERO, Point.ZERO, new Boundary)
 
   copy: ->
     new PatchIterator(@patch, @path.slice())
@@ -353,7 +256,7 @@ class PatchIterator
       if node is rightIterator.path[i].node
         meetingIndex = i
         break
-      if typeof node.content is 'string'
+      if node.content?
         node.content = node.content.slice(0, outputOffset.column)
       else if node.children?
         node.children.splice(childIndex + 1)
