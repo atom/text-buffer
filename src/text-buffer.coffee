@@ -9,7 +9,8 @@ Q = require 'q'
 Point = require './point'
 Range = require './range'
 History = require './history'
-MarkerStore = require "./marker-store"
+MarkerStore = require './marker-store'
+Patch = require './patch'
 {spliceArray, newlineRegex} = require './helpers'
 
 class TransactionAbortedError extends Error
@@ -22,6 +23,7 @@ class TextBuffer
   @version: 2
   @Point: Point
   @Range: Range
+  @Patch: Patch
   @newlineRegex: newlineRegex
 
   Serializable.includeInto(this)
