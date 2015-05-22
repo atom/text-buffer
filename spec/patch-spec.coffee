@@ -120,18 +120,6 @@ describe "Patch", ->
           iterator.seekToInputPosition(Point(0, 17))
           iterator.splice(Point(0, 4), Point(0, 2), "hi")
 
-        it "does not return boundaries from ::next()", ->
-          expectHunks patch.buildIterator(), [
-            [Point(0, 5), Point(0, 5), null]
-            [Point(0, 8), Point(0, 9), "abcd"]
-            [Point(0, 10), Point(0, 11), null]
-            [Point(0, 12), Point(0, 14), "efg"]
-            [Point(0, 15), Point(0, 17), null]
-            [Point(0, 17), Point(0, 19), null]
-            [Point(0, 21), Point(0, 21), "hi"]
-            [Point.INFINITY, Point.INFINITY, null]
-          ]
-
         it "can seek to the boundary to the left of the given position", ->
           iterator.seekToLeftBoundaryForInputPosition(Point(0, 9))
           expect(iterator.getInputPosition()).toEqual Point(0, 5)
