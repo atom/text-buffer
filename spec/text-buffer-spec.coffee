@@ -143,11 +143,15 @@ describe "TextBuffer", ->
     describe "when the normalizeLineEndings argument is true (the default)", ->
       describe "when the range's start row has a line ending", ->
         it "normalizes inserted line endings to match the line ending of the range's start row", ->
+          changeEvents = []
+          buffer.onDidChange (e) -> changeEvents.push(e)
+
           expect(buffer.lineEndingForRow(0)).toBe '\n'
           buffer.setTextInRange([[0, 2], [0, 5]], "y\r\nthere\r\ncrazy")
           expect(buffer.lineEndingForRow(0)).toBe '\n'
           expect(buffer.lineEndingForRow(1)).toBe '\n'
           expect(buffer.lineEndingForRow(2)).toBe '\n'
+          expect(changeEvents[0].newText).toBe "y\nthere\ncrazy"
 
           expect(buffer.lineEndingForRow(3)).toBe '\r\n'
           buffer.setTextInRange([[3, 3], [4, Infinity]], "ms\ndo you\r\nlike\ndirt")
@@ -155,6 +159,7 @@ describe "TextBuffer", ->
           expect(buffer.lineEndingForRow(4)).toBe '\r\n'
           expect(buffer.lineEndingForRow(5)).toBe '\r\n'
           expect(buffer.lineEndingForRow(6)).toBe ''
+          expect(changeEvents[1].newText).toBe "ms\r\ndo you\r\nlike\r\ndirt"
 
       describe "when the range's start row has no line ending (because it's the last line of the buffer)", ->
         describe "when the buffer contains no newlines", ->
