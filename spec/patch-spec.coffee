@@ -434,20 +434,26 @@ describe "Patch", ->
     expectValidIterator = (patch, iterator, position) ->
       expect(iterator.getOutputPosition()).toEqual(position)
 
-      referenceIterator = patch.buildIterator().seek(position, true)
-      until (referenceNext = referenceIterator.next()).done
+      inputPosition = iterator.getInputPosition()
+      minInputPosition = patch.toInputPosition(position)
+      maxInputPosition = patch.toInputPosition(position.traverse([0, 1]))
+      expect(inputPosition.compare(minInputPosition)).not.toBeLessThan(0)
+      expect(inputPosition.compare(maxInputPosition)).not.toBeGreaterThan(0)
 
-        # For now, seeking an iterator parks it at the left-most input position
-        # that matches the given output position, so in order to match the
-        # iterator that performed the splice, we have to advance past any pure
-        # insertion hunks.
-        continue if referenceIterator.getOutputPosition().isEqual(position)
+      lastNode = null
+      for {node, childIndex, outputOffset, inputOffset} in iterator.path by -1
+        if lastNode?
+          expectedInputOffset = expectedOutputOffset = Point.ZERO
+          for child, i in node.children
+            break if i is childIndex
+            expectedInputOffset = expectedInputOffset.traverse(child.inputExtent)
+            expectedOutputOffset = expectedOutputOffset.traverse(child.outputExtent)
 
-        next = iterator.next()
-        expect(next.value).toBe(referenceNext.value)
-        expect(iterator.getInputPosition()).toEqual(referenceIterator.getInputPosition())
-        expect(iterator.getOutputPosition()).toEqual(referenceIterator.getOutputPosition())
-      expect(iterator.next().done).toBe(true)
+          expect(node.children[childIndex]).toBe lastNode
+          expect(inputOffset).toEqual expectedInputOffset
+          expect(outputOffset).toEqual expectedOutputOffset
+        lastNode = node
+      expect(lastNode).toBe patch.rootNode
 
     it "matches the behavior of mutating text directly", ->
       for i in [1..10]
