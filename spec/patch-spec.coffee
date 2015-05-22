@@ -455,6 +455,15 @@ describe "Patch", ->
         lastNode = node
       expect(lastNode).toBe patch.rootNode
 
+    expectCorrectHunkMerging = (patch) ->
+      lastHunkWasChange = null
+      iterator = patch.buildIterator()
+      until (next = iterator.next()).done
+        hunkIsChange = next.value?
+        if lastHunkWasChange?
+          expect(hunkIsChange).toBe not lastHunkWasChange
+        lastHunkWasChange = hunkIsChange
+
     it "matches the behavior of mutating text directly", ->
       for i in [1..10]
         seed = Date.now()
@@ -475,6 +484,7 @@ describe "Patch", ->
 
           expectCorrectChanges(input, patch, reference)
           expectValidIterator(patch, iterator, position.traverse(newExtent))
+          expectCorrectHunkMerging(patch)
 
           if currentSpecFailed()
             console.log ""
