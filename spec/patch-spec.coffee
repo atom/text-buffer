@@ -9,7 +9,7 @@ describe "Patch", ->
   beforeEach ->
     patch = new Patch
 
-  describe "iterator", ->
+  describe "::buildIterator()", ->
     expectHunks = (iterator, hunks) ->
       for [inputPosition, outputPosition, value], i in hunks
         expect(iterator.next()).toEqual {value, done: false}
@@ -335,6 +335,20 @@ describe "Patch", ->
         expectHunks iterator, [
           [Point.INFINITY, Point.INFINITY, null]
         ]
+
+  describe "::toInputPosition() and ::toOutputPosition()", ->
+    it "converts between input and output positions", ->
+      patch.splice(Point(0, 3), Point(0, 3), Point(0, 5), "abcde")
+
+      expect(patch.toInputPosition(Point(0, 3))).toEqual Point(0, 3)
+      expect(patch.toInputPosition(Point(0, 5))).toEqual Point(0, 5)
+      expect(patch.toInputPosition(Point(0, 8))).toEqual Point(0, 6)
+      expect(patch.toInputPosition(Point(0, 9))).toEqual Point(0, 7)
+
+      expect(patch.toOutputPosition(Point(0, 3))).toEqual Point(0, 3)
+      expect(patch.toOutputPosition(Point(0, 5))).toEqual Point(0, 5)
+      expect(patch.toOutputPosition(Point(0, 6))).toEqual Point(0, 8)
+      expect(patch.toOutputPosition(Point(0, 7))).toEqual Point(0, 9)
 
   describe "::changes()", ->
     it "yields a sequence of splices that summarize that patch's changes", ->

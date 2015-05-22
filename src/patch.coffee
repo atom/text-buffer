@@ -377,5 +377,7 @@ class Patch
     new ChangeIterator(@buildIterator())
 
   toInputPosition: (outputPosition) ->
+    @buildIterator().seek(outputPosition).getInputPosition()
 
   toOutputPosition: (inputPosition) ->
+    @buildIterator().seekToInputPosition(inputPosition).getOutputPosition()
