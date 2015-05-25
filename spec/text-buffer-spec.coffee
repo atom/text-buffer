@@ -1710,7 +1710,7 @@ describe "TextBuffer", ->
     describe "when given a regex with a ignore case flag", ->
       it "does a case-insensitive search", ->
         matches = []
-        buffer.scanInRange /cuRRent/i, [[0,0], [12,0]], ({match, range}) ->
+        buffer.scanInRange /cuRRent/i, [[0,0], [12,0]], ({match}) ->
           matches.push(match)
         expect(matches.length).toBe 1
 
@@ -1718,9 +1718,9 @@ describe "TextBuffer", ->
       it "calls the iterator with the first match for the given regex in the given range", ->
         matches = []
         ranges = []
-        buffer.scanInRange /cu(rr)ent/, [[4,0], [6,44]], ({match, range}) ->
+        buffer.scanInRange /cu(rr)ent/, [[4,0], [6,44]], ({match, getRange}) ->
           matches.push(match)
-          ranges.push(range)
+          ranges.push(getRange())
 
         expect(matches.length).toBe 1
         expect(ranges.length).toBe 1
@@ -1733,9 +1733,9 @@ describe "TextBuffer", ->
       it "calls the iterator with each match for the given regex in the given range", ->
         matches = []
         ranges = []
-        buffer.scanInRange /cu(rr)ent/g, [[4,0], [6,59]], ({match, range}) ->
+        buffer.scanInRange /cu(rr)ent/g, [[4,0], [6,59]], ({match, getRange}) ->
           matches.push(match)
-          ranges.push(range)
+          ranges.push(getRange())
 
         expect(matches.length).toBe 3
         expect(ranges.length).toBe 3
@@ -1757,9 +1757,9 @@ describe "TextBuffer", ->
         it "calls the iterator with the truncated match", ->
           matches = []
           ranges = []
-          buffer.scanInRange /cu(r*)/g, [[4,0], [6,9]], ({match, range}) ->
+          buffer.scanInRange /cu(r*)/g, [[4,0], [6,9]], ({match, getRange}) ->
             matches.push(match)
-            ranges.push(range)
+            ranges.push(getRange())
 
           expect(matches.length).toBe 2
           expect(ranges.length).toBe 2
@@ -1776,9 +1776,9 @@ describe "TextBuffer", ->
         it "calls the iterator with the truncated match", ->
           matches = []
           ranges = []
-          buffer.scanInRange /cu(r*)e/g, [[4,0], [6,9]], ({match, range}) ->
+          buffer.scanInRange /cu(r*)e/g, [[4,0], [6,9]], ({match, getRange}) ->
             matches.push(match)
-            ranges.push(range)
+            ranges.push(getRange())
 
           expect(matches.length).toBe 1
           expect(ranges.length).toBe 1
@@ -1790,8 +1790,8 @@ describe "TextBuffer", ->
     describe "when the iterator calls the 'replace' control function with a replacement string", ->
       it "replaces each occurrence of the regex match with the string", ->
         ranges = []
-        buffer.scanInRange /cu(rr)ent/g, [[4,0], [6,59]], ({range, replace}) ->
-          ranges.push(range)
+        buffer.scanInRange /cu(rr)ent/g, [[4,0], [6,59]], ({getRange, replace}) ->
+          ranges.push(getRange())
           replace("foo")
 
         expect(ranges[0]).toEqual [[5,6], [5,13]]
@@ -1811,8 +1811,8 @@ describe "TextBuffer", ->
     describe "when the iterator calls the 'stop' control function", ->
       it "stops the traversal", ->
         ranges = []
-        buffer.scanInRange /cu(rr)ent/g, [[4,0], [6,59]], ({range, stop}) ->
-          ranges.push(range)
+        buffer.scanInRange /cu(rr)ent/g, [[4,0], [6,59]], ({getRange, stop}) ->
+          ranges.push(getRange())
           stop() if ranges.length == 2
 
         expect(ranges.length).toBe 2
@@ -1829,9 +1829,9 @@ describe "TextBuffer", ->
       it "calls the iterator with the last match for the given regex in the given range", ->
         matches = []
         ranges = []
-        buffer.backwardsScanInRange /cu(rr)ent/, [[4,0], [6,44]], ({match, range}) ->
+        buffer.backwardsScanInRange /cu(rr)ent/, [[4,0], [6,44]], ({match, getRange}) ->
           matches.push(match)
-          ranges.push(range)
+          ranges.push(getRange())
 
         expect(matches.length).toBe 1
         expect(ranges.length).toBe 1
@@ -1844,9 +1844,9 @@ describe "TextBuffer", ->
       it "calls the iterator with each match for the given regex in the given range, starting with the last match", ->
         matches = []
         ranges = []
-        buffer.backwardsScanInRange /cu(rr)ent/g, [[4,0], [6,59]], ({match, range}) ->
+        buffer.backwardsScanInRange /cu(rr)ent/g, [[4,0], [6,59]], ({match, getRange}) ->
           matches.push(match)
-          ranges.push(range)
+          ranges.push(getRange())
 
         expect(matches.length).toBe 3
         expect(ranges.length).toBe 3
@@ -1866,9 +1866,9 @@ describe "TextBuffer", ->
     describe "when the iterator calls the 'replace' control function with a replacement string", ->
       it "replaces each occurrence of the regex match with the string", ->
         ranges = []
-        buffer.backwardsScanInRange /cu(rr)ent/g, [[4,0], [6,59]], ({range, replace}) ->
-          ranges.push(range)
-          replace("foo") unless range.start.isEqual([6,6])
+        buffer.backwardsScanInRange /cu(rr)ent/g, [[4,0], [6,59]], ({getRange, replace}) ->
+          ranges.push(getRange())
+          replace("foo") unless getRange().start.isEqual([6,6])
 
         expect(ranges[0]).toEqual [[6,34], [6,41]]
         expect(ranges[1]).toEqual [[6,6], [6,13]]
@@ -1880,8 +1880,8 @@ describe "TextBuffer", ->
     describe "when the iterator calls the 'stop' control function", ->
       it "stops the traversal", ->
         ranges = []
-        buffer.backwardsScanInRange /cu(rr)ent/g, [[4,0], [6,59]], ({range, stop}) ->
-          ranges.push(range)
+        buffer.backwardsScanInRange /cu(rr)ent/g, [[4,0], [6,59]], ({getRange, stop}) ->
+          ranges.push(getRange())
           stop() if ranges.length == 2
 
         expect(ranges.length).toBe 2

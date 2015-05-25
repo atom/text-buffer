@@ -976,13 +976,18 @@ class TextBuffer
       matchStartIndex = match.index
       matchEndIndex = matchStartIndex + matchLength
 
-      startPosition = @positionForCharacterIndex(matchStartIndex + lengthDelta)
-      endPosition = @positionForCharacterIndex(matchEndIndex + lengthDelta)
-      range = new Range(startPosition, endPosition)
+      getRange = =>
+        startPosition = @positionForCharacterIndex(matchStartIndex + lengthDelta)
+        endPosition = @positionForCharacterIndex(matchEndIndex + lengthDelta)
+
+        new Range(startPosition, endPosition)
+
+      # FIXME: Remove this as soon as all clients use `getRange` in their iterators.
+      range = getRange()
       keepLooping = true
       replacementText = null
       matchText = match[0]
-      iterator({ match, matchText, range, stop, replace })
+      iterator({ match, matchText, range, stop, replace, getRange })
 
       if replacementText?
         @setTextInRange(range, replacementText)
