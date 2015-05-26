@@ -14,7 +14,20 @@ Patch = require './patch'
 {spliceArray, newlineRegex} = require './helpers'
 
 class SearchResultCallback
-  Object.defineProperty @::, "range", get: -> @getRange()
+  Object.defineProperty @::, "range",
+    get: ->
+      return @computedRange if @computedRange?
+
+      matchStartIndex = @match.index
+      matchEndIndex = matchStartIndex + @matchText.length
+
+      startPosition = @buffer.positionForCharacterIndex(matchStartIndex + @lengthDelta)
+      endPosition = @buffer.positionForCharacterIndex(matchEndIndex + @lengthDelta)
+
+      @computedRange = new Range(startPosition, endPosition)
+
+    set: (range) ->
+      @computedRange = range
 
   constructor: (@buffer, @match, @lengthDelta) ->
     @stopped = false
@@ -28,24 +41,13 @@ class SearchResultCallback
 
   replace: (text) =>
     @replacementText = text
-    @buffer.setTextInRange(@getRange(), @replacementText)
+    @buffer.setTextInRange(@range, @replacementText)
 
   stop: =>
     @stopped = true
 
   keepLooping: ->
     @stopped is false
-
-  getRange: =>
-    return @computedRange if @computedRange?
-
-    matchStartIndex = @match.index
-    matchEndIndex = matchStartIndex + @matchText.length
-
-    startPosition = @buffer.positionForCharacterIndex(matchStartIndex + @lengthDelta)
-    endPosition = @buffer.positionForCharacterIndex(matchEndIndex + @lengthDelta)
-
-    @computedRange = new Range(startPosition, endPosition)
 
 class TransactionAbortedError extends Error
   constructor: -> super
