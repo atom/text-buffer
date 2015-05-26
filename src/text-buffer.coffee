@@ -21,17 +21,14 @@ class SearchResultCallback
     @replacementText = null
     @matchText = @match[0]
 
-  hasReplacedText: ->
-    @replacementText?
-
-  getReplacementText: ->
-    @replacementText
-
   getReplacementDelta: ->
-    @getReplacementText().length - @matchText.length
+    return 0 unless @replacementText?
+
+    @replacementText.length - @matchText.length
 
   replace: (text) =>
     @replacementText = text
+    @buffer.setTextInRange(@getRange(), @replacementText)
 
   stop: =>
     @stopped = true
@@ -1006,10 +1003,7 @@ class TextBuffer
     for match in matches
       callback = new SearchResultCallback(this, match, lengthDelta)
       iterator(callback)
-
-      if callback.hasReplacedText()
-        @setTextInRange(callback.getRange(), callback.getReplacementText())
-        lengthDelta += callback.getReplacementDelta() unless reverse
+      lengthDelta += callback.getReplacementDelta() unless reverse
 
       break unless global and callback.keepLooping()
     return
