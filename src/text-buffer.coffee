@@ -5,6 +5,7 @@ Serializable = require 'serializable'
 SpanSkipList = require 'span-skip-list'
 diff = require 'atom-diff'
 Q = require 'q'
+_ = require 'underscore-plus'
 
 Point = require './point'
 Range = require './range'
@@ -73,6 +74,7 @@ class TextBuffer
   file: null
   refcount: 0
   fileSubscriptions: null
+  lastMarkerSnapshot: null
 
   ###
   Section: Construction
@@ -841,17 +843,21 @@ class TextBuffer
 
   # Public: Undo the last operation. If a transaction is in progress, aborts it.
   undo: ->
-    if pop = @history.popUndoStack(@markerStore.createSnapshot())
+    markerSnapshot = _.extend(@markerStore.createSnapshot(), @lastMarkerSnapshot)
+    if pop = @history.popUndoStack(markerSnapshot)
       @applyChange(change, true) for change in pop.changes
       @markerStore.restoreFromSnapshot(pop.snapshot)
+      @lastMarkerSnapshot = null
       @emitter.emit 'did-update-markers'
       @emit 'markers-updated' if Grim.includeDeprecatedAPIs
 
   # Public: Redo the last operation
   redo: ->
-    if pop = @history.popRedoStack(@markerStore.createSnapshot())
+    markerSnapshot = @markerStore.createSnapshot()
+    if pop = @history.popRedoStack(markerSnapshot)
       @applyChange(change, true) for change in pop.changes
       @markerStore.restoreFromSnapshot(pop.snapshot)
+      @lastMarkerSnapshot = pop.snapshot
       @emitter.emit 'did-update-markers'
       @emit 'markers-updated' if Grim.includeDeprecatedAPIs
 
@@ -888,7 +894,7 @@ class TextBuffer
     @history.groupChangesSinceCheckpoint(checkpoint)
     @history.applyCheckpointGroupingInterval(checkpoint, groupingInterval)
 
-    @markerStore.emitChangeEvents()
+    @lastMarkerSnapshot = @markerStore.createSnapshot(false, true)
     @emitter.emit 'did-update-markers'
     @emit 'markers-updated' if Grim.includeDeprecatedAPIs
     result

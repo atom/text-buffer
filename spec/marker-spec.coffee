@@ -824,6 +824,32 @@ describe "Marker", ->
         buffer.undo()
         expect(marker.getRange()).toEqual [[0, 3], [0, 3]]
 
+    describe "when a marker is updated before a redo", ->
+      it "restores the marker to its state after the redone change", ->
+        marker = buffer.markRange([[0, 3], [0, 3]])
+
+        # Update marker *before* an undo
+        buffer.insert([0, 3], "...")
+        expect(marker.getRange()).toEqual [[0, 3], [0, 6]]
+
+        buffer.undo()
+        expect(marker.getRange()).toEqual [[0, 3], [0, 3]]
+
+        marker.setRange([[0, 10], [0, 10]])
+        buffer.redo()
+        expect(marker.getRange()).toEqual [[0, 3], [0, 6]]
+
+        # Update marker *after* an undo
+        buffer.insert([0, 3], "...")
+        expect(marker.getRange()).toEqual [[0, 3], [0, 9]]
+
+        marker.setRange([[0, 12], [0, 12]])
+        buffer.undo()
+        expect(marker.getRange()).toEqual [[0, 3], [0, 6]]
+
+        buffer.redo()
+        expect(marker.getRange()).toEqual [[0, 3], [0, 9]]
+
   describe "destruction", ->
     it "removes the marker from the buffer, marks it destroyed and invalid, and notifies ::onDidDestroy observers", ->
       marker = buffer.markRange([[0, 3], [0, 6]])
