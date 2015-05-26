@@ -39,7 +39,7 @@ class SearchResultCallback
   keepLooping: ->
     @stopped is false
 
-  getRange: ->
+  getRange: =>
     matchStartIndex = @match.index
     matchEndIndex = matchStartIndex + @matchText.length
 
