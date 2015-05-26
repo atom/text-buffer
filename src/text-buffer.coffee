@@ -13,7 +13,7 @@ MarkerStore = require './marker-store'
 Patch = require './patch'
 {spliceArray, newlineRegex} = require './helpers'
 
-class SearchResultIteratee
+class SearchCallbackArgument
   Object.defineProperty @::, "range",
     get: ->
       return @computedRange if @computedRange?
@@ -1003,11 +1003,11 @@ class TextBuffer
 
     matches.reverse() if reverse
     for match in matches
-      resultIteratee = new SearchResultIteratee(this, match, lengthDelta)
-      iterator(resultIteratee)
-      lengthDelta += resultIteratee.getReplacementDelta() unless reverse
+      callbackArgument = new SearchCallbackArgument(this, match, lengthDelta)
+      iterator(callbackArgument)
+      lengthDelta += callbackArgument.getReplacementDelta() unless reverse
 
-      break unless global and resultIteratee.keepLooping()
+      break unless global and callbackArgument.keepLooping()
     return
 
   # Public: Scan regular expression matches in a given range in reverse order,
