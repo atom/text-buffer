@@ -128,19 +128,15 @@ class MarkerStore
         else
           marker.emitChangeEvent(marker.getRange(), true, false)
 
-  emitChangeEvents: ->
-    ranges = @index.dump()
-    for id in Object.keys(@markersById)
-      if marker = @markersById[id]
-        marker.emitChangeEvent(ranges[id], true, false)
-
-  createSnapshot: (filterPersistent) ->
+  createSnapshot: (filterPersistent, emitChangeEvents) ->
     result = {}
     ranges = @index.dump()
     for id in Object.keys(@markersById)
-      marker = @markersById[id]
-      unless filterPersistent and not marker.persistent
-        result[id] = marker.getSnapshot(ranges[id], false)
+      if marker = @markersById[id]
+        if marker.persistent or not filterPersistent
+          result[id] = marker.getSnapshot(ranges[id], false)
+        if emitChangeEvents
+          marker.emitChangeEvent(ranges[id], true, false)
     result
 
   serialize: ->
