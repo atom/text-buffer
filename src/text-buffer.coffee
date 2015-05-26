@@ -40,13 +40,15 @@ class SearchResultCallback
     @stopped is false
 
   getRange: =>
+    return @computedRange if @computedRange?
+
     matchStartIndex = @match.index
     matchEndIndex = matchStartIndex + @matchText.length
 
     startPosition = @buffer.positionForCharacterIndex(matchStartIndex + @lengthDelta)
     endPosition = @buffer.positionForCharacterIndex(matchEndIndex + @lengthDelta)
 
-    new Range(startPosition, endPosition)
+    @computedRange = new Range(startPosition, endPosition)
 
 class TransactionAbortedError extends Error
   constructor: -> super
