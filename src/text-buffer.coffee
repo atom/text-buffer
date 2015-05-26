@@ -13,6 +13,42 @@ MarkerStore = require './marker-store'
 Patch = require './patch'
 {spliceArray, newlineRegex} = require './helpers'
 
+class SearchCallbackArgument
+  Object.defineProperty @::, "range",
+    get: ->
+      return @computedRange if @computedRange?
+
+      matchStartIndex = @match.index
+      matchEndIndex = matchStartIndex + @matchText.length
+
+      startPosition = @buffer.positionForCharacterIndex(matchStartIndex + @lengthDelta)
+      endPosition = @buffer.positionForCharacterIndex(matchEndIndex + @lengthDelta)
+
+      @computedRange = new Range(startPosition, endPosition)
+
+    set: (range) ->
+      @computedRange = range
+
+  constructor: (@buffer, @match, @lengthDelta) ->
+    @stopped = false
+    @replacementText = null
+    @matchText = @match[0]
+
+  getReplacementDelta: ->
+    return 0 unless @replacementText?
+
+    @replacementText.length - @matchText.length
+
+  replace: (text) =>
+    @replacementText = text
+    @buffer.setTextInRange(@range, @replacementText)
+
+  stop: =>
+    @stopped = true
+
+  keepLooping: ->
+    @stopped is false
+
 class TransactionAbortedError extends Error
   constructor: -> super
 
@@ -965,30 +1001,13 @@ class TextBuffer
     matches = @matchesInCharacterRange(regex, startIndex, endIndex)
     lengthDelta = 0
 
-    keepLooping = null
-    replacementText = null
-    stop = -> keepLooping = false
-    replace = (text) -> replacementText = text
-
     matches.reverse() if reverse
     for match in matches
-      matchLength = match[0].length
-      matchStartIndex = match.index
-      matchEndIndex = matchStartIndex + matchLength
+      callbackArgument = new SearchCallbackArgument(this, match, lengthDelta)
+      iterator(callbackArgument)
+      lengthDelta += callbackArgument.getReplacementDelta() unless reverse
 
-      startPosition = @positionForCharacterIndex(matchStartIndex + lengthDelta)
-      endPosition = @positionForCharacterIndex(matchEndIndex + lengthDelta)
-      range = new Range(startPosition, endPosition)
-      keepLooping = true
-      replacementText = null
-      matchText = match[0]
-      iterator({ match, matchText, range, stop, replace })
-
-      if replacementText?
-        @setTextInRange(range, replacementText)
-        lengthDelta += replacementText.length - matchLength unless reverse
-
-      break unless global and keepLooping
+      break unless global and callbackArgument.keepLooping()
     return
 
   # Public: Scan regular expression matches in a given range in reverse order,
