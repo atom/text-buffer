@@ -3,6 +3,7 @@ Point = require "./point"
 Range = require "./range"
 Marker = require "./marker"
 MarkerIndex = require "./marker-index"
+MarkerView = require "./marker-view"
 {intersectSet} = require "./set-helpers"
 
 SerializationVersion = 2
@@ -32,6 +33,7 @@ class MarkerStore
     @index = new MarkerIndex
     @markersById = {}
     @nextMarkerId = 0
+    @markerViews = []
 
   ###
   Section: TextBuffer API
@@ -87,6 +89,11 @@ class MarkerStore
       result.push(marker) if marker.matchesParams(params)
     result.sort (a, b) -> a.compare(b)
 
+  observeMarkers: (callback) ->
+    view = new MarkerView(this, callback)
+    @markerViews.push(view)
+    view
+
   markRange: (range, options={}) ->
     @createMarker(Range.fromObject(range), Marker.extractParams(options))
 
@@ -127,6 +134,9 @@ class MarkerStore
           marker.update(marker.getRange(), snapshot, true)
         else
           marker.emitChangeEvent(marker.getRange(), true, false)
+    for markerView in @markerViews
+      markerView.updateAll()
+    return
 
   createSnapshot: (filterPersistent, emitChangeEvents) ->
     result = {}
@@ -137,6 +147,9 @@ class MarkerStore
           result[id] = marker.getSnapshot(ranges[id], false)
         if emitChangeEvents
           marker.emitChangeEvent(ranges[id], true, false)
+    if emitChangeEvents
+      for markerView in @markerViews
+        markerView.updateAll()
     result
 
   serialize: ->
@@ -156,8 +169,19 @@ class MarkerStore
     return
 
   ###
-  Section: Marker API
+  Section: MarkerView interface
   ###
+
+  removeMarkerView: (view) ->
+    @markerViews.splice(@markerViews.indexOf(view), 1)
+
+  ###
+  Section: Marker interface
+  ###
+
+  markerUpdated: (id) ->
+    for markerView in @markerViews
+      markerView.update(id, @getMarkerRange(id))
 
   destroyMarker: (id) ->
     delete @markersById[id]
@@ -188,6 +212,8 @@ class MarkerStore
     if marker.getInvalidationStrategy() is 'inside'
       @index.setExclusive(id, true)
     @delegate.markerCreated(marker)
+    for markerView in @markerViews
+      markerView.update(id, range)
     marker
 
 filterSet = (set1, set2) ->

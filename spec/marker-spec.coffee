@@ -961,3 +961,115 @@ describe "Marker", ->
     it "can find markers that are contained within a certain range, inclusive", ->
       expect(buffer.findMarkers(containedInRange: [[0, 0], [0, 6]])).toEqual [marker2, marker1]
       expect(buffer.findMarkers(containedInRange: [[0, 4], [0, 7]])).toEqual [marker3]
+
+  describe "TextBuffer::observeMarkers(range, callback)", ->
+    [view, events] = []
+
+    beforeEach ->
+      events = []
+      view = buffer.observeMarkers (event) -> events.push(event)
+
+    expectNewEvent = (event) ->
+      expect(events.length).toBe 1
+      expect(events[0]).toEqual event
+      events.length = 0
+
+    expectNoNewEvent = ->
+      expect(events.length).toBe 0
+      events.length = 0
+
+    it "doesn't call the callback until the range is set", ->
+      expect(events).toEqual []
+      marker = buffer.markRange([[0, 3], [0, 6]])
+      marker.setRange([[0, 5], [0, 8]])
+      expect(events).toEqual []
+
+    it "calls the callback when the range is set", ->
+      marker1 = buffer.markRange([[0, 3], [0, 6]])
+      marker2 = buffer.markRange([[0, 9], [0, 12]])
+
+      view.setRange([[0, 0], [0, 5]])
+      expectNewEvent {
+        insert: new Set([marker1.id])
+        update: new Set
+        remove: new Set
+      }
+
+      view.setRange([[0, 8], [0, 20]])
+      expectNewEvent {
+        insert: new Set([marker2.id])
+        update: new Set
+        remove: new Set([marker1.id])
+      }
+
+      view.setRange([[0, 9], [0, 20]])
+      expectNewEvent {
+        insert: new Set
+        update: new Set([marker2.id])
+        remove: new Set
+      }
+
+      view.setRange([[0, 5], [0, 20]])
+      expectNewEvent {
+        insert: new Set([marker1.id])
+        update: new Set([marker2.id])
+        remove: new Set
+      }
+
+      view.setRange([[0, 0], [0, 1]])
+      expectNewEvent {
+        insert: new Set
+        update: new Set
+        remove: new Set([marker1.id, marker2.id])
+      }
+
+      view.setRange([[0, 0], [0, 2]])
+      expectNoNewEvent()
+
+    it "calls the callback when markers are created, destroyed, or updated", ->
+      view.setRange([[0, 5], [0, 15]])
+
+      marker1 = buffer.markRange([[0, 3], [0, 6]])
+      expectNewEvent {
+        insert: new Set([marker1.id])
+        update: new Set
+        remove: new Set
+      }
+
+      marker2 = buffer.markRange([[0, 0], [0, 1]])
+      expectNoNewEvent()
+
+      marker1.setRange([[0, 3], [0, 3]])
+      expectNewEvent {
+        insert: new Set
+        update: new Set
+        remove: new Set([marker1.id])
+      }
+
+      buffer.insert([0, 2], "...")
+      expectNewEvent {
+        insert: new Set([marker1.id])
+        update: new Set
+        remove: new Set
+      }
+
+      buffer.insert([0, 0], "xxxxx")
+      expectNewEvent {
+        insert: new Set([marker2.id])
+        update: new Set([marker1.id])
+        remove: new Set
+      }
+
+      buffer.undo()
+      expectNewEvent {
+        insert: new Set
+        update: new Set([marker1.id])
+        remove: new Set([marker2.id])
+      }
+
+      buffer.redo()
+      expectNewEvent {
+        insert: new Set([marker2.id])
+        update: new Set([marker1.id])
+        remove: new Set
+      }

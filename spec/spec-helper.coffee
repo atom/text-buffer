@@ -1,6 +1,22 @@
 require 'coffee-cache'
 jasmine.getEnv().addEqualityTester(require('underscore-plus').isEqual)
 require('grim').includeDeprecatedAPIs = false
+{setEqual} = require '../src/set-helpers'
+
+Set.prototype.isEqual = (other) ->
+  if other instanceof Set
+    setEqual(this, other)
+  else
+    undefined
+
+Set.prototype.jasmineToString = ->
+  result = "Set {"
+  first = true
+  @forEach (element) ->
+    result += ", " unless first
+    result += element.toString()
+  first = false
+  result + "}"
 
 toEqualSet = (expectedItems, customMessage) ->
   pass = true

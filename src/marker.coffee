@@ -365,7 +365,7 @@ class Marker
   emitChangeEvent: (currentRange, textChanged, propertiesChanged) ->
     oldState = @previousEventState
 
-    return unless propertiesChanged or
+    return false unless propertiesChanged or
       oldState.valid isnt @valid or
       oldState.tailed isnt @tailed or
       oldState.reversed isnt @reversed or
@@ -387,6 +387,8 @@ class Marker
       newHeadPosition = newState.range.end
       newTailPosition = newState.range.start
 
+    @store.markerUpdated(@id) unless textChanged
+
     @emitter.emit("did-change", {
       wasValid: oldState.valid, isValid: newState.valid
       hadTail: oldState.tailed, hasTail: newState.tailed
@@ -394,6 +396,7 @@ class Marker
       oldHeadPosition, newHeadPosition, oldTailPosition, newTailPosition
       textChanged
     })
+    true
 
 if Grim.includeDeprecatedAPIs
   EmitterMixin = require('emissary').Emitter
