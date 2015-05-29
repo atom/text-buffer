@@ -3,6 +3,7 @@ TextBuffer = require '../src/text-buffer'
 
 describe "Marker", ->
   [buffer, markerCreations] = []
+
   beforeEach ->
     buffer = new TextBuffer(text: "abcdefghijklmnopqrstuvwxyz")
     markerCreations = []
@@ -962,12 +963,12 @@ describe "Marker", ->
       expect(buffer.findMarkers(containedInRange: [[0, 0], [0, 6]])).toEqual [marker2, marker1]
       expect(buffer.findMarkers(containedInRange: [[0, 4], [0, 7]])).toEqual [marker3]
 
-  describe "TextBuffer::observeMarkers(range, callback)", ->
-    [view, events] = []
+  describe "TextBuffer::observeMarkers(callback)", ->
+    [observationWindow, events] = []
 
     beforeEach ->
       events = []
-      view = buffer.observeMarkers (event) -> events.push(event)
+      observationWindow = buffer.observeMarkers (event) -> events.push(event)
 
     expectNewEvent = (event) ->
       expect(events.length).toBe 1
@@ -988,46 +989,46 @@ describe "Marker", ->
       marker1 = buffer.markRange([[0, 3], [0, 6]])
       marker2 = buffer.markRange([[0, 9], [0, 12]])
 
-      view.setRange([[0, 0], [0, 5]])
+      observationWindow.setRange([[0, 0], [0, 5]])
       expectNewEvent {
         insert: new Set([marker1.id])
         update: new Set
         remove: new Set
       }
 
-      view.setRange([[0, 8], [0, 20]])
+      observationWindow.setRange([[0, 8], [0, 20]])
       expectNewEvent {
         insert: new Set([marker2.id])
         update: new Set
         remove: new Set([marker1.id])
       }
 
-      view.setRange([[0, 9], [0, 20]])
+      observationWindow.setRange([[0, 9], [0, 20]])
       expectNewEvent {
         insert: new Set
         update: new Set([marker2.id])
         remove: new Set
       }
 
-      view.setRange([[0, 5], [0, 20]])
+      observationWindow.setRange([[0, 5], [0, 20]])
       expectNewEvent {
         insert: new Set([marker1.id])
         update: new Set([marker2.id])
         remove: new Set
       }
 
-      view.setRange([[0, 0], [0, 1]])
+      observationWindow.setRange([[0, 0], [0, 1]])
       expectNewEvent {
         insert: new Set
         update: new Set
         remove: new Set([marker1.id, marker2.id])
       }
 
-      view.setRange([[0, 0], [0, 2]])
+      observationWindow.setRange([[0, 0], [0, 2]])
       expectNoNewEvent()
 
     it "calls the callback when markers are created, destroyed, or updated", ->
-      view.setRange([[0, 5], [0, 15]])
+      observationWindow.setRange([[0, 5], [0, 15]])
 
       marker1 = buffer.markRange([[0, 3], [0, 6]])
       expectNewEvent {

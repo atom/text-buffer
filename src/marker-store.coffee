@@ -3,7 +3,7 @@ Point = require "./point"
 Range = require "./range"
 Marker = require "./marker"
 MarkerIndex = require "./marker-index"
-MarkerView = require "./marker-view"
+MarkerObservationWindow = require "./marker-observation-window"
 {intersectSet} = require "./set-helpers"
 
 SerializationVersion = 2
@@ -33,7 +33,7 @@ class MarkerStore
     @index = new MarkerIndex
     @markersById = {}
     @nextMarkerId = 0
-    @markerViews = []
+    @observationWindows = []
 
   ###
   Section: TextBuffer API
@@ -90,9 +90,9 @@ class MarkerStore
     result.sort (a, b) -> a.compare(b)
 
   observeMarkers: (callback) ->
-    view = new MarkerView(this, callback)
-    @markerViews.push(view)
-    view
+    observationWindow = new MarkerObservationWindow(this, callback)
+    @observationWindows.push(observationWindow)
+    observationWindow
 
   markRange: (range, options={}) ->
     @createMarker(Range.fromObject(range), Marker.extractParams(options))
@@ -134,8 +134,8 @@ class MarkerStore
           marker.update(marker.getRange(), snapshot, true)
         else
           marker.emitChangeEvent(marker.getRange(), true, false)
-    for markerView in @markerViews
-      markerView.updateAll()
+    for observationWindow in @observationWindows
+      observationWindow.updateAll()
     return
 
   createSnapshot: (filterPersistent, emitChangeEvents) ->
@@ -148,8 +148,8 @@ class MarkerStore
         if emitChangeEvents
           marker.emitChangeEvent(ranges[id], true, false)
     if emitChangeEvents
-      for markerView in @markerViews
-        markerView.updateAll()
+      for observationWindow in @observationWindows
+        observationWindow.updateAll()
     result
 
   serialize: ->
@@ -169,19 +169,19 @@ class MarkerStore
     return
 
   ###
-  Section: MarkerView interface
+  Section: MarkerObservationWindow interface
   ###
 
-  removeMarkerView: (view) ->
-    @markerViews.splice(@markerViews.indexOf(view), 1)
+  removeMarkerObservationWindow: (observationWindow) ->
+    @observationWindows.splice(@observationWindows.indexOf(observationWindow), 1)
 
   ###
   Section: Marker interface
   ###
 
   markerUpdated: (id) ->
-    for markerView in @markerViews
-      markerView.update(id, @getMarkerRange(id))
+    for observationWindow in @observationWindows
+      observationWindow.update(id, @getMarkerRange(id))
 
   destroyMarker: (id) ->
     delete @markersById[id]
@@ -212,8 +212,8 @@ class MarkerStore
     if marker.getInvalidationStrategy() is 'inside'
       @index.setExclusive(id, true)
     @delegate.markerCreated(marker)
-    for markerView in @markerViews
-      markerView.update(id, range)
+    for observationWindow in @observationWindows
+      observationWindow.update(id, range)
     marker
 
 filterSet = (set1, set2) ->

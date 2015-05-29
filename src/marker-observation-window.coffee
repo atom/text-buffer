@@ -8,7 +8,7 @@ EMPTY.delete = null
 Object.freeze(EMPTY)
 
 module.exports =
-class MarkerView
+class MarkerObservationWindow
   constructor: (@markerStore, @callback) ->
     @ids = new Set
     @disposables = new CompositeDisposable
@@ -61,4 +61,4 @@ class MarkerView
 
   destroy: ->
     @destroyed = true
-    @markerStore.removeMarkerView(this)
+    @markerStore.removeMarkerObservationWindow(this)
