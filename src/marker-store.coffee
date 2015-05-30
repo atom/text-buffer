@@ -185,6 +185,8 @@ class MarkerStore
 
   destroyMarker: (id) ->
     delete @markersById[id]
+    for observationWindow in @observationWindows
+      observationWindow.update(id, null)
     @index.delete(id)
 
   getMarkerRange: (id) ->

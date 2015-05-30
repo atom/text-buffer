@@ -12,10 +12,13 @@ class MarkerObservationWindow
   constructor: (@markerStore, @callback) ->
     @ids = new Set
     @disposables = new CompositeDisposable
+    @range = null
 
   setRange: (range) ->
-    @range = Range.fromObject(range)
-    @updateAll()
+    range = Range.fromObject(range)
+    unless range.isEqual(@range)
+      @range = range
+      @updateAll()
 
   updateAll: ->
     return unless @range?
@@ -37,7 +40,7 @@ class MarkerObservationWindow
   update: (id, range) ->
     return unless @range?
     if @ids.has(id)
-      if range.intersectsWith(@range)
+      if range?.intersectsWith(@range)
         @callback(
           insert: EMPTY
           update: new Set().add(id)
@@ -51,7 +54,7 @@ class MarkerObservationWindow
           remove: new Set().add(id)
         )
     else
-      if range.intersectsWith(@range)
+      if range?.intersectsWith(@range)
         @ids.add(id)
         @callback(
           insert: new Set().add(id)

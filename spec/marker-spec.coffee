@@ -1074,3 +1074,20 @@ describe "Marker", ->
         update: new Set([marker1.id])
         remove: new Set
       }
+
+      marker2.destroy()
+      expectNewEvent {
+        insert: new Set
+        update: new Set
+        remove: new Set([marker2.id])
+      }
+
+      marker1.setRange([0, 1], [0, 1])
+      expectNewEvent {
+        insert: new Set
+        update: new Set
+        remove: new Set([marker1.id])
+      }
+
+      marker1.destroy()
+      expectNoNewEvent()
