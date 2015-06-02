@@ -462,6 +462,4 @@ assertValidId = (id) ->
     throw new TypeError("Marker ID must be a string")
 
 templateRange = ->
-  range = new Range(Point.ZERO, Point.ZERO)
-  range.start = range.end = null
-  range
+  Object.create(Range.prototype)
