@@ -6,7 +6,10 @@ setEqual = (a, b) ->
   true
 
 subtractSet = (set, valuesToRemove) ->
-  valuesToRemove.forEach (value) -> set.delete(value)
+  if set.size > valuesToRemove.size
+    valuesToRemove.forEach (value) -> set.delete(value)
+  else
+    set.forEach (value) -> set.delete(value) if valuesToRemove.has(value)
 
 addSet = (set, valuesToAdd) ->
   valuesToAdd.forEach (value) -> set.add(value)
