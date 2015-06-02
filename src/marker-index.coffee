@@ -381,12 +381,16 @@ class MarkerIndex
       Range(start, @getEnd(id))
 
   getStart: (id) ->
-    if entry = @rangeCache[id]
-      entry.start ?= @rootNode.getStart(id)
+    return unless @rootNode.ids.has(id)
+
+    entry = @rangeCache[id] ?= templateRange()
+    entry.start ?= @rootNode.getStart(id)
 
   getEnd: (id) ->
-    if entry = @rangeCache[id]
-      entry.end ?= @rootNode.getEnd(id)
+    return unless @rootNode.ids.has(id)
+
+    entry = @rangeCache[id] ?= templateRange()
+    entry.end ?= @rootNode.getEnd(id)
 
   findContaining: (start, end) ->
     containing = new Set
@@ -439,6 +443,7 @@ class MarkerIndex
 
   dump: ->
     unless @rangeCacheFresh
+      @rootNode.ids.forEach (id) => @rangeCache[id] ?= templateRange()
       @rootNode.dump(Point.ZERO, @rangeCache)
       @rangeCacheFresh = true
     @rangeCache
@@ -449,7 +454,6 @@ class MarkerIndex
 
   clearRangeCache: ->
     @rangeCache = {}
-    @rootNode.ids.forEach (id) => @rangeCache[id] = templateRange()
     @rangeCacheFresh = false
 
   condenseIfNeeded: ->
