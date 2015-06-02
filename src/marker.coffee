@@ -52,10 +52,10 @@ class Marker
     @invalidate ?= 'overlap'
     @persistent ?= true
     @properties ?= {}
+    @hasChangeObservers = false
     @rangeWhenDestroyed = null
     Object.freeze(@properties)
     @store.setMarkerHasTail(@id, @tailed)
-    @previousEventState = @getSnapshot(range)
 
   ###
   Section: Event Subscription
@@ -88,6 +88,9 @@ class Marker
   #
   # Returns a {Disposable} on which `.dispose()` can be called to unsubscribe.
   onDidChange: (callback) ->
+    unless @hasChangeObservers
+      @previousEventState = @getSnapshot(@getRange())
+      @hasChangeObservers = true
     @emitter.on 'did-change', callback
 
   # Public: Returns the current {Range} of the marker. The range is immutable.
@@ -363,6 +366,8 @@ class Marker
   ###
 
   emitChangeEvent: (currentRange, textChanged, propertiesChanged) ->
+    @store.markerUpdated(@id) unless textChanged
+    return unless @hasChangeObservers
     oldState = @previousEventState
 
     return false unless propertiesChanged or
@@ -386,8 +391,6 @@ class Marker
     else
       newHeadPosition = newState.range.end
       newTailPosition = newState.range.start
-
-    @store.markerUpdated(@id) unless textChanged
 
     @emitter.emit("did-change", {
       wasValid: oldState.valid, isValid: newState.valid
