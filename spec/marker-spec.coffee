@@ -1091,3 +1091,10 @@ describe "Marker", ->
 
       marker1.destroy()
       expectNoNewEvent()
+
+    it "doesn't call the callback when markers are destroyed upon creation", ->
+      buffer.onDidCreateMarker (marker) ->
+        marker.destroy()
+      observationWindow.setRange([0, 0], [3, 0])
+      marker1 = buffer.markRange([0, 5], [0, 10])
+      expectNoNewEvent()

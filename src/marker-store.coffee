@@ -214,8 +214,9 @@ class MarkerStore
     if marker.getInvalidationStrategy() is 'inside'
       @index.setExclusive(id, true)
     @delegate.markerCreated(marker)
-    for observationWindow in @observationWindows
-      observationWindow.update(id, range)
+    unless marker.isDestroyed()
+      for observationWindow in @observationWindows
+        observationWindow.update(id, range)
     marker
 
 filterSet = (set1, set2) ->
