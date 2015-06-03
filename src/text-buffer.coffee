@@ -829,8 +829,6 @@ class TextBuffer
   # Returns an {Array} of {Marker}s.
   findMarkers: (params) -> @markerStore.findMarkers(params)
 
-  observeMarkers: (callback) -> @markerStore.observeMarkers(callback)
-
   # Public: Get the number of markers in the buffer.
   #
   # Returns a {Number}.
