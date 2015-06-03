@@ -366,7 +366,6 @@ class Marker
   ###
 
   emitChangeEvent: (currentRange, textChanged, propertiesChanged) ->
-    @store.markerUpdated(@id) unless textChanged
     return unless @hasChangeObservers
     oldState = @previousEventState
 
@@ -376,6 +375,7 @@ class Marker
       oldState.reversed isnt @reversed or
       oldState.range.compare(currentRange) isnt 0
 
+    @store.markerUpdated() unless textChanged
     newState = @previousEventState = @getSnapshot(currentRange)
 
     if oldState.reversed

@@ -850,8 +850,6 @@ class TextBuffer
       @applyChange(change, true) for change in pop.changes
       @markerStore.restoreFromSnapshot(pop.snapshot)
       @lastMarkerSnapshot = null
-      @emitter.emit 'did-update-markers'
-      @emit 'markers-updated' if Grim.includeDeprecatedAPIs
 
   # Public: Redo the last operation
   redo: ->
@@ -860,8 +858,6 @@ class TextBuffer
       @applyChange(change, true) for change in pop.changes
       @markerStore.restoreFromSnapshot(pop.snapshot)
       @lastMarkerSnapshot = pop.snapshot
-      @emitter.emit 'did-update-markers'
-      @emit 'markers-updated' if Grim.includeDeprecatedAPIs
 
   # Public: Batch multiple operations as a single undo/redo step.
   #
@@ -897,8 +893,6 @@ class TextBuffer
     @history.applyCheckpointGroupingInterval(checkpoint, groupingInterval)
 
     @lastMarkerSnapshot = @markerStore.createSnapshot(false, true)
-    @emitter.emit 'did-update-markers'
-    @emit 'markers-updated' if Grim.includeDeprecatedAPIs
     result
 
   abortTransaction: ->
@@ -1424,6 +1418,10 @@ class TextBuffer
   markerCreated: (marker) ->
     @emitter.emit 'did-create-marker', marker
     @emit 'marker-created', marker if Grim.includeDeprecatedAPIs
+
+  markersUpdated: ->
+    @emitter.emit 'did-update-markers'
+    @emit 'markers-updated' if Grim.includeDeprecatedAPIs
 
 if Grim.includeDeprecatedAPIs
   EmitterMixin = require('emissary').Emitter

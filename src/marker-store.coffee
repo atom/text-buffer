@@ -3,7 +3,6 @@ Point = require "./point"
 Range = require "./range"
 Marker = require "./marker"
 MarkerIndex = require "./marker-index"
-MarkerObservationWindow = require "./marker-observation-window"
 {intersectSet} = require "./set-helpers"
 
 SerializationVersion = 2
@@ -33,7 +32,6 @@ class MarkerStore
     @index = new MarkerIndex
     @markersById = {}
     @nextMarkerId = 0
-    @observationWindows = []
 
   ###
   Section: TextBuffer API
@@ -89,11 +87,6 @@ class MarkerStore
       result.push(marker) if marker.matchesParams(params)
     result.sort (a, b) -> a.compare(b)
 
-  observeMarkers: (callback) ->
-    observationWindow = new MarkerObservationWindow(this, callback)
-    @observationWindows.push(observationWindow)
-    observationWindow
-
   markRange: (range, options={}) ->
     @createMarker(Range.fromObject(range), Marker.extractParams(options))
 
@@ -128,17 +121,22 @@ class MarkerStore
     @index.splice(start, oldExtent, newExtent)
 
   restoreFromSnapshot: (snapshots) ->
+    markersUpdated = false
     for id in Object.keys(@markersById)
       if marker = @markersById[id]
         if snapshot = snapshots[id]
+          lastEmittedState = marker.previousEventState
           marker.update(marker.getRange(), snapshot, true)
+          if marker.previousEventState isnt lastEmittedState
+            markersUpdated = true
         else
-          marker.emitChangeEvent(marker.getRange(), true, false)
-    for observationWindow in @observationWindows
-      observationWindow.updateAll()
+          if marker.emitChangeEvent(marker.getRange(), true, false)
+            markersUpdated = true
+    @delegate.markersUpdated() if markersUpdated
     return
 
   createSnapshot: (filterPersistent, emitChangeEvents) ->
+    markersUpdated = false
     result = {}
     ranges = @index.dump()
     for id in Object.keys(@markersById)
@@ -146,10 +144,9 @@ class MarkerStore
         if marker.persistent or not filterPersistent
           result[id] = marker.getSnapshot(ranges[id], false)
         if emitChangeEvents
-          marker.emitChangeEvent(ranges[id], true, false)
-    if emitChangeEvents
-      for observationWindow in @observationWindows
-        observationWindow.updateAll()
+          if marker.emitChangeEvent(ranges[id], true, false)
+            markersUpdated = true
+    @delegate.markersUpdated() if markersUpdated
     result
 
   serialize: ->
@@ -169,24 +166,15 @@ class MarkerStore
     return
 
   ###
-  Section: MarkerObservationWindow interface
-  ###
-
-  removeMarkerObservationWindow: (observationWindow) ->
-    @observationWindows.splice(@observationWindows.indexOf(observationWindow), 1)
-
-  ###
   Section: Marker interface
   ###
 
-  markerUpdated: (id) ->
-    for observationWindow in @observationWindows
-      observationWindow.update(id, @getMarkerRange(id))
+  markerUpdated: ->
+    @delegate.markersUpdated()
 
   destroyMarker: (id) ->
     delete @markersById[id]
-    for observationWindow in @observationWindows
-      observationWindow.update(id, null)
+    @delegate.markersUpdated()
     @index.delete(id)
 
   getMarkerRange: (id) ->
@@ -214,9 +202,7 @@ class MarkerStore
     if marker.getInvalidationStrategy() is 'inside'
       @index.setExclusive(id, true)
     @delegate.markerCreated(marker)
-    unless marker.isDestroyed()
-      for observationWindow in @observationWindows
-        observationWindow.update(id, range)
+    @delegate.markersUpdated()
     marker
 
 filterSet = (set1, set2) ->
