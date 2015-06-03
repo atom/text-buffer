@@ -353,6 +353,7 @@ class Marker
       updated = true
 
     @emitChangeEvent(range ? oldRange, textChanged, propertiesChanged)
+    @store.markerUpdated() if updated and not textChanged
     updated
 
   getSnapshot: (range) ->
@@ -375,7 +376,6 @@ class Marker
       oldState.reversed isnt @reversed or
       oldState.range.compare(currentRange) isnt 0
 
-    @store.markerUpdated() unless textChanged
     newState = @previousEventState = @getSnapshot(currentRange)
 
     if oldState.reversed

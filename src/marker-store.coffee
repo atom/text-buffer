@@ -125,18 +125,13 @@ class MarkerStore
     for id in Object.keys(@markersById)
       if marker = @markersById[id]
         if snapshot = snapshots[id]
-          lastEmittedState = marker.previousEventState
           marker.update(marker.getRange(), snapshot, true)
-          if marker.previousEventState isnt lastEmittedState
-            markersUpdated = true
         else
-          if marker.emitChangeEvent(marker.getRange(), true, false)
-            markersUpdated = true
-    @delegate.markersUpdated() if markersUpdated
+          marker.emitChangeEvent(marker.getRange(), true, false)
+    @delegate.markersUpdated()
     return
 
   createSnapshot: (filterPersistent, emitChangeEvents) ->
-    markersUpdated = false
     result = {}
     ranges = @index.dump()
     for id in Object.keys(@markersById)
@@ -144,9 +139,8 @@ class MarkerStore
         if marker.persistent or not filterPersistent
           result[id] = marker.getSnapshot(ranges[id], false)
         if emitChangeEvents
-          if marker.emitChangeEvent(ranges[id], true, false)
-            markersUpdated = true
-    @delegate.markersUpdated() if markersUpdated
+          marker.emitChangeEvent(ranges[id], true, false)
+    @delegate.markersUpdated() if emitChangeEvents
     result
 
   serialize: ->
@@ -174,8 +168,8 @@ class MarkerStore
 
   destroyMarker: (id) ->
     delete @markersById[id]
-    @delegate.markersUpdated()
     @index.delete(id)
+    @delegate.markersUpdated()
 
   getMarkerRange: (id) ->
     @index.getRange(id)

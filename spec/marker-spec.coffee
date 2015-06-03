@@ -477,6 +477,13 @@ describe "Marker", ->
         }]
       expect(markersUpdatedCount).toBe 1
 
+    it "notifies ::onDidUpdateMarkers observers even if there are no Marker::onDidChange observers", ->
+      expect(markersUpdatedCount).toBe 0
+      buffer.insert([0, 0], "123")
+      expect(markersUpdatedCount).toBe 1
+      overlapMarker.setRange([[0, 1], [0, 2]])
+      expect(markersUpdatedCount).toBe 2
+
     describe "when a change precedes a marker", ->
       it "shifts the marker based on the characters inserted or removed by the change", ->
         buffer.setTextInRange([[0, 1], [0, 2]], "ABC")
