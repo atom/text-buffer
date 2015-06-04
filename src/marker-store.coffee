@@ -121,12 +121,15 @@ class MarkerStore
     @index.splice(start, oldExtent, newExtent)
 
   restoreFromSnapshot: (snapshots) ->
+    markersUpdated = false
     for id in Object.keys(@markersById)
       if marker = @markersById[id]
         if snapshot = snapshots[id]
           marker.update(marker.getRange(), snapshot, true)
         else
           marker.emitChangeEvent(marker.getRange(), true, false)
+    @delegate.markersUpdated()
+    return
 
   createSnapshot: (filterPersistent, emitChangeEvents) ->
     result = {}
@@ -137,6 +140,7 @@ class MarkerStore
           result[id] = marker.getSnapshot(ranges[id], false)
         if emitChangeEvents
           marker.emitChangeEvent(ranges[id], true, false)
+    @delegate.markersUpdated() if emitChangeEvents
     result
 
   serialize: ->
@@ -156,12 +160,16 @@ class MarkerStore
     return
 
   ###
-  Section: Marker API
+  Section: Marker interface
   ###
+
+  markerUpdated: ->
+    @delegate.markersUpdated()
 
   destroyMarker: (id) ->
     delete @markersById[id]
     @index.delete(id)
+    @delegate.markersUpdated()
 
   getMarkerRange: (id) ->
     @index.getRange(id)
@@ -188,6 +196,7 @@ class MarkerStore
     if marker.getInvalidationStrategy() is 'inside'
       @index.setExclusive(id, true)
     @delegate.markerCreated(marker)
+    @delegate.markersUpdated()
     marker
 
 filterSet = (set1, set2) ->

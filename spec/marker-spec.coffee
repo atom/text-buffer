@@ -2,11 +2,14 @@
 TextBuffer = require '../src/text-buffer'
 
 describe "Marker", ->
-  [buffer, markerCreations] = []
+  [buffer, markerCreations, markersUpdatedCount] = []
+
   beforeEach ->
     buffer = new TextBuffer(text: "abcdefghijklmnopqrstuvwxyz")
     markerCreations = []
     buffer.onDidCreateMarker (marker) -> markerCreations.push(marker)
+    markersUpdatedCount = 0
+    buffer.onDidUpdateMarkers -> markersUpdatedCount++
 
   describe "creation", ->
     describe "TextBuffer::markRange(range, properties)", ->
@@ -18,6 +21,7 @@ describe "Marker", ->
         expect(marker.isReversed()).toBe false
         expect(marker.hasTail()).toBe true
         expect(markerCreations).toEqual [marker]
+        expect(markersUpdatedCount).toBe 1
 
       it "allows a reversed marker to be created", ->
         marker = buffer.markRange([[0, 3], [0, 6]], reversed: true)
@@ -63,6 +67,7 @@ describe "Marker", ->
     beforeEach ->
       marker = buffer.markRange([[0, 6], [0, 9]])
       changes = []
+      markersUpdatedCount = 0
       marker.onDidChange (change) -> changes.push(change)
 
     describe "::setHeadPosition(position, state)", ->
@@ -70,6 +75,7 @@ describe "Marker", ->
         marker.setHeadPosition([0, 12])
         expect(marker.getRange()).toEqual [[0, 6], [0, 12]]
         expect(marker.isReversed()).toBe false
+        expect(markersUpdatedCount).toBe 1
         expect(changes).toEqual [{
           oldHeadPosition: [0, 9], newHeadPosition: [0, 12]
           oldTailPosition: [0, 6], newTailPosition: [0, 6]
@@ -81,6 +87,7 @@ describe "Marker", ->
 
         changes = []
         marker.setHeadPosition([0, 3])
+        expect(markersUpdatedCount).toBe 2
         expect(marker.getRange()).toEqual [[0, 3], [0, 6]]
         expect(marker.isReversed()).toBe true
         expect(changes).toEqual [{
@@ -94,6 +101,7 @@ describe "Marker", ->
 
         changes = []
         marker.setHeadPosition([0, 9])
+        expect(markersUpdatedCount).toBe 3
         expect(marker.getRange()).toEqual [[0, 6], [0, 9]]
         expect(marker.isReversed()).toBe false
         expect(changes).toEqual [{
@@ -114,10 +122,12 @@ describe "Marker", ->
 
       it "does not notify ::onDidChange observers and returns false if the position isn't actually changed", ->
         expect(marker.setHeadPosition(marker.getHeadPosition())).toBe false
+        expect(markersUpdatedCount).toBe 0
         expect(changes.length).toBe 0
 
       it "allows new properties to be assigned to the state", ->
         marker.setHeadPosition([0, 12], foo: 1)
+        expect(markersUpdatedCount).toBe 1
         expect(changes).toEqual [{
           oldHeadPosition: [0, 9], newHeadPosition: [0, 12]
           oldTailPosition: [0, 6], newTailPosition: [0, 6]
@@ -130,6 +140,7 @@ describe "Marker", ->
         changes = []
         marker.setHeadPosition([0, 12], bar: 2)
         expect(marker.getProperties()).toEqual {foo: 1, bar: 2}
+        expect(markersUpdatedCount).toBe 2
         expect(changes).toEqual [{
           oldHeadPosition: [0, 12], newHeadPosition: [0, 12]
           oldTailPosition: [0, 6], newTailPosition: [0, 6]
@@ -371,6 +382,7 @@ describe "Marker", ->
         expect(marker.getProperties()).toEqual {foo: 1}
         marker.setProperties(bar: 2)
         expect(marker.getProperties()).toEqual {foo: 1, bar: 2}
+        expect(markersUpdatedCount).toBe 2
 
     it "only allows direct manipulations to be undone if they are part of a transaction with other buffer changes", ->
       # Can't undo standalone changes
@@ -405,6 +417,7 @@ describe "Marker", ->
       insideMarker = overlapMarker.copy(invalidate: 'inside')
       touchMarker = overlapMarker.copy(invalidate: 'touch')
       allStrategies = [neverMarker, surroundMarker, overlapMarker, insideMarker, touchMarker]
+      markersUpdatedCount = 0
 
     it "defers notifying Marker::onDidChange observers until after notifying Buffer::onDidChange observers", ->
       for marker in allStrategies
@@ -412,9 +425,6 @@ describe "Marker", ->
           marker.changes = []
           marker.onDidChange (change) ->
             marker.changes.push(change)
-
-      markersUpdatedCount = 0
-      buffer.onDidUpdateMarkers -> markersUpdatedCount++
 
       changedCount = 0
       changeSubscription =
@@ -466,6 +476,13 @@ describe "Marker", ->
           textChanged: true
         }]
       expect(markersUpdatedCount).toBe 1
+
+    it "notifies ::onDidUpdateMarkers observers even if there are no Marker::onDidChange observers", ->
+      expect(markersUpdatedCount).toBe 0
+      buffer.insert([0, 0], "123")
+      expect(markersUpdatedCount).toBe 1
+      overlapMarker.setRange([[0, 1], [0, 2]])
+      expect(markersUpdatedCount).toBe 2
 
     describe "when a change precedes a marker", ->
       it "shifts the marker based on the characters inserted or removed by the change", ->

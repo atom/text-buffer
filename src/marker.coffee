@@ -52,10 +52,10 @@ class Marker
     @invalidate ?= 'overlap'
     @persistent ?= true
     @properties ?= {}
+    @hasChangeObservers = false
     @rangeWhenDestroyed = null
     Object.freeze(@properties)
     @store.setMarkerHasTail(@id, @tailed)
-    @previousEventState = @getSnapshot(range)
 
   ###
   Section: Event Subscription
@@ -88,6 +88,9 @@ class Marker
   #
   # Returns a {Disposable} on which `.dispose()` can be called to unsubscribe.
   onDidChange: (callback) ->
+    unless @hasChangeObservers
+      @previousEventState = @getSnapshot(@getRange())
+      @hasChangeObservers = true
     @emitter.on 'did-change', callback
 
   # Public: Returns the current {Range} of the marker. The range is immutable.
@@ -350,6 +353,7 @@ class Marker
       updated = true
 
     @emitChangeEvent(range ? oldRange, textChanged, propertiesChanged)
+    @store.markerUpdated() if updated and not textChanged
     updated
 
   getSnapshot: (range) ->
@@ -363,9 +367,10 @@ class Marker
   ###
 
   emitChangeEvent: (currentRange, textChanged, propertiesChanged) ->
+    return unless @hasChangeObservers
     oldState = @previousEventState
 
-    return unless propertiesChanged or
+    return false unless propertiesChanged or
       oldState.valid isnt @valid or
       oldState.tailed isnt @tailed or
       oldState.reversed isnt @reversed or
@@ -394,6 +399,7 @@ class Marker
       oldHeadPosition, newHeadPosition, oldTailPosition, newTailPosition
       textChanged
     })
+    true
 
 if Grim.includeDeprecatedAPIs
   EmitterMixin = require('emissary').Emitter
