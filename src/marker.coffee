@@ -5,7 +5,7 @@ Delegator = require 'delegato'
 Point = require './point'
 Range = require './range'
 
-OptionKeys = new Set(['reversed', 'tailed', 'invalidate', 'persistent'])
+OptionKeys = new Set(['reversed', 'tailed', 'invalidate', 'persistent', 'maintainHistory'])
 
 # Private: Represents a buffer annotation that remains logically stationary
 # even as the buffer changes. This is used to represent cursors, folds, snippet
@@ -44,13 +44,14 @@ class Marker
   @delegatesMethods 'containsPoint', 'containsRange', 'intersectsRow', toMethod: 'getRange'
 
   constructor: (@id, @store, range, params) ->
-    {@tailed, @reversed, @valid, @invalidate, @persistent, @properties} = params
+    {@tailed, @reversed, @valid, @invalidate, @persistent, @properties, @maintainHistory} = params
     @emitter = new Emitter
     @tailed ?= true
     @reversed ?= false
     @valid ?= true
     @invalidate ?= 'overlap'
     @persistent ?= true
+    @maintainHistory ?= true
     @properties ?= {}
     @hasChangeObservers = false
     @rangeWhenDestroyed = null
@@ -240,6 +241,7 @@ class Marker
     @invalidate is other.invalidate and
       @tailed is other.tailed and
       @persistent is other.persistent and
+      @maintainHistory is other.maintainHistory and
       @reversed is other.reversed and
       isEqual(@properties, other.properties) and
       @getRange().isEqual(other.getRange())
@@ -357,7 +359,7 @@ class Marker
     updated
 
   getSnapshot: (range) ->
-    Object.freeze({range, @properties, @reversed, @tailed, @valid, @invalidate})
+    Object.freeze({range, @properties, @reversed, @tailed, @valid, @invalidate, @maintainHistory})
 
   toString: ->
     "[Marker #{@id}, #{@getRange()}]"
@@ -369,6 +371,8 @@ class Marker
   emitChangeEvent: (currentRange, textChanged, propertiesChanged) ->
     return unless @hasChangeObservers
     oldState = @previousEventState
+
+    currentRange ?= @getRange()
 
     return false unless propertiesChanged or
       oldState.valid isnt @valid or

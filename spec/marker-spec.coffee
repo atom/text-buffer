@@ -43,6 +43,26 @@ describe "Marker", ->
         marker = buffer.markRange([[-100, -100], [100, 100]])
         expect(marker.getRange()).toEqual [[0, 0], [0, 26]]
 
+      it "allows markers to opt out of snapshotting for undo/redo", ->
+        marker1 = buffer.markPosition([0, 3])
+        marker2 = buffer.markPosition([0, 3], maintainHistory: false)
+
+        marker1Events = []
+        marker2Events = []
+        marker1.onDidChange (event) -> marker1Events.push(event)
+        marker2.onDidChange (event) -> marker2Events.push(event)
+
+        # The marker still emits change events.
+        buffer.delete([[0, 1], [0, 5]])
+        expect(marker1Events.length).toBe 1
+        expect(marker2Events).toEqual marker1Events
+
+        # When undoing destructive changes, the marker is not restored to its
+        # exact original position.
+        buffer.undo()
+        expect(marker1.getRange()).toEqual [[0, 3], [0, 3]]
+        expect(marker2.getRange()).toEqual [[0, 5], [0, 5]]
+
     describe "TextBuffer::markPosition(position, properties)", ->
       it "creates a tail-less marker at the given position", ->
         marker = buffer.markPosition([0, 6])

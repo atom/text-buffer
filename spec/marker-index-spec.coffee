@@ -3,7 +3,7 @@ Range = require "../src/range"
 MarkerIndex = require "../src/marker-index"
 Random = require "random-seed"
 {addSet} = require "../src/set-helpers"
-{currentSpecFailed, toEqualSet} = require "./spec-helper"
+{currentSpecFailed, toEqualSet, formatSet} = require "./spec-helper"
 
 describe "MarkerIndex", ->
   markerIndex = null
@@ -278,7 +278,7 @@ describe "MarkerIndex", ->
         expect(markerIndex.getRange("a")).toEqual Range(Point(1, 3), Point(1, 4))
 
   describe "::dump()", ->
-    it "returns an object containing each marker's range and exclusivity", ->
+    it "returns an object containing each marker's range", ->
       markerIndex.insert("a", Point(0, 2), Point(0, 5))
       markerIndex.insert("b", Point(0, 3), Point(0, 7))
       markerIndex.insert("c", Point(0, 4), Point(0, 4))
@@ -289,6 +289,17 @@ describe "MarkerIndex", ->
         "b": Range(Point(0, 3), Point(0, 7))
         "c": Range(Point(0, 4), Point(0, 4))
         "d": Range(Point(0, 7), Point(0, 8))
+      }
+
+    it "allows the markers to be filtered by a set of ids", ->
+      markerIndex.insert("a", Point(0, 2), Point(0, 5))
+      markerIndex.insert("b", Point(0, 3), Point(0, 7))
+      markerIndex.insert("c", Point(0, 4), Point(0, 4))
+      markerIndex.insert("d", Point(0, 7), Point(0, 8))
+
+      expect(markerIndex.dump(new Set(["a", "c"]))).toEqual {
+        "a": Range(Point(0, 2), Point(0, 5))
+        "c": Range(Point(0, 4), Point(0, 4))
       }
 
   describe "randomized mutations", ->
@@ -334,6 +345,11 @@ describe "MarkerIndex", ->
             [queryStart, queryEnd] = getRange()
             # console.log "#{k}: findContaining(#{queryStart}, #{queryEnd})"
             expect(markerIndex.findContaining(queryStart, queryEnd)).toEqualSet(getExpectedContaining(queryStart, queryEnd), "(Seed: #{seed})")
+
+          for k in [1..10]
+            ids = getIdsToDump()
+            # console.log "#{k}: dump(#{formatSet(ids)})"
+            expect(markerIndex.dump(ids)).toEqual(getExpectedDump(ids), "(Seed: #{seed})")
 
           return if currentSpecFailed()
 
@@ -413,6 +429,21 @@ describe "MarkerIndex", ->
         if marker.start.compare(start) <= 0 and end.compare(marker.end) <= 0
           expected.push(marker.id)
       expected
+
+    getIdsToDump = ->
+      ids = new Set
+      for i in [0...random(markers.length)]
+        ids.add(random(markers.length))
+      ids
+
+    getExpectedDump = (dumpIds) ->
+      result = {}
+      dumpIds.forEach (dumpId) ->
+        for {id, range} in markers
+          if id is dumpId
+            result[id] = range
+            continue
+      result
 
     expectContiguousIds = (index, seed) ->
       started = new Set

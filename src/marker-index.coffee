@@ -1,6 +1,6 @@
 Point = require "./point"
 Range = require "./range"
-{last} = require "underscore-plus"
+{last, extend} = require "underscore-plus"
 {addSet, subtractSet, intersectSet, setEqual} = require "./set-helpers"
 
 BRANCHING_THRESHOLD = 3
@@ -133,9 +133,12 @@ class Node
         break
     end
 
-  dump: (offset, snapshot) ->
+  dump: (ids, offset, snapshot) ->
     for child in @children
-      offset = child.dump(offset, snapshot)
+      if (not ids) or setsOverlap(ids, child.ids)
+        offset = child.dump(ids, offset, snapshot)
+      else
+        offset = offset.traverse(child.extent)
     offset
 
   findContaining: (point, set) ->
@@ -284,13 +287,15 @@ class Leaf
   getEnd: (id) ->
     @extent if @ids.has(id)
 
-  dump: (offset, snapshot) ->
+  dump: (ids, offset, snapshot) ->
     end = offset.traverse(@extent)
-    iterator = @ids.values()
-    until (next = iterator.next()).done
+    values = @ids.values()
+    until (next = values.next()).done
       id = next.value
-      snapshot[id].start ?= offset
-      snapshot[id].end = end
+      if (not ids) or ids.has(id)
+        snapshot[id] ?= templateRange()
+        snapshot[id].start ?= offset
+        snapshot[id].end = end
     end
 
   findEndingAt: (position, result) ->
@@ -441,12 +446,11 @@ class MarkerIndex
     @exclusiveIds = new Set
     @clearRangeCache()
 
-  dump: ->
-    unless @rangeCacheFresh
-      @rootNode.ids.forEach (id) => @rangeCache[id] ?= templateRange()
-      @rootNode.dump(Point.ZERO, @rangeCache)
-      @rangeCacheFresh = true
-    @rangeCache
+  dump: (ids) ->
+    result = {}
+    @rootNode.dump(ids, Point.ZERO, result)
+    extend(@rangeCache, result)
+    result
 
   ###
   Section: Private
@@ -454,7 +458,6 @@ class MarkerIndex
 
   clearRangeCache: ->
     @rangeCache = {}
-    @rangeCacheFresh = false
 
   condenseIfNeeded: ->
     while @rootNode.children?.length is 1
@@ -467,3 +470,9 @@ assertValidId = (id) ->
 
 templateRange = ->
   Object.create(Range.prototype)
+
+setsOverlap = (set1, set2) ->
+  values = set1.values()
+  until (next = values.next()).done
+    return true if set2.has(next.value)
+  return false

@@ -31,6 +31,7 @@ class MarkerStore
   constructor: (@delegate) ->
     @index = new MarkerIndex
     @markersById = {}
+    @historiedMarkers = new Set
     @nextMarkerId = 0
 
   ###
@@ -131,12 +132,12 @@ class MarkerStore
     @delegate.markersUpdated()
     return
 
-  createSnapshot: (filterPersistent, emitChangeEvents) ->
+  createSnapshot: (emitChangeEvents=false) ->
     result = {}
-    ranges = @index.dump()
+    ranges = @index.dump(@historiedMarkers)
     for id in Object.keys(@markersById)
       if marker = @markersById[id]
-        if marker.persistent or not filterPersistent
+        if marker.maintainHistory
           result[id] = marker.getSnapshot(ranges[id], false)
         if emitChangeEvents
           marker.emitChangeEvent(ranges[id], true, false)
@@ -144,9 +145,12 @@ class MarkerStore
     result
 
   serialize: ->
-    version: SerializationVersion
-    nextMarkerId: @nextMarkerId
-    markersById: @createSnapshot(true)
+    ranges = @index.dump()
+    markersById = {}
+    for id in Object.keys(@markersById)
+      marker = @markersById[id]
+      markersById[id] = marker.getSnapshot(ranges[id], false) if marker.persistent
+    {@nextMarkerId, markersById, version: SerializationVersion}
 
   deserialize: (state) ->
     return unless state.version is SerializationVersion
@@ -168,6 +172,7 @@ class MarkerStore
 
   destroyMarker: (id) ->
     delete @markersById[id]
+    @historiedMarkers.delete(id)
     @index.delete(id)
     @delegate.markersUpdated()
 
@@ -195,6 +200,8 @@ class MarkerStore
     @index.insert(id, range.start, range.end)
     if marker.getInvalidationStrategy() is 'inside'
       @index.setExclusive(id, true)
+    if marker.maintainHistory
+      @historiedMarkers.add(id)
     @delegate.markerCreated(marker)
     @delegate.markersUpdated()
     marker

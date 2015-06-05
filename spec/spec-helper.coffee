@@ -51,4 +51,4 @@ currentSpecFailed = ->
     .getItems()
     .some (item) -> not item.passed()
 
-module.exports = {toEqualSet, currentSpecFailed}
+module.exports = {toEqualSet, currentSpecFailed, formatSet}
