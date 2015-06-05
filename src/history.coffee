@@ -26,13 +26,8 @@ class History
   groupChangesSinceCheckpoint: (checkpointId) ->
     checkpointIndex = @getCheckpointIndex(checkpointId)
     return false unless checkpointIndex?
-    hasSeenChanges = false
-    for entry, i in @undoStack by -1
-      break if i is checkpointIndex
-      if @undoStack[i] instanceof Checkpoint
-        @undoStack.splice(i, 1) if hasSeenChanges
-      else
-        hasSeenChanges = true
+    for i in [(@undoStack.length - 2)...checkpointIndex] by -1
+      @undoStack.splice(i, 1) if @undoStack[i] instanceof Checkpoint
     true
 
   applyCheckpointGroupingInterval: (checkpointId, now, groupingInterval) ->

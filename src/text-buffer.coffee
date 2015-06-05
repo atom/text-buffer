@@ -882,8 +882,8 @@ class TextBuffer
     finally
       @transactCallDepth--
 
-    @history.groupChangesSinceCheckpoint(checkpointBefore)
     checkpointAfter = @history.createCheckpoint(@markerStore.createSnapshot(false, true))
+    @history.groupChangesSinceCheckpoint(checkpointBefore)
 
     now = Date.now()
     @history.setCheckpointGroupingInterval(checkpointAfter, now, groupingInterval)
