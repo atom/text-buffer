@@ -60,9 +60,9 @@ class History
   popUndoStack: (currentSnapshot) ->
     if (checkpointIndex = @getBoundaryCheckpointIndex(@undoStack))?
       pop = @popChanges(@undoStack, @redoStack, checkpointIndex)
-      _.defaults(pop.snapshotBefore, currentSnapshot)
+      _.defaults(pop.snapshotAbove, currentSnapshot)
       {
-        snapshot: pop.snapshotAfter
+        snapshot: pop.snapshotBelow
         changes: (@delegate.invertChange(change) for change in pop.changes)
       }
     else
@@ -73,9 +73,9 @@ class History
       checkpointIndex-- while @redoStack[checkpointIndex - 1] instanceof Checkpoint
       checkpointIndex++ if @redoStack[checkpointIndex - 1]?
       pop = @popChanges(@redoStack, @undoStack, checkpointIndex, true)
-      _.defaults(pop.snapshotBefore, currentSnapshot)
+      _.defaults(pop.snapshotAbove, currentSnapshot)
       {
-        snapshot: pop.snapshotAfter
+        snapshot: pop.snapshotBelow
         changes: pop.changes
       }
     else
@@ -85,7 +85,7 @@ class History
     if (checkpointIndex = @getCheckpointIndex(checkpointId))?
       pop = @popChanges(@undoStack, null, checkpointIndex)
       {
-        snapshot: pop.snapshotAfter
+        snapshot: pop.snapshotBelow
         changes: (@delegate.invertChange(change) for change in pop.changes)
       }
     else
@@ -130,16 +130,16 @@ class History
 
   popChanges: (fromStack, toStack, checkpointIndex, lookBack) ->
     changes = []
-    snapshotBefore = null
-    snapshotAfter = fromStack[checkpointIndex].snapshot
+    snapshotAbove = null
+    snapshotBelow = fromStack[checkpointIndex].snapshot
     splicedEntries = fromStack.splice(checkpointIndex)
     for entry in splicedEntries by -1
       toStack?.push(entry)
       if entry instanceof Checkpoint
-        snapshotBefore = entry.snapshot if changes.length is 0
+        snapshotAbove = entry.snapshot if changes.length is 0
       else
         changes.push(entry)
-    {changes, snapshotBefore, snapshotAfter}
+    {changes, snapshotAbove, snapshotBelow}
 
   serializeStack: (stack) ->
     for entry in stack
