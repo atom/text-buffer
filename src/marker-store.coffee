@@ -131,13 +131,15 @@ class MarkerStore
     @delegate.markersUpdated()
     return
 
-  createSnapshot: (filterPersistent, emitChangeEvents) ->
+  createSnapshot: (forSerialization=false, emitChangeEvents=false) ->
     result = {}
     ranges = @index.dump()
     for id in Object.keys(@markersById)
       if marker = @markersById[id]
-        if marker.persistent or not filterPersistent
-          result[id] = marker.getSnapshot(ranges[id], false)
+        if forSerialization
+          result[id] = marker.getSnapshot(ranges[id], false) if marker.persistent
+        else
+          result[id] = marker.getSnapshot(ranges[id], false) if marker.maintainHistory
         if emitChangeEvents
           marker.emitChangeEvent(ranges[id], true, false)
     @delegate.markersUpdated() if emitChangeEvents
