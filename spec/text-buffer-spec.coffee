@@ -316,7 +316,12 @@ describe "TextBuffer", ->
       expect(buffer.getText()).toBe "hello\nworld\r\nhow are you doing?"
 
   describe "transactions", ->
+    now = null
+
     beforeEach ->
+      now = 0
+      spyOn(Date, 'now').andCallFake -> now
+
       buffer = new TextBuffer(text: "hello\nworld\r\nhow are you doing?")
       buffer.setTextInRange([[1, 3], [1, 5]], 'ms')
 
@@ -460,25 +465,32 @@ describe "TextBuffer", ->
         expect(buffer.getText()).toBe "hello\nworld\r\nhow are you doing?"
 
       it "groups adjacent transactions within each other's grouping intervals", ->
-        now = 0
-        spyOn(Date, 'now').andCallFake -> now
+        buffer.transact 101, -> buffer.setTextInRange([[0, 2], [0, 5]], "y")
 
-        buffer.transact 100, -> buffer.setTextInRange([[0, 2], [0, 5]], "y")
         now += 100
-        buffer.transact 200, -> buffer.setTextInRange([[0, 3], [0, 3]], "yy")
+        buffer.transact 201, -> buffer.setTextInRange([[0, 3], [0, 3]], "yy")
+
         now += 200
-        buffer.transact 200, -> buffer.setTextInRange([[0, 5], [0, 5]], "yy")
+        buffer.transact 201, -> buffer.setTextInRange([[0, 5], [0, 5]], "yy")
 
         # not grouped because the previous transaction's grouping interval
         # is only 200ms and we've advanced 300ms
         now += 300
-        buffer.transact 300, -> buffer.setTextInRange([[0, 7], [0, 7]], "!!")
+        buffer.transact 301, -> buffer.setTextInRange([[0, 7], [0, 7]], "!!")
 
         expect(buffer.getText()).toBe "heyyyyy!!\nworms\r\nhow are you doing?"
+
         buffer.undo()
         expect(buffer.getText()).toBe "heyyyyy\nworms\r\nhow are you doing?"
+
         buffer.undo()
         expect(buffer.getText()).toBe "hello\nworms\r\nhow are you doing?"
+
+        buffer.redo()
+        expect(buffer.getText()).toBe "heyyyyy\nworms\r\nhow are you doing?"
+
+        buffer.redo()
+        expect(buffer.getText()).toBe "heyyyyy!!\nworms\r\nhow are you doing?"
 
   describe "checkpoints", ->
     beforeEach ->
@@ -586,17 +598,24 @@ describe "TextBuffer", ->
       expect(buffer.getText()).toBe("")
 
     it "preserves checkpoints across undo and redo", ->
-      buffer.append("hello\n")
-      checkpoint = buffer.createCheckpoint()
+      buffer.append("a")
+      buffer.append("b")
+      checkpoint1 = buffer.createCheckpoint()
+      buffer.append("c")
+      checkpoint2 = buffer.createCheckpoint()
+
       buffer.undo()
-      expect(buffer.getText()).toBe("")
+      expect(buffer.getText()).toBe("ab")
 
       buffer.redo()
-      expect(buffer.getText()).toBe("hello\n")
+      expect(buffer.getText()).toBe("abc")
 
-      buffer.append("world")
-      buffer.revertToCheckpoint(checkpoint)
-      expect(buffer.getText()).toBe("hello\n")
+      buffer.append("d")
+
+      expect(buffer.revertToCheckpoint(checkpoint2)).toBe true
+      expect(buffer.getText()).toBe("abc")
+      expect(buffer.revertToCheckpoint(checkpoint1)).toBe true
+      expect(buffer.getText()).toBe("ab")
 
     it "handles checkpoints created when there have been no changes", ->
       checkpoint = buffer.createCheckpoint()

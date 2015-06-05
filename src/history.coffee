@@ -1,3 +1,5 @@
+_ = require 'underscore-plus'
+
 SerializationVersion = 2
 
 class Checkpoint
@@ -24,60 +26,68 @@ class History
   groupChangesSinceCheckpoint: (checkpointId) ->
     checkpointIndex = @getCheckpointIndex(checkpointId)
     return false unless checkpointIndex?
-    for entry, i in @undoStack by -1
-      break if i is checkpointIndex
-      if @undoStack[i] instanceof Checkpoint
-        @undoStack.splice(i, 1)
+    for i in [(@undoStack.length - 2)...checkpointIndex] by -1
+      @undoStack.splice(i, 1) if @undoStack[i] instanceof Checkpoint
     true
 
-  applyCheckpointGroupingInterval: (checkpointId, groupingInterval) ->
+  applyCheckpointGroupingInterval: (checkpointId, now, groupingInterval) ->
     return if groupingInterval is 0
 
     checkpointIndex = @getCheckpointIndex(checkpointId)
-    checkpoint = @undoStack[checkpointIndex]
     return unless checkpointIndex?
 
-    now = Date.now()
-    groupedCheckpoint = null
-    for i in [checkpointIndex - 1..0] by -1
-      entry = @undoStack[i]
+    i = lastCheckpointIndex = checkpointIndex
+    while entry = @undoStack[--i]
       if entry instanceof Checkpoint
-        if (entry.timestamp + Math.min(entry.groupingInterval, groupingInterval)) >= now
-          @undoStack.splice(checkpointIndex, 1)
-          groupedCheckpoint = entry
-        else
-          groupedCheckpoint = checkpoint
-        break
+        if (entry.timestamp + Math.min(entry.groupingInterval, groupingInterval)) <= now
+          break
+        @undoStack.splice(lastCheckpointIndex, 1)
+        lastCheckpointIndex = i
 
-    if groupedCheckpoint?
-      groupedCheckpoint.timestamp = now
-      groupedCheckpoint.groupingInterval = groupingInterval
+    @undoStack[lastCheckpointIndex].timestamp = now
+    @undoStack[lastCheckpointIndex].groupingInterval = groupingInterval
+
+  setCheckpointGroupingInterval: (checkpointId, timestamp, groupingInterval) ->
+    checkpointIndex = @getCheckpointIndex(checkpointId)
+    checkpoint = @undoStack[checkpointIndex]
+    checkpoint.timestamp = timestamp
+    checkpoint.groupingInterval = groupingInterval
 
   pushChange: (change) ->
     @undoStack.push(change)
     @clearRedoStack()
 
-  popUndoStack: (snapshot) ->
+  popUndoStack: (currentSnapshot) ->
     if (checkpointIndex = @getBoundaryCheckpointIndex(@undoStack))?
-      @redoStack.push(new Checkpoint(@nextCheckpointId++, snapshot))
-      result = @popChanges(@undoStack, @redoStack, checkpointIndex)
-      result.changes = (@delegate.invertChange(change) for change in result.changes)
-      result
+      pop = @popChanges(@undoStack, @redoStack, checkpointIndex)
+      _.defaults(pop.snapshotAbove, currentSnapshot)
+      {
+        snapshot: pop.snapshotBelow
+        changes: (@delegate.invertChange(change) for change in pop.changes)
+      }
     else
       false
 
-  popRedoStack: (snapshot) ->
+  popRedoStack: (currentSnapshot) ->
     if (checkpointIndex = @getBoundaryCheckpointIndex(@redoStack))?
-      @undoStack.push(new Checkpoint(@nextCheckpointId++, snapshot))
-      @popChanges(@redoStack, @undoStack, checkpointIndex)
+      checkpointIndex-- while @redoStack[checkpointIndex - 1] instanceof Checkpoint
+      checkpointIndex++ if @redoStack[checkpointIndex - 1]?
+      pop = @popChanges(@redoStack, @undoStack, checkpointIndex, true)
+      _.defaults(pop.snapshotAbove, currentSnapshot)
+      {
+        snapshot: pop.snapshotBelow
+        changes: pop.changes
+      }
     else
       false
 
   truncateUndoStack: (checkpointId) ->
     if (checkpointIndex = @getCheckpointIndex(checkpointId))?
-      result = @popChanges(@undoStack, null, checkpointIndex)
-      result.changes = (@delegate.invertChange(change) for change in result.changes)
-      result
+      pop = @popChanges(@undoStack, null, checkpointIndex)
+      {
+        snapshot: pop.snapshotBelow
+        changes: (@delegate.invertChange(change) for change in pop.changes)
+      }
     else
       false
 
@@ -118,13 +128,18 @@ class History
         hasSeenChanges = true
     null
 
-  popChanges: (fromStack, toStack, checkpointIndex) ->
+  popChanges: (fromStack, toStack, checkpointIndex, lookBack) ->
     changes = []
-    snapshot = fromStack[checkpointIndex].snapshot
-    for entry in fromStack.splice(checkpointIndex) by -1
+    snapshotAbove = null
+    snapshotBelow = fromStack[checkpointIndex].snapshot
+    splicedEntries = fromStack.splice(checkpointIndex)
+    for entry in splicedEntries by -1
       toStack?.push(entry)
-      changes.push(entry) unless entry instanceof Checkpoint
-    {changes, snapshot}
+      if entry instanceof Checkpoint
+        snapshotAbove = entry.snapshot if changes.length is 0
+      else
+        changes.push(entry)
+    {changes, snapshotAbove, snapshotBelow}
 
   serializeStack: (stack) ->
     for entry in stack
