@@ -35,28 +35,28 @@ class History
         hasSeenChanges = true
     true
 
-  applyCheckpointGroupingInterval: (checkpointId, groupingInterval) ->
+  applyCheckpointGroupingInterval: (checkpointId, now, groupingInterval) ->
     return if groupingInterval is 0
 
     checkpointIndex = @getCheckpointIndex(checkpointId)
-    checkpoint = @undoStack[checkpointIndex]
     return unless checkpointIndex?
 
-    now = Date.now()
-    groupedCheckpoint = null
-    for i in [checkpointIndex - 1..0] by -1
-      entry = @undoStack[i]
+    i = lastCheckpointIndex = checkpointIndex
+    while entry = @undoStack[--i]
       if entry instanceof Checkpoint
-        if (entry.timestamp + Math.min(entry.groupingInterval, groupingInterval)) >= now
-          @undoStack.splice(checkpointIndex, 1)
-          groupedCheckpoint = entry
-        else
-          groupedCheckpoint = checkpoint
-        break
+        if (entry.timestamp + Math.min(entry.groupingInterval, groupingInterval)) <= now
+          break
+        @undoStack.splice(lastCheckpointIndex, 1)
+        lastCheckpointIndex = i
 
-    if groupedCheckpoint?
-      groupedCheckpoint.timestamp = now
-      groupedCheckpoint.groupingInterval = groupingInterval
+    @undoStack[lastCheckpointIndex].timestamp = now
+    @undoStack[lastCheckpointIndex].groupingInterval = groupingInterval
+
+  setCheckpointGroupingInterval: (checkpointId, timestamp, groupingInterval) ->
+    checkpointIndex = @getCheckpointIndex(checkpointId)
+    checkpoint = @undoStack[checkpointIndex]
+    checkpoint.timestamp = timestamp
+    checkpoint.groupingInterval = groupingInterval
 
   pushChange: (change) ->
     @undoStack.push(change)
