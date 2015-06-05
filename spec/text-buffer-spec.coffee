@@ -586,17 +586,24 @@ describe "TextBuffer", ->
       expect(buffer.getText()).toBe("")
 
     it "preserves checkpoints across undo and redo", ->
-      buffer.append("hello\n")
-      checkpoint = buffer.createCheckpoint()
+      buffer.append("a")
+      buffer.append("b")
+      checkpoint1 = buffer.createCheckpoint()
+      buffer.append("c")
+      checkpoint2 = buffer.createCheckpoint()
+
       buffer.undo()
-      expect(buffer.getText()).toBe("")
+      expect(buffer.getText()).toBe("ab")
 
       buffer.redo()
-      expect(buffer.getText()).toBe("hello\n")
+      expect(buffer.getText()).toBe("abc")
 
-      buffer.append("world")
-      buffer.revertToCheckpoint(checkpoint)
-      expect(buffer.getText()).toBe("hello\n")
+      buffer.append("d")
+
+      expect(buffer.revertToCheckpoint(checkpoint2)).toBe true
+      expect(buffer.getText()).toBe("abc")
+      expect(buffer.revertToCheckpoint(checkpoint1)).toBe true
+      expect(buffer.getText()).toBe("ab")
 
     it "handles checkpoints created when there have been no changes", ->
       checkpoint = buffer.createCheckpoint()

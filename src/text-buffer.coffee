@@ -74,7 +74,6 @@ class TextBuffer
   file: null
   refcount: 0
   fileSubscriptions: null
-  lastMarkerSnapshot: null
 
   ###
   Section: Construction
@@ -843,19 +842,15 @@ class TextBuffer
 
   # Public: Undo the last operation. If a transaction is in progress, aborts it.
   undo: ->
-    markerSnapshot = _.extend(@markerStore.createSnapshot(), @lastMarkerSnapshot)
-    if pop = @history.popUndoStack(markerSnapshot)
+    if pop = @history.popUndoStack(@markerStore.createSnapshot())
       @applyChange(change, true) for change in pop.changes
       @markerStore.restoreFromSnapshot(pop.snapshot)
-      @lastMarkerSnapshot = null
 
   # Public: Redo the last operation
   redo: ->
-    markerSnapshot = @markerStore.createSnapshot()
-    if pop = @history.popRedoStack(markerSnapshot)
+    if pop = @history.popRedoStack(@markerStore.createSnapshot())
       @applyChange(change, true) for change in pop.changes
       @markerStore.restoreFromSnapshot(pop.snapshot)
-      @lastMarkerSnapshot = pop.snapshot
 
   # Public: Batch multiple operations as a single undo/redo step.
   #
@@ -875,22 +870,22 @@ class TextBuffer
       fn = groupingInterval
       groupingInterval = 0
 
-    checkpoint = @createCheckpoint()
+    checkpointBefore = @createCheckpoint()
 
     try
       @transactCallDepth++
       result = fn()
     catch exception
-      @revertToCheckpoint(checkpoint)
+      @revertToCheckpoint(checkpointBefore)
       throw exception unless exception instanceof TransactionAbortedError
       return
     finally
       @transactCallDepth--
 
-    @history.groupChangesSinceCheckpoint(checkpoint)
-    @history.applyCheckpointGroupingInterval(checkpoint, groupingInterval)
-
-    @lastMarkerSnapshot = @markerStore.createSnapshot(false, true)
+    @history.groupChangesSinceCheckpoint(checkpointBefore)
+    checkpointAfter = @history.createCheckpoint(@markerStore.createSnapshot(false, true))
+    @history.applyCheckpointGroupingInterval(checkpointBefore, groupingInterval)
+    @history.applyCheckpointGroupingInterval(checkpointAfter, groupingInterval)
     result
 
   abortTransaction: ->
