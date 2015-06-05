@@ -359,7 +359,7 @@ class Marker
     updated
 
   getSnapshot: (range) ->
-    Object.freeze({range, @properties, @reversed, @tailed, @valid, @invalidate})
+    Object.freeze({range, @properties, @reversed, @tailed, @valid, @invalidate, @maintainHistory})
 
   toString: ->
     "[Marker #{@id}, #{@getRange()}]"
@@ -371,6 +371,8 @@ class Marker
   emitChangeEvent: (currentRange, textChanged, propertiesChanged) ->
     return unless @hasChangeObservers
     oldState = @previousEventState
+
+    currentRange ?= @getRange()
 
     return false unless propertiesChanged or
       oldState.valid isnt @valid or
