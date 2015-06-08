@@ -74,6 +74,7 @@ class TextBuffer
   file: null
   refcount: 0
   fileSubscriptions: null
+  backwardsScanChunkSize: 8000
 
   ###
   Section: Construction
@@ -995,11 +996,14 @@ class TextBuffer
     startIndex = @characterIndexForPosition(range.start)
     endIndex = @characterIndexForPosition(range.end)
 
-    matches = @matchesInCharacterRange(regex, startIndex, endIndex)
-    lengthDelta = 0
+    if reverse
+      matches = new ReverseMatchIterator(@getText(), regex, startIndex, endIndex, @backwardsScanChunkSize)
+    else
+      matches = new MatchIterator(@getText(), regex, startIndex, endIndex)
 
-    matches.reverse() if reverse
-    for match in matches
+    lengthDelta = 0
+    until (next = matches.next()).done
+      match = next.value
       callbackArgument = new SearchCallbackArgument(this, match, lengthDelta)
       iterator(callbackArgument)
       lengthDelta += callbackArgument.getReplacementDelta() unless reverse
@@ -1041,35 +1045,82 @@ class TextBuffer
 
     replacements
 
-  # Identifies if a character sequence is within a certain range.
-  #
-  # * `regex` The {RegExp} to match.
-  # * `startIndex` A {Number} representing the starting character offset.
-  # * `endIndex` A {Number} representing the ending character offset.
-  #
-  # Returns an {Array} of matches for the given regex.
-  matchesInCharacterRange: (regex, startIndex, endIndex) ->
-    text = @getText()
-    matches = []
+  class MatchIterator
+    constructor: (@text, @regex, @startIndex, @endIndex) ->
+      @regex.lastIndex = @startIndex
 
-    regex.lastIndex = startIndex
-    while match = regex.exec(text)
-      matchLength = match[0].length
-      matchStartIndex = match.index
-      matchEndIndex = matchStartIndex + matchLength
+    next: ->
+      if match = @regex.exec(@text)
+        matchLength = match[0].length
+        matchStartIndex = match.index
+        matchEndIndex = matchStartIndex + matchLength
+        if matchEndIndex > @endIndex
+          @regex.lastIndex = 0
+          if matchStartIndex < @endIndex and submatch = @regex.exec(@text[matchStartIndex...@endIndex])
+            submatch.index = matchStartIndex
+            match = submatch
+          else
+            match = null
+          @regex.lastIndex = Infinity
+        else
+          matchEndIndex++ if matchLength is 0
+          @regex.lastIndex = matchEndIndex
 
-      if matchEndIndex > endIndex
-        regex.lastIndex = 0
-        if matchStartIndex < endIndex and submatch = regex.exec(text[matchStartIndex...endIndex])
-          submatch.index = matchStartIndex
-          matches.push submatch
-        break
+      if match
+        {value: match, done: false}
+      else
+        {value: null, done: true}
 
-      matchEndIndex++ if matchLength is 0
-      regex.lastIndex = matchEndIndex
-      matches.push match
+  class ReverseMatchIterator
+    constructor: (@text, @regex, @startIndex, endIndex, @chunkSize) ->
+      @bufferedMatches = []
+      @chunkStartIndex = @chunkEndIndex = endIndex
+      @lastMatchIndex = Infinity
 
-    matches
+    scanNextChunk: ->
+      return false if @chunkStartIndex is @startIndex
+
+      # If results were found in the last chunk, then scan to the beginning
+      # of the previous result. Otherwise, continue to scan to the same position
+      # as before.
+      @chunkEndIndex = Math.min(@chunkEndIndex, @lastMatchIndex)
+      @chunkStartIndex = Math.max(@startIndex, @chunkStartIndex - @chunkSize)
+
+      firstResultIndex = null
+      @regex.lastIndex = @chunkStartIndex
+      while match = @regex.exec(@text)
+        matchLength = match[0].length
+        matchStartIndex = match.index
+        matchEndIndex = matchStartIndex + matchLength
+
+        # If the match occurs at the beginning of the chunk, expand the chunk
+        # in case the match could have started earlier.
+        break if matchStartIndex == @chunkStartIndex > @startIndex
+        break if matchStartIndex >= @chunkEndIndex
+
+        if matchEndIndex > @chunkEndIndex
+          @regex.lastIndex = 0
+          if submatch = @regex.exec(@text[matchStartIndex...@chunkEndIndex])
+            submatch.index = matchStartIndex
+            firstResultIndex ?= matchStartIndex
+            @bufferedMatches.push(submatch)
+          break
+        else
+          firstResultIndex ?= matchStartIndex
+          @bufferedMatches.push(match)
+          matchEndIndex++ if matchLength is 0
+          @regex.lastIndex = matchEndIndex
+
+      @lastMatchIndex = firstResultIndex if firstResultIndex
+      true
+
+    next: ->
+      while @bufferedMatches.length is 0
+        break unless @scanNextChunk()
+      if match = @bufferedMatches.pop()
+        {value: match, done: false}
+      else
+        {value: null, done: true}
 
   ###
   Section: Buffer Range Details
