@@ -330,6 +330,8 @@ class Marker
         isEqual(@properties[key], value)
 
   update: (oldRange, {range, reversed, tailed, valid, properties}, textChanged=false) ->
+    return if @isDestroyed()
+
     updated = propertiesChanged = false
 
     if range? and not range.isEqual(oldRange)

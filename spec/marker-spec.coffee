@@ -942,6 +942,13 @@ describe "Marker", ->
       expect(marker.getStartPosition()).toEqual [0, 3]
       expect(marker.getEndPosition()).toEqual [0, 6]
 
+    it "does not reinsert a marker into ", ->
+      marker = buffer.markRange([[0, 3], [0, 6]])
+      marker.destroy()
+      expect(buffer.findMarkers(intersectsRow: 0)).toEqual []
+      marker.setRange([[0, 0], [0, 9]])
+      expect(buffer.findMarkers(intersectsRow: 0)).toEqual []
+
   describe "TextBuffer::findMarkers(properties)", ->
     [marker1, marker2, marker3, marker4] = []
 
