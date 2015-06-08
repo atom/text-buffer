@@ -2,6 +2,7 @@
 {join} = require 'path'
 temp = require 'temp'
 {File} = require 'pathwatcher'
+Random = require 'random-seed'
 TextBuffer = require '../src/text-buffer'
 SampleText = readFileSync(join(__dirname, 'fixtures', 'sample.js'), 'utf8')
 
@@ -1906,6 +1907,33 @@ describe "TextBuffer", ->
         expect(ranges.length).toBe 2
         expect(ranges[0]).toEqual [[6,34], [6,41]]
         expect(ranges[1]).toEqual [[6,6], [6,13]]
+
+    describe "when called with a random range", ->
+      it "returns the same results as ::scanInRange, but in the opposite order", ->
+        for i in [1...10]
+          seed = Date.now()
+          random = new Random(seed)
+
+          buffer.backwardsScanChunkSize = random.intBetween(1, 80)
+
+          [startRow, endRow] = [random(buffer.getLineCount()), random(buffer.getLineCount())].sort()
+          startColumn = random(buffer.lineForRow(startRow).length)
+          endColumn = random(buffer.lineForRow(endRow).length)
+          range = [[startRow, startColumn], [endRow, endColumn]]
+
+          regex = [
+            /\w/g
+            /\w{2}/g
+            /\w{3}/g
+            /.{5}/g
+          ][random(4)]
+
+          forwardRanges = []
+          backwardRanges = []
+          buffer.scanInRange regex, range, ({range, matchText}) -> forwardRanges.push({range, matchText})
+          buffer.backwardsScanInRange regex, range, ({range, matchText}) -> backwardRanges.unshift({range, matchText})
+
+          expect(backwardRanges).toEqual(forwardRanges, "Seed: #{seed}")
 
   describe "::characterIndexForPosition(position)", ->
     beforeEach ->
