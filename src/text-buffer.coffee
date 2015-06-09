@@ -12,6 +12,7 @@ Range = require './range'
 History = require './history'
 MarkerStore = require './marker-store'
 Patch = require './patch'
+MatchIterator = require './match-iterator'
 {spliceArray, newlineRegex} = require './helpers'
 
 class SearchCallbackArgument
@@ -74,6 +75,7 @@ class TextBuffer
   file: null
   refcount: 0
   fileSubscriptions: null
+  backwardsScanChunkSize: 8000
 
   ###
   Section: Construction
@@ -995,11 +997,14 @@ class TextBuffer
     startIndex = @characterIndexForPosition(range.start)
     endIndex = @characterIndexForPosition(range.end)
 
-    matches = @matchesInCharacterRange(regex, startIndex, endIndex)
-    lengthDelta = 0
+    if reverse
+      matches = new MatchIterator.Backwards(@getText(), regex, startIndex, endIndex, @backwardsScanChunkSize)
+    else
+      matches = new MatchIterator.Forwards(@getText(), regex, startIndex, endIndex)
 
-    matches.reverse() if reverse
-    for match in matches
+    lengthDelta = 0
+    until (next = matches.next()).done
+      match = next.value
       callbackArgument = new SearchCallbackArgument(this, match, lengthDelta)
       iterator(callbackArgument)
       lengthDelta += callbackArgument.getReplacementDelta() unless reverse
@@ -1040,36 +1045,6 @@ class TextBuffer
     @save() if doSave
 
     replacements
-
-  # Identifies if a character sequence is within a certain range.
-  #
-  # * `regex` The {RegExp} to match.
-  # * `startIndex` A {Number} representing the starting character offset.
-  # * `endIndex` A {Number} representing the ending character offset.
-  #
-  # Returns an {Array} of matches for the given regex.
-  matchesInCharacterRange: (regex, startIndex, endIndex) ->
-    text = @getText()
-    matches = []
-
-    regex.lastIndex = startIndex
-    while match = regex.exec(text)
-      matchLength = match[0].length
-      matchStartIndex = match.index
-      matchEndIndex = matchStartIndex + matchLength
-
-      if matchEndIndex > endIndex
-        regex.lastIndex = 0
-        if matchStartIndex < endIndex and submatch = regex.exec(text[matchStartIndex...endIndex])
-          submatch.index = matchStartIndex
-          matches.push submatch
-        break
-
-      matchEndIndex++ if matchLength is 0
-      regex.lastIndex = matchEndIndex
-      matches.push match
-
-    matches
 
   ###
   Section: Buffer Range Details
