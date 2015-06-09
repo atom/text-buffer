@@ -158,9 +158,7 @@ class MarkerStore
     for id, markerState of state.markersById
       range = Range.fromObject(markerState.range)
       delete markerState.range
-      @index.insert(id, range.start, range.end)
-      marker = new Marker(id, this, range, markerState)
-      @markersById[id] = marker
+      @addMarker(id, range, markerState)
     return
 
   ###
@@ -195,6 +193,16 @@ class MarkerStore
 
   createMarker: (range, params) ->
     id = String(@nextMarkerId++)
+    marker = @addMarker(id, range, params)
+    @delegate.markerCreated(marker)
+    @delegate.markersUpdated()
+    marker
+
+  ###
+  Section: Private
+  ###
+
+  addMarker: (id, range, params) ->
     marker = new Marker(id, this, range, params)
     @markersById[id] = marker
     @index.insert(id, range.start, range.end)
@@ -202,8 +210,6 @@ class MarkerStore
       @index.setExclusive(id, true)
     if marker.maintainHistory
       @historiedMarkers.add(id)
-    @delegate.markerCreated(marker)
-    @delegate.markersUpdated()
     marker
 
 filterSet = (set1, set2) ->

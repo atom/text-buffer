@@ -698,50 +698,64 @@ describe "TextBuffer", ->
       expect(buffer.positionForCharacterIndex(20)).toEqual [3, 5]
 
   describe "serialization", ->
+    expectSameMarkers = (buffer1, buffer2) ->
+      markers1 = buffer1.getMarkers().sort (a, b) -> a.compare(b)
+      markers2 = buffer2.getMarkers().sort (a, b) -> a.compare(b)
+      expect(markers1.length).toBe markers2.length
+      for marker1, i in markers1
+        expect(marker1).toEqual(markers2[i])
+      return
+
     it "can serialize / deserialize the buffer along with its history and markers", ->
       bufferA = new TextBuffer(text: "hello\nworld\r\nhow are you doing?")
       bufferA.createCheckpoint()
       bufferA.setTextInRange([[0, 5], [0, 5]], " there")
       bufferA.transact -> bufferA.setTextInRange([[1, 0], [1, 5]], "friend")
-      marker1A = bufferA.markRange([[0, 1], [1, 2]], reversed: true, foo: 1)
+      bufferA.markRange([[0, 6], [0, 8]], reversed: true, foo: 1)
       marker2A = bufferA.markPosition([2, 2], bar: 2)
       bufferA.transact ->
         bufferA.setTextInRange([[1, 0], [1, 0]], "good ")
         bufferA.append("?")
         marker2A.setProperties(bar: 3, baz: 4)
+      bufferA.markRange([[0, 4], [0, 5]], invalidate: 'inside')
+      bufferA.setTextInRange([[0, 5], [0, 5]], "oo")
+      bufferA.undo()
 
       state = JSON.parse(JSON.stringify(bufferA.serialize()))
       bufferB = TextBuffer.deserialize(state)
 
       expect(bufferB.getText()).toBe "hello there\ngood friend\r\nhow are you doing??"
+      expectSameMarkers(bufferB, bufferA)
 
-      marker1B = bufferB.getMarker(marker1A.id)
-      marker2B = bufferB.getMarker(marker2A.id)
-      expect(marker1B.getRange()).toEqual [[0, 1], [1, 7]]
-      expect(marker1B.isReversed()).toBe true
-      expect(marker1B.getProperties()).toEqual {foo: 1}
-      expect(marker2B.getHeadPosition()).toEqual [2, 2]
-      expect(marker2B.hasTail()).toBe false
-      expect(marker2B.getProperties()).toEqual {bar: 3, baz: 4}
+      bufferA.redo()
+      bufferB.redo()
+      expect(bufferB.getText()).toBe "hellooo there\ngood friend\r\nhow are you doing??"
+      expectSameMarkers(bufferB, bufferA)
+
+      bufferA.undo()
+      bufferB.undo()
+      expect(bufferB.getText()).toBe "hello there\ngood friend\r\nhow are you doing??"
+      expectSameMarkers(bufferB, bufferA)
+
+      bufferA.undo()
+      bufferB.undo()
+      expect(bufferB.getText()).toBe "hello there\nfriend\r\nhow are you doing?"
+      expectSameMarkers(bufferB, bufferA)
+
+      bufferA.undo()
+      bufferB.undo()
+      expect(bufferB.getText()).toBe "hello there\nworld\r\nhow are you doing?"
+      expectSameMarkers(bufferB, bufferA)
+
+      bufferA.undo()
+      bufferB.undo()
+      expect(bufferB.getText()).toBe "hello\nworld\r\nhow are you doing?"
+      expectSameMarkers(bufferB, bufferA)
 
       # Accounts for deserialized markers when selecting the next marker's id
       marker3A = bufferA.markRange([[0, 1], [2, 3]])
       marker3B = bufferB.markRange([[0, 1], [2, 3]])
       expect(marker3B.id).toBe marker3A.id
-
-      bufferA.undo()
-      bufferB.undo()
-      expect(marker2A.getRange()).toEqual [[2, 2], [2, 2]]
-      expect(marker2B.getRange()).toEqual [[2, 2], [2, 2]]
-      expect(marker2A.getProperties()).toEqual {bar: 2}
-      expect(marker2B.getProperties()).toEqual {bar: 2}
-
-      bufferA.undo()
-      bufferA.undo()
-      bufferB.undo()
-      bufferB.undo()
-      expect(bufferA.getText()).toBe "hello\nworld\r\nhow are you doing?"
-      expect(bufferB.getText()).toBe "hello\nworld\r\nhow are you doing?"
 
     it "doesn't serialize markers with the 'persistent' option set to false", ->
       bufferA = new TextBuffer(text: "hello\nworld\r\nhow are you doing?")
