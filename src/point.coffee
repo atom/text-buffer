@@ -70,6 +70,10 @@ class Point
     else
       point2
 
+  @assertValid: (point) ->
+    unless isNumber(point.row) and isNumber(point.column)
+      throw new TypeError("Invalid Point: #{point}")
+
   @ZERO: Object.freeze(new Point(0, 0))
 
   @INFINITY: Object.freeze(new Point(Infinity, Infinity))

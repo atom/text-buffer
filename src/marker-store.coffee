@@ -203,6 +203,8 @@ class MarkerStore
   ###
 
   addMarker: (id, range, params) ->
+    Point.assertValid(range.start)
+    Point.assertValid(range.end)
     marker = new Marker(id, this, range, params)
     @markersById[id] = marker
     @index.insert(id, range.start, range.end)

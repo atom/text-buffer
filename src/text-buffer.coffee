@@ -1171,6 +1171,7 @@ class TextBuffer
   # the given position.
   clipPosition: (position) ->
     position = Point.fromObject(position)
+    Point.assertValid(position)
     {row, column} = position
     if row < 0
       @getFirstPosition()
