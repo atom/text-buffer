@@ -355,8 +355,6 @@ class MarkerIndex
 
   insert: (id, start, end) ->
     assertValidId(id)
-    assertValidPoint(start)
-    assertValidPoint(end)
     @rangeCache[id] = Range(start, end)
     if splitNodes = @rootNode.insert(new Set().add(id + ""), start, end)
       @rootNode = new Node(splitNodes)
@@ -368,9 +366,6 @@ class MarkerIndex
     @condenseIfNeeded()
 
   splice: (position, oldExtent, newExtent) ->
-    assertValidPoint(position)
-    assertValidPoint(oldExtent)
-    assertValidPoint(newExtent)
     @clearRangeCache()
     if splitNodes = @rootNode.splice(position, oldExtent, newExtent, @exclusiveIds, new Set, new Set)
       @rootNode = new Node(splitNodes)
@@ -472,13 +467,6 @@ class MarkerIndex
 assertValidId = (id) ->
   unless typeof id is 'string'
     throw new TypeError("Marker ID must be a string")
-
-assertValidPoint = (point) ->
-  unless (point instanceof Point) and isNumber(point.row) and isNumber(point.column)
-    throw new TypeError("Invalid Point: #{point}")
-
-isNumber = (number) ->
-  (typeof number is 'number') and not Number.isNaN(number)
 
 templateRange = ->
   Object.create(Range.prototype)

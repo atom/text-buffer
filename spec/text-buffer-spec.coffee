@@ -656,6 +656,15 @@ describe "TextBuffer", ->
       expect(buffer.clipPosition([10, 0])).toEqual [2, 18]
       expect(buffer.clipPosition([Infinity, 0])).toEqual [2, 18]
 
+    it "throws an error when given an invalid point", ->
+      buffer = new TextBuffer(text: "hello\nworld\r\nhow are you doing?")
+      expect -> buffer.clipPosition([NaN, 1])
+        .toThrow("Invalid Point: (NaN, 1)")
+      expect -> buffer.clipPosition([0, NaN])
+        .toThrow("Invalid Point: (0, NaN)")
+      expect -> buffer.clipPosition([0, {}])
+        .toThrow("Invalid Point: (0, [object Object])")
+
   describe "::characterIndexForPosition(position)", ->
     beforeEach ->
       buffer = new TextBuffer(text: "zero\none\r\ntwo\nthree")

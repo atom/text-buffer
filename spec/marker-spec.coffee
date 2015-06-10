@@ -63,6 +63,17 @@ describe "Marker", ->
         expect(marker1.getRange()).toEqual [[0, 3], [0, 3]]
         expect(marker2.getRange()).toEqual [[0, 5], [0, 5]]
 
+      it "throws an error if an invalid point is given", ->
+        marker1 = buffer.markRange([[0, 1], [0, 2]])
+
+        expect -> buffer.markRange([[0, NaN], [0, 2]])
+          .toThrow "Invalid Point: (0, NaN)"
+        expect -> buffer.markRange([[0, 1], [0, NaN]])
+          .toThrow "Invalid Point: (0, NaN)"
+
+        expect(buffer.findMarkers({})).toEqual [marker1]
+        expect(buffer.getMarkers()).toEqual [marker1]
+
     describe "TextBuffer::markPosition(position, properties)", ->
       it "creates a tail-less marker at the given position", ->
         marker = buffer.markPosition([0, 6])
@@ -80,6 +91,15 @@ describe "Marker", ->
       it "allows custom state to be assigned", ->
         marker = buffer.markPosition([0, 3], foo: 1, bar: 2)
         expect(marker.getProperties()).toEqual {foo: 1, bar: 2}
+
+      it "throws an error if an invalid point is given", ->
+        marker1 = buffer.markPosition([0, 1])
+
+        expect -> buffer.markPosition([0, NaN])
+          .toThrow "Invalid Point: (0, NaN)"
+
+        expect(buffer.findMarkers({})).toEqual [marker1]
+        expect(buffer.getMarkers()).toEqual [marker1]
 
   describe "direct updates", ->
     [marker, changes] = []
