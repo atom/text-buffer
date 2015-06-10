@@ -277,6 +277,25 @@ describe "MarkerIndex", ->
         markerIndex.splice(Point(0, 5), Point(0, 3), Point(1, 3))
         expect(markerIndex.getRange("a")).toEqual Range(Point(1, 3), Point(1, 4))
 
+  describe "validations", ->
+    it "throws an error if an invalid point is passed to ::insert", ->
+      expect -> markerIndex.insert("invalid", Point(0, NaN), Point(0, 4))
+        .toThrow "Invalid Point: (0, NaN)"
+      expect -> markerIndex.insert("invalid", Point(0, "a-string"), Point(0, 4))
+        .toThrow "Invalid Point: (0, a-string)"
+      expect -> markerIndex.insert("invalid", Point(0, 3), Point(0, {}))
+        .toThrow "Invalid Point: (0, [object Object])"
+
+    it "throws an error if an invalid point is passed to ::splice", ->
+      markerIndex.insert("a", Point(0, 3), Point(0, 5))
+
+      expect -> markerIndex.splice(Point(0, NaN), Point(0, 2), Point(0, 3))
+        .toThrow "Invalid Point: (0, NaN)"
+      expect -> markerIndex.splice(Point(0, 1), Point(0, NaN), Point(0, 3))
+        .toThrow "Invalid Point: (0, NaN)"
+      expect -> markerIndex.splice(Point(0, 1), Point(0, 2), Point(0, NaN))
+        .toThrow "Invalid Point: (0, NaN)"
+
   describe "::dump()", ->
     it "returns an object containing each marker's range", ->
       markerIndex.insert("a", Point(0, 2), Point(0, 5))
