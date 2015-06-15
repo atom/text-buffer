@@ -184,9 +184,11 @@ class MarkerStore
     @index.getEnd(id)
 
   setMarkerRange: (id, range) ->
-    @index.delete(id)
     {start, end} = Range.fromObject(range)
-    @index.insert(id, @delegate.clipPosition(start), @delegate.clipPosition(end))
+    start = @delegate.clipPosition(start)
+    end = @delegate.clipPosition(end)
+    @index.delete(id)
+    @index.insert(id, start, end)
 
   setMarkerHasTail: (id, hasTail) ->
     @index.setExclusive(id, not hasTail)
