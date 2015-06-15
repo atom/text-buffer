@@ -352,6 +352,13 @@ describe "Marker", ->
           {old: [0, 5], new: [0, 6]}
         ]
 
+      it "throws an error if an invalid range is given", ->
+        expect -> marker.setRange([[0, NaN], [0, 12]])
+          .toThrow "Invalid Point: (0, NaN)"
+
+        expect(buffer.findMarkers({})).toEqual [marker]
+        expect(marker.getRange()).toEqual [[0, 6], [0, 9]]
+
     describe "::clearTail() / ::plantTail()", ->
       it "clears the tail / plants the tail at the current head position", ->
         marker.setRange([[0, 6], [0, 9]], reversed: true)
