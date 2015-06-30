@@ -1816,7 +1816,7 @@ describe "TextBuffer", ->
           expect(ranges[1]).toEqual [[6,6], [6,9]]
 
       describe "when the portion of the match within the range does not matches the regex", ->
-        it "calls the iterator with the truncated match", ->
+        it "does not call the iterator with the truncated match", ->
           matches = []
           ranges = []
           buffer.scanInRange /cu(r*)e/g, [[4,0], [6,9]], ({match, range}) ->
@@ -1931,6 +1931,41 @@ describe "TextBuffer", ->
 
         expect(matches[0][0]).toBe ""
         expect(ranges[0]).toEqual [[0,0], [0,0]]
+
+    describe "when the first regex match exceeds the end of the range", ->
+      describe "when the portion of the match within the range also matches the regex", ->
+        it "calls the iterator with the truncated match", ->
+          matches = []
+          ranges = []
+          buffer.backwardsScanInRange /cu(r*)/g, [[4,0], [6,9]], ({match, range}) ->
+            matches.push(match)
+            ranges.push(range)
+
+          expect(matches.length).toBe 2
+          expect(ranges.length).toBe 2
+
+          expect(matches[0][0]).toBe 'cur'
+          expect(matches[0][1]).toBe 'r'
+          expect(ranges[0]).toEqual [[6,6], [6,9]]
+
+          expect(matches[1][0]).toBe 'curr'
+          expect(matches[1][1]).toBe 'rr'
+          expect(ranges[1]).toEqual [[5,6], [5,10]]
+
+      describe "when the portion of the match within the range does not matches the regex", ->
+        it "does not call the iterator with the truncated match", ->
+          matches = []
+          ranges = []
+          buffer.backwardsScanInRange /cu(r*)e/g, [[4,0], [6,9]], ({match, range}) ->
+            matches.push(match)
+            ranges.push(range)
+
+          expect(matches.length).toBe 1
+          expect(ranges.length).toBe 1
+
+          expect(matches[0][0]).toBe 'curre'
+          expect(matches[0][1]).toBe 'rr'
+          expect(ranges[0]).toEqual [[5,6], [5,11]]
 
     describe "when the iterator calls the 'replace' control function with a replacement string", ->
       it "replaces each occurrence of the regex match with the string", ->
