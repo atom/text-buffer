@@ -1906,6 +1906,32 @@ describe "TextBuffer", ->
         expect(matches[2][1]).toBe 'rr'
         expect(ranges[2]).toEqual [[5,6], [5,13]]
 
+    describe "when the last regex match starts at the beginning of the range", ->
+      it "calls the iterator with the match", ->
+        matches = []
+        ranges = []
+        buffer.scanInRange /quick/g, [[0,4], [2,0]], ({match, range}) ->
+          matches.push(match)
+          ranges.push(range)
+
+        expect(matches.length).toBe 1
+        expect(ranges.length).toBe 1
+
+        expect(matches[0][0]).toBe 'quick'
+        expect(ranges[0]).toEqual [[0,4], [0,9]]
+
+        matches = []
+        ranges = []
+        buffer.scanInRange /^/, [[0,0], [2,0]], ({match, range}) ->
+          matches.push(match)
+          ranges.push(range)
+
+        expect(matches.length).toBe 1
+        expect(ranges.length).toBe 1
+
+        expect(matches[0][0]).toBe ""
+        expect(ranges[0]).toEqual [[0,0], [0,0]]
+
     describe "when the iterator calls the 'replace' control function with a replacement string", ->
       it "replaces each occurrence of the regex match with the string", ->
         ranges = []
