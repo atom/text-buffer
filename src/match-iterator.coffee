@@ -27,11 +27,12 @@ class Forwards
 class Backwards
   constructor: (@text, @regex, @startIndex, endIndex, @chunkSize) ->
     @bufferedMatches = []
+    @doneScanning = false
     @chunkStartIndex = @chunkEndIndex = endIndex
     @lastMatchIndex = Infinity
 
   scanNextChunk: ->
-    return false if @chunkStartIndex is @startIndex
+    @doneScanning = @chunkStartIndex is @startIndex
 
     # If results were found in the last chunk, then scan to the beginning
     # of the previous result. Otherwise, continue to scan to the same position
@@ -65,11 +66,11 @@ class Backwards
         @regex.lastIndex = matchEndIndex
 
     @lastMatchIndex = firstResultIndex if firstResultIndex
-    true
 
   next: ->
-    while @bufferedMatches.length is 0
-      break unless @scanNextChunk()
+    until @doneScanning or @bufferedMatches.length > 0
+      @scanNextChunk()
+
     if match = @bufferedMatches.pop()
       {value: match, done: false}
     else
