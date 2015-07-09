@@ -4,6 +4,9 @@ SerializationVersion = 2
 
 class Checkpoint
   constructor: (@id, @snapshot) ->
+    unless @snapshot?
+      global.atom?.assert(false, "Checkpoint created without snapshot")
+      @snapshot = {}
 
 # Manages undo/redo for {TextBuffer}
 module.exports =
