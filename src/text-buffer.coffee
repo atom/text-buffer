@@ -76,6 +76,7 @@ class TextBuffer
   refcount: 0
   fileSubscriptions: null
   backwardsScanChunkSize: 8000
+  changeCount: 0
 
   ###
   Section: Construction
@@ -704,6 +705,8 @@ class TextBuffer
 
     @conflict = false if @conflict and !@isModified()
     @scheduleModifiedEvents()
+
+    @changeCount++
     @emitter.emit 'did-change', changeEvent
     @emit 'changed', changeEvent if Grim.includeDeprecatedAPIs
 
