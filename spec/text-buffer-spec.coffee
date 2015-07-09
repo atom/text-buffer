@@ -869,6 +869,11 @@ describe "TextBuffer", ->
         expect(buffer.rangeForRow(1, true)).toEqual([[1, 0], [2, 0]])
         expect(buffer.rangeForRow(2, true)).toEqual([[2, 0], [2, 7]])
 
+    describe "if the given row is out of range", ->
+      it "returns the range of the nearest valid row", ->
+        expect(buffer.rangeForRow(-1)).toEqual([[0, 0], [0, 4]])
+        expect(buffer.rangeForRow(10)).toEqual([[2, 0], [2, 7]])
+
   describe "::onDidChangePath()", ->
     [filePath, newPath, bufferToChange, eventHandler] = []
 

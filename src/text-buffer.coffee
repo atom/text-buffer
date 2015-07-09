@@ -1105,6 +1105,9 @@ class TextBuffer
       Grim.deprecate("The second param is no longer an object, it's a boolean argument named `includeNewline`.")
       {includeNewline} = includeNewline
 
+    row = Math.max(row, 0)
+    row = Math.min(row, @getLastRow())
+
     if includeNewline and row < @getLastRow()
       new Range(new Point(row, 0), new Point(row + 1, 0))
     else
