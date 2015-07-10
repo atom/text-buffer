@@ -881,18 +881,15 @@ class TextBuffer
       @transactCallDepth++
       result = fn()
     catch exception
-      @revertToCheckpoint(checkpointBefore)
+      @revertToCheckpoint(checkpointBefore, true)
       throw exception unless exception instanceof TransactionAbortedError
       return
     finally
       @transactCallDepth--
 
-    checkpointAfter = @history.createCheckpoint(@markerStore.createSnapshot(true))
-    @history.groupChangesSinceCheckpoint(checkpointBefore)
+    @history.groupChangesSinceCheckpoint(checkpointBefore, @markerStore.createSnapshot(true), true)
+    @history.applyGroupingInterval(groupingInterval)
 
-    now = Date.now()
-    @history.setCheckpointGroupingInterval(checkpointAfter, now, groupingInterval)
-    @history.applyCheckpointGroupingInterval(checkpointBefore, now, groupingInterval)
     result
 
   abortTransaction: ->
