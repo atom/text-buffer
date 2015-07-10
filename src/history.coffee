@@ -62,12 +62,12 @@ class History
 
     if checkpointIndex?
       if changesSinceCheckpoint.length > 0
-        spliceIndex = checkpointIndex
-        spliceIndex++ unless deleteCheckpoint
-        @undoStack.splice(spliceIndex)
+        @undoStack.splice(checkpointIndex + 1)
         @undoStack.push(new GroupStart(startSnapshot))
         @undoStack.push(changesSinceCheckpoint...)
         @undoStack.push(new GroupEnd(endSnapshot))
+      if deleteCheckpoint
+        @undoStack.splice(checkpointIndex, 1)
       true
     else
       false

@@ -138,7 +138,7 @@ describe "TextBuffer", ->
         buffer.setTextInRange([[0, 10], [0, 100]], "w", {undo: 'skip'})
         expect(buffer.lineForRow(0)).toBe "yellow"
 
-        buffer.undo()
+        expect(buffer.undo()).toBe true
         expect(buffer.lineForRow(0)).toBe "hellow"
 
     describe "when the normalizeLineEndings argument is true (the default)", ->
