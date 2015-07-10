@@ -932,7 +932,7 @@ class TextBuffer
   #
   # Returns a {Boolean} indicating whether the operation succeeded.
   groupChangesSinceCheckpoint: (checkpoint) ->
-    @history.groupChangesSinceCheckpoint(checkpoint)
+    @history.groupChangesSinceCheckpoint(checkpoint, @markerStore.createSnapshot(false), false)
 
   ###
   Section: Search And Replace

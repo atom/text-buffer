@@ -525,6 +525,7 @@ describe "TextBuffer", ->
           buffer.append("three\n")
           buffer.append("four")
 
+        marker = buffer.markRange([[0, 1], [2, 3]])
         result = buffer.groupChangesSinceCheckpoint(checkpoint)
 
         expect(result).toBe true
@@ -545,6 +546,8 @@ describe "TextBuffer", ->
           three
           four
         """
+
+        expect(marker.getRange()).toEqual [[0, 1], [2, 3]]
 
       it "skips any later checkpoints when grouping changes", ->
         buffer.append("one\n")
