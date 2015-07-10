@@ -493,6 +493,30 @@ describe "TextBuffer", ->
         buffer.redo()
         expect(buffer.getText()).toBe "heyyyyy!!\nworms\r\nhow are you doing?"
 
+      it "allows undo/redo within transactions", ->
+        buffer.setText("")
+        buffer.markPosition([0, 0])
+
+        buffer.transact ->
+          buffer.append("a")
+          buffer.transact -> buffer.append("b")
+          buffer.append("c")
+
+          buffer.undo()
+          expect(buffer.getText()).toBe "ab"
+
+          buffer.undo()
+          expect(buffer.getText()).toBe "a"
+
+          buffer.redo()
+          expect(buffer.getText()).toBe "ab"
+
+          buffer.redo()
+          expect(buffer.getText()).toBe "abc"
+
+        buffer.undo()
+        expect(buffer.getText()).toBe ""
+
   describe "checkpoints", ->
     beforeEach ->
       buffer = new TextBuffer

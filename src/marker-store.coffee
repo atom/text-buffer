@@ -123,6 +123,7 @@ class MarkerStore
 
   restoreFromSnapshot: (snapshots) ->
     markersUpdated = false
+    return unless snapshots?
     for id in Object.keys(@markersById)
       if marker = @markersById[id]
         if snapshot = snapshots[id]
