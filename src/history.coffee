@@ -36,26 +36,29 @@ class History
 
   groupChangesSinceCheckpoint: (checkpointId, endSnapshot, deleteCheckpoint=false) ->
     withinGroup = false
-    checkpointIndex = -1
+    checkpointIndex = null
     startSnapshot = null
     changesSinceCheckpoint = []
-    for entry, i in @undoStack by -1
-      if entry instanceof GroupEnd
-        withinGroup = true
-      else if entry instanceof GroupStart
-        if withinGroup
-          withinGroup = false
-        else
-          return false
-      else if entry instanceof Checkpoint
-        if entry.id is checkpointId
-          checkpointIndex = i
-          startSnapshot = entry.snapshot
-          break
-      else
-        changesSinceCheckpoint.unshift(entry)
 
-    if checkpointIndex >= 0
+    for entry, i in @undoStack by -1
+      break if checkpointIndex?
+
+      switch entry.constructor
+        when GroupEnd
+          withinGroup = true
+        when GroupStart
+          if withinGroup
+            withinGroup = false
+          else
+            return false
+        when Checkpoint
+          if entry.id is checkpointId
+            checkpointIndex = i
+            startSnapshot = entry.snapshot
+        else
+          changesSinceCheckpoint.unshift(entry)
+
+    if checkpointIndex?
       if changesSinceCheckpoint.length > 0
         spliceIndex = checkpointIndex
         spliceIndex++ unless deleteCheckpoint
@@ -93,30 +96,33 @@ class History
   popUndoStack: (currentSnapshot) ->
     snapshotAbove = null
     snapshotBelow = null
-    spliceIndex = -1
+    spliceIndex = null
     withinGroup = false
     invertedChanges = []
-    for entry, i in @undoStack by -1
-      if entry instanceof GroupStart
-        if withinGroup
-          snapshotBelow = entry.snapshot
-          spliceIndex = i
-          break
-        else
-          return false
-      else if entry instanceof GroupEnd
-        if withinGroup
-          throw new Error("Invalid undo stack state")
-        else
-          snapshotAbove = entry.snapshot
-          withinGroup = true
-      else unless entry instanceof Checkpoint
-        invertedChanges.push(@delegate.invertChange(entry))
-        unless withinGroup
-          spliceIndex = i
-          break
 
-    if spliceIndex >= 0
+    for entry, i in @undoStack by -1
+      break if spliceIndex?
+
+      switch entry.constructor
+        when GroupStart
+          if withinGroup
+            snapshotBelow = entry.snapshot
+            spliceIndex = i
+          else
+            return false
+        when GroupEnd
+          if withinGroup
+            throw new Error("Invalid undo stack state")
+          else
+            snapshotAbove = entry.snapshot
+            withinGroup = true
+        when Checkpoint
+        else
+          invertedChanges.push(@delegate.invertChange(entry))
+          unless withinGroup
+            spliceIndex = i
+
+    if spliceIndex?
       _.defaults(snapshotAbove, currentSnapshot) if snapshotAbove?
       @redoStack.push(@undoStack.splice(spliceIndex).reverse()...)
       {
@@ -129,33 +135,36 @@ class History
   popRedoStack: (currentSnapshot) ->
     snapshotAbove = null
     snapshotBelow = null
-    spliceIndex = -1
+    spliceIndex = null
     withinGroup = false
     changes = []
+
     for entry, i in @redoStack by -1
-      if entry instanceof GroupEnd
-        if withinGroup
-          snapshotBelow = entry.snapshot
-          spliceIndex = i
-          break
+      break if spliceIndex?
+
+      switch entry.constructor
+        when GroupEnd
+          if withinGroup
+            snapshotBelow = entry.snapshot
+            spliceIndex = i
+          else
+            return false
+        when GroupStart
+          if withinGroup
+            throw new Error("Invalid redo stack state")
+          else
+            snapshotAbove = entry.snapshot
+            withinGroup = true
+        when Checkpoint
         else
-          return false
-      else if entry instanceof GroupStart
-        if withinGroup
-          throw new Error("Invalid redo stack state")
-        else
-          snapshotAbove = entry.snapshot
-          withinGroup = true
-      else unless entry instanceof Checkpoint
-        changes.push(entry)
-        unless withinGroup
-          spliceIndex = i
-          break
+          changes.push(entry)
+          unless withinGroup
+            spliceIndex = i
 
     while @redoStack[spliceIndex - 1] instanceof Checkpoint
       spliceIndex--
 
-    if spliceIndex >= 0
+    if spliceIndex?
       _.defaults(snapshotAbove, currentSnapshot) if snapshotAbove?
       @undoStack.push(@redoStack.splice(spliceIndex).reverse()...)
       {
@@ -167,29 +176,32 @@ class History
 
   truncateUndoStack: (checkpointId) ->
     snapshotBelow = null
-    spliceIndex = -1
+    spliceIndex = null
     withinGroup = false
     invertedChanges = []
-    for entry, i in @undoStack by -1
-      if entry instanceof GroupStart
-        if withinGroup
-          withinGroup = false
-        else
-          return false
-      else if entry instanceof GroupEnd
-        if withinGroup
-          throw new Error("Invalid undo stack state")
-        else
-          withinGroup = true
-      else if entry instanceof Checkpoint
-        if entry.id is checkpointId
-          spliceIndex = i
-          snapshotBelow = entry.snapshot
-          break
-      else
-        invertedChanges.push(@delegate.invertChange(entry))
 
-    if spliceIndex >= 0
+    for entry, i in @undoStack by -1
+      break if spliceIndex?
+
+      switch entry.constructor
+        when GroupStart
+          if withinGroup
+            withinGroup = false
+          else
+            return false
+        when GroupEnd
+          if withinGroup
+            throw new Error("Invalid undo stack state")
+          else
+            withinGroup = true
+        when Checkpoint
+          if entry.id is checkpointId
+            spliceIndex = i
+            snapshotBelow = entry.snapshot
+        else
+          invertedChanges.push(@delegate.invertChange(entry))
+
+    if spliceIndex?
       @undoStack.splice(spliceIndex)
       {
         snapshot: snapshotBelow
