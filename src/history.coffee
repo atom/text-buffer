@@ -232,6 +232,12 @@ class History
   Section: Private
   ###
 
+  getCheckpointIndex: (checkpointId) ->
+    for entry, i in @undoStack by -1
+      if entry instanceof Checkpoint and entry.id is checkpointId
+        return i
+    return null
+
   serializeStack: (stack) ->
     for entry in stack
       switch entry.constructor
