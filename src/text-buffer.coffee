@@ -850,12 +850,18 @@ class TextBuffer
     if pop = @history.popUndoStack(@markerStore.createSnapshot())
       @applyChange(change, true) for change in pop.changes
       @markerStore.restoreFromSnapshot(pop.snapshot)
+      true
+    else
+      false
 
   # Public: Redo the last operation
   redo: ->
     if pop = @history.popRedoStack(@markerStore.createSnapshot())
       @applyChange(change, true) for change in pop.changes
       @markerStore.restoreFromSnapshot(pop.snapshot)
+      true
+    else
+      false
 
   # Public: Batch multiple operations as a single undo/redo step.
   #
@@ -875,7 +881,7 @@ class TextBuffer
       fn = groupingInterval
       groupingInterval = 0
 
-    checkpointBefore = @history.createCheckpoint(@markerStore.createSnapshot(false))
+    checkpointBefore = @history.createCheckpoint(@markerStore.createSnapshot(false), true)
 
     try
       @transactCallDepth++
@@ -903,7 +909,7 @@ class TextBuffer
   #
   # Returns a checkpoint value.
   createCheckpoint: ->
-    @history.createCheckpoint(@markerStore.createSnapshot())
+    @history.createCheckpoint(@markerStore.createSnapshot(), false)
 
   # Public: Revert the buffer to the state it was in when the given
   # checkpoint was created.

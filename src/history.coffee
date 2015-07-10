@@ -3,7 +3,7 @@ _ = require 'underscore-plus'
 SerializationVersion = 2
 
 class Checkpoint
-  constructor: (@id, @snapshot) ->
+  constructor: (@id, @snapshot, @isBoundary) ->
     unless @snapshot?
       global.atom?.assert(false, "Checkpoint created without snapshot")
       @snapshot = {}
@@ -29,8 +29,8 @@ class History
     @undoStack = []
     @redoStack = []
 
-  createCheckpoint: (snapshot) ->
-    checkpoint = new Checkpoint(@nextCheckpointId++, snapshot)
+  createCheckpoint: (snapshot, isBoundary) ->
+    checkpoint = new Checkpoint(@nextCheckpointId++, snapshot, isBoundary)
     @undoStack.push(checkpoint)
     checkpoint.id
 
@@ -55,6 +55,8 @@ class History
           if entry.id is checkpointId
             checkpointIndex = i
             startSnapshot = entry.snapshot
+          else if entry.isBoundary
+            return false
         else
           changesSinceCheckpoint.unshift(entry)
 
@@ -117,6 +119,8 @@ class History
             snapshotAbove = entry.snapshot
             withinGroup = true
         when Checkpoint
+          if entry.isBoundary
+            return false
         else
           invertedChanges.push(@delegate.invertChange(entry))
           unless withinGroup
@@ -156,6 +160,8 @@ class History
             snapshotAbove = entry.snapshot
             withinGroup = true
         when Checkpoint
+          if entry.isBoundary
+            throw new Error("Invalid redo stack state")
         else
           changes.push(entry)
           unless withinGroup
@@ -198,6 +204,8 @@ class History
           if entry.id is checkpointId
             spliceIndex = i
             snapshotBelow = entry.snapshot
+          else if entry.isBoundary
+            return false
         else
           invertedChanges.push(@delegate.invertChange(entry))
 
@@ -246,6 +254,7 @@ class History
             type: 'checkpoint'
             id: entry.id
             snapshot: @delegate.serializeSnapshot(entry.snapshot)
+            isBoundary: entry.isBoundary
           }
         when GroupStart
           {
@@ -270,6 +279,7 @@ class History
           new Checkpoint(
             entry.id
             @delegate.deserializeSnapshot(entry.snapshot)
+            entry.isBoundary
           )
         when 'group-start'
           new GroupStart(

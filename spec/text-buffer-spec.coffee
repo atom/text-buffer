@@ -493,29 +493,43 @@ describe "TextBuffer", ->
         buffer.redo()
         expect(buffer.getText()).toBe "heyyyyy!!\nworms\r\nhow are you doing?"
 
-      it "allows undo/redo within transactions", ->
+      it "allows undo/redo within transactions, but not beyond the start of the containing transaction", ->
         buffer.setText("")
         buffer.markPosition([0, 0])
 
+        buffer.append("a")
+
         buffer.transact ->
-          buffer.append("a")
-          buffer.transact -> buffer.append("b")
-          buffer.append("c")
+          buffer.append("b")
+          buffer.transact -> buffer.append("c")
+          buffer.append("d")
 
-          buffer.undo()
-          expect(buffer.getText()).toBe "ab"
-
-          buffer.undo()
-          expect(buffer.getText()).toBe "a"
-
-          buffer.redo()
-          expect(buffer.getText()).toBe "ab"
-
-          buffer.redo()
+          expect(buffer.undo()).toBe true
           expect(buffer.getText()).toBe "abc"
 
-        buffer.undo()
-        expect(buffer.getText()).toBe ""
+          expect(buffer.undo()).toBe true
+          expect(buffer.getText()).toBe "ab"
+
+          expect(buffer.undo()).toBe true
+          expect(buffer.getText()).toBe "a"
+
+          expect(buffer.undo()).toBe false
+          expect(buffer.getText()).toBe "a"
+
+          expect(buffer.redo()).toBe true
+          expect(buffer.getText()).toBe "ab"
+
+          expect(buffer.redo()).toBe true
+          expect(buffer.getText()).toBe "abc"
+
+          expect(buffer.redo()).toBe true
+          expect(buffer.getText()).toBe "abcd"
+
+          expect(buffer.redo()).toBe false
+          expect(buffer.getText()).toBe "abcd"
+
+        expect(buffer.undo()).toBe true
+        expect(buffer.getText()).toBe "a"
 
   describe "checkpoints", ->
     beforeEach ->
@@ -659,6 +673,22 @@ describe "TextBuffer", ->
       buffer.append("world")
       expect(buffer.revertToCheckpoint(checkpoint)).toBe(false)
       expect(buffer.getText()).toBe("world")
+
+    it "does not allow changes based on checkpoints outside of the current transaction", ->
+      checkpoint = buffer.createCheckpoint()
+
+      buffer.append("a")
+
+      buffer.transact ->
+        expect(buffer.revertToCheckpoint(checkpoint)).toBe false
+        expect(buffer.getText()).toBe "a"
+
+        buffer.append("b")
+
+        expect(buffer.groupChangesSinceCheckpoint(checkpoint)).toBe false
+
+      buffer.undo()
+      expect(buffer.getText()).toBe "a"
 
   describe "::getTextInRange(range)", ->
     it "returns the text in a given range", ->
