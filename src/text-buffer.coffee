@@ -850,12 +850,18 @@ class TextBuffer
     if pop = @history.popUndoStack(@markerStore.createSnapshot())
       @applyChange(change, true) for change in pop.changes
       @markerStore.restoreFromSnapshot(pop.snapshot)
+      true
+    else
+      false
 
   # Public: Redo the last operation
   redo: ->
     if pop = @history.popRedoStack(@markerStore.createSnapshot())
       @applyChange(change, true) for change in pop.changes
       @markerStore.restoreFromSnapshot(pop.snapshot)
+      true
+    else
+      false
 
   # Public: Batch multiple operations as a single undo/redo step.
   #
@@ -875,24 +881,21 @@ class TextBuffer
       fn = groupingInterval
       groupingInterval = 0
 
-    checkpointBefore = @history.createCheckpoint(@markerStore.createSnapshot(false))
+    checkpointBefore = @history.createCheckpoint(@markerStore.createSnapshot(false), true)
 
     try
       @transactCallDepth++
       result = fn()
     catch exception
-      @revertToCheckpoint(checkpointBefore)
+      @revertToCheckpoint(checkpointBefore, true)
       throw exception unless exception instanceof TransactionAbortedError
       return
     finally
       @transactCallDepth--
 
-    checkpointAfter = @history.createCheckpoint(@markerStore.createSnapshot(true))
-    @history.groupChangesSinceCheckpoint(checkpointBefore)
+    @history.groupChangesSinceCheckpoint(checkpointBefore, @markerStore.createSnapshot(true), true)
+    @history.applyGroupingInterval(groupingInterval)
 
-    now = Date.now()
-    @history.setCheckpointGroupingInterval(checkpointAfter, now, groupingInterval)
-    @history.applyCheckpointGroupingInterval(checkpointBefore, now, groupingInterval)
     result
 
   abortTransaction: ->
@@ -906,7 +909,7 @@ class TextBuffer
   #
   # Returns a checkpoint value.
   createCheckpoint: ->
-    @history.createCheckpoint(@markerStore.createSnapshot())
+    @history.createCheckpoint(@markerStore.createSnapshot(), false)
 
   # Public: Revert the buffer to the state it was in when the given
   # checkpoint was created.
@@ -935,7 +938,7 @@ class TextBuffer
   #
   # Returns a {Boolean} indicating whether the operation succeeded.
   groupChangesSinceCheckpoint: (checkpoint) ->
-    @history.groupChangesSinceCheckpoint(checkpoint)
+    @history.groupChangesSinceCheckpoint(checkpoint, @markerStore.createSnapshot(false), false)
 
   ###
   Section: Search And Replace

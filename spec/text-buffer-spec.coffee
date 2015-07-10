@@ -138,7 +138,7 @@ describe "TextBuffer", ->
         buffer.setTextInRange([[0, 10], [0, 100]], "w", {undo: 'skip'})
         expect(buffer.lineForRow(0)).toBe "yellow"
 
-        buffer.undo()
+        expect(buffer.undo()).toBe true
         expect(buffer.lineForRow(0)).toBe "hellow"
 
     describe "when the normalizeLineEndings argument is true (the default)", ->
@@ -493,6 +493,44 @@ describe "TextBuffer", ->
         buffer.redo()
         expect(buffer.getText()).toBe "heyyyyy!!\nworms\r\nhow are you doing?"
 
+      it "allows undo/redo within transactions, but not beyond the start of the containing transaction", ->
+        buffer.setText("")
+        buffer.markPosition([0, 0])
+
+        buffer.append("a")
+
+        buffer.transact ->
+          buffer.append("b")
+          buffer.transact -> buffer.append("c")
+          buffer.append("d")
+
+          expect(buffer.undo()).toBe true
+          expect(buffer.getText()).toBe "abc"
+
+          expect(buffer.undo()).toBe true
+          expect(buffer.getText()).toBe "ab"
+
+          expect(buffer.undo()).toBe true
+          expect(buffer.getText()).toBe "a"
+
+          expect(buffer.undo()).toBe false
+          expect(buffer.getText()).toBe "a"
+
+          expect(buffer.redo()).toBe true
+          expect(buffer.getText()).toBe "ab"
+
+          expect(buffer.redo()).toBe true
+          expect(buffer.getText()).toBe "abc"
+
+          expect(buffer.redo()).toBe true
+          expect(buffer.getText()).toBe "abcd"
+
+          expect(buffer.redo()).toBe false
+          expect(buffer.getText()).toBe "abcd"
+
+        expect(buffer.undo()).toBe true
+        expect(buffer.getText()).toBe "a"
+
   describe "checkpoints", ->
     beforeEach ->
       buffer = new TextBuffer
@@ -525,6 +563,7 @@ describe "TextBuffer", ->
           buffer.append("three\n")
           buffer.append("four")
 
+        marker = buffer.markRange([[0, 1], [2, 3]])
         result = buffer.groupChangesSinceCheckpoint(checkpoint)
 
         expect(result).toBe true
@@ -545,6 +584,8 @@ describe "TextBuffer", ->
           three
           four
         """
+
+        expect(marker.getRange()).toEqual [[0, 1], [2, 3]]
 
       it "skips any later checkpoints when grouping changes", ->
         buffer.append("one\n")
@@ -632,6 +673,22 @@ describe "TextBuffer", ->
       buffer.append("world")
       expect(buffer.revertToCheckpoint(checkpoint)).toBe(false)
       expect(buffer.getText()).toBe("world")
+
+    it "does not allow changes based on checkpoints outside of the current transaction", ->
+      checkpoint = buffer.createCheckpoint()
+
+      buffer.append("a")
+
+      buffer.transact ->
+        expect(buffer.revertToCheckpoint(checkpoint)).toBe false
+        expect(buffer.getText()).toBe "a"
+
+        buffer.append("b")
+
+        expect(buffer.groupChangesSinceCheckpoint(checkpoint)).toBe false
+
+      buffer.undo()
+      expect(buffer.getText()).toBe "a"
 
   describe "::getTextInRange(range)", ->
     it "returns the text in a given range", ->

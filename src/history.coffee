@@ -3,10 +3,18 @@ _ = require 'underscore-plus'
 SerializationVersion = 2
 
 class Checkpoint
-  constructor: (@id, @snapshot) ->
+  constructor: (@id, @snapshot, @isBoundary) ->
     unless @snapshot?
       global.atom?.assert(false, "Checkpoint created without snapshot")
       @snapshot = {}
+
+class GroupStart
+  constructor: (@snapshot) ->
+
+class GroupEnd
+  constructor: (@snapshot) ->
+    @timestamp = Date.now()
+    @groupingInterval = 0
 
 # Manages undo/redo for {TextBuffer}
 module.exports =
@@ -21,75 +29,191 @@ class History
     @undoStack = []
     @redoStack = []
 
-  createCheckpoint: (snapshot) ->
-    checkpoint = new Checkpoint(@nextCheckpointId++, snapshot)
+  createCheckpoint: (snapshot, isBoundary) ->
+    checkpoint = new Checkpoint(@nextCheckpointId++, snapshot, isBoundary)
     @undoStack.push(checkpoint)
     checkpoint.id
 
-  groupChangesSinceCheckpoint: (checkpointId) ->
-    checkpointIndex = @getCheckpointIndex(checkpointId)
-    return false unless checkpointIndex?
-    for i in [(@undoStack.length - 2)...checkpointIndex] by -1
-      @undoStack.splice(i, 1) if @undoStack[i] instanceof Checkpoint
-    true
+  groupChangesSinceCheckpoint: (checkpointId, endSnapshot, deleteCheckpoint=false) ->
+    withinGroup = false
+    checkpointIndex = null
+    startSnapshot = null
+    changesSinceCheckpoint = []
 
-  applyCheckpointGroupingInterval: (checkpointId, now, groupingInterval) ->
+    for entry, i in @undoStack by -1
+      break if checkpointIndex?
+
+      switch entry.constructor
+        when GroupEnd
+          withinGroup = true
+        when GroupStart
+          if withinGroup
+            withinGroup = false
+          else
+            return false
+        when Checkpoint
+          if entry.id is checkpointId
+            checkpointIndex = i
+            startSnapshot = entry.snapshot
+          else if entry.isBoundary
+            return false
+        else
+          changesSinceCheckpoint.unshift(entry)
+
+    if checkpointIndex?
+      if changesSinceCheckpoint.length > 0
+        @undoStack.splice(checkpointIndex + 1)
+        @undoStack.push(new GroupStart(startSnapshot))
+        @undoStack.push(changesSinceCheckpoint...)
+        @undoStack.push(new GroupEnd(endSnapshot))
+      if deleteCheckpoint
+        @undoStack.splice(checkpointIndex, 1)
+      true
+    else
+      false
+
+  applyGroupingInterval: (groupingInterval) ->
+    topEntry = @undoStack[@undoStack.length - 1]
+    if topEntry instanceof GroupEnd
+      topEntry.groupingInterval = groupingInterval
+    else
+      return
+
     return if groupingInterval is 0
 
-    checkpointIndex = @getCheckpointIndex(checkpointId)
-    return unless checkpointIndex?
+    for entry, i in @undoStack by -1
+      if entry instanceof GroupStart
+        previousEntry = @undoStack[i - 1]
+        if previousEntry instanceof GroupEnd
+          if (topEntry.timestamp - previousEntry.timestamp < Math.min(previousEntry.groupingInterval, groupingInterval))
+            @undoStack.splice(i - 1, 2)
+        return
 
-    i = lastCheckpointIndex = checkpointIndex
-    while entry = @undoStack[--i]
-      if entry instanceof Checkpoint
-        if (entry.timestamp + Math.min(entry.groupingInterval, groupingInterval)) <= now
-          break
-        @undoStack.splice(lastCheckpointIndex, 1)
-        lastCheckpointIndex = i
-
-    @undoStack[lastCheckpointIndex].timestamp = now
-    @undoStack[lastCheckpointIndex].groupingInterval = groupingInterval
-
-  setCheckpointGroupingInterval: (checkpointId, timestamp, groupingInterval) ->
-    checkpointIndex = @getCheckpointIndex(checkpointId)
-    checkpoint = @undoStack[checkpointIndex]
-    checkpoint.timestamp = timestamp
-    checkpoint.groupingInterval = groupingInterval
+    throw new Error("Didn't find matching group-start entry")
 
   pushChange: (change) ->
     @undoStack.push(change)
     @clearRedoStack()
 
   popUndoStack: (currentSnapshot) ->
-    if (checkpointIndex = @getBoundaryCheckpointIndex(@undoStack))?
-      pop = @popChanges(@undoStack, @redoStack, checkpointIndex)
-      _.defaults(pop.snapshotAbove, currentSnapshot)
+    snapshotAbove = null
+    snapshotBelow = null
+    spliceIndex = null
+    withinGroup = false
+    invertedChanges = []
+
+    for entry, i in @undoStack by -1
+      break if spliceIndex?
+
+      switch entry.constructor
+        when GroupStart
+          if withinGroup
+            snapshotBelow = entry.snapshot
+            spliceIndex = i
+          else
+            return false
+        when GroupEnd
+          if withinGroup
+            throw new Error("Invalid undo stack state")
+          else
+            snapshotAbove = entry.snapshot
+            withinGroup = true
+        when Checkpoint
+          if entry.isBoundary
+            return false
+        else
+          invertedChanges.push(@delegate.invertChange(entry))
+          unless withinGroup
+            spliceIndex = i
+
+    if spliceIndex?
+      _.defaults(snapshotAbove, currentSnapshot) if snapshotAbove?
+      @redoStack.push(@undoStack.splice(spliceIndex).reverse()...)
       {
-        snapshot: pop.snapshotBelow
-        changes: (@delegate.invertChange(change) for change in pop.changes)
+        snapshot: snapshotBelow
+        changes: invertedChanges
       }
     else
       false
 
   popRedoStack: (currentSnapshot) ->
-    if (checkpointIndex = @getBoundaryCheckpointIndex(@redoStack))?
-      checkpointIndex-- while @redoStack[checkpointIndex - 1] instanceof Checkpoint
-      checkpointIndex++ if @redoStack[checkpointIndex - 1]?
-      pop = @popChanges(@redoStack, @undoStack, checkpointIndex, true)
-      _.defaults(pop.snapshotAbove, currentSnapshot)
+    snapshotAbove = null
+    snapshotBelow = null
+    spliceIndex = null
+    withinGroup = false
+    changes = []
+
+    for entry, i in @redoStack by -1
+      break if spliceIndex?
+
+      switch entry.constructor
+        when GroupEnd
+          if withinGroup
+            snapshotBelow = entry.snapshot
+            spliceIndex = i
+          else
+            return false
+        when GroupStart
+          if withinGroup
+            throw new Error("Invalid redo stack state")
+          else
+            snapshotAbove = entry.snapshot
+            withinGroup = true
+        when Checkpoint
+          if entry.isBoundary
+            throw new Error("Invalid redo stack state")
+        else
+          changes.push(entry)
+          unless withinGroup
+            spliceIndex = i
+
+    while @redoStack[spliceIndex - 1] instanceof Checkpoint
+      spliceIndex--
+
+    if spliceIndex?
+      _.defaults(snapshotAbove, currentSnapshot) if snapshotAbove?
+      @undoStack.push(@redoStack.splice(spliceIndex).reverse()...)
       {
-        snapshot: pop.snapshotBelow
-        changes: pop.changes
+        snapshot: snapshotBelow
+        changes: changes
       }
     else
       false
 
   truncateUndoStack: (checkpointId) ->
-    if (checkpointIndex = @getCheckpointIndex(checkpointId))?
-      pop = @popChanges(@undoStack, null, checkpointIndex)
+    snapshotBelow = null
+    spliceIndex = null
+    withinGroup = false
+    invertedChanges = []
+
+    for entry, i in @undoStack by -1
+      break if spliceIndex?
+
+      switch entry.constructor
+        when GroupStart
+          if withinGroup
+            withinGroup = false
+          else
+            return false
+        when GroupEnd
+          if withinGroup
+            throw new Error("Invalid undo stack state")
+          else
+            withinGroup = true
+        when Checkpoint
+          if entry.id is checkpointId
+            spliceIndex = i
+            snapshotBelow = entry.snapshot
+          else if entry.isBoundary
+            return false
+        else
+          invertedChanges.push(@delegate.invertChange(entry))
+
+    if spliceIndex?
+      @undoStack.splice(spliceIndex)
       {
-        snapshot: pop.snapshotBelow
-        changes: (@delegate.invertChange(change) for change in pop.changes)
+        snapshot: snapshotBelow
+        changes: invertedChanges
       }
     else
       false
@@ -122,41 +246,31 @@ class History
         return i
     return null
 
-  getBoundaryCheckpointIndex: (stack) ->
-    hasSeenChanges = false
-    for entry, i in stack by -1
-      if entry instanceof Checkpoint
-        return i if hasSeenChanges
-      else
-        hasSeenChanges = true
-    null
-
-  popChanges: (fromStack, toStack, checkpointIndex, lookBack) ->
-    changes = []
-    snapshotAbove = null
-    snapshotBelow = fromStack[checkpointIndex].snapshot
-    splicedEntries = fromStack.splice(checkpointIndex)
-    for entry in splicedEntries by -1
-      toStack?.push(entry)
-      if entry instanceof Checkpoint
-        snapshotAbove = entry.snapshot if changes.length is 0
-      else
-        changes.push(entry)
-    {changes, snapshotAbove, snapshotBelow}
-
   serializeStack: (stack) ->
     for entry in stack
-      if entry instanceof Checkpoint
-        {
-          type: 'checkpoint'
-          id: entry.id
-          snapshot: @delegate.serializeSnapshot(entry.snapshot)
-        }
-      else
-        {
-          type: 'change'
-          content: @delegate.serializeChange(entry)
-        }
+      switch entry.constructor
+        when Checkpoint
+          {
+            type: 'checkpoint'
+            id: entry.id
+            snapshot: @delegate.serializeSnapshot(entry.snapshot)
+            isBoundary: entry.isBoundary
+          }
+        when GroupStart
+          {
+            type: 'group-start'
+            snapshot: @delegate.serializeSnapshot(entry.snapshot)
+          }
+        when GroupEnd
+          {
+            type: 'group-end'
+            snapshot: @delegate.serializeSnapshot(entry.snapshot)
+          }
+        else
+          {
+            type: 'change'
+            content: @delegate.serializeChange(entry)
+          }
 
   deserializeStack: (stack) ->
     for entry in stack
@@ -164,6 +278,15 @@ class History
         when 'checkpoint'
           new Checkpoint(
             entry.id
+            @delegate.deserializeSnapshot(entry.snapshot)
+            entry.isBoundary
+          )
+        when 'group-start'
+          new GroupStart(
+            @delegate.deserializeSnapshot(entry.snapshot)
+          )
+        when 'group-end'
+          new GroupEnd(
             @delegate.deserializeSnapshot(entry.snapshot)
           )
         when 'change'
