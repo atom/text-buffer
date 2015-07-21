@@ -51,7 +51,7 @@ class Marker
     @valid ?= true
     @invalidate ?= 'overlap'
     @persistent ?= true
-    @maintainHistory ?= true
+    @maintainHistory ?= false
     @properties ?= {}
     @hasChangeObservers = false
     @rangeWhenDestroyed = null

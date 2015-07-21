@@ -43,8 +43,8 @@ describe "Marker", ->
         marker = buffer.markRange([[-100, -100], [100, 100]])
         expect(marker.getRange()).toEqual [[0, 0], [0, 26]]
 
-      it "allows markers to opt out of snapshotting for undo/redo", ->
-        marker1 = buffer.markPosition([0, 3])
+      it "allows markers to opt in to snapshotting for undo/redo", ->
+        marker1 = buffer.markPosition([0, 3], maintainHistory: true)
         marker2 = buffer.markPosition([0, 3], maintainHistory: false)
 
         marker1Events = []
@@ -105,7 +105,7 @@ describe "Marker", ->
     [marker, changes] = []
 
     beforeEach ->
-      marker = buffer.markRange([[0, 6], [0, 9]])
+      marker = buffer.markRange([[0, 6], [0, 9]], maintainHistory: true)
       changes = []
       markersUpdatedCount = 0
       marker.onDidChange (change) -> changes.push(change)
@@ -458,7 +458,7 @@ describe "Marker", ->
     [allStrategies, neverMarker, surroundMarker, overlapMarker, insideMarker, touchMarker] = []
 
     beforeEach ->
-      overlapMarker = buffer.markRange([[0, 6], [0, 9]], invalidate: 'overlap')
+      overlapMarker = buffer.markRange([[0, 6], [0, 9]], invalidate: 'overlap', maintainHistory: true)
       neverMarker = overlapMarker.copy(invalidate: 'never')
       surroundMarker = overlapMarker.copy(invalidate: 'surround')
       insideMarker = overlapMarker.copy(invalidate: 'inside')
@@ -849,8 +849,8 @@ describe "Marker", ->
           buffer.append('\n')
           buffer.append('bar')
 
-        marker1 = buffer.markRange([[0, 0], [0, 3]], invalidate: 'never')
-        marker2 = buffer.markRange([[1, 0], [1, 3]], invalidate: 'never')
+        marker1 = buffer.markRange([[0, 0], [0, 3]], invalidate: 'never', maintainHistory: true)
+        marker2 = buffer.markRange([[1, 0], [1, 3]], invalidate: 'never', maintainHistory: true)
 
         marker1Ranges = []
         marker2Ranges = []
@@ -877,7 +877,7 @@ describe "Marker", ->
 
       it "only records marker patches for direct marker updates", ->
         buffer.setText("abcd")
-        marker = buffer.markRange([[0, 3], [0, 3]])
+        marker = buffer.markRange([[0, 3], [0, 3]], maintainHistory: true)
 
         buffer.transact ->
           buffer.delete([[0, 0], [0, 1]])
@@ -890,7 +890,7 @@ describe "Marker", ->
 
     describe "when a marker is updated before undoing or redoing", ->
       it "restores the marker to its state before/after the undone/redone change", ->
-        marker = buffer.markRange([[0, 5], [0, 5]])
+        marker = buffer.markRange([[0, 5], [0, 5]], maintainHistory: true)
 
         buffer.insert([0, 5], "...")
         expect(marker.getRange()).toEqual [[0, 5], [0, 8]]
