@@ -982,7 +982,7 @@ describe "Marker", ->
     beforeEach ->
       marker1 = buffer.markRange([[0, 0], [0, 3]], class: 'a')
       marker2 = buffer.markRange([[0, 0], [0, 5]], class: 'a', invalidate: 'surround')
-      marker3 = buffer.markRange([[0, 4], [0, 7]], class: 'a')
+      marker3 = buffer.markRange([[0, 4], [0, 7]], class: 'a', maintainHistory: true)
       marker4 = buffer.markRange([[0, 0], [0, 7]], class: 'b', invalidate: 'never')
 
     it "can find markers based on custom properties", ->
@@ -993,6 +993,10 @@ describe "Marker", ->
       expect(buffer.findMarkers(invalidate: 'overlap')).toEqual [marker1, marker3]
       expect(buffer.findMarkers(invalidate: 'surround')).toEqual [marker2]
       expect(buffer.findMarkers(invalidate: 'never')).toEqual [marker4]
+
+    it "can find markers based on whether or not their history is maintained", ->
+      expect(buffer.findMarkers(maintainHistory: true)).toEqual [marker3]
+      expect(buffer.findMarkers(maintainHistory: false)).toEqual [marker4, marker2, marker1]
 
     it "can find markers that start or end at a given position", ->
       expect(buffer.findMarkers(startPosition: [0, 0])).toEqual [marker4, marker2, marker1]
