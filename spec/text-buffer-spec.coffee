@@ -575,7 +575,7 @@ describe "TextBuffer", ->
           buffer.append("three\n")
           buffer.append("four")
 
-        marker = buffer.markRange([[0, 1], [2, 3]])
+        marker = buffer.markRange([[0, 1], [2, 3]], maintainHistory: true)
         result = buffer.groupChangesSinceCheckpoint(checkpoint)
 
         expect(result).toBe true

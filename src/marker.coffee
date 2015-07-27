@@ -51,7 +51,7 @@ class Marker
     @valid ?= true
     @invalidate ?= 'overlap'
     @persistent ?= true
-    @maintainHistory ?= true
+    @maintainHistory ?= false
     @properties ?= {}
     @hasChangeObservers = false
     @rangeWhenDestroyed = null
@@ -324,7 +324,7 @@ class Marker
         @getEndPosition().row is value
       when 'intersectsRow'
         @intersectsRow(value)
-      when 'invalidate', 'reversed', 'tailed', 'persistent'
+      when 'invalidate', 'reversed', 'tailed', 'persistent', 'maintainHistory'
         isEqual(@[key], value)
       else
         isEqual(@properties[key], value)
