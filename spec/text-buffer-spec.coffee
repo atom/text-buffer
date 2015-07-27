@@ -3,6 +3,8 @@
 temp = require 'temp'
 {File} = require 'pathwatcher'
 Random = require 'random-seed'
+Point = require '../src/point'
+Range = require '../src/range'
 TextBuffer = require '../src/text-buffer'
 SampleText = readFileSync(join(__dirname, 'fixtures', 'sample.js'), 'utf8')
 
@@ -131,6 +133,16 @@ describe "TextBuffer", ->
       expect(buffer.lineEndingForRow(0)).toBe '\n'
       buffer.setTextInRange([[1, 1], [1, 3]], 'i')
       expect(buffer.lineEndingForRow(1)).toBe '\r\n'
+
+    it "freezes the passed-in range, since it is stored in the history", ->
+      range = Range(Point(0, 2), Point(0, 4))
+      buffer.setTextInRange(range, "y y")
+
+      range.start = Point(0, 3)
+      expect(range.start).toEqual [0, 2]
+
+      range.start.row = 5
+      expect(range.start).toEqual [0, 2]
 
     describe "when the undo option is 'skip'", ->
       it "replaces the contents of the buffer with the given text", ->

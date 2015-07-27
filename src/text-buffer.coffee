@@ -642,6 +642,8 @@ class TextBuffer
   # Applies a change to the buffer based on its old range and new text.
   applyChange: (change, skipUndo) ->
     {oldRange, newRange, oldText, newText, normalizeLineEndings} = change
+    oldRange.freeze()
+    newRange.freeze()
     @cachedText = null
 
     startRow = oldRange.start.row
