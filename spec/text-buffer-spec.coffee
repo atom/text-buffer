@@ -1770,7 +1770,6 @@ describe "TextBuffer", ->
             expect(fs.existsSync(backupFilePath)).toBe true
             expect(fs.existsSync(alternateBackupFilePath)).toBe false
 
-
       describe "if no file exists at the path", ->
         it "does not make a backup before writing", ->
           fs.removeSync(filePath) if fs.existsSync(filePath)
