@@ -1732,6 +1732,7 @@ describe "TextBuffer", ->
         saveAsBuffer = new TextBuffer()
         saveAsBuffer.setText 'Buffer contents'
         backupFilePath = filePath + '~'
+        fs.removeSync(backupFilePath) if fs.existsSync(backupFilePath)
 
       describe "if there is an existing file at the specified path", ->
         beforeEach ->
@@ -1755,6 +1756,17 @@ describe "TextBuffer", ->
 
             expect(fs.readFileSync(filePath, 'utf8')).toBe 'File contents'
             expect(fs.existsSync(backupFilePath)).toBe false
+
+        describe "if a file already exists at the default backup path", ->
+          it "chooses a different backup file name to avoid overwriting the existing file", ->
+            fs.writeFileSync(backupFilePath, 'Contents of file at default backup path')
+
+            saveAsBuffer.saveAs(filePath, backup: true)
+            expect(fs.readFileSync(filePath, 'utf8')).toBe 'Buffer contents'
+            expect(fs.readFileSync(backupFilePath, 'utf8')).toBe 'Contents of file at default backup path'
+            expect(fs.existsSync(backupFilePath)).toBe true
+            expect(fs.existsSync(backupFilePath + '~')).toBe false
+
 
       describe "if no file exists at the path", ->
         it "does not make a backup before writing", ->

@@ -1215,6 +1215,7 @@ class TextBuffer
 
     if options?.backup and @file.existsSync()
       backupFilePath = filePath + '~'
+      backupFilePath += '~' while fs.existsSync(backupFilePath)
       fs.writeFileSync(backupFilePath, @file.readSync())
 
     try
