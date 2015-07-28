@@ -1230,7 +1230,6 @@ class TextBuffer
     catch error
       if backupFilePath?
         fs.writeFileSync(filePath, fs.readFileSync(backupFilePath))
-        fs.removeSync(backupFilePath)
       throw error
 
     @cachedDiskContents = @getText()

@@ -1745,7 +1745,7 @@ describe "TextBuffer", ->
             expect(fs.existsSync(backupFilePath)).toBe false
 
         describe "if an exception is thrown while writing to the file", ->
-          it "restores the file's original contents from the backup copy, deletes the backup copy, and re-throws the exception", ->
+          it "restores the file's original contents from the backup copy, preserves the backup copy just in case, and re-throws the exception", ->
             saveAsBuffer.setPath(filePath)
             originalWriteSync = saveAsBuffer.file.writeSync
             saveAsBuffer.file.writeSync = (args...) ->
@@ -1755,7 +1755,7 @@ describe "TextBuffer", ->
             expect(-> saveAsBuffer.saveAs(filePath, backup: true)).toThrow 'Something broke'
 
             expect(fs.readFileSync(filePath, 'utf8')).toBe 'File contents'
-            expect(fs.existsSync(backupFilePath)).toBe false
+            expect(fs.existsSync(backupFilePath)).toBe true
 
         describe "if a file already exists at the default backup path", ->
           it "chooses a different backup file name to avoid overwriting the existing file", ->
