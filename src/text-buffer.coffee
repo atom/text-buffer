@@ -1200,8 +1200,8 @@ class TextBuffer
   ###
 
   # Public: Save the buffer.
-  save: ->
-    @saveAs(@getPath())
+  save: (options) ->
+    @saveAs(@getPath(), options)
 
   # Public: Save the buffer at a specific path.
   #
