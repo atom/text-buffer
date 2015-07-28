@@ -1215,7 +1215,7 @@ class TextBuffer
     @setPath(filePath)
 
     if options?.backup
-      backupFilePath = @backupFileContentsBeforeWriting()
+      backupFilePath = @backUpFileContentsBeforeWriting()
 
     try
       @file.writeSync(@getText())
@@ -1257,7 +1257,7 @@ class TextBuffer
       @cachedDiskContents = contents
       callback?()
 
-  backupFileContentsBeforeWriting: ->
+  backUpFileContentsBeforeWriting: ->
     return unless @file.existsSync()
 
     backupFilePath = @getPath() + '~'
