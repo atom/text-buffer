@@ -1264,7 +1264,6 @@ class TextBuffer
       @cachedDiskContents = contents
       callback?()
 
-  # Creates a backup file for the given path when writing.
   backupFileContentsBeforeWriting: ->
     return unless @file.existsSync()
 
@@ -1273,11 +1272,11 @@ class TextBuffer
     backupFD = fs.openSync(backupFilePath, 'w')
     fs.writeSync(backupFD, @file.readSync())
 
-    # ensure backup file contents are really on disk before proceeding
+    # Ensure backup file contents are really on disk before proceeding
     fs.fdatasyncSync(backupFD)
     fs.closeSync(backupFD)
 
-    # ensure backup file directory entry is really on disk before proceeding
+    # Ensure backup file directory entry is really on disk before proceeding
     backupDirectoryFD = fs.openSync(path.dirname(backupFilePath), 'r')
     fs.fdatasyncSync(backupDirectoryFD)
     fs.closeSync(backupDirectoryFD)
