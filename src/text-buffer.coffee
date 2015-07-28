@@ -1218,15 +1218,8 @@ class TextBuffer
       backupFilePath = @backupFileContentsBeforeWriting()
 
     try
-      if backupFilePath
-        fd = fs.openSync(filePath, 'w') # We open fd so we can call fdatasync
-        @file.writeSync(@getText()) # File::writeSync does privelege escalation, so we don't use fd here
-        fs.fdatasyncSync(fd) # Ensure file is written to disk before proceeding
-        fs.closeSync(fd)
-        fs.removeSync(backupFilePath)
-      else
-        @file.writeSync(@getText())
-
+      @file.writeSync(@getText())
+      @removeBackupFileAfterWriting(backupFilePath) if backupFilePath?
     catch error
       if backupFilePath?
         fs.writeFileSync(filePath, fs.readFileSync(backupFilePath))
@@ -1282,6 +1275,14 @@ class TextBuffer
     fs.closeSync(backupDirectoryFD)
 
     backupFilePath
+
+  removeBackupFileAfterWriting: (backupFilePath) ->
+    # Ensure new file contents are really on disk before proceeding
+    fd = fs.openSync(@getPath(), 'a')
+    fs.fdatasyncSync(fd)
+    fs.closeSync(fd)
+
+    fs.removeSync(backupFilePath)
 
   ###
   Section: Private Utility Methods
