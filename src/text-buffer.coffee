@@ -1220,11 +1220,12 @@ class TextBuffer
 
     try
       @file.writeSync(@getText())
-    catch error
-      fs.writeFileSync(filePath, fs.readFileSync(backupFilePath)) if backupFilePath?
-      throw error
-    finally
       fs.removeSync(backupFilePath) if backupFilePath?
+    catch error
+      if backupFilePath?
+        fs.writeFileSync(filePath, fs.readFileSync(backupFilePath))
+        fs.removeSync(backupFilePath)
+      throw error
 
     @cachedDiskContents = @getText()
     @conflict = false
