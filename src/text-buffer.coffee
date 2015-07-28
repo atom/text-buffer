@@ -7,6 +7,7 @@ diff = require 'atom-diff'
 Q = require 'q'
 _ = require 'underscore-plus'
 fs = require 'fs-plus'
+path = require 'path'
 
 Point = require './point'
 Range = require './range'
@@ -1213,14 +1214,19 @@ class TextBuffer
     @emit 'will-be-saved', this if Grim.includeDeprecatedAPIs
     @setPath(filePath)
 
-    if options?.backup and @file.existsSync()
-      backupFilePath = filePath + '~'
-      backupFilePath += '~' while fs.existsSync(backupFilePath)
-      fs.writeFileSync(backupFilePath, @file.readSync())
+    if options?.backup
+      backupFilePath = @backupFileContentsBeforeWriting()
 
     try
-      @file.writeSync(@getText())
-      fs.removeSync(backupFilePath) if backupFilePath?
+      if backupFilePath
+        fd = fs.openSync(filePath, 'w') # We open fd so we can call fdatasync
+        @file.writeSync(@getText()) # File::writeSync does privelege escalation, so we don't use fd here
+        fs.fdatasyncSync(fd) # Ensure file is written to disk before proceeding
+        fs.closeSync(fd)
+        fs.removeSync(backupFilePath)
+      else
+        @file.writeSync(@getText())
+
     catch error
       if backupFilePath?
         fs.writeFileSync(filePath, fs.readFileSync(backupFilePath))
@@ -1258,6 +1264,26 @@ class TextBuffer
     Q(@file?.read(flushCache) ? "").then (contents) =>
       @cachedDiskContents = contents
       callback?()
+
+  # Creates a backup file for the given path when writing.
+  backupFileContentsBeforeWriting: ->
+    return unless @file.existsSync()
+
+    backupFilePath = @getPath() + '~'
+    backupFilePath += '~' while fs.existsSync(backupFilePath)
+    backupFD = fs.openSync(backupFilePath, 'w')
+    fs.writeSync(backupFD, @file.readSync())
+
+    # ensure backup file contents are really on disk before proceeding
+    fs.fdatasyncSync(backupFD)
+    fs.closeSync(backupFD)
+
+    # ensure backup file directory entry is really on disk before proceeding
+    backupDirectoryFD = fs.openSync(path.dirname(backupFilePath), 'r')
+    fs.fdatasyncSync(backupDirectoryFD)
+    fs.closeSync(backupDirectoryFD)
+
+    backupFilePath
 
   ###
   Section: Private Utility Methods
