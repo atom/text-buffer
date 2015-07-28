@@ -1261,7 +1261,13 @@ class TextBuffer
     return unless @file.existsSync()
 
     backupFilePath = @getPath() + '~'
-    backupFilePath += '~' while fs.existsSync(backupFilePath)
+
+    maxTildes = 10
+    while fs.existsSync(backupFilePath)
+      if --maxTildes is 0
+        throw new Error("Can't create a backup file for #{@getPath()} because files already exist at every candidate path.")
+      backupFilePath += '~'
+
     backupFD = fs.openSync(backupFilePath, 'w')
     fs.writeSync(backupFD, @file.readSync())
 
