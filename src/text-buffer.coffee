@@ -6,6 +6,7 @@ SpanSkipList = require 'span-skip-list'
 diff = require 'atom-diff'
 Q = require 'q'
 _ = require 'underscore-plus'
+fs = require 'fs-plus'
 
 Point = require './point'
 Range = require './range'
@@ -1205,13 +1206,25 @@ class TextBuffer
   # Public: Save the buffer at a specific path.
   #
   # * `filePath` The path to save at.
-  saveAs: (filePath) ->
+  saveAs: (filePath, options) ->
     unless filePath then throw new Error("Can't save buffer with no file path")
 
     @emitter.emit 'will-save', {path: filePath}
     @emit 'will-be-saved', this if Grim.includeDeprecatedAPIs
     @setPath(filePath)
-    @file.writeSync(@getText())
+
+    if options?.backup and @file.existsSync()
+      backupFilePath = filePath + '~'
+      fs.writeFileSync(backupFilePath, @file.readSync())
+
+    try
+      @file.writeSync(@getText())
+    catch error
+      fs.writeFileSync(filePath, fs.readFileSync(backupFilePath)) if backupFilePath?
+      throw error
+    finally
+      fs.removeSync(backupFilePath) if backupFilePath?
+
     @cachedDiskContents = @getText()
     @conflict = false
     @emitModifiedStatusChanged(false)

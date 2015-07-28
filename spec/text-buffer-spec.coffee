@@ -1676,7 +1676,7 @@ describe "TextBuffer", ->
         expect(buffer.isInConflict()).toBeFalsy()
         expect(buffer.getText()).toBe(fileContents)
 
-  describe "::saveAs(path)", ->
+  describe "::saveAs(path, {backup})", ->
     [filePath, saveAsBuffer] = []
 
     afterEach ->
@@ -1723,6 +1723,46 @@ describe "TextBuffer", ->
 
       waitsFor ->
         changeHandler.callCount > 0
+
+    describe "if the 'backup' option is true", ->
+      [backupFilePath, saveAsBuffer] = []
+
+      beforeEach ->
+        filePath = join(temp.dir, 'temp.txt')
+        saveAsBuffer = new TextBuffer()
+        saveAsBuffer.setText 'Buffer contents'
+        backupFilePath = filePath + '~'
+
+      describe "if there is an existing file at the specified path", ->
+        beforeEach ->
+          fs.writeFileSync(filePath, 'File contents')
+
+        describe "if the file is written cleanly", ->
+          it "deletes the backup copy after writing", ->
+            saveAsBuffer.saveAs(filePath, backup: true)
+            expect(fs.readFileSync(filePath, 'utf8')).toBe 'Buffer contents'
+            expect(fs.existsSync(backupFilePath)).toBe false
+
+        describe "if an exception is thrown while writing to the file", ->
+          it "restores the file's original contents from the backup copy, deletes the backup copy, and re-throws the exception", ->
+            saveAsBuffer.setPath(filePath)
+            originalWriteSync = saveAsBuffer.file.writeSync
+            saveAsBuffer.file.writeSync = (args...) ->
+              originalWriteSync.apply(saveAsBuffer.file, args)
+              throw new Error('Something broke')
+
+            expect(-> saveAsBuffer.saveAs(filePath, backup: true)).toThrow 'Something broke'
+
+            expect(fs.readFileSync(filePath, 'utf8')).toBe 'File contents'
+            expect(fs.existsSync(backupFilePath)).toBe false
+
+      describe "if no file exists at the path", ->
+        it "does not make a backup before writing", ->
+          fs.removeSync(filePath) if fs.existsSync(filePath)
+          expect(fs.existsSync(filePath)).toBe false
+          expect(fs.existsSync(backupFilePath)).toBe false
+          saveAsBuffer.saveAs(filePath, backup: true)
+          expect(fs.existsSync(backupFilePath)).toBe false
 
   describe "::getTextInRange(range)", ->
     beforeEach ->
