@@ -1219,7 +1219,8 @@ class TextBuffer
 
     try
       @file.writeSync(@getText())
-      @removeBackupFileAfterWriting(backupFilePath) if backupFilePath?
+      if backupFilePath?
+        @removeBackupFileAfterWriting(backupFilePath)
     catch error
       if backupFilePath?
         fs.writeFileSync(filePath, fs.readFileSync(backupFilePath))
