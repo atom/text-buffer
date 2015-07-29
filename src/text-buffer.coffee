@@ -6,6 +6,8 @@ SpanSkipList = require 'span-skip-list'
 diff = require 'atom-diff'
 Q = require 'q'
 _ = require 'underscore-plus'
+fs = require 'fs-plus'
+path = require 'path'
 
 Point = require './point'
 Range = require './range'
@@ -1207,19 +1209,31 @@ class TextBuffer
   ###
 
   # Public: Save the buffer.
-  save: ->
-    @saveAs(@getPath())
+  save: (options) ->
+    @saveAs(@getPath(), options)
 
   # Public: Save the buffer at a specific path.
   #
   # * `filePath` The path to save at.
-  saveAs: (filePath) ->
+  saveAs: (filePath, options) ->
     unless filePath then throw new Error("Can't save buffer with no file path")
 
     @emitter.emit 'will-save', {path: filePath}
     @emit 'will-be-saved', this if Grim.includeDeprecatedAPIs
     @setPath(filePath)
-    @file.writeSync(@getText())
+
+    if options?.backup
+      backupFilePath = @backUpFileContentsBeforeWriting()
+
+    try
+      @file.writeSync(@getText())
+      if backupFilePath?
+        @removeBackupFileAfterWriting(backupFilePath)
+    catch error
+      if backupFilePath?
+        fs.writeFileSync(filePath, fs.readFileSync(backupFilePath))
+      throw error
+
     @cachedDiskContents = @getText()
     @conflict = false
     @emitModifiedStatusChanged(false)
@@ -1251,6 +1265,39 @@ class TextBuffer
     Q(@file?.read(flushCache) ? "").then (contents) =>
       @cachedDiskContents = contents
       callback?()
+
+  backUpFileContentsBeforeWriting: ->
+    return unless @file.existsSync()
+
+    backupFilePath = @getPath() + '~'
+
+    maxTildes = 10
+    while fs.existsSync(backupFilePath)
+      if --maxTildes is 0
+        throw new Error("Can't create a backup file for #{@getPath()} because files already exist at every candidate path.")
+      backupFilePath += '~'
+
+    backupFD = fs.openSync(backupFilePath, 'w')
+    fs.writeSync(backupFD, @file.readSync())
+
+    # Ensure backup file contents are really on disk before proceeding
+    fs.fdatasyncSync(backupFD)
+    fs.closeSync(backupFD)
+
+    # Ensure backup file directory entry is really on disk before proceeding
+    backupDirectoryFD = fs.openSync(path.dirname(backupFilePath), 'r')
+    fs.fdatasyncSync(backupDirectoryFD)
+    fs.closeSync(backupDirectoryFD)
+
+    backupFilePath
+
+  removeBackupFileAfterWriting: (backupFilePath) ->
+    # Ensure new file contents are really on disk before proceeding
+    fd = fs.openSync(@getPath(), 'a')
+    fs.fdatasyncSync(fd)
+    fs.closeSync(fd)
+
+    fs.removeSync(backupFilePath)
 
   ###
   Section: Private Utility Methods
