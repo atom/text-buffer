@@ -2416,3 +2416,57 @@ describe "TextBuffer", ->
       runs ->
         buffer.undo()
         expect(buffer.getText()).toBe 'тест 1234 абвгдеёжз'
+
+  describe "crash recovery", ->
+    [buffer, filePath, crashRecoveryDirectory] = []
+
+    beforeEach ->
+      filePath = join(temp.dir, 'file-to-recover.txt')
+      crashRecoveryDirectory = join(temp.dir, 'crash-recovery')
+      fs.removeSync(filePath) if fs.existsSync(filePath)
+      fs.removeSync(crashRecoveryDirectory) if fs.existsSync(crashRecoveryDirectory)
+
+      buffer = new TextBuffer({filePath, crashRecoveryDirectory, load: true})
+      waitsFor ->
+        buffer.loaded
+
+    it "writes unsaved modifications to a file in crashRecoveryDirectory, then deletes the recovery on save", ->
+      runs ->
+        buffer.setText("Hello World")
+
+      waitsFor "crash recovery file to be written", ->
+        fs.existsSync(buffer.getCrashRecoveryPath())
+
+      runs ->
+        buffer.save()
+
+      waitsFor "crash recovery file to be removed", ->
+        not fs.existsSync(buffer.getCrashRecoveryPath())
+
+    it "clears the crash recovery when restored to an unmodified state via text changes", ->
+      runs ->
+        buffer.setText("Hello World")
+
+      waitsFor "crash recovery file to be written", ->
+        fs.existsSync(buffer.getCrashRecoveryPath())
+
+      runs ->
+        expect(buffer.isModified()).toBe true
+        buffer.setText("")
+        expect(buffer.isModified()).toBe false
+
+      waitsFor "crash recovery file to be removed", ->
+        not fs.existsSync(buffer.getCrashRecoveryPath())
+
+    it "clears the crash recovery when the buffer is cleanly destroyed", ->
+      runs ->
+        buffer.setText("Hello World")
+
+      waitsFor "crash recovery file to be written", ->
+        fs.existsSync(buffer.getCrashRecoveryPath())
+
+      runs ->
+        buffer.destroy()
+
+      waitsFor "crash recovery file to be removed", ->
+        not fs.existsSync(buffer.getCrashRecoveryPath())

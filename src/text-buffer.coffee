@@ -17,6 +17,8 @@ Patch = require './patch'
 MatchIterator = require './match-iterator'
 {spliceArray, newlineRegex} = require './helpers'
 
+PathSeparatorRegex = new RegExp(path.sep, 'g')
+
 class SearchCallbackArgument
   Object.defineProperty @::, "range",
     get: ->
@@ -104,6 +106,7 @@ class TextBuffer
 
     @loaded = false
     @transactCallDepth = 0
+    @crashRecoveryDirectory = params?.crashRecoveryDirectory
     @digestWhenLastPersisted = params?.digestWhenLastPersisted ? false
     @modifiedWhenLastPersisted = params?.modifiedWhenLastPersisted ? false
     @useSerializedText = @modifiedWhenLastPersisted isnt false
@@ -1227,6 +1230,7 @@ class TextBuffer
 
     try
       @file.writeSync(@getText())
+      @removeCrashRecovery()
       if backupFilePath?
         @removeBackupFileAfterWriting(backupFilePath)
     catch error
@@ -1236,7 +1240,7 @@ class TextBuffer
 
     @cachedDiskContents = @getText()
     @conflict = false
-    @emitModifiedStatusChanged(false)
+    @didChangeModifiedStatus(false)
     @emitter.emit 'did-save', {path: filePath}
     @emit 'saved', this if Grim.includeDeprecatedAPIs
 
@@ -1247,7 +1251,7 @@ class TextBuffer
     @emitter.emit 'will-reload'
     @emit 'will-reload' if Grim.includeDeprecatedAPIs
     @setTextViaDiff(@cachedDiskContents, skipUndo)
-    @emitModifiedStatusChanged(false)
+    @didChangeModifiedStatus(false)
     @emitter.emit 'did-reload'
     @emit 'reloaded' if Grim.includeDeprecatedAPIs
 
@@ -1314,15 +1318,30 @@ class TextBuffer
     if @isAlive()
       @loaded = true
       if @useSerializedText and @digestWhenLastPersisted is @file?.getDigestSync()
-        @emitModifiedStatusChanged(true)
+        @didChangeModifiedStatus(true)
       else
         @reload(skipUndo)
       @clearUndoStack()
     this
 
+  saveCrashRecovery: ->
+    if crashRecoveryPath = @getCrashRecoveryPath()
+      fs.writeFile(crashRecoveryPath, @getText(), @getEncoding())
+
+  removeCrashRecovery: ->
+    if crashRecoveryPath = @getCrashRecoveryPath()
+      fs.exists crashRecoveryPath, (exists) ->
+        if exists
+          fs.unlink(crashRecoveryPath)
+
+  getCrashRecoveryPath: ->
+    if @crashRecoveryDirectory and @getPath()
+      path.join(@crashRecoveryDirectory, @getPath().replace(PathSeparatorRegex, '%'))
+
   destroy: ->
     unless @destroyed
       @cancelStoppedChangingTimeout()
+      @removeCrashRecovery()
       @fileSubscriptions?.dispose()
       @unsubscribe() if Grim.includeDeprecatedAPIs
       @destroyed = true
@@ -1395,14 +1414,16 @@ class TextBuffer
     stoppedChangingCallback = =>
       @stoppedChangingTimeout = null
       modifiedStatus = @isModified()
+      @saveCrashRecovery() if modifiedStatus
       @emitter.emit 'did-stop-changing'
       @emit 'contents-modified', modifiedStatus if Grim.includeDeprecatedAPIs
-      @emitModifiedStatusChanged(modifiedStatus)
+      @didChangeModifiedStatus(modifiedStatus)
     @stoppedChangingTimeout = setTimeout(stoppedChangingCallback, @stoppedChangingDelay)
 
-  emitModifiedStatusChanged: (modifiedStatus) ->
+  didChangeModifiedStatus: (modifiedStatus) ->
     return if modifiedStatus is @previousModifiedStatus
     @previousModifiedStatus = modifiedStatus
+    @removeCrashRecovery() unless modifiedStatus
     @emitter.emit 'did-change-modified', modifiedStatus
     @emit 'modified-status-changed', modifiedStatus if Grim.includeDeprecatedAPIs
 
