@@ -81,6 +81,7 @@ class TextBuffer
   fileSubscriptions: null
   backwardsScanChunkSize: 8000
   changeCount: 0
+  hasPreviousCrashRecovery: false
 
   ###
   Section: Construction
@@ -339,11 +340,15 @@ class TextBuffer
   isModified: ->
     return false unless @loaded
     if @file
+      console.log 'A'
       if @file.existsSync()
+        console.log 'B', @getText(), @cachedDiskContents
         @getText() != @cachedDiskContents
       else
+        console.log 'C', @wasModifiedBeforeRemove, @isEmpty()
         @wasModifiedBeforeRemove ? not @isEmpty()
     else
+      console.log 'D'
       not @isEmpty()
 
   # Public: Determine if the in-memory contents of the buffer conflict with the
@@ -1230,7 +1235,6 @@ class TextBuffer
 
     try
       @file.writeSync(@getText())
-      @removeCrashRecovery()
       if backupFilePath?
         @removeBackupFileAfterWriting(backupFilePath)
     catch error
@@ -1240,20 +1244,30 @@ class TextBuffer
 
     @cachedDiskContents = @getText()
     @conflict = false
-    @didChangeModifiedStatus(false)
+    @removeCrashRecovery()
+    @emitModifiedStatusChange(false)
     @emitter.emit 'did-save', {path: filePath}
     @emit 'saved', this if Grim.includeDeprecatedAPIs
 
   # Public: Reload the buffer's contents from disk.
   #
   # Sets the buffer's content to the cached disk contents
-  reload: (skipUndo) ->
+  reload: (skipUndo, preserveCrashRecovery) ->
+    console.log 'RELOAD', @cachedDiskContents
+
     @emitter.emit 'will-reload'
     @emit 'will-reload' if Grim.includeDeprecatedAPIs
+
     @setTextViaDiff(@cachedDiskContents, skipUndo)
-    @didChangeModifiedStatus(false)
+    @removeCrashRecovery() unless preserveCrashRecovery
+    @emitModifiedStatusChange(false)
     @emitter.emit 'did-reload'
     @emit 'reloaded' if Grim.includeDeprecatedAPIs
+
+  canRecoverFromCrash: -> @hasPreviousCrashRecovery
+
+  recoverFromCrash: ->
+    @setText(fs.readFileSync(@getCrashRecoveryPath(), @getEncoding()))
 
   # Rereads the contents of the file, and stores them in the cache.
   updateCachedDiskContentsSync: ->
@@ -1312,15 +1326,19 @@ class TextBuffer
     @finishLoading()
 
   load: (skipUndo) ->
-    @updateCachedDiskContents().then => @finishLoading(skipUndo)
+    @updateCachedDiskContents()
+      .then(=> @checkForPreviousCrashRecovery())
+      .then(=> @finishLoading(skipUndo))
 
   finishLoading: (skipUndo) ->
+    console.log 'FINISH LOADING'
     if @isAlive()
       @loaded = true
       if @useSerializedText and @digestWhenLastPersisted is @file?.getDigestSync()
-        @didChangeModifiedStatus(true)
+        @emitModifiedStatusChange(true)
       else
-        @reload(skipUndo)
+        console.log 'CALLING RELOAD'
+        @reload(skipUndo, preserveCrashRecovery)
       @clearUndoStack()
     this
 
@@ -1333,6 +1351,14 @@ class TextBuffer
       fs.exists crashRecoveryPath, (exists) ->
         if exists
           fs.unlink(crashRecoveryPath)
+
+  checkForPreviousCrashRecovery: ->
+    new Promise (resolve) =>
+      if crashRecoveryPath = @getCrashRecoveryPath()
+        fs.exists crashRecoveryPath, (@hasPreviousCrashRecovery) =>
+          resolve(@hasPreviousCrashRecovery)
+      else
+        resolve(false)
 
   getCrashRecoveryPath: ->
     if @crashRecoveryDirectory and @getPath()
@@ -1385,6 +1411,7 @@ class TextBuffer
 
     @fileSubscriptions.add @file.onDidDelete =>
       modified = @getText() != @cachedDiskContents
+      console.log 'SETTING WAS MODIFIED BEFORE REMOVE', modified, @getText(), @cachedDiskContents
       @wasModifiedBeforeRemove = modified
       @emitter.emit 'did-delete'
       if modified
@@ -1414,16 +1441,20 @@ class TextBuffer
     stoppedChangingCallback = =>
       @stoppedChangingTimeout = null
       modifiedStatus = @isModified()
+      console.log 'stopped changing', modifiedStatus
+
       @saveCrashRecovery() if modifiedStatus
       @emitter.emit 'did-stop-changing'
       @emit 'contents-modified', modifiedStatus if Grim.includeDeprecatedAPIs
-      @didChangeModifiedStatus(modifiedStatus)
+      @removeCrashRecovery() unless modifiedStatus
+      @emitModifiedStatusChange(modifiedStatus)
     @stoppedChangingTimeout = setTimeout(stoppedChangingCallback, @stoppedChangingDelay)
 
-  didChangeModifiedStatus: (modifiedStatus) ->
+  emitModifiedStatusChange: (modifiedStatus) ->
+    console.log 'modified', modifiedStatus
+
     return if modifiedStatus is @previousModifiedStatus
     @previousModifiedStatus = modifiedStatus
-    @removeCrashRecovery() unless modifiedStatus
     @emitter.emit 'did-change-modified', modifiedStatus
     @emit 'modified-status-changed', modifiedStatus if Grim.includeDeprecatedAPIs
 

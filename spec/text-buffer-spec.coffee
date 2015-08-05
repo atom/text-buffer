@@ -2417,20 +2417,23 @@ describe "TextBuffer", ->
         buffer.undo()
         expect(buffer.getText()).toBe 'тест 1234 абвгдеёжз'
 
-  describe "crash recovery", ->
+  fdescribe "crash recovery", ->
     [buffer, filePath, crashRecoveryDirectory] = []
 
     beforeEach ->
       filePath = join(temp.dir, 'file-to-recover.txt')
       crashRecoveryDirectory = join(temp.dir, 'crash-recovery')
-      fs.removeSync(filePath) if fs.existsSync(filePath)
+      fs.writeFileSync(filePath, 'Previous Contents')
       fs.removeSync(crashRecoveryDirectory) if fs.existsSync(crashRecoveryDirectory)
 
       buffer = new TextBuffer({filePath, crashRecoveryDirectory, load: true})
-      waitsFor ->
-        buffer.loaded
+      waitsFor 500, -> buffer.loaded
 
-    it "writes unsaved modifications to a file in crashRecoveryDirectory, then deletes the recovery on save", ->
+    afterEach ->
+      fs.removeSync(filePath)
+      waits 100
+
+    ffit "writes unsaved modifications to a file in crashRecoveryDirectory, then deletes the recovery on save", ->
       runs ->
         buffer.setText("Hello World")
 
@@ -2443,16 +2446,22 @@ describe "TextBuffer", ->
       waitsFor "crash recovery file to be removed", ->
         not fs.existsSync(buffer.getCrashRecoveryPath())
 
-    it "clears the crash recovery when restored to an unmodified state via text changes", ->
-      runs ->
-        buffer.setText("Hello World")
+    ffit "clears the crash recovery when restored to an unmodified state via text changes", ->
+      console.log '>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>'
+      initialText = buffer.getText()
+      buffer.setText("Hello World")
 
       waitsFor "crash recovery file to be written", ->
         fs.existsSync(buffer.getCrashRecoveryPath())
 
       runs ->
         expect(buffer.isModified()).toBe true
-        buffer.setText("")
+        console.log 'SETTING', initialText
+        buffer.setText(initialText)
+
+      waits -> buffer.stoppedChangingDelay
+
+      runs ->
         expect(buffer.isModified()).toBe false
 
       waitsFor "crash recovery file to be removed", ->
@@ -2470,3 +2479,26 @@ describe "TextBuffer", ->
 
       waitsFor "crash recovery file to be removed", ->
         not fs.existsSync(buffer.getCrashRecoveryPath())
+
+    it "allows .recoverFromCrash() to be called if a recovery is present when the buffer is loaded", ->
+      buffer2 = null
+
+      runs ->
+        buffer.setText("Hello World")
+
+      waitsFor "crash recovery file to be written", ->
+        fs.existsSync(buffer.getCrashRecoveryPath())
+
+      runs ->
+        buffer2 = new TextBuffer({filePath, crashRecoveryDirectory, load: true})
+
+      waitsFor "buffer 2 to load", 1000, ->
+        buffer2.loaded
+
+      runs ->
+        expect(buffer2.canRecoverFromCrash()).toBe true
+        expect(buffer2.getText()).toBe ""
+
+        buffer2.recoverFromCrash()
+
+      waitsFor -> buffer2.getText() is "Hello World"
