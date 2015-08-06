@@ -4,7 +4,6 @@ Serializable = require 'serializable'
 {File} = require 'pathwatcher'
 SpanSkipList = require 'span-skip-list'
 diff = require 'atom-diff'
-Q = require 'q'
 _ = require 'underscore-plus'
 fs = require 'fs-plus'
 path = require 'path'
@@ -1262,7 +1261,12 @@ class TextBuffer
   # * `callback`   (optional) {Function} to call after the cached contents have
   #                been updated.
   updateCachedDiskContents: (flushCache=false, callback) ->
-    Q(@file?.read(flushCache) ? "").then (contents) =>
+    if @file?
+      promise = @file.read(flushCache)
+    else
+      promise = Promise.resolve("")
+
+    promise.then (contents) =>
       @cachedDiskContents = contents
       callback?()
 
