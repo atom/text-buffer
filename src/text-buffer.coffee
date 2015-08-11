@@ -1285,9 +1285,13 @@ class TextBuffer
     fs.closeSync(backupFD)
 
     # Ensure backup file directory entry is really on disk before proceeding
-    backupDirectoryFD = fs.openSync(path.dirname(backupFilePath), 'r')
-    fs.fdatasyncSync(backupDirectoryFD)
-    fs.closeSync(backupDirectoryFD)
+    #
+    # Windows doesn't support syncing on directories so we'll just have to live
+    # with less safety on that platform.
+    unless process.platform is 'win32'
+      backupDirectoryFD = fs.openSync(path.dirname(backupFilePath), 'r')
+      fs.fdatasyncSync(backupDirectoryFD)
+      fs.closeSync(backupDirectoryFD)
 
     backupFilePath
 
