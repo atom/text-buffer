@@ -99,7 +99,7 @@ class TextBuffer
     @history = params?.history ? new History(this)
     @markerStore = params?.markerStore ? new MarkerStore(this)
     @setEncoding(params?.encoding)
-    @preferredLineEnding = null
+    @setPreferredLineEnding(params?.preferredLineEnding)
 
     @loaded = false
     @transactCallDepth = 0
@@ -126,6 +126,7 @@ class TextBuffer
     filePath: @getPath()
     modifiedWhenLastPersisted: @isModified()
     digestWhenLastPersisted: @file?.getDigestSync()
+    preferredLineEnding: @preferredLineEnding
 
   ###
   Section: Event Subscription
@@ -393,7 +394,7 @@ class TextBuffer
   # Public: Returns the {String} encoding of this buffer.
   getEncoding: -> @encoding ? @file?.getEncoding()
 
-  setPreferredLineEnding: (preferredLineEnding) ->
+  setPreferredLineEnding: (preferredLineEnding=null) ->
     @preferredLineEnding = preferredLineEnding
 
   getPreferredLineEnding: ->

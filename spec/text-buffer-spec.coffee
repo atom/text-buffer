@@ -2262,6 +2262,13 @@ describe "TextBuffer", ->
         buffer.append(" d \r\n")
         expect(buffer.getText()).toBe "a \r\n b \r\n c \n d \n"
 
+      it "persists across serialization and deserialization", ->
+        bufferA = new TextBuffer
+        bufferA.setPreferredLineEnding("\r\n")
+
+        bufferB = TextBuffer.deserialize(bufferA.serialize())
+        expect(bufferB.getPreferredLineEnding()).toBe "\r\n"
+
   describe "character set encoding support", ->
     it "allows the encoding to be set on creation", ->
       filePath = join(__dirname, 'fixtures', 'win1251.txt')
