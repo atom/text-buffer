@@ -2311,6 +2311,23 @@ describe "TextBuffer", ->
             buffer.append("hello\n1\r\n2\n")
             expect(buffer.getText()).toBe "\ninitialtexthello\n1\n2\n"
 
+    describe "::setPreferredLineEnding(lineEnding)", ->
+      it "uses the given line ending when normalizing, rather than inferring one from the surrounding text", ->
+        buffer = new TextBuffer(text: "a \r\n")
+
+        expect(buffer.getPreferredLineEnding()).toBe null
+        buffer.append(" b \n")
+        expect(buffer.getText()).toBe "a \r\n b \r\n"
+
+        buffer.setPreferredLineEnding("\n")
+        expect(buffer.getPreferredLineEnding()).toBe "\n"
+        buffer.append(" c \n")
+        expect(buffer.getText()).toBe "a \r\n b \r\n c \n"
+
+        buffer.setPreferredLineEnding(null)
+        buffer.append(" d \r\n")
+        expect(buffer.getText()).toBe "a \r\n b \r\n c \n d \n"
+
   describe "character set encoding support", ->
     it "allows the encoding to be set on creation", ->
       filePath = join(__dirname, 'fixtures', 'win1251.txt')

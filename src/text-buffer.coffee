@@ -101,6 +101,7 @@ class TextBuffer
     @history = params?.history ? new History(this)
     @markerStore = params?.markerStore ? new MarkerStore(this)
     @setEncoding(params?.encoding)
+    @preferredLineEnding = null
 
     @loaded = false
     @transactCallDepth = 0
@@ -394,6 +395,12 @@ class TextBuffer
   # Public: Returns the {String} encoding of this buffer.
   getEncoding: -> @encoding ? @file?.getEncoding()
 
+  setPreferredLineEnding: (preferredLineEnding) ->
+    @preferredLineEnding = preferredLineEnding
+
+  getPreferredLineEnding: ->
+    @preferredLineEnding
+
   # Public: Get the path of the associated file.
   #
   # Returns a {String}.
@@ -656,8 +663,8 @@ class TextBuffer
 
     # Determine how to normalize the line endings of inserted text if enabled
     if normalizeLineEndings
-      normalizedEnding = @lineEndingForRow(startRow)
-      if normalizedEnding is ''
+      normalizedEnding = @preferredLineEnding ? @lineEndingForRow(startRow)
+      unless normalizedEnding
         if startRow > 0
           normalizedEnding = @lineEndingForRow(startRow - 1)
         else
