@@ -122,14 +122,27 @@ class MarkerStore
     @index.splice(start, oldExtent, newExtent)
 
   restoreFromSnapshot: (snapshots) ->
-    markersUpdated = false
     return unless snapshots?
-    for id in Object.keys(@markersById)
+
+    createdIds = new Set
+    snapshotIds = Object.keys(snapshots)
+    existingMarkerIds = Object.keys(@markersById)
+
+    for id in snapshotIds
+      snapshot = snapshots[id]
       if marker = @markersById[id]
-        if snapshot = snapshots[id]
-          marker.update(marker.getRange(), snapshot, true)
+        marker.update(marker.getRange(), snapshot, true)
+      else
+        newMarker = @createMarker(snapshot.range, snapshot)
+        createdIds.add(newMarker.id)
+
+    for id in existingMarkerIds
+      if (marker = @markersById[id]) and (not snapshots[id]?)
+        if @historiedMarkers.has(id)
+          marker.destroy()
         else
           marker.emitChangeEvent(marker.getRange(), true, false)
+
     @delegate.markersUpdated()
     return
 

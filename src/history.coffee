@@ -1,5 +1,3 @@
-_ = require 'underscore-plus'
-
 SerializationVersion = 2
 
 class Checkpoint
@@ -95,8 +93,7 @@ class History
     @undoStack.push(change)
     @clearRedoStack()
 
-  popUndoStack: (currentSnapshot) ->
-    snapshotAbove = null
+  popUndoStack: ->
     snapshotBelow = null
     spliceIndex = null
     withinGroup = false
@@ -116,7 +113,6 @@ class History
           if withinGroup
             throw new Error("Invalid undo stack state")
           else
-            snapshotAbove = entry.snapshot
             withinGroup = true
         when Checkpoint
           if entry.isBoundary
@@ -127,7 +123,6 @@ class History
             spliceIndex = i
 
     if spliceIndex?
-      _.defaults(snapshotAbove, currentSnapshot) if snapshotAbove?
       @redoStack.push(@undoStack.splice(spliceIndex).reverse()...)
       {
         snapshot: snapshotBelow
@@ -136,8 +131,7 @@ class History
     else
       false
 
-  popRedoStack: (currentSnapshot) ->
-    snapshotAbove = null
+  popRedoStack: ->
     snapshotBelow = null
     spliceIndex = null
     withinGroup = false
@@ -157,7 +151,6 @@ class History
           if withinGroup
             throw new Error("Invalid redo stack state")
           else
-            snapshotAbove = entry.snapshot
             withinGroup = true
         when Checkpoint
           if entry.isBoundary
@@ -171,7 +164,6 @@ class History
       spliceIndex--
 
     if spliceIndex?
-      _.defaults(snapshotAbove, currentSnapshot) if snapshotAbove?
       @undoStack.push(@redoStack.splice(spliceIndex).reverse()...)
       {
         snapshot: snapshotBelow

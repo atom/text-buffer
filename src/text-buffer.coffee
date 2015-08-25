@@ -865,7 +865,7 @@ class TextBuffer
 
   # Public: Undo the last operation. If a transaction is in progress, aborts it.
   undo: ->
-    if pop = @history.popUndoStack(@markerStore.createSnapshot())
+    if pop = @history.popUndoStack()
       @applyChange(change, true) for change in pop.changes
       @markerStore.restoreFromSnapshot(pop.snapshot)
       true
@@ -874,7 +874,7 @@ class TextBuffer
 
   # Public: Redo the last operation
   redo: ->
-    if pop = @history.popRedoStack(@markerStore.createSnapshot())
+    if pop = @history.popRedoStack()
       @applyChange(change, true) for change in pop.changes
       @markerStore.restoreFromSnapshot(pop.snapshot)
       true
