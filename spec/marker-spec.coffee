@@ -840,6 +840,8 @@ describe "Marker", ->
         }]
 
       it "correctly restores markers when the transaction is undone", ->
+        marker.destroy() for marker in allStrategies
+
         buffer.setText('')
 
         buffer.transact ->
@@ -849,31 +851,23 @@ describe "Marker", ->
           buffer.append('\n')
           buffer.append('bar')
 
-        marker1 = buffer.markRange([[0, 0], [0, 3]], invalidate: 'never', maintainHistory: true)
-        marker2 = buffer.markRange([[1, 0], [1, 3]], invalidate: 'never', maintainHistory: true)
-
-        marker1Ranges = []
-        marker2Ranges = []
-        buffer.onDidChange ->
-          marker1Ranges.push(marker1.getRange())
-          marker2Ranges.push(marker2.getRange())
+          buffer.markRange([[0, 0], [0, 3]], a: 'b', invalidate: 'never', maintainHistory: true)
+          buffer.markRange([[1, 0], [1, 3]], c: 'd', invalidate: 'never', maintainHistory: true)
 
         buffer.undo()
 
         expect(buffer.getText()).toBe 'foo'
-        expect(marker1Ranges).toEqual [[[0, 0], [0, 3]], [[0, 0], [0, 3]]]
-        expect(marker1.getRange()).toEqual([[0, 0], [0, 3]])
-        expect(marker2Ranges).toEqual [[[1, 0], [1, 0]], [[0, 3], [0, 3]]]
-        expect(marker2.getRange()).toEqual([[0, 3], [0, 3]])
+        markers = buffer.findMarkers({})
+        expect(markers).toEqual []
 
-        marker1Ranges = []
-        marker2Ranges = []
         buffer.redo()
 
-        expect(marker1Ranges).toEqual [[[0, 0], [1, 0]], [[0, 0], [1, 3]]]
-        expect(marker1.getRange()).toEqual([[0, 0], [0, 3]])
-        expect(marker2Ranges).toEqual [[[0, 3], [1, 0]], [[0, 3], [1, 3]]]
-        expect(marker2.getRange()).toEqual([[1, 0], [1, 3]])
+        expect(buffer.getText()).toBe 'foo\nbar'
+        markers = buffer.findMarkers({})
+        expect(markers[0].getProperties()).toEqual {a: 'b'}
+        expect(markers[1].getProperties()).toEqual {c: 'd'}
+        expect(markers[0].getRange()).toEqual [[0, 0], [0, 3]]
+        expect(markers[1].getRange()).toEqual [[1, 0], [1, 3]]
 
       it "only records marker patches for direct marker updates", ->
         buffer.setText("abcd")
@@ -969,12 +963,32 @@ describe "Marker", ->
       expect(marker.getStartPosition()).toEqual [0, 3]
       expect(marker.getEndPosition()).toEqual [0, 6]
 
-    it "does not reinsert a marker into ", ->
+    it "does not reinsert the marker if its range is later updated", ->
       marker = buffer.markRange([[0, 3], [0, 6]])
       marker.destroy()
       expect(buffer.findMarkers(intersectsRow: 0)).toEqual []
       marker.setRange([[0, 0], [0, 9]])
       expect(buffer.findMarkers(intersectsRow: 0)).toEqual []
+
+    it "recreates historied markers on undo", ->
+      marker1 = buffer.markRange([[0, 3], [0, 6]], a: 'b', maintainHistory: true)
+
+      createdMarkers = []
+      buffer.onDidCreateMarker (marker) ->
+        createdMarkers.push(marker)
+
+      buffer.append("...")
+      marker1.destroy()
+
+      marker2 = buffer.markRange([[0, 3], [0, 6]], c: 'd', maintainHistory: true)
+
+      buffer.undo()
+
+      expect(createdMarkers.length).toBe 2
+      expect(createdMarkers[1].getProperties()).toEqual {a: 'b'}
+      expect(createdMarkers[1].getRange()).toEqual [[0, 3], [0, 6]]
+
+      expect(marker2.isDestroyed()).toBe true
 
   describe "TextBuffer::findMarkers(properties)", ->
     [marker1, marker2, marker3, marker4] = []
