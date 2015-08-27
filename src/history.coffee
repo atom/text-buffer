@@ -83,7 +83,7 @@ class History
       if entry instanceof GroupStart
         previousEntry = @undoStack[i - 1]
         if previousEntry instanceof GroupEnd
-          if (topEntry.timestamp - previousEntry.timestamp < Math.min(previousEntry.groupingInterval, groupingInterval))
+          if (topEntry.timestamp - previousEntry.timestamp < Math.min(previousEntry.groupingInterval, groupingInterval)) or (previousEntry.groupingInterval is Infinity)
             @undoStack.splice(i - 1, 2)
         return
 
