@@ -1218,6 +1218,8 @@ class TextBuffer
 
   # Public: Save the buffer.
   save: (options) ->
+    return unless @isModified()
+    
     @saveAs(@getPath(), options)
 
   # Public: Save the buffer at a specific path.
