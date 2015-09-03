@@ -868,7 +868,6 @@ describe "TextBuffer", ->
         it "loads the current contents of the file at the serialized path", ->
           expect(buffer.isModified()).toBeFalsy()
           buffer2 = buffer.testSerialization()
-          buffer2.load()
 
           waitsFor ->
             buffer2.loaded
