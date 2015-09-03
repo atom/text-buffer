@@ -837,6 +837,10 @@ describe "TextBuffer", ->
       marker3B = bufferB.markRange([[0, 1], [2, 3]])
       expect(marker3B.id).toBe marker3A.id
 
+      # Doesn't try to reload the buffer since it has no file.
+      waits(50)
+      runs -> expect(bufferB.getText()).toBe "hello\nworld\r\nhow are you doing?"
+
     it "doesn't serialize markers with the 'persistent' option set to false", ->
       bufferA = new TextBuffer(text: "hello\nworld\r\nhow are you doing?")
       marker1A = bufferA.markRange([[0, 1], [1, 2]], persistent: false, foo: 1)
@@ -894,6 +898,7 @@ describe "TextBuffer", ->
           it "restores the previous unsaved state of the buffer", ->
             previousText = buffer.getText()
             buffer.setText("abc")
+            buffer.append("d")
 
             buffer2 = buffer.testSerialization()
             buffer2.load()
@@ -905,6 +910,11 @@ describe "TextBuffer", ->
               expect(buffer2.getPath()).toBe(buffer.getPath())
               expect(buffer2.getText()).toBe(buffer.getText())
               expect(buffer2.isModified()).toBeTruthy()
+
+              buffer.undo()
+              buffer2.undo()
+              expect(buffer2.getText()).toBe(buffer.getText())
+
               buffer2.setText(previousText)
               expect(buffer2.isModified()).toBeFalsy()
 
