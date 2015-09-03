@@ -116,11 +116,11 @@ class TextBuffer
   deserializeParams: (params) ->
     params.markerStore = MarkerStore.deserialize(this, params.markerStore)
     params.history = History.deserialize(this, params.history)
-    params.load = true
     params
 
   # Called by {Serializable} mixin during serialization.
   serializeParams: ->
+    load: @loaded
     text: @getText()
     markerStore: @markerStore.serialize()
     history: @history.serialize()
@@ -554,7 +554,7 @@ class TextBuffer
   # given text.
   #
   # * `text` A {String} containing the new buffer contents.
-  setTextViaDiff: (text, skipUndo) ->
+  setTextViaDiff: (text) ->
     currentText = @getText()
     return if currentText == text
 
@@ -577,7 +577,6 @@ class TextBuffer
 
       lineDiff = diff.diffLines(currentText, text)
       changeOptions = normalizeLineEndings: false
-      changeOptions.undo = 'skip' if skipUndo
 
       for change in lineDiff
         lineCount = change.value.match(newlineRegex)?.length ? 0
@@ -1251,10 +1250,14 @@ class TextBuffer
   # Public: Reload the buffer's contents from disk.
   #
   # Sets the buffer's content to the cached disk contents
-  reload: (skipUndo) ->
+  reload: (clearHistory=false) ->
     @emitter.emit 'will-reload'
     @emit 'will-reload' if Grim.includeDeprecatedAPIs
-    @setTextViaDiff(@cachedDiskContents, skipUndo)
+    if clearHistory
+      @clearUndoStack()
+      @setTextInRange(@getRange(), @cachedDiskContents, normalizeLineEndings: false, undo: 'skip')
+    else
+      @setTextViaDiff(@cachedDiskContents)
     @emitModifiedStatusChanged(false)
     @emitter.emit 'did-reload'
     @emit 'reloaded' if Grim.includeDeprecatedAPIs
@@ -1322,17 +1325,16 @@ class TextBuffer
     @updateCachedDiskContentsSync()
     @finishLoading()
 
-  load: (skipUndo) ->
-    @updateCachedDiskContents().then => @finishLoading(skipUndo)
+  load: (clearHistory=false) ->
+    @updateCachedDiskContents().then => @finishLoading(clearHistory)
 
-  finishLoading: (skipUndo) ->
+  finishLoading: (clearHistory) ->
     if @isAlive()
       @loaded = true
       if @useSerializedText and @digestWhenLastPersisted is @file?.getDigestSync()
         @emitModifiedStatusChanged(true)
       else
-        @reload(skipUndo)
-      @clearUndoStack()
+        @reload(clearHistory)
     this
 
   destroy: ->
