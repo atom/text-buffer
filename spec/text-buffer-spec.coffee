@@ -866,6 +866,8 @@ describe "TextBuffer", ->
 
       describe "when the serialized buffer had no unsaved changes", ->
         it "loads the current contents of the file at the serialized path", ->
+          buffer.append("!")
+          buffer.save()
           expect(buffer.isModified()).toBeFalsy()
           buffer2 = buffer.testSerialization()
 
@@ -875,6 +877,10 @@ describe "TextBuffer", ->
           runs ->
             expect(buffer2.isModified()).toBeFalsy()
             expect(buffer2.getPath()).toBe(buffer.getPath())
+            expect(buffer2.getText()).toBe(buffer.getText())
+
+            buffer.undo()
+            buffer2.undo()
             expect(buffer2.getText()).toBe(buffer.getText())
 
       describe "when the serialized buffer had unsaved changes", ->

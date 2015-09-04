@@ -107,7 +107,6 @@ class TextBuffer
     @transactCallDepth = 0
     @digestWhenLastPersisted = params?.digestWhenLastPersisted ? false
     @modifiedWhenLastPersisted = params?.modifiedWhenLastPersisted ? false
-    @useSerializedText = @modifiedWhenLastPersisted isnt false
 
     @setPath(params.filePath) if params?.filePath
     @load(true) if params?.load
@@ -1331,7 +1330,7 @@ class TextBuffer
   finishLoading: (clearHistory) ->
     if @isAlive()
       @loaded = true
-      if @useSerializedText and @digestWhenLastPersisted is @file?.getDigestSync()
+      if @digestWhenLastPersisted is @file?.getDigestSync()
         @emitModifiedStatusChanged(true)
       else
         @reload(clearHistory)
