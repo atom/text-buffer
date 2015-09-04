@@ -108,7 +108,7 @@ class TextBuffer
     @digestWhenLastPersisted = params?.digestWhenLastPersisted ? false
 
     @setPath(params.filePath) if params?.filePath
-    @load(true) if params?.load
+    @load() if params?.load
 
   # Called by {Serializable} mixin during deserialization.
   deserializeParams: (params) ->
@@ -1322,16 +1322,16 @@ class TextBuffer
     @updateCachedDiskContentsSync()
     @finishLoading()
 
-  load: (clearHistory=false) ->
-    @updateCachedDiskContents().then => @finishLoading(clearHistory)
+  load: ->
+    @updateCachedDiskContents().then => @finishLoading()
 
-  finishLoading: (clearHistory) ->
+  finishLoading: ->
     if @isAlive()
       @loaded = true
       if @digestWhenLastPersisted is @file?.getDigestSync()
         @emitModifiedStatusChanged(true)
       else
-        @reload(clearHistory)
+        @reload(true)
     this
 
   destroy: ->
