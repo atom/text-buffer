@@ -106,7 +106,6 @@ class TextBuffer
     @loaded = false
     @transactCallDepth = 0
     @digestWhenLastPersisted = params?.digestWhenLastPersisted ? false
-    @modifiedWhenLastPersisted = params?.modifiedWhenLastPersisted ? false
 
     @setPath(params.filePath) if params?.filePath
     @load(true) if params?.load
@@ -125,7 +124,6 @@ class TextBuffer
     history: @history.serialize()
     encoding: @getEncoding()
     filePath: @getPath()
-    modifiedWhenLastPersisted: @isModified()
     digestWhenLastPersisted: @file?.getDigestSync()
     preferredLineEnding: @preferredLineEnding
 
