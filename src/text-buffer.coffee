@@ -1252,7 +1252,7 @@ class TextBuffer
     @emit 'will-reload' if Grim.includeDeprecatedAPIs
     if clearHistory
       @clearUndoStack()
-      @setTextInRange(@getRange(), @cachedDiskContents, normalizeLineEndings: false, undo: 'skip')
+      @setTextInRange(@getRange(), @cachedDiskContents ? "", normalizeLineEndings: false, undo: 'skip')
     else
       @setTextViaDiff(@cachedDiskContents)
     @emitModifiedStatusChanged(false)
