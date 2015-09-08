@@ -78,6 +78,7 @@ class TextBuffer
   refcount: 0
   fileSubscriptions: null
   backwardsScanChunkSize: 8000
+  defaultMaxUndoEntries: 10000
   changeCount: 0
 
   ###
@@ -98,7 +99,8 @@ class TextBuffer
     @lineEndings = ['']
     @offsetIndex = new SpanSkipList('rows', 'characters')
     @setTextInRange([[0, 0], [0, 0]], text ? params?.text ? '', normalizeLineEndings: false)
-    @history = params?.history ? new History(this)
+    maxUndoEntries = params?.maxUndoEntries ? @defaultMaxUndoEntries
+    @history = params?.history ? new History(this, maxUndoEntries)
     @markerStore = params?.markerStore ? new MarkerStore(this)
     @setEncoding(params?.encoding)
     @setPreferredLineEnding(params?.preferredLineEnding)
