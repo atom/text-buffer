@@ -77,6 +77,7 @@ class TextBuffer
   refcount: 0
   fileSubscriptions: null
   backwardsScanChunkSize: 8000
+  defaultMaxUndoEntries: 10000
   changeCount: 0
 
   ###
@@ -97,7 +98,8 @@ class TextBuffer
     @lineEndings = ['']
     @offsetIndex = new SpanSkipList('rows', 'characters')
     @setTextInRange([[0, 0], [0, 0]], text ? params?.text ? '', normalizeLineEndings: false)
-    @history = params?.history ? new History(this)
+    maxUndoEntries = params?.maxUndoEntries ? @defaultMaxUndoEntries
+    @history = params?.history ? new History(this, maxUndoEntries)
     @markerStore = params?.markerStore ? new MarkerStore(this)
     @setEncoding(params?.encoding)
     @setPreferredLineEnding(params?.preferredLineEnding)
@@ -105,11 +107,9 @@ class TextBuffer
     @loaded = false
     @transactCallDepth = 0
     @digestWhenLastPersisted = params?.digestWhenLastPersisted ? false
-    @modifiedWhenLastPersisted = params?.modifiedWhenLastPersisted ? false
-    @useSerializedText = @modifiedWhenLastPersisted isnt false
 
     @setPath(params.filePath) if params?.filePath
-    @load(true) if params?.load
+    @load() if params?.load
 
   # Called by {Serializable} mixin during deserialization.
   deserializeParams: (params) ->
@@ -125,7 +125,6 @@ class TextBuffer
     history: @history.serialize()
     encoding: @getEncoding()
     filePath: @getPath()
-    modifiedWhenLastPersisted: @isModified()
     digestWhenLastPersisted: @file?.getDigestSync()
     preferredLineEnding: @preferredLineEnding
 
@@ -1254,7 +1253,7 @@ class TextBuffer
     @emit 'will-reload' if Grim.includeDeprecatedAPIs
     if clearHistory
       @clearUndoStack()
-      @setTextInRange(@getRange(), @cachedDiskContents, normalizeLineEndings: false, undo: 'skip')
+      @setTextInRange(@getRange(), @cachedDiskContents ? "", normalizeLineEndings: false, undo: 'skip')
     else
       @setTextViaDiff(@cachedDiskContents)
     @emitModifiedStatusChanged(false)
@@ -1329,16 +1328,16 @@ class TextBuffer
     @updateCachedDiskContentsSync()
     @finishLoading()
 
-  load: (clearHistory=false) ->
-    @updateCachedDiskContents().then => @finishLoading(clearHistory)
+  load: ->
+    @updateCachedDiskContents().then => @finishLoading()
 
-  finishLoading: (clearHistory) ->
+  finishLoading: ->
     if @isAlive()
       @loaded = true
-      if @useSerializedText and @digestWhenLastPersisted is @file?.getDigestSync()
+      if @digestWhenLastPersisted is @file?.getDigestSync()
         @emitModifiedStatusChanged(true)
       else
-        @reload(clearHistory)
+        @reload(true)
     this
 
   destroy: ->

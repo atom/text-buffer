@@ -1,4 +1,4 @@
-SerializationVersion = 2
+SerializationVersion = 3
 
 class Checkpoint
   constructor: (@id, @snapshot, @isBoundary) ->
@@ -22,7 +22,7 @@ class History
     history.deserialize(state)
     history
 
-  constructor: (@delegate) ->
+  constructor: (@delegate, @maxUndoEntries) ->
     @nextCheckpointId = 0
     @undoStack = []
     @redoStack = []
@@ -92,6 +92,24 @@ class History
   pushChange: (change) ->
     @undoStack.push(change)
     @clearRedoStack()
+
+    if @undoStack.length - @maxUndoEntries > 0
+      spliceIndex = null
+      withinGroup = false
+      for entry, i in @undoStack
+        break if spliceIndex?
+        switch entry.constructor
+          when GroupStart
+            if withinGroup
+              throw new Error("Invalid undo stack state")
+            else
+              withinGroup = true
+          when GroupEnd
+            if withinGroup
+              spliceIndex = i
+            else
+              throw new Error("Invalid undo stack state")
+      @undoStack.splice(0, spliceIndex + 1) if spliceIndex?
 
   popUndoStack: ->
     snapshotBelow = null
@@ -225,6 +243,7 @@ class History
   deserialize: (state) ->
     return unless state.version is SerializationVersion
     @nextCheckpointId = state.nextCheckpointId
+    @maxUndoEntries = state.maxUndoEntries
     @undoStack = @deserializeStack(state.undoStack)
     @redoStack = @deserializeStack(state.redoStack)
 
