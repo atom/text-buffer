@@ -2,14 +2,19 @@ language: node_js
 
 sudo: false
 
-notifications:
-  email:
-    on_success: never
-    on_failure: change
+addons:
+  apt:
+    sources:
+    - ubuntu-toolchain-r-test
+    packages:
+    - g++-4.8
 
 node_js:
   - "0.12"
-  - "4.0"
+  - "node"
+
+env:
+  - CC=gcc-4.8 CXX=g++-4.8
 
 git:
   depth: 10
@@ -18,5 +23,7 @@ branches:
   only:
     - master
 
-env:
-  - CC=clang CXX=clang++ npm_config_clang=1
+notifications:
+  email:
+    on_success: never
+    on_failure: change
