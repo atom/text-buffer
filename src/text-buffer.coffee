@@ -116,11 +116,11 @@ class TextBuffer
   deserializeParams: (params) ->
     params.markerStore = MarkerStore.deserialize(this, params.markerStore)
     params.history = History.deserialize(this, params.history)
+    params.load = true if params.filePath
     params
 
   # Called by {Serializable} mixin during serialization.
   serializeParams: ->
-    load: @loaded
     text: @getText()
     markerStore: @markerStore.serialize()
     history: @history.serialize()
