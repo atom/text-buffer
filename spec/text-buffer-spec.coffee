@@ -11,6 +11,10 @@ SampleText = fs.readFileSync(join(__dirname, 'fixtures', 'sample.js'), 'utf8')
 describe "TextBuffer", ->
   buffer = null
 
+  beforeEach ->
+    # When running specs in Atom, setTimeout is spied on by default.
+    jasmine.useRealClock?()
+
   afterEach ->
     buffer = null
 
@@ -900,17 +904,26 @@ describe "TextBuffer", ->
           expect(buffer.isModified()).toBeFalsy()
           buffer2 = buffer.testSerialization()
 
+          buffer2ModifiedEvents = []
+          buffer2.onDidChangeModified (value) -> buffer2ModifiedEvents.push(value)
+
           waitsFor ->
             buffer2.loaded
 
           runs ->
             expect(buffer2.isModified()).toBeFalsy()
-            expect(buffer2.getPath()).toBe(buffer.getPath())
-            expect(buffer2.getText()).toBe(buffer.getText())
+            expect(buffer2ModifiedEvents).toEqual [false]
+            expect(buffer2.getPath()).toBe(filePath)
+            expect(buffer2.getText()).toBe('words!')
 
             buffer.undo()
             buffer2.undo()
-            expect(buffer2.getText()).toBe(buffer.getText())
+
+          waits(buffer.stoppedChangingDelay)
+
+          runs ->
+            expect(buffer2.getText()).toBe('words')
+            expect(buffer2ModifiedEvents).toEqual [false, true]
 
       describe "when the serialized buffer had unsaved changes", ->
         describe "when the disk contents were changed since serialization", ->
@@ -1716,7 +1729,7 @@ describe "TextBuffer", ->
           saveBuffer.setText "hi"
           expect(-> saveBuffer.save()).toThrow()
 
-  describe "reload()", ->
+  describe "::reload()", ->
     it "reloads current text from disk and clears any conflicts", ->
       filePath = require.resolve('./fixtures/sample.js')
       fileContents = fs.readFileSync(filePath, 'utf8')
