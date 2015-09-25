@@ -1,8 +1,8 @@
 {clone} = require "underscore-plus"
+MarkerIndex = require "marker-index"
 Point = require "./point"
 Range = require "./range"
 Marker = require "./marker"
-MarkerIndex = require "./marker-index"
 {intersectSet} = require "./set-helpers"
 
 SerializationVersion = 2
@@ -54,28 +54,45 @@ class MarkerStore
       value = params[key]
       switch key
         when 'startPosition'
-          markerIds = filterSet(markerIds, @index.findStartingIn(Point.fromObject(value)))
+          index = @delegate.characterIndexForPosition(value)
+          markerIds = filterSet(markerIds, @index.findStartingAt(index))
         when 'endPosition'
-          markerIds = filterSet(markerIds, @index.findEndingIn(Point.fromObject(value)))
+          index = @delegate.characterIndexForPosition(value)
+          markerIds = filterSet(markerIds, @index.findEndingAt(index))
         when 'containsPoint', 'containsPosition'
-          markerIds = filterSet(markerIds, @index.findContaining(Point.fromObject(value)))
+          index = @delegate.characterIndexForPosition(value)
+          markerIds = filterSet(markerIds, @index.findContaining(index))
         when 'containsRange'
           {start, end} = Range.fromObject(value)
-          markerIds = filterSet(markerIds, @index.findContaining(start, end))
+          startIndex = @delegate.characterIndexForPosition(start)
+          endIndex = @delegate.characterIndexForPosition(end)
+          markerIds = filterSet(markerIds, @index.findContaining(startIndex, endIndex))
         when 'intersectsRange'
           {start, end} = Range.fromObject(value)
-          markerIds = filterSet(markerIds, @index.findIntersecting(start, end))
+          startIndex = @delegate.characterIndexForPosition(start)
+          endIndex = @delegate.characterIndexForPosition(end)
+          markerIds = filterSet(markerIds, @index.findIntersecting(startIndex, endIndex))
         when 'startRow'
-          markerIds = filterSet(markerIds, @index.findStartingIn(Point(value, 0), Point(value, Infinity)))
+          startIndex = @delegate.characterIndexForPosition(Point(value, 0))
+          endIndex = @delegate.characterIndexForPosition(Point(value, Infinity))
+          markerIds = filterSet(markerIds, @index.findStartingIn(startIndex, endIndex))
         when 'endRow'
-          markerIds = filterSet(markerIds, @index.findEndingIn(Point(value, 0), Point(value, Infinity)))
+          startIndex = @delegate.characterIndexForPosition(Point(value, 0))
+          endIndex = @delegate.characterIndexForPosition(Point(value, Infinity))
+          markerIds = filterSet(markerIds, @index.findEndingIn(startIndex, endIndex))
         when 'intersectsRow'
-          markerIds = filterSet(markerIds, @index.findIntersecting(Point(value, 0), Point(value, Infinity)))
+          startIndex = @delegate.characterIndexForPosition(Point(value, 0))
+          endIndex = @delegate.characterIndexForPosition(Point(value, Infinity))
+          markerIds = filterSet(markerIds, @index.findIntersecting(startIndex, endIndex))
         when 'intersectsRowRange'
-          markerIds = filterSet(markerIds, @index.findIntersecting(Point(value[0], 0), Point(value[1], Infinity)))
+          startIndex = @delegate.characterIndexForPosition(Point(value[0], 0))
+          endIndex = @delegate.characterIndexForPosition(Point(value[1], Infinity))
+          markerIds = filterSet(markerIds, @index.findIntersecting(startIndex, endIndex))
         when 'containedInRange'
           {start, end} = Range.fromObject(value)
-          markerIds = filterSet(markerIds, @index.findContainedIn(start, end))
+          startIndex = @delegate.characterIndexForPosition(start)
+          endIndex = @delegate.characterIndexForPosition(end)
+          markerIds = filterSet(markerIds, @index.findContainedIn(startIndex, endIndex))
         else
           continue
       delete params[key]
@@ -95,14 +112,18 @@ class MarkerStore
     options.tailed ?= false
     @markRange(Range(position, position), options)
 
-  splice: (start, oldExtent, newExtent) ->
-    end = start.traverse(oldExtent)
+  splice: (startPoint, oldExtentPoint, newExtentPoint) ->
+    startIndex = @delegate.characterIndexForPosition(startPoint)
+    oldEndIndex = @delegate.characterIndexForPosition(startPoint.traverse(oldExtentPoint))
+    newEndIndex = @delegate.characterIndexForPosition(startPoint.traverse(newExtentPoint))
+    oldExtent = oldEndIndex - startIndex
+    newExtent = newEndIndex - startIndex
 
-    intersecting = @index.findIntersecting(start, end)
-    endingAt = @index.findEndingIn(start)
-    startingAt = @index.findStartingIn(end)
-    startingIn = @index.findStartingIn(start.traverse(Point(0, 1)), end.traverse(Point(0, -1)))
-    endingIn = @index.findEndingIn(start.traverse(Point(0, 1)), end.traverse(Point(0, -1)))
+    intersecting = @index.findIntersecting(startIndex, oldEndIndex)
+    endingAt = @index.findEndingAt(startIndex)
+    startingAt = @index.findStartingAt(oldEndIndex)
+    startingIn = @index.findStartingIn(startIndex + 1, oldEndIndex - 1)
+    endingIn = @index.findEndingIn(startIndex + 1, oldEndIndex - 1)
 
     for id in Object.keys(@markersById)
       marker = @markersById[id]
@@ -119,7 +140,7 @@ class MarkerStore
           invalid = false
       marker.valid = false if invalid
 
-    @index.splice(start, oldExtent, newExtent)
+    @index.splice(startIndex, oldExtent, newExtent)
 
   restoreFromSnapshot: (snapshots) ->
     return unless snapshots?
@@ -148,7 +169,7 @@ class MarkerStore
 
   createSnapshot: (emitChangeEvents=false) ->
     result = {}
-    ranges = @index.dump(@historiedMarkers)
+    ranges = @dumpMarkerRanges(@historiedMarkers)
     for id in Object.keys(@markersById)
       if marker = @markersById[id]
         if marker.maintainHistory
@@ -159,12 +180,20 @@ class MarkerStore
     result
 
   serialize: ->
-    ranges = @index.dump()
+    ranges = @dumpMarkerRanges()
     markersById = {}
     for id in Object.keys(@markersById)
       marker = @markersById[id]
       markersById[id] = marker.getSnapshot(ranges[id], false) if marker.persistent
     {@nextMarkerId, markersById, version: SerializationVersion}
+
+  dumpMarkerRanges: (filterSet) ->
+    ranges = @index.dump(filterSet)
+    for markerId, indexRange of ranges
+      startPosition = @delegate.positionForCharacterIndex(indexRange.start)
+      endPosition = @delegate.positionForCharacterIndex(indexRange.end)
+      ranges[markerId] = new Range(startPosition, endPosition)
+    ranges
 
   deserialize: (state) ->
     return unless state.version is SerializationVersion
@@ -189,20 +218,21 @@ class MarkerStore
     @delegate.markersUpdated()
 
   getMarkerRange: (id) ->
-    @index.getRange(id)
+    [startIndex, endIndex] = @index.getRange(id)
+    new Range(@delegate.positionForCharacterIndex(startIndex), @delegate.positionForCharacterIndex(endIndex))
 
   getMarkerStartPosition: (id) ->
-    @index.getStart(id)
+    @delegate.positionForCharacterIndex(@index.getStart(id))
 
   getMarkerEndPosition: (id) ->
-    @index.getEnd(id)
+    @delegate.positionForCharacterIndex(@index.getEnd(id))
 
   setMarkerRange: (id, range) ->
     {start, end} = Range.fromObject(range)
-    start = @delegate.clipPosition(start)
-    end = @delegate.clipPosition(end)
+    startIndex = @delegate.characterIndexForPosition(@delegate.clipPosition(start))
+    endIndex = @delegate.characterIndexForPosition(@delegate.clipPosition(end))
     @index.delete(id)
-    @index.insert(id, start, end)
+    @index.insert(id, startIndex, endIndex)
 
   setMarkerHasTail: (id, hasTail) ->
     @index.setExclusive(id, not hasTail)
@@ -221,9 +251,11 @@ class MarkerStore
   addMarker: (id, range, params) ->
     Point.assertValid(range.start)
     Point.assertValid(range.end)
+    startIndex = @delegate.characterIndexForPosition(range.start)
+    endIndex = @delegate.characterIndexForPosition(range.end)
     marker = new Marker(id, this, range, params)
     @markersById[id] = marker
-    @index.insert(id, range.start, range.end)
+    @index.insert(id, startIndex, endIndex)
     if marker.getInvalidationStrategy() is 'inside'
       @index.setExclusive(id, true)
     if marker.maintainHistory

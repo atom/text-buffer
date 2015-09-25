@@ -99,8 +99,17 @@ class TextBuffer
     @offsetIndex = new SpanSkipList('rows', 'characters')
     @setTextInRange([[0, 0], [0, 0]], text ? params?.text ? '', normalizeLineEndings: false)
     maxUndoEntries = params?.maxUndoEntries ? @defaultMaxUndoEntries
-    @history = params?.history ? new History(this, maxUndoEntries)
-    @markerStore = params?.markerStore ? new MarkerStore(this)
+
+    if params?.history?
+      @history = History.deserialize(this, params.history)
+    else
+      @history = new History(this, maxUndoEntries)
+
+    if params?.markerStore?
+      @markerStore = MarkerStore.deserialize(this, params.markerStore)
+    else
+      @markerStore = new MarkerStore(this)
+
     @setEncoding(params?.encoding)
     @setPreferredLineEnding(params?.preferredLineEnding)
 
@@ -109,14 +118,7 @@ class TextBuffer
     @digestWhenLastPersisted = params?.digestWhenLastPersisted ? false
 
     @setPath(params.filePath) if params?.filePath
-    @load() if params?.load
-
-  # Called by {Serializable} mixin during deserialization.
-  deserializeParams: (params) ->
-    params.markerStore = MarkerStore.deserialize(this, params.markerStore)
-    params.history = History.deserialize(this, params.history)
-    params.load = true if params.filePath
-    params
+    @load() if params?.load or params?.filePath
 
   # Called by {Serializable} mixin during serialization.
   serializeParams: ->
