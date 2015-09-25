@@ -1335,7 +1335,7 @@ class TextBuffer
     if @isAlive()
       @loaded = true
       if @digestWhenLastPersisted is @file?.getDigestSync()
-        @emitModifiedStatusChanged(true)
+        @emitModifiedStatusChanged(@isModified())
       else
         @reload(true)
     this
