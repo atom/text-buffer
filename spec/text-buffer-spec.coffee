@@ -11,6 +11,10 @@ SampleText = fs.readFileSync(join(__dirname, 'fixtures', 'sample.js'), 'utf8')
 describe "TextBuffer", ->
   buffer = null
 
+  beforeEach ->
+    # When running specs in Atom, setTimeout is spied on by default.
+    jasmine.useRealClock?()
+
   afterEach ->
     buffer = null
 
