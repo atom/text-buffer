@@ -14,12 +14,7 @@
   "bugs": {
     "url": "https://github.com/atom/text-buffer/issues"
   },
-  "licenses": [
-    {
-      "type": "MIT",
-      "url": "http://github.com/atom/text-buffer/raw/master/LICENSE.md"
-    }
-  ],
+  "license": "MIT",
   "devDependencies": {
     "coffee-cache": "~0.2.0",
     "coffee-script": "~1.7.0",
