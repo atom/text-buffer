@@ -10,7 +10,7 @@ SerializationVersion = 2
 module.exports =
 class MarkerStore
   @deserialize: (delegate, state) ->
-    store = new MarkerStore(delegate)
+    store = new MarkerStore(delegate, 0)
     store.deserialize(state)
     store
 
@@ -28,11 +28,22 @@ class MarkerStore
       result[id].range = Range.deserialize(markerSnapshot.range)
     result
 
-  constructor: (@delegate) ->
+  constructor: (@delegate, @id) ->
     @index = new MarkerIndex
     @markersById = {}
     @historiedMarkers = new Set
     @nextMarkerId = 0
+    @destroyed = false
+
+  destroy: ->
+    @destroyed = true
+    @delegate.markerLayerDestroyed(this)
+
+  isAlive: ->
+    not @destroyed
+
+  isDestroyed: ->
+    @destroyed
 
   ###
   Section: TextBuffer API
@@ -89,11 +100,12 @@ class MarkerStore
     result.sort (a, b) -> a.compare(b)
 
   markRange: (range, options={}) ->
-    @createMarker(Range.fromObject(range), Marker.extractParams(options))
+    @createMarker(@delegate.clipRange(range), Marker.extractParams(options))
 
   markPosition: (position, options={}) ->
     options.tailed ?= false
-    @markRange(Range(position, position), options)
+    position = @delegate.clipPosition(position)
+    @markRange(new Range(position, position), options)
 
   splice: (start, oldExtent, newExtent) ->
     end = start.traverse(oldExtent)
@@ -164,10 +176,11 @@ class MarkerStore
     for id in Object.keys(@markersById)
       marker = @markersById[id]
       markersById[id] = marker.getSnapshot(ranges[id], false) if marker.persistent
-    {@nextMarkerId, markersById, version: SerializationVersion}
+    {@nextMarkerId, @id, markersById, version: SerializationVersion}
 
   deserialize: (state) ->
     return unless state.version is SerializationVersion
+    @id = state.id
     @nextMarkerId = state.nextMarkerId
     for id, markerState of state.markersById
       range = Range.fromObject(markerState.range)
@@ -208,7 +221,7 @@ class MarkerStore
     @index.setExclusive(id, not hasTail)
 
   createMarker: (range, params) ->
-    id = String(@nextMarkerId++)
+    id = @id + '-' + @nextMarkerId++
     marker = @addMarker(id, range, params)
     @delegate.markerCreated(marker)
     @delegate.markersUpdated()
