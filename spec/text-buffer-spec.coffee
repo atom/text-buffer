@@ -811,9 +811,9 @@ describe "TextBuffer", ->
       expect(buffer.positionForCharacterIndex(20)).toEqual [3, 5]
 
   describe "serialization", ->
-    expectSameMarkers = (buffer1, buffer2) ->
-      markers1 = buffer1.getMarkers().sort (a, b) -> a.compare(b)
-      markers2 = buffer2.getMarkers().sort (a, b) -> a.compare(b)
+    expectSameMarkers = (left, right) ->
+      markers1 = left.getMarkers().sort (a, b) -> a.compare(b)
+      markers2 = right.getMarkers().sort (a, b) -> a.compare(b)
       expect(markers1.length).toBe markers2.length
       for marker1, i in markers1
         expect(marker1).toEqual(markers2[i])
@@ -873,6 +873,25 @@ describe "TextBuffer", ->
       # Doesn't try to reload the buffer since it has no file.
       waits(50)
       runs -> expect(bufferB.getText()).toBe "hello\nworld\r\nhow are you doing?"
+
+    it "serializes / deserializes the buffer's custom marker layers", ->
+      bufferA = new TextBuffer("abcdefghijklmnopqrstuvwxyz")
+
+      layer1A = bufferA.addMarkerLayer()
+      layer2A = bufferA.addMarkerLayer()
+
+      layer1A.markRange([[0, 1], [0, 2]])
+      layer1A.markRange([[0, 3], [0, 4]])
+
+      layer2A.markRange([[0, 5], [0, 6]])
+      layer2A.markRange([[0, 7], [0, 8]])
+
+      bufferB = TextBuffer.deserialize(JSON.parse(JSON.stringify(bufferA.serialize())))
+      layer1B = bufferB.getMarkerLayer(layer1A.id)
+      layer2B = bufferB.getMarkerLayer(layer2A.id)
+
+      expectSameMarkers(layer1A, layer1B)
+      expectSameMarkers(layer2A, layer2B)
 
     it "doesn't serialize markers with the 'persistent' option set to false", ->
       bufferA = new TextBuffer(text: "hello\nworld\r\nhow are you doing?")

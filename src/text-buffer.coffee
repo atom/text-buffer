@@ -118,6 +118,8 @@ class TextBuffer
   # Called by {Serializable} mixin during deserialization.
   deserializeParams: (params) ->
     params.defaultMarkerLayer = MarkerStore.deserialize(this, params.defaultMarkerLayer)
+    params.customMarkerLayers = for layerParams in params.customMarkerLayers
+      MarkerStore.deserialize(this, layerParams)
     params.history = History.deserialize(this, params.history)
     params.load = true if params.filePath
     params
@@ -126,6 +128,7 @@ class TextBuffer
   serializeParams: ->
     text: @getText()
     defaultMarkerLayer: @defaultMarkerLayer.serialize()
+    customMarkerLayers: @customMarkerLayers.map (layer) -> layer.serialize()
     nextMarkerLayerId: @nextMarkerLayerId
     history: @history.serialize()
     encoding: @getEncoding()
