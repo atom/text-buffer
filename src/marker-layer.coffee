@@ -8,9 +8,9 @@ MarkerIndex = require "./marker-index"
 SerializationVersion = 2
 
 module.exports =
-class MarkerStore
+class MarkerLayer
   @deserialize: (delegate, state) ->
-    store = new MarkerStore(delegate, 0)
+    store = new MarkerLayer(delegate, 0)
     store.deserialize(state)
     store
 

@@ -43,7 +43,7 @@ class Marker
 
   @delegatesMethods 'containsPoint', 'containsRange', 'intersectsRow', toMethod: 'getRange'
 
-  constructor: (@id, @store, range, params) ->
+  constructor: (@id, @layer, range, params) ->
     {@tailed, @reversed, @valid, @invalidate, @persistent, @properties, @maintainHistory} = params
     @emitter = new Emitter
     @tailed ?= true
@@ -56,7 +56,7 @@ class Marker
     @hasChangeObservers = false
     @rangeWhenDestroyed = null
     Object.freeze(@properties)
-    @store.setMarkerHasTail(@id, @tailed)
+    @layer.setMarkerHasTail(@id, @tailed)
 
   ###
   Section: Event Subscription
@@ -96,7 +96,7 @@ class Marker
 
   # Public: Returns the current {Range} of the marker. The range is immutable.
   getRange: ->
-    @rangeWhenDestroyed ? @store.getMarkerRange(@id)
+    @rangeWhenDestroyed ? @layer.getMarkerRange(@id)
 
   # Public: Sets the range of the marker.
   #
@@ -182,12 +182,12 @@ class Marker
   # Public: Returns a {Point} representing the start position of the marker,
   # which could be the head or tail position, depending on its orientation.
   getStartPosition: ->
-    @rangeWhenDestroyed?.start ? @store.getMarkerStartPosition(@id)
+    @rangeWhenDestroyed?.start ? @layer.getMarkerStartPosition(@id)
 
   # Public: Returns a {Point} representing the end position of the marker,
   # which could be the head or tail position, depending on its orientation.
   getEndPosition: ->
-    @rangeWhenDestroyed?.end ? @store.getMarkerEndPosition(@id)
+    @rangeWhenDestroyed?.end ? @layer.getMarkerEndPosition(@id)
 
   # Public: Removes the marker's tail. After calling the marker's head position
   # will be reported as its current tail position until the tail is planted
@@ -273,7 +273,7 @@ class Marker
   copy: (options={}) ->
     snapshot = @getSnapshot(null)
     options = Marker.extractParams(options)
-    @store.createMarker(@getRange(), extend(
+    @layer.createMarker(@getRange(), extend(
       {}
       snapshot,
       options,
@@ -284,7 +284,7 @@ class Marker
   # destroyed, a marker cannot be restored by undo/redo operations.
   destroy: ->
     @rangeWhenDestroyed = @getRange()
-    @store.destroyMarker(@id)
+    @layer.destroyMarker(@id)
     @emitter.emit 'did-destroy'
     @emit 'destroyed' if Grim.includeDeprecatedAPIs
 
@@ -335,7 +335,7 @@ class Marker
     updated = propertiesChanged = false
 
     if range? and not range.isEqual(oldRange)
-      @store.setMarkerRange(@id, range)
+      @layer.setMarkerRange(@id, range)
       updated = true
 
     if reversed? and reversed isnt @reversed
@@ -344,7 +344,7 @@ class Marker
 
     if tailed? and tailed isnt @tailed
       @tailed = tailed
-      @store.setMarkerHasTail(@id, @tailed)
+      @layer.setMarkerHasTail(@id, @tailed)
       updated = true
 
     if valid? and valid isnt @valid
@@ -357,7 +357,7 @@ class Marker
       updated = true
 
     @emitChangeEvent(range ? oldRange, textChanged, propertiesChanged)
-    @store.markerUpdated() if updated and not textChanged
+    @layer.markerUpdated() if updated and not textChanged
     updated
 
   getSnapshot: (range) ->

@@ -11,7 +11,7 @@ path = require 'path'
 Point = require './point'
 Range = require './range'
 History = require './history'
-MarkerStore = require './marker-store'
+MarkerLayer = require './marker-layer'
 Patch = require './patch'
 MatchIterator = require './match-iterator'
 {spliceArray, newlineRegex} = require './helpers'
@@ -79,7 +79,7 @@ class TextBuffer
   backwardsScanChunkSize: 8000
   defaultMaxUndoEntries: 10000
   changeCount: 0
-  nextMarkerStoreId: 0
+  nextMarkerLayerId: 0
 
   ###
   Section: Construction
@@ -101,8 +101,8 @@ class TextBuffer
     @setTextInRange([[0, 0], [0, 0]], text ? params?.text ? '', normalizeLineEndings: false)
     maxUndoEntries = params?.maxUndoEntries ? @defaultMaxUndoEntries
     @history = params?.history ? new History(this, maxUndoEntries)
-    @nextMarkerLayerId = params?.nextMarkerStoreId ? 0
-    @defaultMarkerLayer = params?.defaultMarkerLayer ? new MarkerStore(this, String(@nextMarkerLayerId++))
+    @nextMarkerLayerId = params?.nextMarkerLayerId ? 0
+    @defaultMarkerLayer = params?.defaultMarkerLayer ? new MarkerLayer(this, String(@nextMarkerLayerId++))
     @customMarkerLayers = params?.customMarkerLayers ? []
 
     @setEncoding(params?.encoding)
@@ -117,9 +117,9 @@ class TextBuffer
 
   # Called by {Serializable} mixin during deserialization.
   deserializeParams: (params) ->
-    params.defaultMarkerLayer = MarkerStore.deserialize(this, params.defaultMarkerLayer)
+    params.defaultMarkerLayer = MarkerLayer.deserialize(this, params.defaultMarkerLayer)
     params.customMarkerLayers = for layerParams in params.customMarkerLayers
-      MarkerStore.deserialize(this, layerParams)
+      MarkerLayer.deserialize(this, layerParams)
     params.history = History.deserialize(this, params.history)
     params.load = true if params.filePath
     params
@@ -788,7 +788,7 @@ class TextBuffer
   ###
 
   addMarkerLayer: ->
-    layer = new MarkerStore(this, String(@nextMarkerLayerId++))
+    layer = new MarkerLayer(this, String(@nextMarkerLayerId++))
     @customMarkerLayers.push(layer)
     layer
 
@@ -1485,13 +1485,13 @@ class TextBuffer
     }
 
   serializeSnapshot: (snapshot) ->
-    MarkerStore.serializeSnapshot(snapshot)
+    MarkerLayer.serializeSnapshot(snapshot)
 
   deserializeSnapshot: (snapshot) ->
-    MarkerStore.deserializeSnapshot(snapshot)
+    MarkerLayer.deserializeSnapshot(snapshot)
 
   ###
-  Section: Private MarkerStore Delegate Methods
+  Section: Private MarkerLayer Delegate Methods
   ###
 
   markerLayerDestroyed: (markerLayer) ->
