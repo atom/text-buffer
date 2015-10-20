@@ -28,6 +28,10 @@ class MarkerLayer
       result[id].range = Range.deserialize(markerSnapshot.range)
     result
 
+  ###
+  Section: Lifecycle
+  ###
+
   constructor: (@delegate, @id) ->
     @index = new MarkerIndex
     @markersById = {}
@@ -35,6 +39,7 @@ class MarkerLayer
     @nextMarkerId = 0
     @destroyed = false
 
+  # Public: Remove the {MarkerLayer} from the {TextBuffer}
   destroy: ->
     @destroyed = true
     @delegate.markerLayerDestroyed(this)
@@ -46,18 +51,28 @@ class MarkerLayer
     @destroyed
 
   ###
-  Section: TextBuffer API
+  Section: Public interface
   ###
 
+  # Public: Get an existing marker by its id.
   getMarker: (id) ->
     @markersById[id]
 
+  # Public: Get all existing markers on the buffer.
+  #
+  # Returns an {Array} of {Marker}s.
   getMarkers: ->
     marker for id, marker of @markersById
 
+  # Public: Get the number of markers in the buffer.
+  #
+  # Returns a {Number}.
   getMarkerCount: ->
     Object.keys(@markersById).length
 
+  # Public: Find markers conforming to the given parameters.
+  #
+  # See the documentation for {TextBuffer::findMarkers}.
   findMarkers: (params) ->
     markerIds = null
 
@@ -99,13 +114,23 @@ class MarkerLayer
       result.push(marker) if marker.matchesParams(params)
     result.sort (a, b) -> a.compare(b)
 
+  # Public: Create a marker with the given range.
+  #
+  # See the documentation for {TextBuffer::markRange}
   markRange: (range, options={}) ->
     @createMarker(@delegate.clipRange(range), Marker.extractParams(options))
 
+  # Public: Create a marker with the given position and no tail.
+  #
+  # See the documentation for {TextBuffer::markPosition}
   markPosition: (position, options={}) ->
     options.tailed ?= false
     position = @delegate.clipPosition(position)
     @markRange(new Range(position, position), options)
+
+  ###
+  Section: Private - TextBuffer interface
+  ###
 
   splice: (start, oldExtent, newExtent) ->
     end = start.traverse(oldExtent)
@@ -189,7 +214,7 @@ class MarkerLayer
     return
 
   ###
-  Section: Marker interface
+  Section: Private - Marker interface
   ###
 
   markerUpdated: ->
@@ -228,7 +253,7 @@ class MarkerLayer
     marker
 
   ###
-  Section: Private
+  Section: Internal
   ###
 
   addMarker: (id, range, params) ->
