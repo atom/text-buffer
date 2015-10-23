@@ -1500,13 +1500,15 @@ class TextBuffer
       @customMarkerLayers.splice(index, 1)
     return
 
-  markerCreated: (marker) ->
-    @emitter.emit 'did-create-marker', marker
-    @emit 'marker-created', marker if Grim.includeDeprecatedAPIs
+  markerCreated: (layer, marker) ->
+    if layer is @defaultMarkerLayer
+      @emitter.emit 'did-create-marker', marker
+      @emit 'marker-created', marker if Grim.includeDeprecatedAPIs
 
-  markersUpdated: ->
-    @emitter.emit 'did-update-markers'
-    @emit 'markers-updated' if Grim.includeDeprecatedAPIs
+  markersUpdated: (layer) ->
+    if layer is @defaultMarkerLayer
+      @emitter.emit 'did-update-markers'
+      @emit 'markers-updated' if Grim.includeDeprecatedAPIs
 
 if Grim.includeDeprecatedAPIs
   EmitterMixin = require('emissary').Emitter

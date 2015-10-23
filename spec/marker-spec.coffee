@@ -1101,6 +1101,23 @@ describe "Marker", ->
       expect(layer1Marker.getRange()).toEqual [[0, 4], [0, 7]]
       expect(layer2Marker.getRange()).toEqual [[0, 7], [0, 10]]
 
+    it "does not emit marker events on the TextBuffer for non-default layers", ->
+      createEventCount = updateEventCount = 0
+      buffer.onDidCreateMarker -> createEventCount++
+      buffer.onDidUpdateMarkers -> updateEventCount++
+
+      marker1 = buffer.markRange([[0, 1], [0, 2]])
+      marker1.setRange([[0, 1], [0, 3]])
+
+      expect(createEventCount).toBe 1
+      expect(updateEventCount).toBe 2
+
+      marker2 = layer1.markRange([[0, 1], [0, 2]])
+      marker2.setRange([[0, 1], [0, 3]])
+
+      expect(createEventCount).toBe 1
+      expect(updateEventCount).toBe 2
+
     describe "::findMarkers(params)", ->
       it "does not find markers from other layers", ->
         defaultMarker = buffer.markRange([[0, 3], [0, 6]])

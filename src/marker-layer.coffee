@@ -185,7 +185,7 @@ class MarkerLayer
         else
           marker.emitChangeEvent(marker.getRange(), true, false)
 
-    @delegate.markersUpdated()
+    @delegate.markersUpdated(this)
     return
 
   createSnapshot: (emitChangeEvents=false) ->
@@ -197,7 +197,7 @@ class MarkerLayer
           result[id] = marker.getSnapshot(ranges[id], false)
         if emitChangeEvents
           marker.emitChangeEvent(ranges[id], true, false)
-    @delegate.markersUpdated() if emitChangeEvents
+    @delegate.markersUpdated(this) if emitChangeEvents
     result
 
   serialize: ->
@@ -223,14 +223,14 @@ class MarkerLayer
   ###
 
   markerUpdated: ->
-    @delegate.markersUpdated()
+    @delegate.markersUpdated(this)
     @scheduleUpdateEvent()
 
   destroyMarker: (id) ->
     delete @markersById[id]
     @historiedMarkers.delete(id)
     @index.delete(id)
-    @delegate.markersUpdated()
+    @delegate.markersUpdated(this)
     @scheduleUpdateEvent()
 
   getMarkerRange: (id) ->
@@ -255,8 +255,8 @@ class MarkerLayer
   createMarker: (range, params) ->
     id = @id + '-' + @nextMarkerId++
     marker = @addMarker(id, range, params)
-    @delegate.markerCreated(marker)
-    @delegate.markersUpdated()
+    @delegate.markerCreated(this, marker)
+    @delegate.markersUpdated(this)
     @scheduleUpdateEvent()
     marker
 
