@@ -1145,7 +1145,13 @@ describe "Marker", ->
         waitsFor -> updateCount is 2
 
         runs ->
+          buffer.insert([0, 1], "xxx")
+          buffer.insert([0, 1], "yyy")
+
+        waitsFor -> updateCount is 3
+
+        runs ->
           marker1.destroy()
           marker2.destroy()
 
-        waitsFor -> updateCount is 3
+        waitsFor -> updateCount is 4

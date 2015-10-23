@@ -162,6 +162,7 @@ class MarkerLayer
       marker.valid = false if invalid
 
     @index.splice(start, oldExtent, newExtent)
+    @scheduleUpdateEvent()
 
   restoreFromSnapshot: (snapshots) ->
     return unless snapshots?
