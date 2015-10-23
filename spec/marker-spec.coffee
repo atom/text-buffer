@@ -1110,3 +1110,25 @@ describe "Marker", ->
         expect(buffer.findMarkers(containsPoint: [0, 4])).toEqual [defaultMarker]
         expect(layer1.findMarkers(containsPoint: [0, 4])).toEqual [layer1Marker]
         expect(layer2.findMarkers(containsPoint: [0, 4])).toEqual [layer2Marker]
+
+    describe "::onDidUpdate", ->
+      it "notifies observers asynchronously when markers are created, updated, or destroyed", ->
+        updateCount = 0
+        layer1.onDidUpdate -> updateCount++
+
+        marker1 = layer1.markRange([[0, 2], [0, 4]])
+        marker2 = layer1.markRange([[0, 6], [0, 8]])
+
+        waitsFor -> updateCount is 1
+
+        runs ->
+          marker1.setRange([[1, 2], [3, 4]])
+          marker2.setRange([[4, 5], [6, 7]])
+
+        waitsFor -> updateCount is 2
+
+        runs ->
+          marker1.destroy()
+          marker2.destroy()
+
+        waitsFor -> updateCount is 3

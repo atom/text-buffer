@@ -1,4 +1,5 @@
 {clone} = require "underscore-plus"
+{Emitter} = require 'event-kit'
 Point = require "./point"
 Range = require "./range"
 Marker = require "./marker"
@@ -33,6 +34,7 @@ class MarkerLayer
   ###
 
   constructor: (@delegate, @id) ->
+    @emitter = new Emitter
     @index = new MarkerIndex
     @markersById = {}
     @historiedMarkers = new Set
@@ -128,6 +130,9 @@ class MarkerLayer
     position = @delegate.clipPosition(position)
     @markRange(new Range(position, position), options)
 
+  onDidUpdate: (callback) ->
+    @emitter.on 'did-update', callback
+
   ###
   Section: Private - TextBuffer interface
   ###
@@ -219,12 +224,14 @@ class MarkerLayer
 
   markerUpdated: ->
     @delegate.markersUpdated()
+    @scheduleUpdateEvent()
 
   destroyMarker: (id) ->
     delete @markersById[id]
     @historiedMarkers.delete(id)
     @index.delete(id)
     @delegate.markersUpdated()
+    @scheduleUpdateEvent()
 
   getMarkerRange: (id) ->
     @index.getRange(id)
@@ -250,6 +257,7 @@ class MarkerLayer
     marker = @addMarker(id, range, params)
     @delegate.markerCreated(marker)
     @delegate.markersUpdated()
+    @scheduleUpdateEvent()
     marker
 
   ###
@@ -267,6 +275,13 @@ class MarkerLayer
     if marker.maintainHistory
       @historiedMarkers.add(id)
     marker
+
+  scheduleUpdateEvent: ->
+    unless @didUpdateEventScheduled
+      @didUpdateEventScheduled = true
+      process.nextTick =>
+        @didUpdateEventScheduled = false
+        @emitter.emit 'did-update'
 
 filterSet = (set1, set2) ->
   if set1
