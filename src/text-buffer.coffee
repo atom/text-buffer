@@ -798,6 +798,9 @@ class TextBuffer
         return customMarkerLayer
     undefined
 
+  getDefaultMarkerLayer: ->
+    @defaultMarkerLayer
+
   # Public: Create a marker with the given range. This marker will maintain
   # its logical location as the buffer is changed, so if you mark a particular
   # word, the marker will remain over that word even if the word's location in
