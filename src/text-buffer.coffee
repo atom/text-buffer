@@ -59,7 +59,7 @@ class TransactionAbortedError extends Error
 # annotate logical regions in the text.
 module.exports =
 class TextBuffer
-  @version: 2
+  @version: 3
   @Point: Point
   @Range: Range
   @Patch: Patch
