@@ -45,6 +45,11 @@ class MarkerLayer
   destroy: ->
     @destroyed = true
     @delegate.markerLayerDestroyed(this)
+    @emitter.emit 'did-destroy'
+    @emitter.dispose()
+
+  onDidDestroy: (callback) ->
+    @emitter.on 'did-destroy', callback
 
   isAlive: ->
     not @destroyed
