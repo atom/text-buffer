@@ -1,6 +1,5 @@
 require 'coffee-cache'
 jasmine.getEnv().addEqualityTester(require('underscore-plus').isEqual)
-require('grim').includeDeprecatedAPIs = false
 {setEqual} = require '../src/set-helpers'
 
 Set.prototype.isEqual = (other) ->

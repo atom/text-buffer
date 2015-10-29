@@ -1,4 +1,3 @@
-Grim = require 'grim'
 Serializable = require 'serializable'
 {Emitter, CompositeDisposable} = require 'event-kit'
 {File} = require 'pathwatcher'
@@ -376,7 +375,6 @@ class TextBuffer
       @file = null
 
     @emitter.emit 'did-change-path', @getPath()
-    @emit "path-changed", this if Grim.includeDeprecatedAPIs
 
   # Public: Sets the character set encoding for this buffer.
   #
@@ -616,10 +614,7 @@ class TextBuffer
     if @transactCallDepth is 0
       return @transact => @setTextInRange(range, newText, options)
 
-    if Grim.includeDeprecatedAPIs and typeof options is 'boolean'
-      normalizeLineEndings = options
-      Grim.deprecate("The normalizeLineEndings argument is now an options hash. Use {normalizeLineEndings: #{options}} instead")
-    else if options?
+    if options?
       {normalizeLineEndings, undo} = options
     normalizeLineEndings ?= true
 
@@ -730,7 +725,6 @@ class TextBuffer
 
     @changeCount++
     @emitter.emit 'did-change', changeEvent
-    @emit 'changed', changeEvent if Grim.includeDeprecatedAPIs
 
   # Public: Delete the text in the given range.
   #
@@ -967,7 +961,6 @@ class TextBuffer
       @applyChange(change, true) for change in truncated.changes
       @defaultMarkerLayer.restoreFromSnapshot(truncated.snapshot)
       @emitter.emit 'did-update-markers'
-      @emit 'markers-updated' if Grim.includeDeprecatedAPIs
       true
     else
       false
@@ -1145,11 +1138,6 @@ class TextBuffer
   #
   # Returns a {Range}.
   rangeForRow: (row, includeNewline) ->
-    # Handle deprecated options hash
-    if Grim.includeDeprecatedAPIs and typeof includeNewline is 'object'
-      Grim.deprecate("The second param is no longer an object, it's a boolean argument named `includeNewline`.")
-      {includeNewline} = includeNewline
-
     row = Math.max(row, 0)
     row = Math.min(row, @getLastRow())
 
@@ -1251,7 +1239,6 @@ class TextBuffer
     unless filePath then throw new Error("Can't save buffer with no file path")
 
     @emitter.emit 'will-save', {path: filePath}
-    @emit 'will-be-saved', this if Grim.includeDeprecatedAPIs
     @setPath(filePath)
 
     if options?.backup
@@ -1270,14 +1257,12 @@ class TextBuffer
     @conflict = false
     @emitModifiedStatusChanged(false)
     @emitter.emit 'did-save', {path: filePath}
-    @emit 'saved', this if Grim.includeDeprecatedAPIs
 
   # Public: Reload the buffer's contents from disk.
   #
   # Sets the buffer's content to the cached disk contents
   reload: (clearHistory=false) ->
     @emitter.emit 'will-reload'
-    @emit 'will-reload' if Grim.includeDeprecatedAPIs
     if clearHistory
       @clearUndoStack()
       @setTextInRange(@getRange(), @cachedDiskContents ? "", normalizeLineEndings: false, undo: 'skip')
@@ -1285,7 +1270,6 @@ class TextBuffer
       @setTextViaDiff(@cachedDiskContents)
     @emitModifiedStatusChanged(false)
     @emitter.emit 'did-reload'
-    @emit 'reloaded' if Grim.includeDeprecatedAPIs
 
   # Rereads the contents of the file, and stores them in the cache.
   updateCachedDiskContentsSync: ->
@@ -1371,10 +1355,8 @@ class TextBuffer
     unless @destroyed
       @cancelStoppedChangingTimeout()
       @fileSubscriptions?.dispose()
-      @unsubscribe() if Grim.includeDeprecatedAPIs
       @destroyed = true
       @emitter.emit 'did-destroy'
-      @emit 'destroyed' if Grim.includeDeprecatedAPIs
 
   isAlive: -> not @destroyed
 
@@ -1407,7 +1389,6 @@ class TextBuffer
 
       if @conflict
         @emitter.emit 'did-conflict'
-        @emit "contents-conflicted" if Grim.includeDeprecatedAPIs
       else
         @reload()
 
@@ -1422,7 +1403,6 @@ class TextBuffer
 
     @fileSubscriptions.add @file.onDidRename =>
       @emitter.emit 'did-change-path', @getPath()
-      @emit "path-changed", this if Grim.includeDeprecatedAPIs
 
     @fileSubscriptions.add @file.onWillThrowWatchError (errorObject) =>
       @emitter.emit 'will-throw-watch-error', errorObject
@@ -1443,7 +1423,6 @@ class TextBuffer
       @stoppedChangingTimeout = null
       modifiedStatus = @isModified()
       @emitter.emit 'did-stop-changing'
-      @emit 'contents-modified', modifiedStatus if Grim.includeDeprecatedAPIs
       @emitModifiedStatusChanged(modifiedStatus)
     @stoppedChangingTimeout = setTimeout(stoppedChangingCallback, @stoppedChangingDelay)
 
@@ -1451,7 +1430,6 @@ class TextBuffer
     return if modifiedStatus is @previousModifiedStatus
     @previousModifiedStatus = modifiedStatus
     @emitter.emit 'did-change-modified', modifiedStatus
-    @emit 'modified-status-changed', modifiedStatus if Grim.includeDeprecatedAPIs
 
   logLines: (start=0, end=@getLastRow())->
     for row in [start..end]
@@ -1506,68 +1484,7 @@ class TextBuffer
   markerCreated: (layer, marker) ->
     if layer is @defaultMarkerLayer
       @emitter.emit 'did-create-marker', marker
-      @emit 'marker-created', marker if Grim.includeDeprecatedAPIs
 
   markersUpdated: (layer) ->
     if layer is @defaultMarkerLayer
       @emitter.emit 'did-update-markers'
-      @emit 'markers-updated' if Grim.includeDeprecatedAPIs
-
-if Grim.includeDeprecatedAPIs
-  EmitterMixin = require('emissary').Emitter
-  EmitterMixin.includeInto(TextBuffer)
-
-  {Subscriber} = require 'emissary'
-  Subscriber.includeInto(TextBuffer)
-
-  TextBuffer::on = (eventName) ->
-    switch eventName
-      when 'changed'
-        Grim.deprecate("Use TextBuffer::onDidChange instead")
-      when 'contents-modified'
-        Grim.deprecate("Use TextBuffer::onDidStopChanging instead. If you need the modified status, call TextBuffer::isModified yourself in your callback.")
-      when 'contents-conflicted'
-        Grim.deprecate("Use TextBuffer::onDidConflict instead")
-      when 'modified-status-changed'
-        Grim.deprecate("Use TextBuffer::onDidChangeModified instead")
-      when 'markers-updated'
-        Grim.deprecate("Use TextBuffer::onDidUpdateMarkers instead")
-      when 'marker-created'
-        Grim.deprecate("Use TextBuffer::onDidCreateMarker instead")
-      when 'path-changed'
-        Grim.deprecate("Use TextBuffer::onDidChangePath instead. The path is now provided as a callback argument rather than a TextBuffer instance.")
-      when 'will-be-saved'
-        Grim.deprecate("Use TextBuffer::onWillSave instead. A TextBuffer instance is no longer provided as a callback argument.")
-      when 'saved'
-        Grim.deprecate("Use TextBuffer::onDidSave instead. A TextBuffer instance is no longer provided as a callback argument.")
-      when 'will-reload'
-        Grim.deprecate("Use TextBuffer::onWillReload instead.")
-      when 'reloaded'
-        Grim.deprecate("Use TextBuffer::onDidReload instead.")
-      when 'destroyed'
-        Grim.deprecate("Use TextBuffer::onDidDestroy instead")
-      else
-        Grim.deprecate("TextBuffer::on is deprecated. Use event subscription methods instead.")
-
-    EmitterMixin::on.apply(this, arguments)
-
-  TextBuffer::change = (oldRange, newText, options={}) ->
-    Grim.deprecate("Use TextBuffer::setTextInRange instead.")
-    @setTextInRange(oldRange, newText, options.normalizeLineEndings)
-
-  TextBuffer::usesSoftTabs = ->
-    Grim.deprecate("Use TextEditor::usesSoftTabs instead. TextBuffer doesn't have enough context to determine this.")
-    for row in [0..@getLastRow()]
-      if match = @lineForRow(row).match(/^\s/)
-        return match[0][0] != '\t'
-    undefined
-
-  TextBuffer::getEofPosition = ->
-    Grim.deprecate("Use TextBuffer::getEndPosition instead.")
-    @getEndPosition()
-
-  TextBuffer::beginTransaction = (groupingInterval) ->
-    Grim.deprecate("Open-ended transactions are deprecated. Use checkpoints instead.")
-
-  TextBuffer::commitTransaction = ->
-    Grim.deprecate("Open-ended transactions are deprecated. Use checkpoints instead.")

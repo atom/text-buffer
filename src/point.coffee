@@ -1,5 +1,3 @@
-{includeDeprecatedAPIs, deprecate} = require 'grim'
-
 # Public: Represents a point in a buffer in row/column coordinates.
 #
 # Every public method that takes a point also accepts a *point-compatible*
@@ -265,12 +263,6 @@ class Point
   # Public: Returns a string representation of the point.
   toString: ->
     "(#{@row}, #{@column})"
-
-
-if includeDeprecatedAPIs
-  Point::add = (other) ->
-    deprecate("Use Point::traverse instead")
-    @traverse(other)
 
 isNumber = (value) ->
   (typeof value is 'number') and (not Number.isNaN(value))

@@ -1,6 +1,5 @@
 {extend, isEqual, omit, pick, size} = require 'underscore-plus'
 {Emitter} = require 'event-kit'
-Grim = require 'grim'
 Delegator = require 'delegato'
 Point = require './point'
 Range = require './range'
@@ -32,7 +31,6 @@ class Marker
   @extractParams: (inputParams) ->
     outputParams = {}
     if inputParams?
-      @handleDeprecatedParams(inputParams) if Grim.includeDeprecatedAPIs
       for key in Object.keys(inputParams)
         if OptionKeys.has(key)
           outputParams[key] = inputParams[key]
@@ -286,7 +284,6 @@ class Marker
     @rangeWhenDestroyed = @getRange()
     @layer.destroyMarker(@id)
     @emitter.emit 'did-destroy'
-    @emit 'destroyed' if Grim.includeDeprecatedAPIs
 
   extractParams: (params) ->
     params = @constructor.extractParams(params)
@@ -406,51 +403,3 @@ class Marker
       textChanged
     })
     true
-
-if Grim.includeDeprecatedAPIs
-  EmitterMixin = require('emissary').Emitter
-  EmitterMixin.includeInto(Marker)
-
-  Marker::on = (eventName) ->
-    switch eventName
-      when 'changed'
-        Grim.deprecate("Use Marker::onDidChange instead")
-      when 'destroyed'
-        Grim.deprecate("Use Marker::onDidDestroy instead")
-      else
-        Grim.deprecate("Marker::on is deprecated. Use event subscription methods instead.")
-
-    EmitterMixin::on.apply(this, arguments)
-
-  Marker::matchesAttributes = (args...) ->
-    Grim.deprecate("Use Marker::matchesParams instead.")
-    @matchesParams(args...)
-
-  Marker::getAttributes = ->
-    Grim.deprecate("Use Marker::getProperties instead.")
-    @getProperties()
-
-  Marker::setAttributes = (args...) ->
-    Grim.deprecate("Use Marker::setProperties instead.")
-    @setProperties(args...)
-
-  Marker.handleDeprecatedParams = (params) ->
-    if params.isReversed?
-      Grim.deprecate("The option `isReversed` is deprecated, use `reversed` instead")
-      params.reversed = params.isReversed
-      delete params.isReversed
-
-    if params.hasTail?
-      Grim.deprecate("The option `hasTail` is deprecated, use `tailed` instead")
-      params.tailed = params.hasTail
-      delete params.hasTail
-
-    if params.persist?
-      Grim.deprecate("The option `persist` is deprecated, use `persistent` instead")
-      params.persistent = params.persist
-      delete params.persist
-
-    if params.invalidation
-      Grim.deprecate("The option `invalidation` is deprecated, use `invalidate` instead")
-      params.invalidate = params.invalidation
-      delete params.invalidation

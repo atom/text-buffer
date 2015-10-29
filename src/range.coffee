@@ -1,4 +1,3 @@
-Grim = require 'grim'
 Point = require './point'
 {newlineRegex} = require './helpers'
 
@@ -270,11 +269,6 @@ class Range
   # * `exclusive` A boolean value including that the containment should be exclusive of
   #   endpoints. Defaults to false.
   containsPoint: (point, exclusive) ->
-    # Deprecated: Support options hash with exclusive
-    if Grim.includeDeprecatedAPIs and exclusive? and typeof exclusive is 'object'
-      Grim.deprecate("The second param is no longer an object, it's a boolean argument named `exclusive`.")
-      {exclusive} = exclusive
-
     point = Point.fromObject(point)
     if exclusive
       point.isGreaterThan(@start) and point.isLessThan(@end)
@@ -315,8 +309,3 @@ class Range
   # Public: Returns a string representation of the range.
   toString: ->
     "[#{@start} - #{@end}]"
-
-if Grim.includeDeprecatedAPIs
-  Range::add = (delta) ->
-    Grim.deprecate("Use Range::traverse instead")
-    @traverse(delta)
