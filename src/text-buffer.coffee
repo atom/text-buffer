@@ -806,10 +806,6 @@ class TextBuffer
   # * `range` A {Range} or range-compatible {Array}
   # * `properties` A hash of key-value pairs to associate with the marker. There
   #   are also reserved property names that have marker-specific meaning.
-  #   * `maintainHistory` (optional) {Boolean} Whether to store this marker's
-  #     range before and after each change in the undo history. This allows the
-  #     marker's position to be restored more accurately for certain undo/redo
-  #     operations, but uses more time and memory. (default: false)
   #   * `reversed` (optional) {Boolean} Creates the marker in a reversed
   #     orientation. (default: false)
   #   * `persistent` (optional) {Boolean} Whether to include this marker when

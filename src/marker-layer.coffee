@@ -273,8 +273,6 @@ class MarkerLayer
     @index.insert(id, range.start, range.end)
     if marker.getInvalidationStrategy() is 'inside'
       @index.setExclusive(id, true)
-    if marker.maintainHistory
-      @historiedMarkers.add(id)
     marker
 
   scheduleUpdateEvent: ->

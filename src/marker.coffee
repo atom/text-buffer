@@ -4,7 +4,7 @@ Delegator = require 'delegato'
 Point = require './point'
 Range = require './range'
 
-OptionKeys = new Set(['reversed', 'tailed', 'invalidate', 'persistent', 'maintainHistory'])
+OptionKeys = new Set(['reversed', 'tailed', 'invalidate', 'persistent'])
 
 # Private: Represents a buffer annotation that remains logically stationary
 # even as the buffer changes. This is used to represent cursors, folds, snippet
@@ -42,14 +42,13 @@ class Marker
   @delegatesMethods 'containsPoint', 'containsRange', 'intersectsRow', toMethod: 'getRange'
 
   constructor: (@id, @layer, range, params) ->
-    {@tailed, @reversed, @valid, @invalidate, @persistent, @properties, @maintainHistory} = params
+    {@tailed, @reversed, @valid, @invalidate, @persistent, @properties} = params
     @emitter = new Emitter
     @tailed ?= true
     @reversed ?= false
     @valid ?= true
     @invalidate ?= 'overlap'
     @persistent ?= true
-    @maintainHistory ?= false
     @properties ?= {}
     @hasChangeObservers = false
     @rangeWhenDestroyed = null
@@ -240,7 +239,6 @@ class Marker
     @invalidate is other.invalidate and
       @tailed is other.tailed and
       @persistent is other.persistent and
-      @maintainHistory is other.maintainHistory and
       @reversed is other.reversed and
       isEqual(@properties, other.properties) and
       @getRange().isEqual(other.getRange())
@@ -322,7 +320,7 @@ class Marker
         @getEndPosition().row is value
       when 'intersectsRow'
         @intersectsRow(value)
-      when 'invalidate', 'reversed', 'tailed', 'persistent', 'maintainHistory'
+      when 'invalidate', 'reversed', 'tailed', 'persistent'
         isEqual(@[key], value)
       else
         isEqual(@properties[key], value)
@@ -359,7 +357,7 @@ class Marker
     updated
 
   getSnapshot: (range) ->
-    Object.freeze({range, @properties, @reversed, @tailed, @valid, @invalidate, @maintainHistory})
+    Object.freeze({range, @properties, @reversed, @tailed, @valid, @invalidate})
 
   toString: ->
     "[Marker #{@id}, #{@getRange()}]"
