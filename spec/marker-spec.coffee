@@ -43,26 +43,6 @@ describe "Marker", ->
         marker = buffer.markRange([[-100, -100], [100, 100]])
         expect(marker.getRange()).toEqual [[0, 0], [0, 26]]
 
-      it "allows markers to opt in to snapshotting for undo/redo", ->
-        marker1 = buffer.markPosition([0, 3], maintainHistory: true)
-        marker2 = buffer.markPosition([0, 3], maintainHistory: false)
-
-        marker1Events = []
-        marker2Events = []
-        marker1.onDidChange (event) -> marker1Events.push(event)
-        marker2.onDidChange (event) -> marker2Events.push(event)
-
-        # The marker still emits change events.
-        buffer.delete([[0, 1], [0, 5]])
-        expect(marker1Events.length).toBe 1
-        expect(marker2Events).toEqual marker1Events
-
-        # When undoing destructive changes, the marker is not restored to its
-        # exact original position.
-        buffer.undo()
-        expect(marker1.getRange()).toEqual [[0, 3], [0, 3]]
-        expect(marker2.getRange()).toEqual [[0, 5], [0, 5]]
-
       it "throws an error if an invalid point is given", ->
         marker1 = buffer.markRange([[0, 1], [0, 2]])
 
@@ -105,7 +85,7 @@ describe "Marker", ->
     [marker, changes] = []
 
     beforeEach ->
-      marker = buffer.markRange([[0, 6], [0, 9]], maintainHistory: true)
+      marker = buffer.markRange([[0, 6], [0, 9]])
       changes = []
       markersUpdatedCount = 0
       marker.onDidChange (change) -> changes.push(change)
@@ -431,34 +411,11 @@ describe "Marker", ->
         expect(marker.getProperties()).toEqual {foo: 1, bar: 2}
         expect(markersUpdatedCount).toBe 2
 
-    it "only allows direct manipulations to be undone if they are part of a transaction with other buffer changes", ->
-      # Can't undo standalone changes
-      marker.setRange([[0, 7], [0, 11]])
-      buffer.undo()
-      expect(marker.getRange()).toEqual [[0, 7], [0, 11]]
-
-      # Can't undo changes in a transaction without other buffer changes
-      buffer.transact -> marker.setRange([[0, 4], [0, 20]])
-      buffer.undo()
-      expect(marker.getRange()).toEqual [[0, 4], [0, 20]]
-
-      # Can undo changes in a transaction with other buffer changes
-      buffer.transact ->
-        marker.setRange([[0, 5], [0, 9]])
-        buffer.setTextInRange([[0, 2], [0, 3]], 'XYZ')
-        marker.setRange([[0, 8], [0, 12]])
-
-      buffer.undo()
-      expect(marker.getRange()).toEqual [[0, 4], [0, 20]]
-
-      buffer.redo()
-      expect(marker.getRange()).toEqual [[0, 8], [0, 12]]
-
   describe "indirect updates (due to buffer changes)", ->
     [allStrategies, neverMarker, surroundMarker, overlapMarker, insideMarker, touchMarker] = []
 
     beforeEach ->
-      overlapMarker = buffer.markRange([[0, 6], [0, 9]], invalidate: 'overlap', maintainHistory: true)
+      overlapMarker = buffer.markRange([[0, 6], [0, 9]], invalidate: 'overlap')
       neverMarker = overlapMarker.copy(invalidate: 'never')
       surroundMarker = overlapMarker.copy(invalidate: 'surround')
       insideMarker = overlapMarker.copy(invalidate: 'inside')
@@ -510,20 +467,6 @@ describe "Marker", ->
           expect(marker.isValid()).toBe true
           expect(marker.changes.length).toBe 0
 
-      buffer.undo()
-
-      expect(changedCount).toBe 1
-      for marker in allStrategies
-        expect(marker.changes).toEqual [{
-          oldHeadPosition: [0, 11], newHeadPosition: [0, 9]
-          oldTailPosition: [0, 8], newTailPosition: [0, 6]
-          hadTail: true, hasTail: true
-          wasValid: true, isValid: true
-          oldProperties: {}, newProperties: {}
-          textChanged: true
-        }]
-      expect(markersUpdatedCount).toBe 1
-
     it "notifies ::onDidUpdateMarkers observers even if there are no Marker::onDidChange observers", ->
       expect(markersUpdatedCount).toBe 0
       buffer.insert([0, 0], "123")
@@ -541,27 +484,6 @@ describe "Marker", ->
         buffer.setTextInRange([[0, 1], [0, 1]], '\nDEF')
         for marker in allStrategies
           expect(marker.getRange()).toEqual [[1, 10], [1, 13]]
-          expect(marker.isValid()).toBe true
-
-        for marker in allStrategies
-          marker.setRange([[1, Infinity], [1, Infinity]])
-
-        buffer.undo()
-        for marker in allStrategies
-          expect(marker.getRange()).toEqual [[0, 8], [0, 11]]
-          expect(marker.isValid()).toBe true
-
-        buffer.undo()
-        for marker in allStrategies
-          expect(marker.getRange()).toEqual [[0, 6], [0, 9]]
-          expect(marker.isValid()).toBe true
-
-        for marker in allStrategies
-          marker.setRange([[1, Infinity], [1, Infinity]])
-
-        buffer.redo()
-        for marker in allStrategies
-          expect(marker.getRange()).toEqual [[0, 8], [0, 11]]
           expect(marker.isValid()).toBe true
 
     describe "when a change follows a marker", ->
@@ -584,12 +506,6 @@ describe "Marker", ->
             expect(marker.getRange()).toEqual [[0, 6], [0, 11]]
             expect(marker.isValid()).toBe false
 
-          buffer.undo()
-
-          for marker in allStrategies
-            expect(marker.getRange()).toEqual [[0, 6], [0, 9]]
-            expect(marker.isValid()).toBe true
-
       describe "when the marker has no tail", ->
         it "interprets the change as being outside the marker for all invalidation strategies", ->
           for marker in allStrategies
@@ -606,31 +522,14 @@ describe "Marker", ->
           expect(touchMarker.getRange()).toEqual [[0, 9], [0, 9]]
           expect(touchMarker.isValid()).toBe false
 
-          buffer.undo()
-
-          for marker in allStrategies
-            expect(marker.getRange()).toEqual [[0, 6], [0 ,6]]
-            expect(marker.isValid()).toBe true
-
-          for marker in allStrategies
-            marker.setRange([[0, 6], [0, 6]], reversed: false)
-            marker.clearTail()
-            expect(marker.getRange()).toEqual [[0, 6], [0, 6]]
-
-          buffer.setTextInRange([[0, 6], [0, 6]], "DEF")
+          buffer.setTextInRange([[0, 9], [0, 9]], "DEF")
 
           for marker in difference(allStrategies, [touchMarker])
-            expect(marker.getRange()).toEqual [[0, 9], [0, 9]]
+            expect(marker.getRange()).toEqual [[0, 12], [0, 12]]
             expect(marker.isValid()).toBe true
 
-          expect(touchMarker.getRange()).toEqual [[0, 9], [0, 9]]
+          expect(touchMarker.getRange()).toEqual [[0, 12], [0, 12]]
           expect(touchMarker.isValid()).toBe false
-
-          buffer.undo()
-
-          for marker in allStrategies
-            expect(marker.getRange()).toEqual [[0, 6], [0, 6]]
-            expect(marker.isValid()).toBe true
 
     describe "when a change ends at a marker's start position but starts before it", ->
       it "interprets the change as being outside the marker for all invalidation strategies", ->
@@ -642,12 +541,6 @@ describe "Marker", ->
 
         expect(touchMarker.getRange()).toEqual [[0, 7], [0, 10]]
         expect(touchMarker.isValid()).toBe false
-
-        buffer.undo()
-
-        for marker in allStrategies
-          expect(marker.getRange()).toEqual [[0, 6], [0, 9]]
-          expect(marker.isValid()).toBe true
 
     describe "when a change starts and ends at a marker's start position", ->
       it "interprets the change as being inside the marker for all invalidation strategies except 'inside'", ->
@@ -662,12 +555,6 @@ describe "Marker", ->
 
         expect(touchMarker.getRange()).toEqual [[0, 6], [0, 12]]
         expect(touchMarker.isValid()).toBe false
-
-        buffer.undo()
-
-        for marker in allStrategies
-          expect(marker.getRange()).toEqual [[0, 6], [0, 9]]
-          expect(marker.isValid()).toBe true
 
     describe "when a change starts at a marker's end position", ->
       describe "when the change is an insertion", ->
@@ -684,12 +571,6 @@ describe "Marker", ->
           expect(touchMarker.getRange()).toEqual [[0, 6], [0, 12]]
           expect(touchMarker.isValid()).toBe false
 
-          buffer.undo()
-
-          for marker in allStrategies
-            expect(marker.getRange()).toEqual [[0, 6], [0, 9]]
-            expect(marker.isValid()).toBe true
-
       describe "when the change replaces some existing text", ->
         it "interprets the change as being outside the marker for all invalidation strategies", ->
           buffer.setTextInRange([[0, 9], [0, 11]], "ABC")
@@ -700,12 +581,6 @@ describe "Marker", ->
 
           expect(touchMarker.getRange()).toEqual [[0, 6], [0, 9]]
           expect(touchMarker.isValid()).toBe false
-
-          buffer.undo()
-
-          for marker in allStrategies
-            expect(marker.getRange()).toEqual [[0, 6], [0, 9]]
-            expect(marker.isValid()).toBe true
 
     describe "when a change surrounds a marker", ->
       it "truncates the marker to the end of the change and invalidates every invalidation strategy except 'never'", ->
@@ -718,12 +593,6 @@ describe "Marker", ->
           expect(marker.isValid()).toBe false
 
         expect(neverMarker.isValid()).toBe true
-
-        buffer.undo()
-
-        for marker in allStrategies
-          expect(marker.getRange()).toEqual [[0, 6], [0, 9]]
-          expect(marker.isValid()).toBe true
 
     describe "when a change is inside a marker", ->
       it "adjusts the marker's end position and invalidates markers with an 'inside' or 'touch' strategy", ->
@@ -738,12 +607,6 @@ describe "Marker", ->
         expect(insideMarker.isValid()).toBe false
         expect(touchMarker.isValid()).toBe false
 
-        buffer.undo()
-
-        for marker in allStrategies
-          expect(marker.getRange()).toEqual [[0, 6], [0, 9]]
-          expect(marker.isValid()).toBe true
-
     describe "when a change overlaps the start of a marker", ->
       it "moves the start of the marker to the end of the change and invalidates the marker if its stategy is 'overlap', 'inside', or 'touch'", ->
         buffer.setTextInRange([[0, 5], [0, 7]], "ABC")
@@ -757,12 +620,6 @@ describe "Marker", ->
         expect(insideMarker.isValid()).toBe false
         expect(touchMarker.isValid()).toBe false
 
-        buffer.undo()
-
-        for marker in allStrategies
-          expect(marker.getRange()).toEqual [[0, 6], [0, 9]]
-          expect(marker.isValid()).toBe true
-
     describe "when a change overlaps the end of a marker", ->
       it "moves the end of the marker to the end of the change and invalidates the marker if its stategy is 'overlap', 'inside', or 'touch'", ->
         buffer.setTextInRange([[0, 8], [0, 10]], "ABC")
@@ -775,24 +632,6 @@ describe "Marker", ->
         expect(overlapMarker.isValid()).toBe false
         expect(insideMarker.isValid()).toBe false
         expect(touchMarker.isValid()).toBe false
-
-        buffer.undo()
-
-        for marker in allStrategies
-          expect(marker.getRange()).toEqual [[0, 6], [0, 9]]
-          expect(marker.isValid()).toBe true
-
-    describe "when a change precedes the creation of a marker", ->
-      it "updates the marker as normal when undoing / redoing the change", ->
-        buffer.setTextInRange([[0, 1], [0, 2]], "ABC")
-        marker1 = buffer.markRange([[0, 5], [0, 6]])
-        buffer.undo()
-        expect(marker1.getRange()).toEqual [[0, 3], [0, 4]]
-
-        marker2 = buffer.markRange([[0, 7], [0, 9]])
-        buffer.redo()
-        expect(marker1.getRange()).toEqual [[0, 5], [0, 6]]
-        expect(marker2.getRange()).toEqual [[0, 9], [0, 11]]
 
     describe "when multiple changes occur in a transaction", ->
       it "emits one change event for each marker that was indirectly updated", ->
@@ -838,83 +677,6 @@ describe "Marker", ->
           newProperties: {}
           textChanged: true
         }]
-
-      it "correctly restores markers when the transaction is undone", ->
-        marker.destroy() for marker in allStrategies
-
-        buffer.setText('')
-
-        buffer.transact ->
-          buffer.append('foo')
-
-        buffer.transact ->
-          buffer.append('\n')
-          buffer.append('bar')
-
-          buffer.markRange([[0, 0], [0, 3]], a: 'b', invalidate: 'never', maintainHistory: true)
-          buffer.markRange([[1, 0], [1, 3]], c: 'd', invalidate: 'never', maintainHistory: true)
-
-        buffer.undo()
-
-        expect(buffer.getText()).toBe 'foo'
-        markers = buffer.findMarkers({})
-        expect(markers).toEqual []
-
-        buffer.redo()
-
-        expect(buffer.getText()).toBe 'foo\nbar'
-        markers = buffer.findMarkers({})
-        expect(markers[0].getProperties()).toEqual {a: 'b'}
-        expect(markers[1].getProperties()).toEqual {c: 'd'}
-        expect(markers[0].getRange()).toEqual [[0, 0], [0, 3]]
-        expect(markers[1].getRange()).toEqual [[1, 0], [1, 3]]
-
-      it "only records marker patches for direct marker updates", ->
-        buffer.setText("abcd")
-        marker = buffer.markRange([[0, 3], [0, 3]], maintainHistory: true)
-
-        buffer.transact ->
-          buffer.delete([[0, 0], [0, 1]])
-          marker.setHeadPosition([0, 4])
-          buffer.delete([[0, 3], [0, 4]])
-          marker.setHeadPosition([0, 3])
-
-        buffer.undo()
-        expect(marker.getRange()).toEqual [[0, 3], [0, 3]]
-
-    describe "when a marker is updated before undoing or redoing", ->
-      it "restores the marker to its state before/after the undone/redone change", ->
-        marker = buffer.markRange([[0, 5], [0, 5]], maintainHistory: true)
-
-        buffer.insert([0, 5], "...")
-        expect(marker.getRange()).toEqual [[0, 5], [0, 8]]
-
-        buffer.insert([0, 8], "???")
-        expect(marker.getRange()).toEqual [[0, 5], [0, 11]]
-
-        marker.setRange([[0, 0], [0, 1]])
-        marker.setRange([[0, 0], [0, 2]])
-
-        buffer.undo()
-        expect(marker.getRange()).toEqual [[0, 5], [0, 8]]
-
-        marker.setRange([[0, 0], [0, 1]])
-        marker.setRange([[0, 0], [0, 2]])
-
-        buffer.undo()
-        expect(marker.getRange()).toEqual [[0, 5], [0, 5]]
-
-        marker.setRange([[0, 0], [0, 1]])
-        marker.setRange([[0, 0], [0, 2]])
-
-        buffer.redo()
-        expect(marker.getRange()).toEqual [[0, 5], [0, 8]]
-
-        marker.setRange([[0, 0], [0, 1]])
-        marker.setRange([[0, 0], [0, 2]])
-
-        buffer.redo()
-        expect(marker.getRange()).toEqual [[0, 5], [0, 11]]
 
   describe "destruction", ->
     it "removes the marker from the buffer, marks it destroyed and invalid, and notifies ::onDidDestroy observers", ->
@@ -970,33 +732,13 @@ describe "Marker", ->
       marker.setRange([[0, 0], [0, 9]])
       expect(buffer.findMarkers(intersectsRow: 0)).toEqual []
 
-    it "recreates historied markers on undo", ->
-      marker1 = buffer.markRange([[0, 3], [0, 6]], a: 'b', maintainHistory: true)
-
-      createdMarkers = []
-      buffer.onDidCreateMarker (marker) ->
-        createdMarkers.push(marker)
-
-      buffer.append("...")
-      marker1.destroy()
-
-      marker2 = buffer.markRange([[0, 3], [0, 6]], c: 'd', maintainHistory: true)
-
-      buffer.undo()
-
-      expect(createdMarkers.length).toBe 2
-      expect(createdMarkers[1].getProperties()).toEqual {a: 'b'}
-      expect(createdMarkers[1].getRange()).toEqual [[0, 3], [0, 6]]
-
-      expect(marker2.isDestroyed()).toBe true
-
   describe "TextBuffer::findMarkers(properties)", ->
     [marker1, marker2, marker3, marker4] = []
 
     beforeEach ->
       marker1 = buffer.markRange([[0, 0], [0, 3]], class: 'a')
       marker2 = buffer.markRange([[0, 0], [0, 5]], class: 'a', invalidate: 'surround')
-      marker3 = buffer.markRange([[0, 4], [0, 7]], class: 'a', maintainHistory: true)
+      marker3 = buffer.markRange([[0, 4], [0, 7]], class: 'a')
       marker4 = buffer.markRange([[0, 0], [0, 7]], class: 'b', invalidate: 'never')
 
     it "can find markers based on custom properties", ->
@@ -1007,10 +749,6 @@ describe "Marker", ->
       expect(buffer.findMarkers(invalidate: 'overlap')).toEqual [marker1, marker3]
       expect(buffer.findMarkers(invalidate: 'surround')).toEqual [marker2]
       expect(buffer.findMarkers(invalidate: 'never')).toEqual [marker4]
-
-    it "can find markers based on whether or not their history is maintained", ->
-      expect(buffer.findMarkers(maintainHistory: true)).toEqual [marker3]
-      expect(buffer.findMarkers(maintainHistory: false)).toEqual [marker4, marker2, marker1]
 
     it "can find markers that start or end at a given position", ->
       expect(buffer.findMarkers(startPosition: [0, 0])).toEqual [marker4, marker2, marker1]
@@ -1117,6 +855,71 @@ describe "Marker", ->
 
       expect(createEventCount).toBe 1
       expect(updateEventCount).toBe 2
+
+    describe "when maintainHistory is enabled for the layer", ->
+      layer3 = null
+
+      beforeEach ->
+        layer3 = buffer.addMarkerLayer(maintainHistory: true)
+
+      it "restores the state of all markers in the layer on undo and redo", ->
+        buffer.setText('')
+        buffer.transact -> buffer.append('foo')
+        layer3 = buffer.addMarkerLayer(maintainHistory: true)
+
+        marker1 = layer3.markRange([[0, 0], [0, 0]], a: 'b', invalidate: 'never')
+        marker2 = layer3.markRange([[0, 0], [0, 0]], c: 'd', invalidate: 'never')
+
+        buffer.transact ->
+          buffer.append('\n')
+          buffer.append('bar')
+
+          marker1.destroy()
+          marker2.setRange([[0, 2], [0, 3]])
+          marker3 = layer3.markRange([[0, 0], [0, 3]], e: 'f', invalidate: 'never')
+          marker4 = layer3.markRange([[1, 0], [1, 3]], g: 'h', invalidate: 'never')
+
+        buffer.undo()
+
+        expect(buffer.getText()).toBe 'foo'
+        markers = layer3.findMarkers({})
+        expect(markers.length).toBe 2
+        expect(markers[0].getProperties()).toEqual {c: 'd'}
+        expect(markers[0].getRange()).toEqual [[0, 0], [0, 0]]
+        expect(markers[1].getProperties()).toEqual {a: 'b'}
+        expect(markers[1].getRange()).toEqual [[0, 0], [0, 0]]
+
+        buffer.redo()
+
+        expect(buffer.getText()).toBe 'foo\nbar'
+        markers = layer3.findMarkers({})
+        expect(markers.length).toBe 3
+        expect(markers[0].getProperties()).toEqual {e: 'f'}
+        expect(markers[0].getRange()).toEqual [[0, 0], [0, 3]]
+        expect(markers[1].getProperties()).toEqual {c: 'd'}
+        expect(markers[1].getRange()).toEqual [[0, 2], [0, 3]]
+        expect(markers[2].getProperties()).toEqual {g: 'h'}
+        expect(markers[2].getRange()).toEqual [[1, 0], [1, 3]]
+
+      it "does not undo marker manipulations that aren't associated with text changes", ->
+        marker = layer3.markRange([[0, 6], [0, 9]])
+
+        # Can't undo changes in a transaction without other buffer changes
+        buffer.transact -> marker.setRange([[0, 4], [0, 20]])
+        buffer.undo()
+        expect(marker.getRange()).toEqual [[0, 4], [0, 20]]
+
+        # Can undo changes in a transaction with other buffer changes
+        buffer.transact ->
+          marker.setRange([[0, 5], [0, 9]])
+          buffer.setTextInRange([[0, 2], [0, 3]], 'XYZ')
+          marker.setRange([[0, 8], [0, 12]])
+
+        buffer.undo()
+        expect(marker.getRange()).toEqual [[0, 4], [0, 20]]
+
+        buffer.redo()
+        expect(marker.getRange()).toEqual [[0, 8], [0, 12]]
 
     describe "::findMarkers(params)", ->
       it "does not find markers from other layers", ->

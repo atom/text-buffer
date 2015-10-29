@@ -58,7 +58,7 @@ class TransactionAbortedError extends Error
 # annotate logical regions in the text.
 module.exports =
 class TextBuffer
-  @version: 3
+  @version: 4
   @Point: Point
   @Range: Range
   @Patch: Patch
@@ -102,7 +102,8 @@ class TextBuffer
     @history = params?.history ? new History(this, maxUndoEntries)
     @nextMarkerLayerId = params?.nextMarkerLayerId ? 0
     @defaultMarkerLayer = params?.defaultMarkerLayer ? new MarkerLayer(this, String(@nextMarkerLayerId++))
-    @customMarkerLayers = params?.customMarkerLayers ? []
+    @markerLayers = params?.markerLayers ? {}
+    @markerLayers[@defaultMarkerLayer.id] = @defaultMarkerLayer
 
     @setEncoding(params?.encoding)
     @setPreferredLineEnding(params?.preferredLineEnding)
@@ -116,18 +117,24 @@ class TextBuffer
 
   # Called by {Serializable} mixin during deserialization.
   deserializeParams: (params) ->
-    params.defaultMarkerLayer = MarkerLayer.deserialize(this, params.defaultMarkerLayer)
-    params.customMarkerLayers = for layerParams in params.customMarkerLayers
-      MarkerLayer.deserialize(this, layerParams)
+    markerLayers = {}
+    for layerId, layerState of params.markerLayers
+      markerLayers[layerId] = MarkerLayer.deserialize(this, layerState)
+    params.markerLayers = markerLayers
+    params.defaultMarkerLayer = params.markerLayers[params.defaultMarkerLayerId]
     params.history = History.deserialize(this, params.history)
     params.load = true if params.filePath
     params
 
   # Called by {Serializable} mixin during serialization.
   serializeParams: ->
+    markerLayers = {}
+    for id, layer of @markerLayers
+      markerLayers[id] = layer.serialize()
+
     text: @getText()
-    defaultMarkerLayer: @defaultMarkerLayer.serialize()
-    customMarkerLayers: @customMarkerLayers.map (layer) -> layer.serialize()
+    defaultMarkerLayerId: @defaultMarkerLayer.id
+    markerLayers: markerLayers
     nextMarkerLayerId: @nextMarkerLayerId
     history: @history.serialize()
     encoding: @getEncoding()
@@ -711,12 +718,11 @@ class TextBuffer
       {rows: 1, characters: line.length + lineEndings[index].length}
     @offsetIndex.spliceArray('rows', startRow, rowCount, offsets)
 
-    if @defaultMarkerLayer?
+    if @markerLayers?
       oldExtent = oldRange.getExtent()
       newExtent = newRange.getExtent()
-      @defaultMarkerLayer.splice(oldRange.start, oldExtent, newExtent)
-      for customMarkerLayer in @customMarkerLayers
-        customMarkerLayer.splice(oldRange.start, oldExtent, newExtent)
+      for id, markerLayer of @markerLayers
+        markerLayer.splice(oldRange.start, oldExtent, newExtent)
 
     @history?.pushChange(change) unless skipUndo
 
@@ -781,16 +787,13 @@ class TextBuffer
   Section: Markers
   ###
 
-  addMarkerLayer: ->
-    layer = new MarkerLayer(this, String(@nextMarkerLayerId++))
-    @customMarkerLayers.push(layer)
+  addMarkerLayer: (options) ->
+    layer = new MarkerLayer(this, String(@nextMarkerLayerId++), options)
+    @markerLayers[layer.id] = layer
     layer
 
   getMarkerLayer: (id) ->
-    for customMarkerLayer in @customMarkerLayers
-      if customMarkerLayer.id is id
-        return customMarkerLayer
-    undefined
+    @markerLayers[id]
 
   getDefaultMarkerLayer: ->
     @defaultMarkerLayer
@@ -885,7 +888,7 @@ class TextBuffer
   undo: ->
     if pop = @history.popUndoStack()
       @applyChange(change, true) for change in pop.changes
-      @defaultMarkerLayer.restoreFromSnapshot(pop.snapshot)
+      @restoreFromMarkerSnapshot(pop.snapshot)
       true
     else
       false
@@ -894,7 +897,7 @@ class TextBuffer
   redo: ->
     if pop = @history.popRedoStack()
       @applyChange(change, true) for change in pop.changes
-      @defaultMarkerLayer.restoreFromSnapshot(pop.snapshot)
+      @restoreFromMarkerSnapshot(pop.snapshot)
       true
     else
       false
@@ -917,7 +920,7 @@ class TextBuffer
       fn = groupingInterval
       groupingInterval = 0
 
-    checkpointBefore = @history.createCheckpoint(@defaultMarkerLayer.createSnapshot(false), true)
+    checkpointBefore = @history.createCheckpoint(@createMarkerSnapshot(), true)
 
     try
       @transactCallDepth++
@@ -929,8 +932,10 @@ class TextBuffer
     finally
       @transactCallDepth--
 
-    @history.groupChangesSinceCheckpoint(checkpointBefore, @defaultMarkerLayer.createSnapshot(true), true)
+    endMarkerSnapshot = @createMarkerSnapshot()
+    @history.groupChangesSinceCheckpoint(checkpointBefore, endMarkerSnapshot, true)
     @history.applyGroupingInterval(groupingInterval)
+    @emitMarkerChangeEvents(endMarkerSnapshot)
 
     result
 
@@ -945,7 +950,7 @@ class TextBuffer
   #
   # Returns a checkpoint value.
   createCheckpoint: ->
-    @history.createCheckpoint(@defaultMarkerLayer.createSnapshot(), false)
+    @history.createCheckpoint(@createMarkerSnapshot(), false)
 
   # Public: Revert the buffer to the state it was in when the given
   # checkpoint was created.
@@ -959,7 +964,7 @@ class TextBuffer
   revertToCheckpoint: (checkpoint) ->
     if truncated = @history.truncateUndoStack(checkpoint)
       @applyChange(change, true) for change in truncated.changes
-      @defaultMarkerLayer.restoreFromSnapshot(truncated.snapshot)
+      @restoreFromMarkerSnapshot(truncated.snapshot)
       @emitter.emit 'did-update-markers'
       true
     else
@@ -973,7 +978,7 @@ class TextBuffer
   #
   # Returns a {Boolean} indicating whether the operation succeeded.
   groupChangesSinceCheckpoint: (checkpoint) ->
-    @history.groupChangesSinceCheckpoint(checkpoint, @defaultMarkerLayer.createSnapshot(false), false)
+    @history.groupChangesSinceCheckpoint(checkpoint, @createMarkerSnapshot(), false)
 
   ###
   Section: Search And Replace
@@ -1407,6 +1412,21 @@ class TextBuffer
     @fileSubscriptions.add @file.onWillThrowWatchError (errorObject) =>
       @emitter.emit 'will-throw-watch-error', errorObject
 
+  createMarkerSnapshot: ->
+    snapshot = {}
+    for markerLayerId, markerLayer of @markerLayers
+      if markerLayer.maintainHistory
+        snapshot[markerLayerId] = markerLayer.createSnapshot()
+    snapshot
+
+  restoreFromMarkerSnapshot: (snapshot) ->
+    for markerLayerId, layerSnapshot of snapshot
+      @markerLayers[markerLayerId].restoreFromSnapshot(layerSnapshot)
+
+  emitMarkerChangeEvents: (snapshot) ->
+    for markerLayerId, markerLayer of @markerLayers
+      markerLayer.emitChangeEvents(snapshot[markerLayerId])
+
   # Identifies if the buffer belongs to multiple editors.
   #
   # For example, if the {EditorView} was split.
@@ -1476,10 +1496,7 @@ class TextBuffer
   ###
 
   markerLayerDestroyed: (markerLayer) ->
-    index = @customMarkerLayers.indexOf(markerLayer)
-    if index isnt -1
-      @customMarkerLayers.splice(index, 1)
-    return
+    delete @markerLayers[markerLayer.id]
 
   markerCreated: (layer, marker) ->
     if layer is @defaultMarkerLayer

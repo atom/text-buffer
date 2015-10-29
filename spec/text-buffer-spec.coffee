@@ -608,7 +608,8 @@ describe "TextBuffer", ->
           buffer.append("three\n")
           buffer.append("four")
 
-        buffer.markRange([[0, 1], [2, 3]], a: 'b', maintainHistory: true)
+        historyLayer = buffer.addMarkerLayer(maintainHistory: true)
+        historyLayer.markRange([[0, 1], [2, 3]], a: 'b')
         result = buffer.groupChangesSinceCheckpoint(checkpoint)
 
         expect(result).toBe true
@@ -630,7 +631,7 @@ describe "TextBuffer", ->
           four
         """
 
-        [marker] = buffer.getMarkers()
+        [marker] = historyLayer.getMarkers()
         expect(marker.getRange()).toEqual [[0, 1], [2, 3]]
         expect(marker.getProperties()).toEqual {a: 'b'}
 

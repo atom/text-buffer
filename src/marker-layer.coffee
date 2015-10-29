@@ -33,11 +33,11 @@ class MarkerLayer
   Section: Lifecycle
   ###
 
-  constructor: (@delegate, @id) ->
+  constructor: (@delegate, @id, options) ->
+    @maintainHistory = options?.maintainHistory ? false
     @emitter = new Emitter
     @index = new MarkerIndex
     @markersById = {}
-    @historiedMarkers = new Set
     @nextMarkerId = 0
     @destroyed = false
 
@@ -172,7 +172,6 @@ class MarkerLayer
   restoreFromSnapshot: (snapshots) ->
     return unless snapshots?
 
-    createdIds = new Set
     snapshotIds = Object.keys(snapshots)
     existingMarkerIds = Object.keys(@markersById)
 
@@ -182,29 +181,26 @@ class MarkerLayer
         marker.update(marker.getRange(), snapshot, true)
       else
         newMarker = @createMarker(snapshot.range, snapshot)
-        createdIds.add(newMarker.id)
 
     for id in existingMarkerIds
       if (marker = @markersById[id]) and (not snapshots[id]?)
-        if @historiedMarkers.has(id)
-          marker.destroy()
-        else
-          marker.emitChangeEvent(marker.getRange(), true, false)
+        marker.destroy()
 
     @delegate.markersUpdated(this)
-    return
 
-  createSnapshot: (emitChangeEvents=false) ->
+  createSnapshot: ->
     result = {}
-    ranges = @index.dump(@historiedMarkers)
+    ranges = @index.dump()
     for id in Object.keys(@markersById)
-      if marker = @markersById[id]
-        if marker.maintainHistory
-          result[id] = marker.getSnapshot(ranges[id], false)
-        if emitChangeEvents
-          marker.emitChangeEvent(ranges[id], true, false)
-    @delegate.markersUpdated(this) if emitChangeEvents
+      marker = @markersById[id]
+      result[id] = marker.getSnapshot(ranges[id], false)
     result
+
+  emitChangeEvents: (snapshot) ->
+    for id in Object.keys(@markersById)
+      if marker = @markersById[id] # event handlers could destroy markers
+        marker.emitChangeEvent(snapshot?[id].range, true, false)
+    @delegate.markersUpdated(this)
 
   serialize: ->
     ranges = @index.dump()
@@ -234,7 +230,6 @@ class MarkerLayer
 
   destroyMarker: (id) ->
     delete @markersById[id]
-    @historiedMarkers.delete(id)
     @index.delete(id)
     @delegate.markersUpdated(this)
     @scheduleUpdateEvent()
