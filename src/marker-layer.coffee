@@ -1,4 +1,5 @@
 {clone} = require "underscore-plus"
+{Emitter} = require 'event-kit'
 Point = require "./point"
 Range = require "./range"
 Marker = require "./marker"
@@ -8,9 +9,9 @@ MarkerIndex = require "./marker-index"
 SerializationVersion = 2
 
 module.exports =
-class MarkerStore
+class MarkerLayer
   @deserialize: (delegate, state) ->
-    store = new MarkerStore(delegate)
+    store = new MarkerLayer(delegate, 0)
     store.deserialize(state)
     store
 
@@ -28,25 +29,57 @@ class MarkerStore
       result[id].range = Range.deserialize(markerSnapshot.range)
     result
 
-  constructor: (@delegate) ->
+  ###
+  Section: Lifecycle
+  ###
+
+  constructor: (@delegate, @id) ->
+    @emitter = new Emitter
     @index = new MarkerIndex
     @markersById = {}
     @historiedMarkers = new Set
     @nextMarkerId = 0
+    @destroyed = false
+
+  # Public: Remove the {MarkerLayer} from the {TextBuffer}
+  destroy: ->
+    @destroyed = true
+    @delegate.markerLayerDestroyed(this)
+    @emitter.emit 'did-destroy'
+    @emitter.dispose()
+
+  onDidDestroy: (callback) ->
+    @emitter.on 'did-destroy', callback
+
+  isAlive: ->
+    not @destroyed
+
+  isDestroyed: ->
+    @destroyed
 
   ###
-  Section: TextBuffer API
+  Section: Public interface
   ###
 
+  # Public: Get an existing marker by its id.
   getMarker: (id) ->
     @markersById[id]
 
+  # Public: Get all existing markers on the buffer.
+  #
+  # Returns an {Array} of {Marker}s.
   getMarkers: ->
     marker for id, marker of @markersById
 
+  # Public: Get the number of markers in the buffer.
+  #
+  # Returns a {Number}.
   getMarkerCount: ->
     Object.keys(@markersById).length
 
+  # Public: Find markers conforming to the given parameters.
+  #
+  # See the documentation for {TextBuffer::findMarkers}.
   findMarkers: (params) ->
     markerIds = null
 
@@ -88,12 +121,26 @@ class MarkerStore
       result.push(marker) if marker.matchesParams(params)
     result.sort (a, b) -> a.compare(b)
 
+  # Public: Create a marker with the given range.
+  #
+  # See the documentation for {TextBuffer::markRange}
   markRange: (range, options={}) ->
-    @createMarker(Range.fromObject(range), Marker.extractParams(options))
+    @createMarker(@delegate.clipRange(range), Marker.extractParams(options))
 
+  # Public: Create a marker with the given position and no tail.
+  #
+  # See the documentation for {TextBuffer::markPosition}
   markPosition: (position, options={}) ->
     options.tailed ?= false
-    @markRange(Range(position, position), options)
+    position = @delegate.clipPosition(position)
+    @markRange(new Range(position, position), options)
+
+  onDidUpdate: (callback) ->
+    @emitter.on 'did-update', callback
+
+  ###
+  Section: Private - TextBuffer interface
+  ###
 
   splice: (start, oldExtent, newExtent) ->
     end = start.traverse(oldExtent)
@@ -120,6 +167,7 @@ class MarkerStore
       marker.valid = false if invalid
 
     @index.splice(start, oldExtent, newExtent)
+    @scheduleUpdateEvent()
 
   restoreFromSnapshot: (snapshots) ->
     return unless snapshots?
@@ -143,7 +191,7 @@ class MarkerStore
         else
           marker.emitChangeEvent(marker.getRange(), true, false)
 
-    @delegate.markersUpdated()
+    @delegate.markersUpdated(this)
     return
 
   createSnapshot: (emitChangeEvents=false) ->
@@ -155,7 +203,7 @@ class MarkerStore
           result[id] = marker.getSnapshot(ranges[id], false)
         if emitChangeEvents
           marker.emitChangeEvent(ranges[id], true, false)
-    @delegate.markersUpdated() if emitChangeEvents
+    @delegate.markersUpdated(this) if emitChangeEvents
     result
 
   serialize: ->
@@ -164,10 +212,11 @@ class MarkerStore
     for id in Object.keys(@markersById)
       marker = @markersById[id]
       markersById[id] = marker.getSnapshot(ranges[id], false) if marker.persistent
-    {@nextMarkerId, markersById, version: SerializationVersion}
+    {@nextMarkerId, @id, markersById, version: SerializationVersion}
 
   deserialize: (state) ->
     return unless state.version is SerializationVersion
+    @id = state.id
     @nextMarkerId = state.nextMarkerId
     for id, markerState of state.markersById
       range = Range.fromObject(markerState.range)
@@ -176,17 +225,19 @@ class MarkerStore
     return
 
   ###
-  Section: Marker interface
+  Section: Private - Marker interface
   ###
 
   markerUpdated: ->
-    @delegate.markersUpdated()
+    @delegate.markersUpdated(this)
+    @scheduleUpdateEvent()
 
   destroyMarker: (id) ->
     delete @markersById[id]
     @historiedMarkers.delete(id)
     @index.delete(id)
-    @delegate.markersUpdated()
+    @delegate.markersUpdated(this)
+    @scheduleUpdateEvent()
 
   getMarkerRange: (id) ->
     @index.getRange(id)
@@ -208,14 +259,15 @@ class MarkerStore
     @index.setExclusive(id, not hasTail)
 
   createMarker: (range, params) ->
-    id = String(@nextMarkerId++)
+    id = @id + '-' + @nextMarkerId++
     marker = @addMarker(id, range, params)
-    @delegate.markerCreated(marker)
-    @delegate.markersUpdated()
+    @delegate.markerCreated(this, marker)
+    @delegate.markersUpdated(this)
+    @scheduleUpdateEvent()
     marker
 
   ###
-  Section: Private
+  Section: Internal
   ###
 
   addMarker: (id, range, params) ->
@@ -229,6 +281,13 @@ class MarkerStore
     if marker.maintainHistory
       @historiedMarkers.add(id)
     marker
+
+  scheduleUpdateEvent: ->
+    unless @didUpdateEventScheduled
+      @didUpdateEventScheduled = true
+      process.nextTick =>
+        @didUpdateEventScheduled = false
+        @emitter.emit 'did-update'
 
 filterSet = (set1, set2) ->
   if set1

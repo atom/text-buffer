@@ -11,7 +11,7 @@ path = require 'path'
 Point = require './point'
 Range = require './range'
 History = require './history'
-MarkerStore = require './marker-store'
+MarkerLayer = require './marker-layer'
 Patch = require './patch'
 MatchIterator = require './match-iterator'
 {spliceArray, newlineRegex} = require './helpers'
@@ -59,7 +59,7 @@ class TransactionAbortedError extends Error
 # annotate logical regions in the text.
 module.exports =
 class TextBuffer
-  @version: 2
+  @version: 3
   @Point: Point
   @Range: Range
   @Patch: Patch
@@ -79,6 +79,7 @@ class TextBuffer
   backwardsScanChunkSize: 8000
   defaultMaxUndoEntries: 10000
   changeCount: 0
+  nextMarkerLayerId: 0
 
   ###
   Section: Construction
@@ -100,7 +101,10 @@ class TextBuffer
     @setTextInRange([[0, 0], [0, 0]], text ? params?.text ? '', normalizeLineEndings: false)
     maxUndoEntries = params?.maxUndoEntries ? @defaultMaxUndoEntries
     @history = params?.history ? new History(this, maxUndoEntries)
-    @markerStore = params?.markerStore ? new MarkerStore(this)
+    @nextMarkerLayerId = params?.nextMarkerLayerId ? 0
+    @defaultMarkerLayer = params?.defaultMarkerLayer ? new MarkerLayer(this, String(@nextMarkerLayerId++))
+    @customMarkerLayers = params?.customMarkerLayers ? []
+
     @setEncoding(params?.encoding)
     @setPreferredLineEnding(params?.preferredLineEnding)
 
@@ -113,7 +117,9 @@ class TextBuffer
 
   # Called by {Serializable} mixin during deserialization.
   deserializeParams: (params) ->
-    params.markerStore = MarkerStore.deserialize(this, params.markerStore)
+    params.defaultMarkerLayer = MarkerLayer.deserialize(this, params.defaultMarkerLayer)
+    params.customMarkerLayers = for layerParams in params.customMarkerLayers
+      MarkerLayer.deserialize(this, layerParams)
     params.history = History.deserialize(this, params.history)
     params.load = true if params.filePath
     params
@@ -121,7 +127,9 @@ class TextBuffer
   # Called by {Serializable} mixin during serialization.
   serializeParams: ->
     text: @getText()
-    markerStore: @markerStore.serialize()
+    defaultMarkerLayer: @defaultMarkerLayer.serialize()
+    customMarkerLayers: @customMarkerLayers.map (layer) -> layer.serialize()
+    nextMarkerLayerId: @nextMarkerLayerId
     history: @history.serialize()
     encoding: @getEncoding()
     filePath: @getPath()
@@ -267,7 +275,6 @@ class TextBuffer
   # Returns a {Disposable} on which `.dispose()` can be called to unsubscribe.
   onDidSave: (callback) ->
     @emitter.on 'did-save', callback
-
 
   # Public: Invoke the given callback after the file backing the buffer is
   # deleted.
@@ -709,7 +716,13 @@ class TextBuffer
       {rows: 1, characters: line.length + lineEndings[index].length}
     @offsetIndex.spliceArray('rows', startRow, rowCount, offsets)
 
-    @markerStore?.splice(oldRange.start, oldRange.getExtent(), newRange.getExtent())
+    if @defaultMarkerLayer?
+      oldExtent = oldRange.getExtent()
+      newExtent = newRange.getExtent()
+      @defaultMarkerLayer.splice(oldRange.start, oldExtent, newExtent)
+      for customMarkerLayer in @customMarkerLayers
+        customMarkerLayer.splice(oldRange.start, oldExtent, newExtent)
+
     @history?.pushChange(change) unless skipUndo
 
     @conflict = false if @conflict and !@isModified()
@@ -774,6 +787,20 @@ class TextBuffer
   Section: Markers
   ###
 
+  addMarkerLayer: ->
+    layer = new MarkerLayer(this, String(@nextMarkerLayerId++))
+    @customMarkerLayers.push(layer)
+    layer
+
+  getMarkerLayer: (id) ->
+    for customMarkerLayer in @customMarkerLayers
+      if customMarkerLayer.id is id
+        return customMarkerLayer
+    undefined
+
+  getDefaultMarkerLayer: ->
+    @defaultMarkerLayer
+
   # Public: Create a marker with the given range. This marker will maintain
   # its logical location as the buffer is changed, so if you mark a particular
   # word, the marker will remain over that word even if the word's location in
@@ -806,7 +833,7 @@ class TextBuffer
   #       start or start at the marker's end. This is the most fragile strategy.
   #
   # Returns a {Marker}.
-  markRange: (range, properties) -> @markerStore.markRange(@clipRange(range), properties)
+  markRange: (range, properties) -> @defaultMarkerLayer.markRange(range, properties)
 
   # Public: Create a marker at the given position with no tail.
   #
@@ -814,19 +841,19 @@ class TextBuffer
   # * `properties` This is the same as the `properties` parameter in {::markRange}
   #
   # Returns a {Marker}.
-  markPosition: (position, properties) -> @markerStore.markPosition(@clipPosition(position), properties)
+  markPosition: (position, properties) -> @defaultMarkerLayer.markPosition(position, properties)
 
   # Public: Get all existing markers on the buffer.
   #
   # Returns an {Array} of {Marker}s.
-  getMarkers: -> @markerStore.getMarkers()
+  getMarkers: -> @defaultMarkerLayer.getMarkers()
 
   # Public: Get an existing marker by its id.
   #
   # * `id` {Number} id of the marker to retrieve
   #
   # Returns a {Marker}.
-  getMarker: (id) -> @markerStore.getMarker(id)
+  getMarker: (id) -> @defaultMarkerLayer.getMarker(id)
 
   # Public: Find markers conforming to the given parameters.
   #
@@ -846,12 +873,12 @@ class TextBuffer
   #   * `intersectsRow` Only include markers that intersect the given row {Number}.
   #
   # Returns an {Array} of {Marker}s.
-  findMarkers: (params) -> @markerStore.findMarkers(params)
+  findMarkers: (params) -> @defaultMarkerLayer.findMarkers(params)
 
   # Public: Get the number of markers in the buffer.
   #
   # Returns a {Number}.
-  getMarkerCount: -> @markerStore.getMarkerCount()
+  getMarkerCount: -> @defaultMarkerLayer.getMarkerCount()
 
   destroyMarker: (id) ->
     @getMarker(id)?.destroy()
@@ -864,7 +891,7 @@ class TextBuffer
   undo: ->
     if pop = @history.popUndoStack()
       @applyChange(change, true) for change in pop.changes
-      @markerStore.restoreFromSnapshot(pop.snapshot)
+      @defaultMarkerLayer.restoreFromSnapshot(pop.snapshot)
       true
     else
       false
@@ -873,7 +900,7 @@ class TextBuffer
   redo: ->
     if pop = @history.popRedoStack()
       @applyChange(change, true) for change in pop.changes
-      @markerStore.restoreFromSnapshot(pop.snapshot)
+      @defaultMarkerLayer.restoreFromSnapshot(pop.snapshot)
       true
     else
       false
@@ -896,7 +923,7 @@ class TextBuffer
       fn = groupingInterval
       groupingInterval = 0
 
-    checkpointBefore = @history.createCheckpoint(@markerStore.createSnapshot(false), true)
+    checkpointBefore = @history.createCheckpoint(@defaultMarkerLayer.createSnapshot(false), true)
 
     try
       @transactCallDepth++
@@ -908,7 +935,7 @@ class TextBuffer
     finally
       @transactCallDepth--
 
-    @history.groupChangesSinceCheckpoint(checkpointBefore, @markerStore.createSnapshot(true), true)
+    @history.groupChangesSinceCheckpoint(checkpointBefore, @defaultMarkerLayer.createSnapshot(true), true)
     @history.applyGroupingInterval(groupingInterval)
 
     result
@@ -924,7 +951,7 @@ class TextBuffer
   #
   # Returns a checkpoint value.
   createCheckpoint: ->
-    @history.createCheckpoint(@markerStore.createSnapshot(), false)
+    @history.createCheckpoint(@defaultMarkerLayer.createSnapshot(), false)
 
   # Public: Revert the buffer to the state it was in when the given
   # checkpoint was created.
@@ -938,7 +965,7 @@ class TextBuffer
   revertToCheckpoint: (checkpoint) ->
     if truncated = @history.truncateUndoStack(checkpoint)
       @applyChange(change, true) for change in truncated.changes
-      @markerStore.restoreFromSnapshot(truncated.snapshot)
+      @defaultMarkerLayer.restoreFromSnapshot(truncated.snapshot)
       @emitter.emit 'did-update-markers'
       @emit 'markers-updated' if Grim.includeDeprecatedAPIs
       true
@@ -953,7 +980,7 @@ class TextBuffer
   #
   # Returns a {Boolean} indicating whether the operation succeeded.
   groupChangesSinceCheckpoint: (checkpoint) ->
-    @history.groupChangesSinceCheckpoint(checkpoint, @markerStore.createSnapshot(false), false)
+    @history.groupChangesSinceCheckpoint(checkpoint, @defaultMarkerLayer.createSnapshot(false), false)
 
   ###
   Section: Search And Replace
@@ -1461,22 +1488,30 @@ class TextBuffer
     }
 
   serializeSnapshot: (snapshot) ->
-    MarkerStore.serializeSnapshot(snapshot)
+    MarkerLayer.serializeSnapshot(snapshot)
 
   deserializeSnapshot: (snapshot) ->
-    MarkerStore.deserializeSnapshot(snapshot)
+    MarkerLayer.deserializeSnapshot(snapshot)
 
   ###
-  Section: Private MarkerStore Delegate Methods
+  Section: Private MarkerLayer Delegate Methods
   ###
 
-  markerCreated: (marker) ->
-    @emitter.emit 'did-create-marker', marker
-    @emit 'marker-created', marker if Grim.includeDeprecatedAPIs
+  markerLayerDestroyed: (markerLayer) ->
+    index = @customMarkerLayers.indexOf(markerLayer)
+    if index isnt -1
+      @customMarkerLayers.splice(index, 1)
+    return
 
-  markersUpdated: ->
-    @emitter.emit 'did-update-markers'
-    @emit 'markers-updated' if Grim.includeDeprecatedAPIs
+  markerCreated: (layer, marker) ->
+    if layer is @defaultMarkerLayer
+      @emitter.emit 'did-create-marker', marker
+      @emit 'marker-created', marker if Grim.includeDeprecatedAPIs
+
+  markersUpdated: (layer) ->
+    if layer is @defaultMarkerLayer
+      @emitter.emit 'did-update-markers'
+      @emit 'markers-updated' if Grim.includeDeprecatedAPIs
 
 if Grim.includeDeprecatedAPIs
   EmitterMixin = require('emissary').Emitter
