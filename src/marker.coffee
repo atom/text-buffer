@@ -195,6 +195,7 @@ class Marker
   clearTail: (properties) ->
     params = @extractParams(properties)
     params.tailed = false
+    params.reversed = false
     headPosition = @getHeadPosition()
     params.range = new Range(headPosition, headPosition)
     @update(@getRange(), params)

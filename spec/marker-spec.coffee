@@ -358,10 +358,8 @@ describe "Marker", ->
           textChanged: false
         }]
 
-        return
-
         changes = []
-        markerA.setHeadPosition([0, 12])
+        marker.setHeadPosition([0, 12])
         expect(marker.getRange()).toEqual [[0, 12], [0, 12]]
         expect(changes).toEqual [{
           oldHeadPosition: [0, 6], newHeadPosition: [0, 12]
@@ -376,7 +374,7 @@ describe "Marker", ->
         marker.plantTail()
         expect(marker.hasTail()).toBe true
         expect(marker.isReversed()).toBe false
-        expect(marker.getRange()).toEqual [12, 12]
+        expect(marker.getRange()).toEqual [[0, 12], [0, 12]]
         expect(changes).toEqual [{
           oldHeadPosition: [0, 12], newHeadPosition: [0, 12]
           oldTailPosition: [0, 12], newTailPosition: [0, 12]
@@ -387,7 +385,7 @@ describe "Marker", ->
         }]
 
         changes = []
-        markerA.setHeadPosition([0, 15])
+        marker.setHeadPosition([0, 15])
         expect(marker.getRange()).toEqual [[0, 12], [0, 15]]
         expect(changes).toEqual [{
           oldHeadPosition: [0, 12], newHeadPosition: [0, 15]
@@ -400,7 +398,7 @@ describe "Marker", ->
 
         changes = []
         marker.plantTail()
-        expect(marker.getRange()).toEqual [12, 15]
+        expect(marker.getRange()).toEqual [[0, 12], [0, 15]]
         expect(changes).toEqual []
 
     describe "::setProperties(properties)", ->
