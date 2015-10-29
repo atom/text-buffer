@@ -837,6 +837,12 @@ describe "Marker", ->
       expect(layer1Marker.getRange()).toEqual [[0, 4], [0, 7]]
       expect(layer2Marker.getRange()).toEqual [[0, 7], [0, 10]]
 
+    it "emits onDidCreateMarker events synchronously when markers are created", ->
+      createdMarkers = []
+      layer1.onDidCreateMarker (marker) -> createdMarkers.push(marker)
+      marker = layer1.markRange([[0, 1], [2, 3]])
+      expect(createdMarkers).toEqual [marker]
+
     it "does not emit marker events on the TextBuffer for non-default layers", ->
       createEventCount = updateEventCount = 0
       buffer.onDidCreateMarker -> createEventCount++

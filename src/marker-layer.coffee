@@ -40,6 +40,7 @@ class MarkerLayer
     @markersById = {}
     @nextMarkerId = 0
     @destroyed = false
+    @emitCreateMarkerEvents = false
 
   # Public: Remove the {MarkerLayer} from the {TextBuffer}
   destroy: ->
@@ -134,6 +135,17 @@ class MarkerLayer
     options.tailed ?= false
     position = @delegate.clipPosition(position)
     @markRange(new Range(position, position), options)
+
+  # Public: Subscribe to be notified synchronously whenever markers are created
+  # on this layer.
+  #
+  # Take care when using this method for layers in which large numbers of
+  # markers will be created at once, as it could lead to performance problems.
+  #
+  # Returns a {Disposable}.
+  onDidCreateMarker: (callback) ->
+    @emitCreateMarkerEvents = true
+    @emitter.on 'did-create-marker', callback
 
   onDidUpdate: (callback) ->
     @emitter.on 'did-update', callback
@@ -260,6 +272,7 @@ class MarkerLayer
     @delegate.markerCreated(this, marker)
     @delegate.markersUpdated(this)
     @scheduleUpdateEvent()
+    @emitter.emit 'did-create-marker', marker if @emitCreateMarkerEvents
     marker
 
   ###
