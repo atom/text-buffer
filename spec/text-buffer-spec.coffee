@@ -879,7 +879,7 @@ describe "TextBuffer", ->
       bufferA = new TextBuffer("abcdefghijklmnopqrstuvwxyz")
 
       layer1A = bufferA.addMarkerLayer()
-      layer2A = bufferA.addMarkerLayer()
+      layer2A = bufferA.addMarkerLayer(maintainHistory: true)
 
       layer1A.markRange([[0, 1], [0, 2]])
       layer1A.markRange([[0, 3], [0, 4]])
@@ -890,6 +890,7 @@ describe "TextBuffer", ->
       bufferB = TextBuffer.deserialize(JSON.parse(JSON.stringify(bufferA.serialize())))
       layer1B = bufferB.getMarkerLayer(layer1A.id)
       layer2B = bufferB.getMarkerLayer(layer2A.id)
+      expect(layer2B.maintainHistory).toBe true
 
       expectSameMarkers(layer1A, layer1B)
       expectSameMarkers(layer2A, layer2B)

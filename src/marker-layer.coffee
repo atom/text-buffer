@@ -208,12 +208,13 @@ class MarkerLayer
     for id in Object.keys(@markersById)
       marker = @markersById[id]
       markersById[id] = marker.getSnapshot(ranges[id], false) if marker.persistent
-    {@nextMarkerId, @id, markersById, version: SerializationVersion}
+    {@nextMarkerId, @id, @maintainHistory, markersById, version: SerializationVersion}
 
   deserialize: (state) ->
     return unless state.version is SerializationVersion
     @id = state.id
     @nextMarkerId = state.nextMarkerId
+    @maintainHistory = state.maintainHistory
     for id, markerState of state.markersById
       range = Range.fromObject(markerState.range)
       delete markerState.range
