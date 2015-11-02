@@ -46,6 +46,13 @@ class MarkerLayer
     @destroyed = false
     @emitCreateMarkerEvents = false
 
+  copy: ->
+    copy = @delegate.addMarkerLayer({@maintainHistory})
+    for markerId, marker of @markersById
+      snapshot = marker.getSnapshot(null)
+      copy.createMarker(marker.getRange(), marker.getSnapshot())
+    copy
+
   # Public: Remove the {MarkerLayer} from the {TextBuffer}
   destroy: ->
     @destroyed = true

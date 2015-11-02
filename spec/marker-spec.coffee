@@ -975,3 +975,20 @@ describe "Marker", ->
           marker2.destroy()
 
         waitsFor -> updateCount is 4
+
+    describe "::copy", ->
+      it "creates a new marker layer with markers in the same states", ->
+        originalLayer = buffer.addMarkerLayer(maintainHistory: true)
+        originalLayer.markRange([[0, 1], [0, 3]], a: 'b')
+        originalLayer.markPosition([0, 2], c: 'd')
+
+        copy = originalLayer.copy()
+        expect(copy).not.toBe originalLayer
+
+        markers = copy.getMarkers()
+        expect(markers.length).toBe 2
+        expect(markers[0].getRange()).toEqual [[0, 1], [0, 3]]
+        expect(markers[0].getProperties()).toEqual {a: 'b'}
+        expect(markers[1].getRange()).toEqual [[0, 2], [0, 2]]
+        expect(markers[1].getProperties()).toEqual {c: 'd'}
+        expect(markers[1].hasTail()).toBe false
