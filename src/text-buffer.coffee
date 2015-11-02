@@ -885,6 +885,7 @@ class TextBuffer
     if pop = @history.popUndoStack()
       @applyChange(change, true) for change in pop.changes
       @restoreFromMarkerSnapshot(pop.snapshot)
+      @emitMarkerChangeEvents(pop.snapshot)
       true
     else
       false
@@ -894,6 +895,7 @@ class TextBuffer
     if pop = @history.popRedoStack()
       @applyChange(change, true) for change in pop.changes
       @restoreFromMarkerSnapshot(pop.snapshot)
+      @emitMarkerChangeEvents(pop.snapshot)
       true
     else
       false

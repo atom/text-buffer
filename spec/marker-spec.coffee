@@ -472,6 +472,19 @@ describe "Marker", ->
       overlapMarker.setRange([[0, 1], [0, 2]])
       expect(markersUpdatedCount).toBe 2
 
+    it "emits onDidChange events when undoing/redoing text changes that move the marker", ->
+      marker = buffer.markRange([[0, 4], [0, 8]])
+      buffer.insert([0, 0], 'ABCD')
+
+      changes = []
+      marker.onDidChange (change) -> changes.push(change)
+      buffer.undo()
+      expect(changes.length).toBe 1
+      expect(changes[0].newHeadPosition).toEqual [0, 8]
+      buffer.redo()
+      expect(changes.length).toBe 2
+      expect(changes[1].newHeadPosition).toEqual [0, 12]
+
     describe "when a change precedes a marker", ->
       it "shifts the marker based on the characters inserted or removed by the change", ->
         buffer.setTextInRange([[0, 1], [0, 2]], "ABC")
