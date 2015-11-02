@@ -1423,7 +1423,7 @@ class TextBuffer
 
   emitMarkerChangeEvents: (snapshot) ->
     for markerLayerId, markerLayer of @markerLayers
-      markerLayer.emitChangeEvents(snapshot[markerLayerId])
+      markerLayer.emitChangeEvents(snapshot?[markerLayerId])
 
   # Identifies if the buffer belongs to multiple editors.
   #

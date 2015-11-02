@@ -3,7 +3,7 @@
 Point = require "./point"
 Range = require "./range"
 Marker = require "./marker"
-MarkerIndex = require "./marker-index"
+MarkerIndex = require "marker-index"
 {intersectSet} = require "./set-helpers"
 
 SerializationVersion = 2
@@ -100,9 +100,9 @@ class MarkerLayer
       value = params[key]
       switch key
         when 'startPosition'
-          markerIds = filterSet(markerIds, @index.findStartingIn(Point.fromObject(value)))
+          markerIds = filterSet(markerIds, @index.findStartingAt(Point.fromObject(value)))
         when 'endPosition'
-          markerIds = filterSet(markerIds, @index.findEndingIn(Point.fromObject(value)))
+          markerIds = filterSet(markerIds, @index.findEndingAt(Point.fromObject(value)))
         when 'containsPoint', 'containsPosition'
           markerIds = filterSet(markerIds, @index.findContaining(Point.fromObject(value)))
         when 'containsRange'
@@ -170,8 +170,8 @@ class MarkerLayer
     end = start.traverse(oldExtent)
 
     intersecting = @index.findIntersecting(start, end)
-    endingAt = @index.findEndingIn(start)
-    startingAt = @index.findStartingIn(end)
+    endingAt = @index.findEndingAt(start)
+    startingAt = @index.findStartingAt(end)
     startingIn = @index.findStartingIn(start.traverse(Point(0, 1)), end.traverse(Point(0, -1)))
     endingIn = @index.findEndingIn(start.traverse(Point(0, 1)), end.traverse(Point(0, -1)))
 
@@ -217,7 +217,7 @@ class MarkerLayer
     ranges = @index.dump()
     for id in Object.keys(@markersById)
       marker = @markersById[id]
-      result[id] = marker.getSnapshot(ranges[id], false)
+      result[id] = marker.getSnapshot(Range.fromObject(ranges[id]), false)
     result
 
   emitChangeEvents: (snapshot) ->
@@ -231,7 +231,7 @@ class MarkerLayer
     markersById = {}
     for id in Object.keys(@markersById)
       marker = @markersById[id]
-      markersById[id] = marker.getSnapshot(ranges[id], false) if marker.persistent
+      markersById[id] = marker.getSnapshot(Range.fromObject(ranges[id]), false) if marker.persistent
     {@nextMarkerId, @id, @maintainHistory, markersById, version: SerializationVersion}
 
   deserialize: (state) ->
@@ -261,13 +261,13 @@ class MarkerLayer
     @scheduleUpdateEvent()
 
   getMarkerRange: (id) ->
-    @index.getRange(id)
+    Range.fromObject(@index.getRange(id))
 
   getMarkerStartPosition: (id) ->
-    @index.getStart(id)
+    Point.fromObject(@index.getStart(id))
 
   getMarkerEndPosition: (id) ->
-    @index.getEnd(id)
+    Point.fromObject(@index.getEnd(id))
 
   setMarkerRange: (id, range) ->
     {start, end} = Range.fromObject(range)
