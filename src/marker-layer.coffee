@@ -42,6 +42,7 @@ class MarkerLayer
     @emitter = new Emitter
     @index = new MarkerIndex
     @markersById = {}
+    @markersIdsWithChangeSubscriptions = new Set
     @nextMarkerId = 0
     @destroyed = false
     @emitCreateMarkerEvents = false
@@ -220,9 +221,9 @@ class MarkerLayer
     result
 
   emitChangeEvents: (snapshot) ->
-    for id in Object.keys(@markersById)
+    @markersIdsWithChangeSubscriptions.forEach (id) =>
       if marker = @markersById[id] # event handlers could destroy markers
-        marker.emitChangeEvent(snapshot?[id].range, true, false)
+        marker.emitChangeEvent(snapshot?[id]?.range, true, false)
     @delegate.markersUpdated(this)
 
   serialize: ->
@@ -254,6 +255,7 @@ class MarkerLayer
 
   destroyMarker: (id) ->
     delete @markersById[id]
+    @markersIdsWithChangeSubscriptions.delete(id)
     @index.delete(id)
     @delegate.markersUpdated(this)
     @scheduleUpdateEvent()

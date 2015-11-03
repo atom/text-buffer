@@ -89,6 +89,7 @@ class Marker
     unless @hasChangeObservers
       @previousEventState = @getSnapshot(@getRange())
       @hasChangeObservers = true
+      @layer.markersIdsWithChangeSubscriptions.add(@id)
     @emitter.on 'did-change', callback
 
   # Public: Returns the current {Range} of the marker. The range is immutable.
