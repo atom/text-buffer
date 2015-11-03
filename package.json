@@ -25,7 +25,7 @@
     "grunt-contrib-coffee": "~0.9.0",
     "grunt-shell": "~0.2.2",
     "jasmine-focused": "1.x",
-    "marker-index": "^2.0.0",
+    "marker-index": "^2.1.0",
     "random-seed": "^0.2.0",
     "rimraf": "~2.2.2",
     "temp": "^0.8.3"

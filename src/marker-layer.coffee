@@ -167,30 +167,11 @@ class MarkerLayer
   ###
 
   splice: (start, oldExtent, newExtent) ->
-    end = start.traverse(oldExtent)
-
-    intersecting = @index.findIntersecting(start, end)
-    endingAt = @index.findEndingAt(start)
-    startingAt = @index.findStartingAt(end)
-    startingIn = @index.findStartingIn(start.traverse(Point(0, 1)), end.traverse(Point(0, -1)))
-    endingIn = @index.findEndingIn(start.traverse(Point(0, 1)), end.traverse(Point(0, -1)))
-
-    for id in Object.keys(@markersById)
+    invalidated = @index.splice(start, oldExtent, newExtent)
+    invalidated.touch.forEach (id) =>
       marker = @markersById[id]
-      switch marker.getInvalidationStrategy()
-        when 'touch'
-          invalid = intersecting.has(id)
-        when 'inside'
-          invalid = intersecting.has(id) and not (startingAt.has(id) or endingAt.has(id))
-        when 'overlap'
-          invalid = startingIn.has(id) or endingIn.has(id)
-        when 'surround'
-          invalid = startingIn.has(id) and endingIn.has(id)
-        when 'never'
-          invalid = false
-      marker.valid = false if invalid
-
-    @index.splice(start, oldExtent, newExtent)
+      if invalidated[marker.getInvalidationStrategy()]?.has(id)
+        marker.valid = false
     @scheduleUpdateEvent()
 
   restoreFromSnapshot: (snapshots) ->
