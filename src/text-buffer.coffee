@@ -787,14 +787,14 @@ class TextBuffer
   Section: Markers
   ###
 
-  # Public: *Experimental*: Create a layer to contain a set of related markers.
+  # Public: *Experimental:* Create a layer to contain a set of related markers.
   #
   # * `options` An object contaning the following keys:
   #   * `maintainHistory` A {Boolean} indicating whether or not the state of
   #     this layer should be restored on undo/redo operations. Defaults to
   #     `false`.
   #
-  # This API is still new and is subject to change on any release.
+  # This API is experimental and subject to change on any release.
   #
   # Returns a {MarkerLayer}.
   addMarkerLayer: (options) ->
@@ -802,20 +802,23 @@ class TextBuffer
     @markerLayers[layer.id] = layer
     layer
 
-  # Public: *Experimental*: Get a {MarkerLayer} by id.
+  # Public: *Experimental:* Get a {MarkerLayer} by id.
   #
-  # * `id` The id of the marker to retrieve.
+  # * `id` The id of the marker layer to retrieve.
   #
-  # This API is still new and is subject to change on any release.
+  # This API is experimental and subject to change on any release.
   #
   # Returns a {MarkerLayer} or `undefined` if no layer exists with the given
   # id.
   getMarkerLayer: (id) ->
     @markerLayers[id]
 
-  # Public: *Experimental*: Get the default {MarkerLayer}.
+  # Public: *Experimental:* Get the default {MarkerLayer}.
   #
-  # This API is still new and is subject to change on any release.
+  # All marker APIs not tied to an explicit layer interact with this default
+  # layer.
+  #
+  # This API is experimental and subject to change on any release.
   #
   # Returns a {MarkerLayer}.
   getDefaultMarkerLayer: ->

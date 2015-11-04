@@ -8,9 +8,9 @@ MarkerIndex = require "marker-index"
 
 SerializationVersion = 2
 
-# Public: *Experimental*: A container for a related set of markers.
+# Public: *Experimental:* A container for a related set of markers.
 #
-# This API is still new and is subject to change on any release.
+# This API is experimental and subject to change on any release.
 module.exports =
 class MarkerLayer
   @deserialize: (delegate, state) ->
