@@ -608,7 +608,8 @@ describe "TextBuffer", ->
           buffer.append("three\n")
           buffer.append("four")
 
-        buffer.markRange([[0, 1], [2, 3]], a: 'b', maintainHistory: true)
+        historyLayer = buffer.addMarkerLayer(maintainHistory: true)
+        historyLayer.markRange([[0, 1], [2, 3]], a: 'b')
         result = buffer.groupChangesSinceCheckpoint(checkpoint)
 
         expect(result).toBe true
@@ -630,7 +631,7 @@ describe "TextBuffer", ->
           four
         """
 
-        [marker] = buffer.getMarkers()
+        [marker] = historyLayer.getMarkers()
         expect(marker.getRange()).toEqual [[0, 1], [2, 3]]
         expect(marker.getProperties()).toEqual {a: 'b'}
 
@@ -819,18 +820,19 @@ describe "TextBuffer", ->
         expect(marker1).toEqual(markers2[i])
       return
 
-    it "can serialize / deserialize the buffer along with its history and markers", ->
+    it "can serialize / deserialize the buffer along with its history, marker layers, and markers", ->
       bufferA = new TextBuffer(text: "hello\nworld\r\nhow are you doing?")
       bufferA.createCheckpoint()
       bufferA.setTextInRange([[0, 5], [0, 5]], " there")
       bufferA.transact -> bufferA.setTextInRange([[1, 0], [1, 5]], "friend")
-      bufferA.markRange([[0, 6], [0, 8]], reversed: true, foo: 1)
+      layerA = bufferA.addMarkerLayer(maintainHistory: true)
+      layerA.markRange([[0, 6], [0, 8]], reversed: true, foo: 1)
       marker2A = bufferA.markPosition([2, 2], bar: 2)
       bufferA.transact ->
         bufferA.setTextInRange([[1, 0], [1, 0]], "good ")
         bufferA.append("?")
         marker2A.setProperties(bar: 3, baz: 4)
-      bufferA.markRange([[0, 4], [0, 5]], invalidate: 'inside')
+      layerA.markRange([[0, 4], [0, 5]], invalidate: 'inside')
       bufferA.setTextInRange([[0, 5], [0, 5]], "oo")
       bufferA.undo()
 
@@ -866,8 +868,8 @@ describe "TextBuffer", ->
       expectSameMarkers(bufferB, bufferA)
 
       # Accounts for deserialized markers when selecting the next marker's id
-      marker3A = bufferA.markRange([[0, 1], [2, 3]])
-      marker3B = bufferB.markRange([[0, 1], [2, 3]])
+      marker3A = layerA.markRange([[0, 1], [2, 3]])
+      marker3B = bufferB.getMarkerLayer(layerA.id).markRange([[0, 1], [2, 3]])
       expect(marker3B.id).toBe marker3A.id
 
       # Doesn't try to reload the buffer since it has no file.
@@ -878,7 +880,7 @@ describe "TextBuffer", ->
       bufferA = new TextBuffer("abcdefghijklmnopqrstuvwxyz")
 
       layer1A = bufferA.addMarkerLayer()
-      layer2A = bufferA.addMarkerLayer()
+      layer2A = bufferA.addMarkerLayer(maintainHistory: true)
 
       layer1A.markRange([[0, 1], [0, 2]])
       layer1A.markRange([[0, 3], [0, 4]])
@@ -889,6 +891,7 @@ describe "TextBuffer", ->
       bufferB = TextBuffer.deserialize(JSON.parse(JSON.stringify(bufferA.serialize())))
       layer1B = bufferB.getMarkerLayer(layer1A.id)
       layer2B = bufferB.getMarkerLayer(layer2A.id)
+      expect(layer2B.maintainHistory).toBe true
 
       expectSameMarkers(layer1A, layer1B)
       expectSameMarkers(layer2A, layer2B)
