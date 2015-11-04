@@ -787,21 +787,44 @@ class TextBuffer
   Section: Markers
   ###
 
+  # Public: *Experimental*: Create a layer to contain a set of related markers.
+  #
+  # * `options` An object contaning the following keys:
+  #   * `maintainHistory` A {Boolean} indicating whether or not the state of
+  #     this layer should be restored on undo/redo operations. Defaults to
+  #     `false`.
+  #
+  # This API is still new and is subject to change on any release.
+  #
+  # Returns a {MarkerLayer}.
   addMarkerLayer: (options) ->
     layer = new MarkerLayer(this, String(@nextMarkerLayerId++), options)
     @markerLayers[layer.id] = layer
     layer
 
+  # Public: *Experimental*: Get a {MarkerLayer} by id.
+  #
+  # * `id` The id of the marker to retrieve.
+  #
+  # This API is still new and is subject to change on any release.
+  #
+  # Returns a {MarkerLayer} or `undefined` if no layer exists with the given
+  # id.
   getMarkerLayer: (id) ->
     @markerLayers[id]
 
+  # Public: *Experimental*: Get the default {MarkerLayer}.
+  #
+  # This API is still new and is subject to change on any release.
+  #
+  # Returns a {MarkerLayer}.
   getDefaultMarkerLayer: ->
     @defaultMarkerLayer
 
-  # Public: Create a marker with the given range. This marker will maintain
-  # its logical location as the buffer is changed, so if you mark a particular
-  # word, the marker will remain over that word even if the word's location in
-  # the buffer changes.
+  # Public: Create a marker with the given range in the default marker layer.
+  # This marker will maintain its logical location as the buffer is changed, so
+  # if you mark a particular word, the marker will remain over that word even if
+  # the word's location in the buffer changes.
   #
   # * `range` A {Range} or range-compatible {Array}
   # * `properties` A hash of key-value pairs to associate with the marker. There
@@ -828,7 +851,8 @@ class TextBuffer
   # Returns a {Marker}.
   markRange: (range, properties) -> @defaultMarkerLayer.markRange(range, properties)
 
-  # Public: Create a marker at the given position with no tail.
+  # Public: Create a marker at the given position with no tail in the default
+  # marker layer.
   #
   # * `position` {Point} or point-compatible {Array}
   # * `properties` This is the same as the `properties` parameter in {::markRange}
@@ -836,19 +860,20 @@ class TextBuffer
   # Returns a {Marker}.
   markPosition: (position, properties) -> @defaultMarkerLayer.markPosition(position, properties)
 
-  # Public: Get all existing markers on the buffer.
+  # Public: Get all existing markers on the default marker layer.
   #
   # Returns an {Array} of {Marker}s.
   getMarkers: -> @defaultMarkerLayer.getMarkers()
 
-  # Public: Get an existing marker by its id.
+  # Public: Get an existing marker by its id from the default marker layer.
   #
   # * `id` {Number} id of the marker to retrieve
   #
   # Returns a {Marker}.
   getMarker: (id) -> @defaultMarkerLayer.getMarker(id)
 
-  # Public: Find markers conforming to the given parameters.
+  # Public: Find markers conforming to the given parameters in the default
+  # marker layer.
   #
   # Markers are sorted based on their position in the buffer. If two markers
   # start at the same position, the larger marker comes first.
@@ -868,7 +893,7 @@ class TextBuffer
   # Returns an {Array} of {Marker}s.
   findMarkers: (params) -> @defaultMarkerLayer.findMarkers(params)
 
-  # Public: Get the number of markers in the buffer.
+  # Public: Get the number of markers in the default marker layer.
   #
   # Returns a {Number}.
   getMarkerCount: -> @defaultMarkerLayer.getMarkerCount()

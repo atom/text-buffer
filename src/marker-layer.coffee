@@ -8,6 +8,9 @@ MarkerIndex = require "marker-index"
 
 SerializationVersion = 2
 
+# Public: *Experimental*: A container for a related set of markers.
+#
+# This API is still new and is subject to change on any release.
 module.exports =
 class MarkerLayer
   @deserialize: (delegate, state) ->
@@ -47,6 +50,8 @@ class MarkerLayer
     @destroyed = false
     @emitCreateMarkerEvents = false
 
+  # Public: Create a copy of this layer with markers in the same state and
+  # locations.
   copy: ->
     copy = @delegate.addMarkerLayer({@maintainHistory})
     for markerId, marker of @markersById
@@ -54,21 +59,19 @@ class MarkerLayer
       copy.createMarker(marker.getRange(), marker.getSnapshot())
     copy
 
-  # Public: Remove the {MarkerLayer} from the {TextBuffer}
+  # Public: Destroy this layer.
   destroy: ->
     @destroyed = true
     @delegate.markerLayerDestroyed(this)
     @emitter.emit 'did-destroy'
     @emitter.dispose()
 
-  onDidDestroy: (callback) ->
-    @emitter.on 'did-destroy', callback
+  # Public: Determine whether this layer has been destroyed.
+  isDestroyed: ->
+    @destroyed
 
   isAlive: ->
     not @destroyed
-
-  isDestroyed: ->
-    @destroyed
 
   ###
   Section: Public interface
@@ -134,6 +137,10 @@ class MarkerLayer
       result.push(marker) if marker.matchesParams(params)
     result.sort (a, b) -> a.compare(b)
 
+  ###
+  Section: Marker creation
+  ###
+
   # Public: Create a marker with the given range.
   #
   # See the documentation for {TextBuffer::markRange}
@@ -148,19 +155,48 @@ class MarkerLayer
     position = @delegate.clipPosition(position)
     @markRange(new Range(position, position), options)
 
-  # Public: Subscribe to be notified synchronously whenever markers are created
-  # on this layer.
+  ###
+  Section: Event subscription
+  ###
+
+  # Public: Subscribe to be notified asynchronously whenever markers are
+  # created, updated, or destroyed on this layer. *Prefer this method for
+  # optimal performance when interacting with layers that could contain large
+  # numbers of markers.*
   #
-  # Take care when using this method for layers in which large numbers of
-  # markers will be created at once, as it could lead to performance problems.
+  # * `callback` A {Function} that will be called with no arguments when changes
+  #   occur on this layer.
+  #
+  # Subscribers are notified once, asynchronously when any number of changes
+  # occur in a given tick of the event loop. You should re-query the layer
+  # to determine the state of markers in which you're interested in. It may
+  # be counter-intuitive, but this is much more efficient than subscribing to
+  # events on individual markers, which are expensive to deliver.
+  #
+  # Returns a {Disposable}.
+  onDidUpdate: (callback) ->
+    @emitter.on 'did-update', callback
+
+  # Public: Subscribe to be notified synchronously whenever markers are created
+  # on this layer. *Avoid this method for optimal performance when interacting
+  # with layers that could contain large numbers of markers.*
+  #
+  # * `callback` A {Function} that will be called with a {Marker} whenever a
+  #   new {Marker} is created.
+  #
+  # You should prefer {onDidUpdate} when synchronous notifications aren't
+  # absolutely necessary.
   #
   # Returns a {Disposable}.
   onDidCreateMarker: (callback) ->
     @emitCreateMarkerEvents = true
     @emitter.on 'did-create-marker', callback
 
-  onDidUpdate: (callback) ->
-    @emitter.on 'did-update', callback
+  # Public: Subscribe to be notified synchronously when this layer is destroyed.
+  #
+  # Returns a {Disposable}.
+  onDidDestroy: (callback) ->
+    @emitter.on 'did-destroy', callback
 
   ###
   Section: Private - TextBuffer interface
