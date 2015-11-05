@@ -74,26 +74,28 @@ class MarkerLayer
     not @destroyed
 
   ###
-  Section: Public interface
+  Section: Querying
   ###
 
   # Public: Get an existing marker by its id.
+  #
+  # Returns a {Marker}.
   getMarker: (id) ->
     @markersById[id]
 
-  # Public: Get all existing markers on the buffer.
+  # Public: Get all existing markers on the marker layer.
   #
   # Returns an {Array} of {Marker}s.
   getMarkers: ->
     marker for id, marker of @markersById
 
-  # Public: Get the number of markers in the buffer.
+  # Public: Get the number of markers in the marker layer.
   #
   # Returns a {Number}.
   getMarkerCount: ->
     Object.keys(@markersById).length
 
-  # Public: Find markers conforming to the given parameters.
+  # Public: Find markers in the layer conforming to the given parameters.
   #
   # See the documentation for {TextBuffer::findMarkers}.
   findMarkers: (params) ->
@@ -182,7 +184,7 @@ class MarkerLayer
   # with layers that could contain large numbers of markers.*
   #
   # * `callback` A {Function} that will be called with a {Marker} whenever a
-  #   new {Marker} is created.
+  #   new marker is created.
   #
   # You should prefer {onDidUpdate} when synchronous notifications aren't
   # absolutely necessary.
