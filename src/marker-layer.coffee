@@ -273,11 +273,12 @@ class MarkerLayer
     @scheduleUpdateEvent()
 
   destroyMarker: (id) ->
-    delete @markersById[id]
-    @markersIdsWithChangeSubscriptions.delete(id)
-    @index.delete(id)
-    @delegate.markersUpdated(this)
-    @scheduleUpdateEvent()
+    if @markersById.hasOwnProperty(id)
+      delete @markersById[id]
+      @markersIdsWithChangeSubscriptions.delete(id)
+      @index.delete(id)
+      @delegate.markersUpdated(this)
+      @scheduleUpdateEvent()
 
   getMarkerRange: (id) ->
     Range.fromObject(@index.getRange(id))

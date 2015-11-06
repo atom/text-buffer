@@ -743,6 +743,11 @@ describe "Marker", ->
       marker.setRange([[0, 0], [0, 9]])
       expect(buffer.findMarkers(intersectsRow: 0)).toEqual []
 
+    it "does not blow up when destroy is called twice", ->
+      marker = buffer.markRange([[0, 3], [0, 6]])
+      marker.destroy()
+      marker.destroy()
+
   describe "TextBuffer::findMarkers(properties)", ->
     [marker1, marker2, marker3, marker4] = []
 

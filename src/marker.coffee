@@ -278,9 +278,9 @@ class Marker
       properties: extend({}, snapshot.properties, options.properties)
     ))
 
-  # Public: Destroys the marker, causing it to emit the 'destroyed' event. Once
-  # destroyed, a marker cannot be restored by undo/redo operations.
+  # Public: Destroys the marker, causing it to emit the 'destroyed' event.
   destroy: ->
+    return if @rangeWhenDestroyed?
     @rangeWhenDestroyed = @getRange()
     @layer.destroyMarker(@id)
     @emitter.emit 'did-destroy'
