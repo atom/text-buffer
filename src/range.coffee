@@ -298,13 +298,7 @@ class Range
   Section: Conversion
   ###
 
-  toDelta: ->
-    rows = @end.row - @start.row
-    if rows == 0
-      columns = @end.column - @start.column
-    else
-      columns = @end.column
-    new Point(rows, columns)
+  toDelta: -> @getExtent()
 
   # Public: Returns a string representation of the range.
   toString: ->
