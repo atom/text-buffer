@@ -5,7 +5,7 @@
   "main": "./lib/text-buffer",
   "scripts": {
     "prepublish": "grunt clean lint coffee shell:update-atomdoc atomdoc",
-    "compile": "coffee --no-header --output lib --compile src/*",
+    "compile": "coffee --no-header --output lib --compile src",
     "lint": "coffeelint -r src spec",
     "test": "jasmine-focused --coffee --captureExceptions --forceexit spec",
     "ci": "npm run compile && npm run lint && npm run test"
