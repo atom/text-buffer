@@ -667,8 +667,6 @@ class TextBuffer
     startRow = oldRange.start.row
     endRow = oldRange.end.row
     rowCount = endRow - startRow + 1
-    oldExtent = oldRange.getExtent()
-    newExtent = newRange.getExtent()
 
     # Determine how to normalize the line endings of inserted text if enabled
     if normalizeLineEndings
