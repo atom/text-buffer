@@ -1049,7 +1049,7 @@ describe "TextBuffer", ->
 
     it "notifies observers when the buffer's file is moved", ->
       # FIXME: This doesn't pass on Linux
-      return if process.platform is 'linux'
+      return if process.platform in ['linux', 'win32']
 
       fs.removeSync(newPath)
       fs.moveSync(filePath, newPath)
