@@ -58,7 +58,7 @@ class TransactionAbortedError extends Error
 # annotate logical regions in the text.
 module.exports =
 class TextBuffer
-  @version: 4
+  @version: 5
   @Point: Point
   @Range: Range
   @Patch: Patch
@@ -104,6 +104,7 @@ class TextBuffer
     @defaultMarkerLayer = params?.defaultMarkerLayer ? new MarkerLayer(this, String(@nextMarkerLayerId++))
     @markerLayers = params?.markerLayers ? {}
     @markerLayers[@defaultMarkerLayer.id] = @defaultMarkerLayer
+    @nextMarkerId = params?.nextMarkerId ? 1
 
     @setEncoding(params?.encoding)
     @setPreferredLineEnding(params?.preferredLineEnding)
@@ -141,6 +142,7 @@ class TextBuffer
     filePath: @getPath()
     digestWhenLastPersisted: @file?.getDigestSync()
     preferredLineEnding: @preferredLineEnding
+    nextMarkerId: @nextMarkerId
 
   ###
   Section: Event Subscription
@@ -1531,3 +1533,5 @@ class TextBuffer
   markersUpdated: (layer) ->
     if layer is @defaultMarkerLayer
       @emitter.emit 'did-update-markers'
+
+  getNextMarkerId: -> @nextMarkerId++

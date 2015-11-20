@@ -39,7 +39,7 @@
     "emissary": "^1.0.0",
     "event-kit": "^1.0.2",
     "fs-plus": "^2.0.0",
-    "marker-index": "^2.1.1",
+    "marker-index": "^3.0.2",
     "pathwatcher": "^6.2.3",
     "serializable": "^1.0.3",
     "span-skip-list": "~0.2.0",
