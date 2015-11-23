@@ -46,7 +46,6 @@ class MarkerLayer
     @index = new MarkerIndex
     @markersById = {}
     @markersIdsWithChangeSubscriptions = new Set
-    @nextMarkerId = 0
     @destroyed = false
     @emitCreateMarkerEvents = false
 
@@ -251,12 +250,11 @@ class MarkerLayer
     for id in Object.keys(@markersById)
       marker = @markersById[id]
       markersById[id] = marker.getSnapshot(Range.fromObject(ranges[id]), false) if marker.persistent
-    {@nextMarkerId, @id, @maintainHistory, markersById, version: SerializationVersion}
+    {@id, @maintainHistory, markersById, version: SerializationVersion}
 
   deserialize: (state) ->
     return unless state.version is SerializationVersion
     @id = state.id
-    @nextMarkerId = state.nextMarkerId
     @maintainHistory = state.maintainHistory
     for id, markerState of state.markersById
       range = Range.fromObject(markerState.range)
@@ -300,7 +298,7 @@ class MarkerLayer
     @index.setExclusive(id, not hasTail)
 
   createMarker: (range, params) ->
-    id = @id + '-' + @nextMarkerId++
+    id = @delegate.getNextMarkerId()
     marker = @addMarker(id, range, params)
     @delegate.markerCreated(this, marker)
     @delegate.markersUpdated(this)
