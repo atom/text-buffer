@@ -108,7 +108,8 @@ class MarkerLayer
         when 'endPosition'
           markerIds = filterSet(markerIds, @index.findEndingAt(Point.fromObject(value)))
         when 'containsPoint', 'containsPosition'
-          markerIds = filterSet(markerIds, @index.findContaining(Point.fromObject(value)))
+          position = Point.fromObject(value)
+          markerIds = filterSet(markerIds, @index.findContaining(position, position))
         when 'containsRange'
           {start, end} = Range.fromObject(value)
           markerIds = filterSet(markerIds, @index.findContaining(start, end))
