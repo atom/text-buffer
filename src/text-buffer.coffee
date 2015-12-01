@@ -14,6 +14,7 @@ History = require './history'
 MarkerLayer = require './marker-layer'
 Patch = require './patch'
 MatchIterator = require './match-iterator'
+DisplayLayer = require './display-layer'
 {spliceArray, newlineRegex} = require './helpers'
 
 class SearchCallbackArgument
@@ -1367,6 +1368,13 @@ class TextBuffer
     fs.closeSync(fd)
 
     fs.removeSync(backupFilePath)
+
+  ###
+  Section: Display Layers
+  ###
+
+  addDisplayLayer: (params) ->
+    new DisplayLayer(this, params)
 
   ###
   Section: Private Utility Methods
