@@ -35,3 +35,9 @@ class DisplayLayer
 
     text += @buffer.getTextInRange(Range(iterator.getInputStart(), iterator.getInputEnd()))
     text
+
+  translateBufferPosition: (bufferPosition) ->
+    @patch.translateInputPosition(bufferPosition)
+
+  translateScreenPosition: (screenPosition) ->
+    @patch.translateOutputPosition(screenPosition)
