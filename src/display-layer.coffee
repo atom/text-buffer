@@ -1,6 +1,7 @@
 Patch = require 'atom-patch'
 Point = require './point'
 Range = require './range'
+TokenIterator = require './token-iterator'
 
 module.exports =
 class DisplayLayer
@@ -31,6 +32,9 @@ class DisplayLayer
         else
           screenColumn++
       screenRow++
+
+  buildTokenIterator: ->
+    new TokenIterator(@buffer, @patch.buildIterator())
 
   getText: ->
     text = ''

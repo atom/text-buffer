@@ -12,20 +12,24 @@ describe "DisplayLayer", ->
       displayLayer = buffer.addDisplayLayer(tabLength: 4)
       expect(displayLayer.getText()).toBe('    a   bc  def g\n    h')
       verifyPositionTranslations(displayLayer)
+      verifyTokenIterator(displayLayer)
 
   it "updates the displayed text correctly when the underlying buffer changes", ->
     for i in [0...500] by 1
       seed = Date.now()
+      seedFailureMessage = "Seed: #{seed}"
       random = new Random(seed)
-      buffer = new TextBuffer(text: buildRandomLines(3, random))
+      buffer = new TextBuffer(text: buildRandomLines(10, random))
       actualDisplayLayer = buffer.addDisplayLayer(tabLength: 4, patchSeed: seed)
 
       range = getRandomRange(buffer, random)
-      text = buildRandomLines(2, random)
+      text = buildRandomLines(4, random)
       buffer.setTextInRange(range, text)
       expectedDisplayLayer = buffer.addDisplayLayer(tabLength: 4)
 
-      expect(actualDisplayLayer.getText()).toBe(expectedDisplayLayer.getText(), "Seed: #{seed}")
+      expect(actualDisplayLayer.getText()).toBe(expectedDisplayLayer.getText(), seedFailureMessage)
+      return if currentSpecFailed()
+      verifyTokenIterator(actualDisplayLayer, seedFailureMessage)
       return if currentSpecFailed()
 
 verifyPositionTranslations = (displayLayer) ->
@@ -40,6 +44,37 @@ verifyPositionTranslations = (displayLayer) ->
         screenPosition = displayLayer.translateBufferPosition(bufferPosition)
         expect(screenLines[screenPosition.row][screenPosition.column]).toBe(character)
         expect(displayLayer.translateScreenPosition(screenPosition)).toEqual(bufferPosition)
+
+verifyTokenIterator = (displayLayer, failureMessage) ->
+  {buffer} = displayLayer
+  tokenIterator = displayLayer.buildTokenIterator()
+  tokenIterator.seekToScreenRow(0)
+
+  text = ''
+  lastTextRow = 0
+  loop
+    startScreenPosition = tokenIterator.getStartScreenPosition()
+    endScreenPosition = tokenIterator.getEndScreenPosition()
+    startBufferPosition = tokenIterator.getStartBufferPosition()
+    endBufferPosition = tokenIterator.getEndBufferPosition()
+
+    expect(displayLayer.translateScreenPosition(startScreenPosition)).toEqual(startBufferPosition, failureMessage)
+    expect(displayLayer.translateScreenPosition(endScreenPosition)).toEqual(endBufferPosition, failureMessage)
+    expect(displayLayer.translateBufferPosition(startBufferPosition)).toEqual(startScreenPosition, failureMessage)
+    expect(displayLayer.translateBufferPosition(endBufferPosition)).toEqual(endScreenPosition, failureMessage)
+
+    if startScreenPosition.row > lastTextRow
+      expect(startScreenPosition.row).toBe(lastTextRow + 1, failureMessage) # don't skip lines
+      text += '\n'
+      lastTextRow = startScreenPosition.row
+
+    tokenText = tokenIterator.getText()
+    expect(tokenText.indexOf('\n') is -1).toBe(true, failureMessage) # never include newlines in token text
+    text += tokenText
+
+    break unless tokenIterator.moveToSuccessor()
+
+  expect(text).toBe(displayLayer.getText(), failureMessage)
 
 buildRandomLines = (maxLines, random) ->
   lines = []
