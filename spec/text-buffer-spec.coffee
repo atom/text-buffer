@@ -50,6 +50,12 @@ describe "TextBuffer", ->
       expect(buffer.lineForRow(1)).toBe ''
       expect(buffer.lineEndingForRow(1)).toBe ''
 
+    it "automatically assigns a unique identifier to new buffers", ->
+      bufferIds = [0..16].map(-> new TextBuffer().getId())
+      uniqueBufferIds = new Set(bufferIds)
+
+      expect(uniqueBufferIds.size).toBe(bufferIds.length)
+
     describe "when a file path is given", ->
       [filePath] = []
 
@@ -904,6 +910,12 @@ describe "TextBuffer", ->
       bufferB = TextBuffer.deserialize(bufferA.serialize())
       expect(bufferB.getMarker(marker1A.id)).toBeUndefined()
       expect(bufferB.getMarker(marker2A.id)).toBeDefined()
+
+    it "serializes / deserializes the buffer's unique identifier", ->
+      bufferA = new TextBuffer()
+      bufferB = TextBuffer.deserialize(JSON.parse(JSON.stringify(bufferA.serialize())))
+
+      expect(bufferB.getId()).toEqual(bufferA.getId())
 
     describe "when the buffer has a path", ->
       [filePath, buffer2] = []

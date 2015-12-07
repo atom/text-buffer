@@ -6,6 +6,7 @@ diff = require 'atom-diff'
 _ = require 'underscore-plus'
 fs = require 'fs-plus'
 path = require 'path'
+crypto = require 'crypto'
 
 Point = require './point'
 Range = require './range'
@@ -94,6 +95,7 @@ class TextBuffer
     text = params if typeof params is 'string'
 
     @emitter = new Emitter
+    @id = params?.id ? crypto.randomBytes(16).toString('hex')
     @lines = ['']
     @lineEndings = ['']
     @offsetIndex = new SpanSkipList('rows', 'characters')
@@ -116,6 +118,10 @@ class TextBuffer
     @setPath(params.filePath) if params?.filePath
     @load() if params?.load
 
+  # Returns a {String} representing a unique identifier for this {TextBuffer}.
+  getId: ->
+    @id
+
   # Called by {Serializable} mixin during deserialization.
   deserializeParams: (params) ->
     markerLayers = {}
@@ -133,6 +139,7 @@ class TextBuffer
     for id, layer of @markerLayers
       markerLayers[id] = layer.serialize()
 
+    id: @getId()
     text: @getText()
     defaultMarkerLayerId: @defaultMarkerLayer.id
     markerLayers: markerLayers
