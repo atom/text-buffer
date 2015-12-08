@@ -1391,6 +1391,11 @@ describe "TextBuffer", ->
       runs ->
         expect(buffer.isModified()).toBeFalsy()
 
+    it "returns false when constructing an empty buffer with no path and loading it", ->
+      buffer.destroy()
+      buffer = new TextBuffer()
+      expect(buffer.isModified()).toBeFalsy()
+
     it "returns true for a non-empty buffer with no path", ->
       buffer.destroy()
       buffer = new TextBuffer({load: true})
