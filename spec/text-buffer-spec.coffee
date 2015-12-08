@@ -1383,40 +1383,19 @@ describe "TextBuffer", ->
 
     it "returns false for an empty buffer with no path", ->
       buffer.destroy()
-      buffer = new TextBuffer({load: true})
-
-      waitsFor ->
-        buffer.loaded
-
-      runs ->
-        expect(buffer.isModified()).toBeFalsy()
-
-    it "returns false when constructing an empty buffer with no path and not loading it", ->
-      buffer.destroy()
       buffer = new TextBuffer()
       expect(buffer.isModified()).toBeFalsy()
+      buffer.append('hello')
+      expect(buffer.isModified()).toBeTruthy()
 
     it "returns true for a non-empty buffer with no path", ->
       buffer.destroy()
-      buffer = new TextBuffer({load: true})
-
-      waitsFor ->
-        buffer.loaded
-
-      runs ->
-        buffer.setText('a')
-        expect(buffer.isModified()).toBeTruthy()
-        buffer.setText('\n')
-        expect(buffer.isModified()).toBeTruthy()
-
-    it "returns true when constructing a non-empty buffer with no path and not loading it", ->
-      buffer.destroy()
-      buffer = new TextBuffer(text: "hello world")
-      expect(buffer.isModified()).toBe(true)
-      buffer.append("something")
-      expect(buffer.isModified()).toBe(true)
-      buffer.setText("")
-      expect(buffer.isModified()).toBe(false)
+      buffer = new TextBuffer({text: 'something'})
+      expect(buffer.isModified()).toBeTruthy()
+      buffer.append('a')
+      expect(buffer.isModified()).toBeTruthy()
+      buffer.setText('')
+      expect(buffer.isModified()).toBeFalsy()
 
     it "returns false until the buffer is fully loaded", ->
       buffer.destroy()
