@@ -404,9 +404,7 @@ class TextBuffer
       @emitter.emit 'did-change-encoding', encoding
 
       unless @isModified()
-        @updateCachedDiskContents true, =>
-          @reload()
-          @clearUndoStack()
+        @updateCachedDiskContents true, => @reload(true)
     else
       @emitter.emit 'did-change-encoding', encoding
 
