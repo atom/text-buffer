@@ -1404,6 +1404,15 @@ describe "TextBuffer", ->
         buffer.setText('\n')
         expect(buffer.isModified()).toBeTruthy()
 
+    it "returns true when constructing a non-empty buffer with no path and not loading it", ->
+      buffer.destroy()
+      buffer = new TextBuffer(text: "hello world")
+      expect(buffer.isModified()).toBe(true)
+      buffer.append("something")
+      expect(buffer.isModified()).toBe(true)
+      buffer.setText("")
+      expect(buffer.isModified()).toBe(false)
+
     it "returns false until the buffer is fully loaded", ->
       buffer.destroy()
       buffer = new TextBuffer({filePath, load: true})

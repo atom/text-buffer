@@ -356,8 +356,9 @@ class TextBuffer
   #
   # Returns a {Boolean}.
   isModified: ->
-    return false unless @loaded
     if @file
+      return false unless @loaded
+
       if @file.existsSync()
         @getText() != @cachedDiskContents
       else
