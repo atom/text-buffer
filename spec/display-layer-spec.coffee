@@ -2,6 +2,7 @@ Random = require 'random-seed'
 TextBuffer = require '../src/text-buffer'
 Point = require '../src/point'
 Range = require '../src/range'
+{characterIndexForPoint} = require '../src/point-helpers'
 WORDS = require './helpers/words'
 {currentSpecFailed} = require "./spec-helper"
 
@@ -15,22 +16,34 @@ describe "DisplayLayer", ->
       verifyTokenIterator(displayLayer)
 
   it "updates the displayed text correctly when the underlying buffer changes", ->
-    for i in [0...500] by 1
+    for i in [0...50] by 1
       seed = Date.now()
       seedFailureMessage = "Seed: #{seed}"
       random = new Random(seed)
       buffer = new TextBuffer(text: buildRandomLines(10, random))
       actualDisplayLayer = buffer.addDisplayLayer(tabLength: 4, patchSeed: seed)
+      lastDisplayLayerChange = null
+      actualDisplayLayer.onDidChangeTextSync (change) -> lastDisplayLayerChange = change
 
-      range = getRandomRange(buffer, random)
-      text = buildRandomLines(4, random)
-      buffer.setTextInRange(range, text)
-      expectedDisplayLayer = buffer.addDisplayLayer(tabLength: 4)
+      for k in [0...10] by 1
+        lastDisplayLayerChange = null
+        range = getRandomRange(buffer, random)
+        text = buildRandomLines(4, random)
+        bufferWithDisplayLayerText = new TextBuffer(text: actualDisplayLayer.getText())
+        buffer.setTextInRange(range, text)
+        expectedDisplayLayer = buffer.addDisplayLayer(tabLength: 4)
 
-      expect(actualDisplayLayer.getText()).toBe(expectedDisplayLayer.getText(), seedFailureMessage)
-      return if currentSpecFailed()
-      verifyTokenIterator(actualDisplayLayer, seedFailureMessage)
-      return if currentSpecFailed()
+        # incrementally-updated text matches freshly computed text
+        expect(actualDisplayLayer.getText()).toBe(expectedDisplayLayer.getText(), seedFailureMessage)
+        return if currentSpecFailed()
+
+        # emitted text change event describes delta between the old and new text of display layer
+        verifyChangeEvent(bufferWithDisplayLayerText, lastDisplayLayerChange, actualDisplayLayer, seedFailureMessage)
+        return if currentSpecFailed()
+
+        # token iterator matches contents of display layer
+        verifyTokenIterator(actualDisplayLayer, seedFailureMessage)
+        return if currentSpecFailed()
 
 verifyPositionTranslations = (displayLayer) ->
   {buffer} = displayLayer
@@ -44,6 +57,13 @@ verifyPositionTranslations = (displayLayer) ->
         screenPosition = displayLayer.translateBufferPosition(bufferPosition)
         expect(screenLines[screenPosition.row][screenPosition.column]).toBe(character)
         expect(displayLayer.translateScreenPosition(screenPosition)).toEqual(bufferPosition)
+
+verifyChangeEvent = (bufferWithDisplayLayerText, lastDisplayLayerChange, actualDisplayLayer, seedFailureMessage) ->
+  replacedRange = Range.fromPointWithTraversalExtent(lastDisplayLayerChange.start, lastDisplayLayerChange.replacedExtent)
+  replacementRange = Range.fromPointWithTraversalExtent(lastDisplayLayerChange.start, lastDisplayLayerChange.replacementExtent)
+  replacementText = substringForRange(actualDisplayLayer.getText(), replacementRange)
+  bufferWithDisplayLayerText.setTextInRange(replacedRange, replacementText)
+  expect(bufferWithDisplayLayerText.getText()).toBe(actualDisplayLayer.getText(), seedFailureMessage)
 
 verifyTokenIterator = (displayLayer, failureMessage) ->
   {buffer} = displayLayer
@@ -102,3 +122,8 @@ getRandomPoint = (buffer, random) ->
   row = random(buffer.getLineCount())
   column = random(buffer.lineForRow(row).length + 1)
   Point(row, column)
+
+substringForRange = (text, range) ->
+  startIndex = characterIndexForPoint(text, range.start)
+  endIndex = characterIndexForPoint(text, range.end)
+  text.substring(startIndex, endIndex)
