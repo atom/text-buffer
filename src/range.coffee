@@ -85,6 +85,11 @@ class Range
     endPoint = new Point(startPoint.row + rowDelta, startPoint.column + columnDelta)
     new this(startPoint, endPoint)
 
+  @fromPointWithTraversalExtent: (startPoint, extent) ->
+    startPoint = Point.fromObject(startPoint)
+    new this(startPoint, startPoint.traverse(extent))
+
+
   ###
   Section: Serialization and Deserialization
   ###

@@ -46,6 +46,8 @@ exports.characterIndexForPoint = function (text, point) {
   let row = point.row
   let column = point.column
   NEWLINE_REG_EXP.lastIndex = 0
-  while (row-- > 0) NEWLINE_REG_EXP.exec(text)
+  while (row-- > 0) {
+    if (!NEWLINE_REG_EXP.exec(text)) return text.length
+  }
   return NEWLINE_REG_EXP.lastIndex + column
 }

@@ -1,7 +1,9 @@
 Patch = require 'atom-patch'
+{Emitter} = require 'event-kit'
 Point = require './point'
 Range = require './range'
 TokenIterator = require './token-iterator'
+{traversal} = require './point-helpers'
 
 module.exports =
 class DisplayLayer
@@ -9,20 +11,25 @@ class DisplayLayer
     @patch = new Patch(patchSeed)
     @buffer.onDidChange(@bufferDidChange.bind(this))
     @computeTransformation(0, @buffer.getLineCount())
+    @emitter = new Emitter
+
+  onDidChangeTextSync: (callback) ->
+    @emitter.on 'did-change-text-sync', callback
 
   bufferDidChange: (change) ->
     {oldRange, newRange} = change
     startRow = oldRange.start.row
     oldEndRow = oldRange.end.row + 1
     newEndRow = newRange.end.row + 1
-    @patch.spliceInput(Point(startRow, 0), Point(oldEndRow - startRow, 0), Point(newEndRow - startRow, 0))
-    @computeTransformation(startRow, newEndRow)
+    {start, replacedExtent} = @patch.spliceInput(Point(startRow, 0), Point(oldEndRow - startRow, 0), Point(newEndRow - startRow, 0))
+    newOutputEnd = @computeTransformation(startRow, newEndRow)
+    replacementExtent = traversal(newOutputEnd, start)
+    @emitter.emit 'did-change-text-sync', {start, replacedExtent, replacementExtent}
 
   computeTransformation: (startBufferRow, endBufferRow) ->
-    screenRow = @translateBufferPosition(Point(startBufferRow, 0)).row
+    {row: screenRow, column: screenColumn} = @translateBufferPosition(Point(startBufferRow, 0))
     for bufferRow in [startBufferRow...endBufferRow] by 1
       line = @buffer.lineForRow(bufferRow)
-      screenColumn = 0
       for character, bufferColumn in line
         if character is '\t'
           tabText = ''
@@ -32,6 +39,8 @@ class DisplayLayer
         else
           screenColumn++
       screenRow++
+      screenColumn = 0
+    Point(screenRow, screenColumn)
 
   buildTokenIterator: ->
     new TokenIterator(@buffer, @patch.buildIterator())
