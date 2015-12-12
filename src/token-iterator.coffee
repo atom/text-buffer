@@ -5,11 +5,7 @@ Range = require './range'
 module.exports =
 class TokenIterator
   constructor: (@buffer, @patchIterator) ->
-    @startBufferPosition = null
-    @startScreenPosition = null
-    @endBufferPosition = null
-    @endScreenPosition = null
-    @text = null
+    @reset()
 
   getStartBufferPosition: -> Point.fromObject(@startBufferPosition)
 
@@ -20,6 +16,14 @@ class TokenIterator
   getEndScreenPosition: -> Point.fromObject(@endScreenPosition)
 
   getText: -> @text
+
+  reset: ->
+    @patchIterator.reset()
+    @startBufferPosition = null
+    @startScreenPosition = null
+    @endBufferPosition = null
+    @endScreenPosition = null
+    @text = null
 
   seekToScreenRow: (screenRow) ->
     @startScreenPosition = Point(screenRow, 0)
