@@ -32,8 +32,6 @@ class Backwards
     @lastMatchIndex = Infinity
 
   scanNextChunk: ->
-    @doneScanning = @chunkStartIndex is @startIndex
-
     # If results were found in the last chunk, then scan to the beginning
     # of the previous result. Otherwise, continue to scan to the same position
     # as before.
@@ -68,7 +66,7 @@ class Backwards
     @lastMatchIndex = firstResultIndex if firstResultIndex
 
   next: ->
-    until @doneScanning or @bufferedMatches.length > 0
+    until @chunkStartIndex is @startIndex or @bufferedMatches.length > 0
       @scanNextChunk()
 
     if match = @bufferedMatches.pop()
