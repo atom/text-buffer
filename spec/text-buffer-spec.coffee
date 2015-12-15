@@ -2214,7 +2214,7 @@ describe "TextBuffer", ->
 
     describe "when called with a random range", ->
       it "returns the same results as ::scanInRange, but in the opposite order", ->
-        for i in [1...10]
+        for i in [1...50]
           seed = Date.now()
           random = new Random(seed)
 
@@ -2232,12 +2232,31 @@ describe "TextBuffer", ->
             /.{5}/g
           ][random(4)]
 
-          forwardRanges = []
-          backwardRanges = []
-          buffer.scanInRange regex, range, ({range, matchText}) -> forwardRanges.push({range, matchText})
-          buffer.backwardsScanInRange regex, range, ({range, matchText}) -> backwardRanges.unshift({range, matchText})
+          if random(2) > 0
+            forwardRanges = []
+            backwardRanges = []
+            forwardMatches = []
+            backwardMatches = []
 
-          expect(backwardRanges).toEqual(forwardRanges, "Seed: #{seed}")
+            buffer.scanInRange regex, range, ({range, matchText}) ->
+              forwardMatches.push(matchText)
+              forwardRanges.push(range)
+
+            buffer.backwardsScanInRange regex, range, ({range, matchText}) ->
+              backwardMatches.unshift(matchText)
+              backwardRanges.unshift(range)
+
+            expect(backwardRanges).toEqual(forwardRanges, "Seed: #{seed}")
+            expect(backwardMatches).toEqual(forwardMatches, "Seed: #{seed}")
+          else
+            referenceBuffer = new TextBuffer(text: buffer.getText())
+            referenceBuffer.scanInRange regex, range, ({matchText, replace}) ->
+              replace(matchText + '.')
+
+            buffer.backwardsScanInRange regex, range, ({matchText, replace}) ->
+              replace(matchText + '.')
+
+            expect(buffer.getText()).toBe(referenceBuffer.getText(), "Seed: #{seed}")
 
   describe "::characterIndexForPosition(position)", ->
     beforeEach ->
