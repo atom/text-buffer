@@ -8,8 +8,10 @@ isPairedCharacter = require './is-paired-character'
 
 module.exports =
 class DisplayLayer
-  constructor: (@buffer, {@tabLength, patchSeed}) ->
-    @patch = new Patch({combineChanges: false, seed: patchSeed})
+  constructor: (@buffer, {@tabLength, @patchSeed}) ->
+    @patch = new Patch({combineChanges: false, seed: @patchSeed})
+    @unpairedPatch = new Patch({combineChanges: false, seed: @patchSeed})
+    @pendingUnpairedPatch = null
     @buffer.onDidChange(@bufferDidChange.bind(this))
     @computeTransformation(0, @buffer.getLineCount())
     @emitter = new Emitter
@@ -22,13 +24,22 @@ class DisplayLayer
     startRow = oldRange.start.row
     oldEndRow = oldRange.end.row + 1
     newEndRow = newRange.end.row + 1
-    {start, replacedExtent} = @patch.spliceInput(Point(startRow, 0), Point(oldEndRow - startRow, 0), Point(newEndRow - startRow, 0))
+    screenSplice = @patch.spliceInput(Point(startRow, 0), Point(oldEndRow - startRow, 0), Point(newEndRow - startRow, 0))
+    @pendingUnpairedPatch = new Patch(combineChanges: false, seed: @patchSeed)
     newOutputEnd = @computeTransformation(startRow, newEndRow)
-    replacementExtent = traversal(newOutputEnd, start)
-    @emitter.emit 'did-change-text-sync', {start, replacedExtent, replacementExtent}
+    screenSplice.replacementExtent = traversal(newOutputEnd, screenSplice.start)
+    @unpairedPatch.spliceInput(screenSplice.start, screenSplice.replacedExtent, screenSplice.replacementExtent)
+    for {start, replacedExtent, replacementExtent, replacementText} in @pendingUnpairedPatch.getChanges()
+      @unpairedPatch.splice(start, replacedExtent, replacementExtent, text: replacementText)
+    @pendingUnpairedPatch = null
+    @emitter.emit 'did-change-text-sync', screenSplice
 
   computeTransformation: (startBufferRow, endBufferRow) ->
-    {row: screenRow, column: screenColumn} = @translateBufferPosition(Point(startBufferRow, 0))
+    {row: screenRow} = @translateBufferPosition(Point(startBufferRow, 0))
+    unpairedPatch = @pendingUnpairedPatch ? @unpairedPatch
+    screenColumn = 0
+    unpairedScreenColumn = 0
+
     for bufferRow in [startBufferRow...endBufferRow] by 1
       line = @buffer.lineForRow(bufferRow)
       bufferColumn = 0
@@ -40,15 +51,22 @@ class DisplayLayer
           @patch.spliceWithText(Point(screenRow, screenColumn), Point(0, 1), tabText)
           bufferColumn += 1
           screenColumn += tabText.length
+          unpairedScreenColumn += tabText.length
         else if isPairedCharacter(line.charCodeAt(bufferColumn), line.charCodeAt(bufferColumn + 1))
-          @patch.splice(Point(screenRow, screenColumn), Point(0, 2), Point(0, 1), text: line.substr(bufferColumn, 2))
+          characterText = line.substr(bufferColumn, 2)
+          @patch.splice(Point(screenRow, screenColumn), Point(0, 2), Point(0, 1), text: characterText)
+          unpairedPatch.splice(Point(screenRow, unpairedScreenColumn), Point(0, 1), Point(0, 2), text: characterText)
           bufferColumn += 2
           screenColumn += 1
+          unpairedScreenColumn += 2
         else
           bufferColumn += 1
           screenColumn += 1
+          unpairedScreenColumn += 1
       screenRow++
       screenColumn = 0
+      unpairedScreenColumn = 0
+
     Point(screenRow, screenColumn)
 
   buildTokenIterator: ->
@@ -74,3 +92,7 @@ class DisplayLayer
 
   translateScreenPosition: (screenPosition) ->
     @patch.translateOutputPosition(screenPosition)
+
+  characterIndexInLineForScreenPosition: (screenPosition) ->
+    unpairedPosition = @unpairedPatch.translateInputPosition(screenPosition)
+    unpairedPosition.column

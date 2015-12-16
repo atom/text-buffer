@@ -40,6 +40,25 @@ describe "DisplayLayer", ->
       expect(displayLayer.translateBufferPosition(Point(0, 7))).toEqual(Point(0, 5))
       expect(displayLayer.translateBufferPosition(Point(0, 8))).toEqual(Point(0, 5))
 
+    it "exposes the non-collapsed character index of screen positions via characterIndexInLineForScreenPosition", ->
+      buffer = new TextBuffer(text: 'a𝞗\t𝞗𝞗\n\t𝞗')
+      displayLayer = buffer.addDisplayLayer(tabLength: 4)
+      expect(displayLayer.getText()).toBe 'a𝞗  𝞗𝞗\n    𝞗'
+
+      expect(displayLayer.characterIndexInLineForScreenPosition(Point(0, 0))).toBe 0
+      expect(displayLayer.characterIndexInLineForScreenPosition(Point(0, 1))).toBe 1
+      expect(displayLayer.characterIndexInLineForScreenPosition(Point(0, 2))).toBe 3
+      expect(displayLayer.characterIndexInLineForScreenPosition(Point(0, 3))).toBe 4
+      expect(displayLayer.characterIndexInLineForScreenPosition(Point(0, 4))).toBe 5
+      expect(displayLayer.characterIndexInLineForScreenPosition(Point(0, 5))).toBe 7
+      expect(displayLayer.characterIndexInLineForScreenPosition(Point(0, 6))).toBe 9
+      expect(displayLayer.characterIndexInLineForScreenPosition(Point(1, 0))).toBe 0
+      expect(displayLayer.characterIndexInLineForScreenPosition(Point(1, 1))).toBe 1
+      expect(displayLayer.characterIndexInLineForScreenPosition(Point(1, 2))).toBe 2
+      expect(displayLayer.characterIndexInLineForScreenPosition(Point(1, 3))).toBe 3
+      expect(displayLayer.characterIndexInLineForScreenPosition(Point(1, 4))).toBe 4
+      expect(displayLayer.characterIndexInLineForScreenPosition(Point(1, 5))).toBe 6
+
   it "updates the displayed text correctly when the underlying buffer changes", ->
     for i in [0...5] by 1
       seed = Date.now()
@@ -68,6 +87,9 @@ describe "DisplayLayer", ->
 
         # token iterator matches contents of display layer
         verifyTokenIterator(actualDisplayLayer, seedFailureMessage)
+        return if currentSpecFailed()
+
+        verifyCharacterIndicesInLine(actualDisplayLayer, expectedDisplayLayer, seedFailureMessage)
         return if currentSpecFailed()
 
 verifyPositionTranslations = (displayLayer) ->
@@ -120,6 +142,19 @@ verifyTokenIterator = (displayLayer, failureMessage) ->
     break unless tokenIterator.moveToSuccessor()
 
   expect(text).toBe(displayLayer.getText(), failureMessage)
+
+verifyCharacterIndicesInLine = (actualDisplayLayer, expectedDisplayLayer, failureMessage) ->
+  tokenIterator = actualDisplayLayer.buildTokenIterator()
+  tokenIterator.seekToScreenRow(0)
+
+  loop
+    endScreenPosition = tokenIterator.getEndScreenPosition()
+    actualCharacterIndexInLine = actualDisplayLayer.characterIndexInLineForScreenPosition(endScreenPosition)
+    expectedCharacterIndexInLine = expectedDisplayLayer.characterIndexInLineForScreenPosition(endScreenPosition)
+
+    expect(actualCharacterIndexInLine).toBe(expectedCharacterIndexInLine, failureMessage)
+
+    break unless tokenIterator.moveToSuccessor()
 
 buildRandomLines = (maxLines, random) ->
   lines = []
