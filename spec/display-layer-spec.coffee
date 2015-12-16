@@ -15,8 +15,33 @@ describe "DisplayLayer", ->
       verifyPositionTranslations(displayLayer)
       verifyTokenIterator(displayLayer)
 
+  describe "paired characters", ->
+    it "collapses paired characters to a single column", ->
+      buffer = new TextBuffer(text: 'a𝞗b𝞗𝞗c')
+      displayLayer = buffer.addDisplayLayer(tabLength: 4)
+
+      expect(buffer.getText().length).toBe 9
+      expect(displayLayer.getText()).toBe 'a𝞗b𝞗𝞗c'
+
+      expect(displayLayer.translateScreenPosition(Point(0, 0))).toEqual(Point(0, 0))
+      expect(displayLayer.translateScreenPosition(Point(0, 1))).toEqual(Point(0, 1))
+      expect(displayLayer.translateScreenPosition(Point(0, 2))).toEqual(Point(0, 3))
+      expect(displayLayer.translateScreenPosition(Point(0, 3))).toEqual(Point(0, 4))
+      expect(displayLayer.translateScreenPosition(Point(0, 4))).toEqual(Point(0, 6))
+      expect(displayLayer.translateScreenPosition(Point(0, 5))).toEqual(Point(0, 8))
+
+      expect(displayLayer.translateBufferPosition(Point(0, 0))).toEqual(Point(0, 0))
+      expect(displayLayer.translateBufferPosition(Point(0, 1))).toEqual(Point(0, 1))
+      expect(displayLayer.translateBufferPosition(Point(0, 2))).toEqual(Point(0, 2))
+      expect(displayLayer.translateBufferPosition(Point(0, 3))).toEqual(Point(0, 2))
+      expect(displayLayer.translateBufferPosition(Point(0, 4))).toEqual(Point(0, 3))
+      expect(displayLayer.translateBufferPosition(Point(0, 5))).toEqual(Point(0, 4))
+      expect(displayLayer.translateBufferPosition(Point(0, 6))).toEqual(Point(0, 4))
+      expect(displayLayer.translateBufferPosition(Point(0, 7))).toEqual(Point(0, 5))
+      expect(displayLayer.translateBufferPosition(Point(0, 8))).toEqual(Point(0, 5))
+
   it "updates the displayed text correctly when the underlying buffer changes", ->
-    for i in [0...50] by 1
+    for i in [0...5] by 1
       seed = Date.now()
       seedFailureMessage = "Seed: #{seed}"
       random = new Random(seed)
@@ -110,6 +135,10 @@ buildRandomLine = (random) ->
       line.push('\t')
     else if n < 4
       line.push(' ')
+    else if n < 5
+      line.push(' ') if line.length > 0 and not /\s/.test(line[line.length - 1])
+      line.push('🐣')
+      line.push('🐥') while random(10) < 2
     else
       line.push(' ') if line.length > 0 and not /\s/.test(line[line.length - 1])
       line.push(WORDS[random(WORDS.length)])
