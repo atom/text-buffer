@@ -8,7 +8,7 @@ TokenIterator = require './token-iterator'
 module.exports =
 class DisplayLayer
   constructor: (@buffer, {@tabLength, patchSeed}) ->
-    @patch = new Patch(patchSeed)
+    @patch = new Patch(combineChanges: false, seed: patchSeed)
     @buffer.onDidChange(@bufferDidChange.bind(this))
     @computeTransformation(0, @buffer.getLineCount())
     @emitter = new Emitter
