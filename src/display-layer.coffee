@@ -62,6 +62,8 @@ class DisplayLayer
     text
 
   translateBufferPosition: (bufferPosition, options) ->
+    bufferPosition = Point.fromObject(bufferPosition)
+
     @patchIterator.seekToInputPosition(bufferPosition)
     if @patchIterator.inChange()
       if options?.clipDirection is 'forward'
@@ -72,6 +74,8 @@ class DisplayLayer
       @patchIterator.translateInputPosition(@buffer.clipPosition(bufferPosition, options))
 
   translateScreenPosition: (screenPosition, options) ->
+    screenPosition = Point.fromObject(screenPosition)
+
     @patchIterator.seekToOutputPosition(screenPosition)
     if @patchIterator.inChange()
       if options?.clipDirection is 'forward'
@@ -82,6 +86,8 @@ class DisplayLayer
       @buffer.clipPosition(@patchIterator.translateOutputPosition(screenPosition), options)
 
   clipScreenPosition: (screenPosition, options) ->
+    screenPosition = Point.fromObject(screenPosition)
+
     @patchIterator.seekToOutputPosition(screenPosition)
     if @patchIterator.inChange()
       if options?.clipDirection is 'forward'
