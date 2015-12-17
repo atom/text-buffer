@@ -288,6 +288,9 @@ class MarkerLayer
   getMarkerEndPosition: (id) ->
     Point.fromObject(@index.getEnd(id))
 
+  compareMarkers: (id1, id2) ->
+    @index.compare(id1, id2)
+
   setMarkerRange: (id, range) ->
     {start, end} = Range.fromObject(range)
     start = @delegate.clipPosition(start)

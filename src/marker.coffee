@@ -294,7 +294,10 @@ class Marker
   #
   # * `other` {Marker}
   compare: (other) ->
-    @getRange().compare(other.getRange())
+    if @rangeWhenDestroyed? or other.rangeWhenDestroyed?
+      @getRange().compare(other.getRange())
+    else
+      @layer.compareMarkers(@id, other.id)
 
   # Returns whether this marker matches the given parameters. The parameters
   # are the same as {MarkerManager::findMarkers}.
