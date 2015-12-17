@@ -89,5 +89,6 @@ class DisplayLayer
       else
         @patchIterator.getOutputStart()
     else
-      clippedInputPosition = @buffer.clipPosition(@patchIterator.translateOutputPosition(screenPosition), options)
-      @patchIterator.translateInputPosition(clippedInputPosition)
+      bufferPosition = @patchIterator.translateOutputPosition(screenPosition)
+      clippedBufferPosition = @buffer.clipPosition(bufferPosition, options)
+      @patchIterator.translateInputPosition(clippedBufferPosition)
