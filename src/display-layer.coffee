@@ -9,6 +9,7 @@ module.exports =
 class DisplayLayer
   constructor: (@buffer, {@tabLength, patchSeed}) ->
     @patch = new Patch(combineChanges: false, seed: patchSeed)
+    @patchIterator = @patch.buildIterator()
     @buffer.onDidChange(@bufferDidChange.bind(this))
     @computeTransformation(0, @buffer.getLineCount())
     @emitter = new Emitter
@@ -60,8 +61,33 @@ class DisplayLayer
 
     text
 
-  translateBufferPosition: (bufferPosition) ->
-    @patch.translateInputPosition(bufferPosition)
+  translateBufferPosition: (bufferPosition, options) ->
+    @patchIterator.seekToInputPosition(bufferPosition)
+    if @patchIterator.inChange()
+      if options?.clipDirection is 'forward'
+        @patchIterator.getOutputEnd()
+      else
+        @patchIterator.getOutputStart()
+    else
+      @patchIterator.translateInputPosition(@buffer.clipPosition(bufferPosition, options))
 
-  translateScreenPosition: (screenPosition) ->
-    @patch.translateOutputPosition(screenPosition)
+  translateScreenPosition: (screenPosition, options) ->
+    @patchIterator.seekToOutputPosition(screenPosition)
+    if @patchIterator.inChange()
+      if options?.clipDirection is 'forward'
+        @patchIterator.getInputEnd()
+      else
+        @patchIterator.getInputStart()
+    else
+      @buffer.clipPosition(@patchIterator.translateOutputPosition(screenPosition), options)
+
+  clipScreenPosition: (screenPosition, options) ->
+    @patchIterator.seekToOutputPosition(screenPosition)
+    if @patchIterator.inChange()
+      if options?.clipDirection is 'forward'
+        @patchIterator.getOutputEnd()
+      else
+        @patchIterator.getOutputStart()
+    else
+      clippedInputPosition = @buffer.clipPosition(@patchIterator.translateOutputPosition(screenPosition), options)
+      @patchIterator.translateInputPosition(clippedInputPosition)

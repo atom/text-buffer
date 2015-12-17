@@ -11,8 +11,37 @@ describe "DisplayLayer", ->
     it "expands hard tabs to their tab stops", ->
       buffer = new TextBuffer(text: '\ta\tbc\tdef\tg\n\th')
       displayLayer = buffer.addDisplayLayer(tabLength: 4)
+
       expect(displayLayer.getText()).toBe('    a   bc  def g\n    h')
-      verifyPositionTranslations(displayLayer)
+      expectPositionTranslations(displayLayer, [
+        [Point(0, 0), Point(0, 0)],
+        [Point(0, 1), [Point(0, 0), Point(0, 1)]],
+        [Point(0, 2), [Point(0, 0), Point(0, 1)]],
+        [Point(0, 3), [Point(0, 0), Point(0, 1)]],
+        [Point(0, 4), Point(0, 1)],
+        [Point(0, 5), Point(0, 2)],
+        [Point(0, 6), [Point(0, 2), Point(0, 3)]],
+        [Point(0, 7), [Point(0, 2), Point(0, 3)]],
+        [Point(0, 8), Point(0, 3)],
+        [Point(0, 9), Point(0, 4)],
+        [Point(0, 10), Point(0, 5)],
+        [Point(0, 11), [Point(0, 5), Point(0, 6)]],
+        [Point(0, 12), Point(0, 6)],
+        [Point(0, 13), Point(0, 7)],
+        [Point(0, 14), Point(0, 8)],
+        [Point(0, 15), Point(0, 9)],
+        [Point(0, 16), Point(0, 10)],
+        [Point(0, 17), Point(0, 11)],
+        [Point(0, 18), [Point(0, 11), Point(1, 0)]],
+        [Point(1, 0), Point(1, 0)]
+        [Point(1, 1), [Point(1, 0), Point(1, 1)]]
+        [Point(1, 2), [Point(1, 0), Point(1, 1)]]
+        [Point(1, 3), [Point(1, 0), Point(1, 1)]]
+        [Point(1, 4), Point(1, 1)]
+        [Point(1, 5), Point(1, 2)]
+        [Point(1, 6), [Point(1, 2), Point(1, 2)]]
+      ])
+
       verifyTokenIterator(displayLayer)
 
   it "updates the displayed text correctly when the underlying buffer changes", ->
@@ -45,18 +74,18 @@ describe "DisplayLayer", ->
         verifyTokenIterator(actualDisplayLayer, seedFailureMessage)
         return if currentSpecFailed()
 
-verifyPositionTranslations = (displayLayer) ->
-  {buffer} = displayLayer
-  bufferLines = buffer.getText().split('\n')
-  screenLines = displayLayer.getText().split('\n')
-
-  for bufferLine, bufferRow in bufferLines
-    for character, bufferColumn in bufferLine
-      if character isnt '\t'
-        bufferPosition = Point(bufferRow, bufferColumn)
-        screenPosition = displayLayer.translateBufferPosition(bufferPosition)
-        expect(screenLines[screenPosition.row][screenPosition.column]).toBe(character)
-        expect(displayLayer.translateScreenPosition(screenPosition)).toEqual(bufferPosition)
+expectPositionTranslations = (displayLayer, tranlations) ->
+  for [screenPosition, bufferPositions] in tranlations
+    if Array.isArray(bufferPositions)
+      [backwardBufferPosition, forwardBufferPosition] = bufferPositions
+      expect(displayLayer.translateScreenPosition(screenPosition, clipDirection: 'backward')).toEqual(backwardBufferPosition)
+      expect(displayLayer.translateScreenPosition(screenPosition, clipDirection: 'forward')).toEqual(forwardBufferPosition)
+      expect(displayLayer.clipScreenPosition(screenPosition, clipDirection: 'backward')).toEqual(displayLayer.translateBufferPosition(backwardBufferPosition))
+      expect(displayLayer.clipScreenPosition(screenPosition, clipDirection: 'forward')).toEqual(displayLayer.translateBufferPosition(forwardBufferPosition))
+    else
+      bufferPosition = bufferPositions
+      expect(displayLayer.translateScreenPosition(screenPosition)).toEqual(bufferPosition)
+      expect(displayLayer.translateBufferPosition(bufferPosition)).toEqual(screenPosition)
 
 verifyChangeEvent = (bufferWithDisplayLayerText, lastDisplayLayerChange, actualDisplayLayer, seedFailureMessage) ->
   replacedRange = Range.fromPointWithTraversalExtent(lastDisplayLayerChange.start, lastDisplayLayerChange.replacedExtent)
@@ -95,6 +124,25 @@ verifyTokenIterator = (displayLayer, failureMessage) ->
     break unless tokenIterator.moveToSuccessor()
 
   expect(text).toBe(displayLayer.getText(), failureMessage)
+
+verifyPositionTranslations = (actualDisplayLayer, expectedDisplayLayer) ->
+  {buffer} = displayLayer
+
+  bufferLines = buffer.getText().split('\n')
+  screenLines = actualDisplayLayer.getText().split('\n')
+
+  for bufferLine, bufferRow in bufferLines
+    for character, bufferColumn in bufferLine
+      actualPosition = actualDisplayLayer.translateBufferPosition(Point(bufferRow, bufferColumn))
+      expectedPosition = expectedDisplayLayer.translateBufferPosition(Point(bufferRow, bufferColumn))
+      expect(actualPosition).toEqual(expectedPosition)
+
+  for screenLine, screenRow in screenLines
+    for character, screenColumn in screenLine
+      actualPosition = actualDisplayLayer.translateScrneePosition(Point(screenRow, screenColumn))
+      expectedPosition = expectedDisplayLayer.translateScreenPosition(Point(screenRow, screenColumn))
+      expect(actualPosition).toEqual(expectedPosition)
+
 
 buildRandomLines = (maxLines, random) ->
   lines = []

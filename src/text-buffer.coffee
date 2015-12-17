@@ -1246,7 +1246,7 @@ class TextBuffer
   #
   # Returns a new {Point} if the given position is invalid, otherwise returns
   # the given position.
-  clipPosition: (position) ->
+  clipPosition: (position, options) ->
     position = Point.fromObject(position)
     Point.assertValid(position)
     {row, column} = position
@@ -1254,13 +1254,15 @@ class TextBuffer
       @getFirstPosition()
     else if row > @getLastRow()
       @getEndPosition()
-    else
-      column = Math.min(Math.max(column, 0), @lineLengthForRow(row))
-      if column is position.column
-        position
+    else if column < 0
+      Point(row, 0)
+    else if column >= @lineLengthForRow(row)
+      if options?.clipDirection is 'forward' and row < @getLastRow()
+        Point(row + 1, 0)
       else
-        new Point(row, column)
-
+        Point(row, @lineLengthForRow(row))
+    else
+      position
 
   ###
   Section: Buffer Operations
