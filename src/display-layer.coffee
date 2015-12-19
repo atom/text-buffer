@@ -11,17 +11,21 @@ class DisplayLayer
   constructor: (@buffer, {@tabLength, patchSeed}) ->
     @patch = new Patch(combineChanges: false, seed: patchSeed)
     @patchIterator = @patch.buildIterator()
-    @markerLayersById = {}
+    @displayMarkerLayersById = {}
     @buffer.onDidChange(@bufferDidChange.bind(this))
     @computeTransformation(0, @buffer.getLineCount())
     @emitter = new Emitter
 
+  destroy: ->
+    for id, displayMarkerLayer of @displayMarkerLayersById
+      displayMarkerLayer.destroy()
+
   addMarkerLayer: (options) ->
     markerLayer = new DisplayMarkerLayer(this, @buffer.addMarkerLayer(options))
-    @markerLayersById[markerLayer.id] = markerLayer
+    @displayMarkerLayersById[markerLayer.id] = markerLayer
 
   getMarkerLayer: (id) ->
-    @markerLayersById[id] ?= new DisplayMarkerLayer(this, @buffer.getMarkerLayer(id))
+    @displayMarkerLayersById[id] ?= new DisplayMarkerLayer(this, @buffer.getMarkerLayer(id))
 
   onDidChangeTextSync: (callback) ->
     @emitter.on 'did-change-text-sync', callback
