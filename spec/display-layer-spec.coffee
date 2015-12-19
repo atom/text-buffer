@@ -14,6 +14,9 @@ describe "DisplayLayer", ->
 
       expect(displayLayer.getText()).toBe('    a   bc  def g\n    h')
       expectPositionTranslations(displayLayer, [
+        [Point(-1, 0), Point(0, 0)],
+        [Point(0, -1), Point(0, 0)],
+        [Point(-1, -1), Point(0, 0)],
         [Point(0, 0), Point(0, 0)],
         [Point(0, 1), [Point(0, 0), Point(0, 1)]],
         [Point(0, 2), [Point(0, 0), Point(0, 1)]],

@@ -4,19 +4,24 @@ Point = require './point'
 Range = require './range'
 DisplayMarkerLayer = require './display-marker-layer'
 TokenIterator = require './token-iterator'
-{traversal} = require './point-helpers'
+{traversal, clipNegativePoint} = require './point-helpers'
 
 module.exports =
 class DisplayLayer
   constructor: (@buffer, {@tabLength, patchSeed}) ->
     @patch = new Patch(combineChanges: false, seed: patchSeed)
     @patchIterator = @patch.buildIterator()
+    @markerLayersById = {}
     @buffer.onDidChange(@bufferDidChange.bind(this))
     @computeTransformation(0, @buffer.getLineCount())
     @emitter = new Emitter
 
-  addMarkerLayer: ->
-    new DisplayMarkerLayer(this, @buffer.addMarkerLayer())
+  addMarkerLayer: (options) ->
+    markerLayer = new DisplayMarkerLayer(this, @buffer.addMarkerLayer(options))
+    @markerLayersById[markerLayer.id] = markerLayer
+
+  getMarkerLayer: (id) ->
+    @markerLayersById[id] ?= new DisplayMarkerLayer(this, @buffer.getMarkerLayer(id))
 
   onDidChangeTextSync: (callback) ->
     @emitter.on 'did-change-text-sync', callback
@@ -67,6 +72,7 @@ class DisplayLayer
 
   translateBufferPosition: (bufferPosition, options) ->
     bufferPosition = Point.fromObject(bufferPosition)
+    bufferPosition = clipNegativePoint(bufferPosition)
 
     @patchIterator.seekToInputPosition(bufferPosition)
     if @patchIterator.inChange()
@@ -87,6 +93,7 @@ class DisplayLayer
 
   translateScreenPosition: (screenPosition, options) ->
     screenPosition = Point.fromObject(screenPosition)
+    screenPosition = clipNegativePoint(screenPosition)
 
     @patchIterator.seekToOutputPosition(screenPosition)
     if @patchIterator.inChange()
@@ -107,6 +114,7 @@ class DisplayLayer
 
   clipScreenPosition: (screenPosition, options) ->
     screenPosition = Point.fromObject(screenPosition)
+    screenPosition = clipNegativePoint(screenPosition)
 
     @patchIterator.seekToOutputPosition(screenPosition)
     if @patchIterator.inChange()
