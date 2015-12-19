@@ -2,7 +2,7 @@
 
 module.exports =
 class DisplayMarker
-  constructor: (@displayMarkerLayer, @bufferMarker) ->
+  constructor: (@layer, @bufferMarker) ->
     {@id} = @bufferMarker
     @hasChangeObservers = false
     @emitter = new Emitter
@@ -19,28 +19,60 @@ class DisplayMarker
     @bufferMarker.getRange()
 
   getScreenRange: ->
-    @displayMarkerLayer.translateBufferRange(@getBufferRange())
+    @layer.translateBufferRange(@getBufferRange())
 
-  setBufferRange: (bufferRange, properties) ->
-    @bufferMarker.setRange(bufferRange, properties)
+  setBufferRange: (bufferRange, options) ->
+    @bufferMarker.setRange(bufferRange, options)
 
-  setScreenRange: (screenRange, properties) ->
-    @setBufferRange(@displayMarkerLayer.translateScreenRange(screenRange), properties)
+  setScreenRange: (screenRange, options) ->
+    @setBufferRange(@layer.translateScreenRange(screenRange, options), options)
 
   getHeadBufferPosition: ->
     @bufferMarker.getHeadPosition()
 
+  setHeadBufferPosition: (bufferPosition, properties) ->
+    @bufferMarker.setHeadPosition(bufferPosition, properties)
+
   getHeadScreenPosition: ->
-    @displayMarkerLayer.translateBufferPosition(@bufferMarker.getHeadPosition())
+    @layer.translateBufferPosition(@bufferMarker.getHeadPosition())
+
+  setHeadScreenPosition: (screenPosition, options) ->
+    bufferPosition = @layer.translateScreenPosition(screenPosition, options)
+    @bufferMarker.setHeadPosition(bufferPosition, options)
 
   getTailBufferPosition: ->
     @bufferMarker.getTailPosition()
 
+  setTailBufferPosition: (bufferPosition, options) ->
+    @bufferMarker.setTailPosition(bufferPosition, options)
+
   getTailScreenPosition: ->
-    @displayMarkerLayer.translateBufferPosition(@bufferMarker.getTailPosition())
+    @layer.translateBufferPosition(@bufferMarker.getTailPosition())
+
+  setTailScreenPosition: (screenPosition, options) ->
+    bufferPosition = @layer.translateScreenPosition(screenPosition, options)
+    @bufferMarker.setTailPosition(bufferPosition, options)
 
   isValid: ->
     @bufferMarker.isValid()
+
+  isReversed: ->
+    @bufferMarker.isReversed()
+
+  getProperties: ->
+    @bufferMarker.getProperties()
+
+  setProperties: (properties) ->
+    @bufferMarker.setProperties(properties)
+
+  hasTail: ->
+    @bufferMarker.hasTail()
+
+  plantTail: ->
+    @bufferMarker.plantTail()
+
+  clearTail: ->
+    @bufferMarker.clearTail()
 
   onDidChange: (callback) ->
     unless @hasChangeObservers
