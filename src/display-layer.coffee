@@ -2,6 +2,7 @@ Patch = require 'atom-patch'
 {Emitter} = require 'event-kit'
 Point = require './point'
 Range = require './range'
+DisplayMarkerLayer = require './display-marker-layer'
 TokenIterator = require './token-iterator'
 {traversal} = require './point-helpers'
 
@@ -13,6 +14,9 @@ class DisplayLayer
     @buffer.onDidChange(@bufferDidChange.bind(this))
     @computeTransformation(0, @buffer.getLineCount())
     @emitter = new Emitter
+
+  addMarkerLayer: ->
+    new DisplayMarkerLayer(this, @buffer.addMarkerLayer())
 
   onDidChangeTextSync: (callback) ->
     @emitter.on 'did-change-text-sync', callback
@@ -67,11 +71,19 @@ class DisplayLayer
     @patchIterator.seekToInputPosition(bufferPosition)
     if @patchIterator.inChange()
       if options?.clipDirection is 'forward'
-        @patchIterator.getOutputEnd()
+        screenPosition = @patchIterator.getOutputEnd()
       else
-        @patchIterator.getOutputStart()
+        screenPosition = @patchIterator.getOutputStart()
     else
-      @patchIterator.translateInputPosition(@buffer.clipPosition(bufferPosition, options))
+      screenPosition = @patchIterator.translateInputPosition(@buffer.clipPosition(bufferPosition, options))
+
+    Point.fromObject(screenPosition)
+
+  translateBufferRange: (bufferRange, options) ->
+    bufferRange = Range.fromObject(bufferRange)
+    start = @translateBufferPosition(bufferRange.start, options)
+    end = @translateBufferPosition(bufferRange.end, options)
+    Range(start, end)
 
   translateScreenPosition: (screenPosition, options) ->
     screenPosition = Point.fromObject(screenPosition)
@@ -79,11 +91,19 @@ class DisplayLayer
     @patchIterator.seekToOutputPosition(screenPosition)
     if @patchIterator.inChange()
       if options?.clipDirection is 'forward'
-        @patchIterator.getInputEnd()
+        bufferPosition = @patchIterator.getInputEnd()
       else
-        @patchIterator.getInputStart()
+        bufferPosition = @patchIterator.getInputStart()
     else
-      @buffer.clipPosition(@patchIterator.translateOutputPosition(screenPosition), options)
+      bufferPosition = @buffer.clipPosition(@patchIterator.translateOutputPosition(screenPosition), options)
+
+    Point.fromObject(bufferPosition)
+
+  translateScreenRange: (screenRange, options) ->
+    screenRange = Range.fromObject(screenRange)
+    start = @translateScreenPosition(screenRange.start, options)
+    end = @translateScreenPosition(screenRange.end, options)
+    Range(start, end)
 
   clipScreenPosition: (screenPosition, options) ->
     screenPosition = Point.fromObject(screenPosition)
@@ -91,10 +111,12 @@ class DisplayLayer
     @patchIterator.seekToOutputPosition(screenPosition)
     if @patchIterator.inChange()
       if options?.clipDirection is 'forward'
-        @patchIterator.getOutputEnd()
+        clippedScreenPosition = @patchIterator.getOutputEnd()
       else
-        @patchIterator.getOutputStart()
+        clippedScreenPosition =  @patchIterator.getOutputStart()
     else
       bufferPosition = @patchIterator.translateOutputPosition(screenPosition)
       clippedBufferPosition = @buffer.clipPosition(bufferPosition, options)
-      @patchIterator.translateInputPosition(clippedBufferPosition)
+      clippedScreenPosition =  @patchIterator.translateInputPosition(clippedBufferPosition)
+
+    Point.fromObject(clippedScreenPosition)
