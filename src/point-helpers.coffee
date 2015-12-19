@@ -1,4 +1,4 @@
-'use strict'
+Point = require './point'
 
 exports.compare = (a, b) ->
   if a.row is b.row
@@ -16,21 +16,15 @@ compareNumbers = (a, b) ->
 
 exports.traverse = (start, distance) ->
   if distance.row is 0
-    {
-      row: start.row,
-      column: start.column + distance.column
-    }
+    Point(start.row, start.column + distance.column)
   else
-    {
-      row: start.row + distance.row,
-      column: distance.column
-    }
+    Point(start.row + distance.row, distance.column)
 
 exports.traversal = (end, start) ->
   if end.row is start.row
-    {row: 0, column: end.column - start.column}
+    Point(0, end.column - start.column)
   else
-    {row: end.row - start.row, column: end.column}
+    Point(end.row - start.row, end.column)
 
 NEWLINE_REG_EXP = /\n/g
 
@@ -43,3 +37,9 @@ exports.characterIndexForPoint = (text, point) ->
       return text.length
 
   NEWLINE_REG_EXP.lastIndex + column
+
+exports.clipNegativePoint = (point) ->
+  if point.row < 0 or point.column < 0
+    Point(Math.max(0, point.row), Math.max(0, point.column))
+  else
+    point
