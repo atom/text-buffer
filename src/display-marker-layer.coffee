@@ -9,7 +9,7 @@ class DisplayMarkerLayer
     {@id} = @bufferMarkerLayer
     @markersById = {}
     @emitter = new Emitter
-    @disposable = @bufferMarkerLayer.onDidUpdate(@emitDidUpdate.bind(this))
+    @bufferMarkerLayer.onDidUpdate(@emitDidUpdate.bind(this))
 
   destroy: ->
     @bufferMarkerLayer.destroy()
