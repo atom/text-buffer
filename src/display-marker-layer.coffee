@@ -47,7 +47,7 @@ class DisplayMarkerLayer
   getMarker: (id) ->
     if displayMarker = @markersById[id]
       displayMarker
-    else if bufferMarker = @bufferMarkerLayer.get(id)
+    else if bufferMarker = @bufferMarkerLayer.getMarker(id)
       @markersById[id] = new DisplayMarker(this, bufferMarker)
 
   getMarkers: ->
