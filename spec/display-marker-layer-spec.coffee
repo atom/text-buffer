@@ -55,11 +55,15 @@ describe "DisplayMarkerLayer", ->
 
     expect(markerLayer.getMarker(marker.id)).toBe marker
 
-  it "emits events when markers are destroyed", ->
+  it "emits events when markers are created and destroyed", ->
     buffer = new TextBuffer(text: 'hello world')
     displayLayer = buffer.addDisplayLayer(tabLength: 4)
     markerLayer = displayLayer.addMarkerLayer()
+    createdMarkers = []
+    markerLayer.onDidCreateMarker (m) -> createdMarkers.push(m)
     marker = markerLayer.markScreenRange([[0, 4], [1, 4]])
+
+    expect(createdMarkers).toEqual [marker]
 
     destroyEventCount = 0
     marker.onDidDestroy -> destroyEventCount++

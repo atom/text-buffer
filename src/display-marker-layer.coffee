@@ -6,6 +6,7 @@ Point = require './point'
 module.exports =
 class DisplayMarkerLayer
   constructor: (@displayLayer, @bufferMarkerLayer) ->
+    {@id} = @bufferMarkerLayer
     @markersById = {}
     @emitter = new Emitter
     @disposable = @bufferMarkerLayer.onDidUpdate(@emitDidUpdate.bind(this))
@@ -16,31 +17,32 @@ class DisplayMarkerLayer
   onDidUpdate: (callback) ->
     @emitter.on('did-update', callback)
 
+  onDidCreateMarker: (callback) ->
+    @emitter.on('did-create-marker', callback)
+
   markScreenRange: (screenRange, properties) ->
     screenRange = Range.fromObject(screenRange)
-    bufferRange = @displayLayer.translateScreenRange(screenRange)
-    bufferMarker = @bufferMarkerLayer.markRange(bufferRange, properties)
-    marker = new DisplayMarker(this, bufferMarker)
-    @markersById[marker.id] = marker
+    bufferRange = @displayLayer.translateScreenRange(screenRange, properties)
+    @createDisplayMarker(@bufferMarkerLayer.markRange(bufferRange, properties))
 
   markScreenPosition: (screenPosition, properties) ->
     screenPosition = Point.fromObject(screenPosition)
-    bufferPosition = @displayLayer.translateScreenPosition(screenPosition)
-    bufferMarker = @bufferMarkerLayer.markPosition(bufferPosition, properties)
-    marker = new DisplayMarker(this, bufferMarker)
-    @markersById[marker.id] = marker
+    bufferPosition = @displayLayer.translateScreenPosition(screenPosition, properties)
+    @createDisplayMarker(@bufferMarkerLayer.markPosition(bufferPosition, properties))
 
   markBufferRange: (bufferRange, properties) ->
     bufferRange = Range.fromObject(bufferRange)
-    bufferMarker = @bufferMarkerLayer.markRange(bufferRange, properties)
-    marker = new DisplayMarker(this, bufferMarker)
-    @markersById[marker.id] = marker
+    @createDisplayMarker(@bufferMarkerLayer.markRange(bufferRange, properties))
 
-  markScreenPosition: (bufferPosition, properties) ->
+  markBufferPosition: (bufferPosition, properties) ->
     bufferPosition = Point.fromObject(bufferPosition)
-    bufferMarker = @bufferMarkerLayer.markPosition(bufferPosition, properties)
-    marker = new DisplayMarker(this, bufferMarker)
-    @markersById[marker.id] = marker
+    @createDisplayMarker(@bufferMarkerLayer.markPosition(bufferPosition, properties))
+
+  createDisplayMarker: (bufferMarker) ->
+    displayMarker = new DisplayMarker(this, bufferMarker)
+    @markersById[displayMarker.id] = displayMarker
+    @emitter.emit('did-create-marker', displayMarker)
+    displayMarker
 
   getMarker: (id) ->
     if displayMarker = @markersById[id]
