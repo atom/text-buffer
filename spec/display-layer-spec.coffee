@@ -4,6 +4,7 @@ Point = require '../src/point'
 Range = require '../src/range'
 {characterIndexForPoint} = require '../src/point-helpers'
 WORDS = require './helpers/words'
+SAMPLE_TEXT = require './helpers/sample-text'
 {currentSpecFailed} = require "./spec-helper"
 
 describe "DisplayLayer", ->
@@ -43,6 +44,25 @@ describe "DisplayLayer", ->
       ])
 
       verifyTokenIterator(displayLayer)
+
+  it "supports folding ranges", ->
+    buffer = new TextBuffer(text: SAMPLE_TEXT)
+    displayLayer = buffer.addDisplayLayer()
+
+    displayLayer.foldBufferRange([[4, 29], [7, 4]])
+
+    expect(displayLayer.getText()).toBe '''
+      var quicksort = function () {
+        var sort = function(items) {
+          if (items.length <= 1) return items;
+          var pivot = items.shift(), current, left = [], right = [];
+          while(items.length > 0) {⋯}
+          return sort(left).concat(pivot).concat(sort(right));
+        };
+
+        return sort(Array.apply(this, arguments));
+      };
+    '''
 
   it "updates the displayed text correctly when the underlying buffer changes", ->
     for i in [0...50] by 1

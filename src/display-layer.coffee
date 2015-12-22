@@ -8,15 +8,18 @@ TokenIterator = require './token-iterator'
 
 module.exports =
 class DisplayLayer
-  constructor: (@buffer, {@tabLength, patchSeed}) ->
+  constructor: (@buffer, {@tabLength, patchSeed}={}) ->
     @patch = new Patch(combineChanges: false, seed: patchSeed)
     @patchIterator = @patch.buildIterator()
     @displayMarkerLayersById = {}
+    @foldsMarkerLayer = @buffer.addMarkerLayer()
+    @foldIdCounter = 1
     @buffer.onDidChange(@bufferDidChange.bind(this))
     @computeTransformation(0, @buffer.getLineCount())
     @emitter = new Emitter
 
   destroy: ->
+    @foldsMarkerLayer.destroy()
     for id, displayMarkerLayer of @displayMarkerLayersById
       displayMarkerLayer.destroy()
 
@@ -26,6 +29,11 @@ class DisplayLayer
 
   getMarkerLayer: (id) ->
     @displayMarkerLayersById[id] ?= new DisplayMarkerLayer(this, @buffer.getMarkerLayer(id))
+
+  foldBufferRange: (bufferRange) ->
+    bufferRange = Range.fromObject(bufferRange)
+    @foldsMarkerLayer.markRange(bufferRange)
+    @computeTransformation(bufferRange.start.row, bufferRange.end.row)
 
   onDidChangeTextSync: (callback) ->
     @emitter.on 'did-change-text-sync', callback
@@ -41,20 +49,40 @@ class DisplayLayer
     @emitter.emit 'did-change-text-sync', {start, replacedExtent, replacementExtent}
 
   computeTransformation: (startBufferRow, endBufferRow) ->
+    folds = @computeFoldsInBufferRowRange(startBufferRow, endBufferRow)
     {row: screenRow, column: screenColumn} = @translateBufferPosition(Point(startBufferRow, 0))
     for bufferRow in [startBufferRow...endBufferRow] by 1
       line = @buffer.lineForRow(bufferRow)
-      for character, bufferColumn in line
-        if character is '\t'
+      lineLength = line.length
+      bufferColumn = 0
+      while bufferColumn <= lineLength
+        if foldEndPosition = folds[bufferRow]?[bufferColumn]
+          foldExtent = traversal(foldEndPosition, Point(bufferRow, bufferColumn))
+          @patch.spliceWithText(Point(screenRow, screenColumn), foldExtent, '⋯')
+          bufferRow = foldEndPosition.row
+          bufferColumn = foldEndPosition.column
+          line = @buffer.lineForRow(bufferRow)
+          lineLength = line.length
+        else if line[bufferColumn] is '\t'
           tabText = ''
           tabText += ' ' for i in [0...@tabLength - (screenColumn % @tabLength)] by 1
           @patch.spliceWithText(Point(screenRow, screenColumn), Point(0, 1), tabText)
+          bufferColumn += 1
           screenColumn += tabText.length
         else
-          screenColumn++
+          bufferColumn += 1
+          screenColumn += 1
       screenRow++
       screenColumn = 0
     Point(screenRow, screenColumn)
+
+  computeFoldsInBufferRowRange: (startBufferRow, endBufferRow) ->
+    folds = {}
+    for foldMarker in @foldsMarkerLayer.findMarkers(intersectsRowRange: [startBufferRow, endBufferRow], excludeNested: true)
+      start = foldMarker.getStartPosition()
+      folds[start.row] ?= {}
+      folds[start.row][start.column] = foldMarker.getEndPosition()
+    folds
 
   buildTokenIterator: ->
     new TokenIterator(@buffer, @patch.buildIterator())
