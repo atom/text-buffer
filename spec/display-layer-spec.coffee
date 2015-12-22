@@ -45,28 +45,86 @@ describe "DisplayLayer", ->
 
       verifyTokenIterator(displayLayer)
 
-  it "supports folding and unfolding ranges", ->
-    buffer = new TextBuffer(text: SAMPLE_TEXT)
-    displayLayer = buffer.addDisplayLayer()
+  describe "folds", ->
+    it "allows single folds to be created and destroyed", ->
+      buffer = new TextBuffer(text: SAMPLE_TEXT)
+      displayLayer = buffer.addDisplayLayer()
 
-    foldId = displayLayer.foldBufferRange([[4, 29], [7, 4]])
+      foldId = displayLayer.foldBufferRange([[4, 29], [7, 4]])
 
-    expect(displayLayer.getText()).toBe '''
-      var quicksort = function () {
-        var sort = function(items) {
-          if (items.length <= 1) return items;
-          var pivot = items.shift(), current, left = [], right = [];
-          while(items.length > 0) {⋯}
-          return sort(left).concat(pivot).concat(sort(right));
+      expect(displayLayer.getText()).toBe '''
+        var quicksort = function () {
+          var sort = function(items) {
+            if (items.length <= 1) return items;
+            var pivot = items.shift(), current, left = [], right = [];
+            while(items.length > 0) {⋯}
+            return sort(left).concat(pivot).concat(sort(right));
+          };
+
+          return sort(Array.apply(this, arguments));
         };
+      '''
 
-        return sort(Array.apply(this, arguments));
-      };
-    '''
+      displayLayer.destroyFold(foldId)
 
-    displayLayer.destroyFold(foldId)
+      expect(displayLayer.getText()).toBe SAMPLE_TEXT
 
-    expect(displayLayer.getText()).toBe SAMPLE_TEXT
+    it "allows folds that contain other folds to be created and destroyed", ->
+      buffer = new TextBuffer(text: '''
+        abcd
+        efgh
+        ijkl
+        mnop
+      ''')
+      displayLayer = buffer.addDisplayLayer()
+
+      displayLayer.foldBufferRange([[1, 1], [1, 3]])
+      displayLayer.foldBufferRange([[2, 1], [2, 3]])
+      outerFoldId = displayLayer.foldBufferRange([[0, 1], [3, 3]])
+      expect(displayLayer.getText()).toBe 'a⋯p'
+
+      displayLayer.destroyFold(outerFoldId)
+      expect(displayLayer.getText()).toBe '''
+        abcd
+        e⋯h
+        i⋯l
+        mnop
+      '''
+
+    it "allows folds contained within other folds to be created and destroyed", ->
+      buffer = new TextBuffer(text: '''
+        abcd
+        efgh
+        ijkl
+        mnop
+      ''')
+      displayLayer = buffer.addDisplayLayer()
+
+      displayLayer.foldBufferRange([[0, 1], [3, 3]])
+      innerFoldAId = displayLayer.foldBufferRange([[1, 1], [1, 3]])
+      innerFoldBId = displayLayer.foldBufferRange([[2, 1], [2, 3]])
+      expect(displayLayer.getText()).toBe 'a⋯p'
+
+      displayLayer.destroyFold(innerFoldAId)
+      expect(displayLayer.getText()).toBe 'a⋯p'
+
+      displayLayer.destroyFold(innerFoldBId)
+      expect(displayLayer.getText()).toBe 'a⋯p'
+
+    it "allows multiple buffer lines to be collapsed to a single screen line by successive folds", ->
+      buffer = new TextBuffer(text: '''
+        abc
+        def
+        ghi
+        j
+      ''')
+      displayLayer = buffer.addDisplayLayer()
+
+      displayLayer.foldBufferRange([[0, 1], [1, 1]])
+      displayLayer.foldBufferRange([[1, 2], [2, 1]])
+      displayLayer.foldBufferRange([[2, 2], [3, 0]])
+
+      expect(displayLayer.getText()).toBe 'a⋯e⋯h⋯j'
 
   it "updates the displayed text correctly when the underlying buffer changes", ->
     for i in [0...50] by 1
