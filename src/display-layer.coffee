@@ -32,8 +32,18 @@ class DisplayLayer
 
   foldBufferRange: (bufferRange) ->
     bufferRange = Range.fromObject(bufferRange)
-    @foldsMarkerLayer.markRange(bufferRange)
+    foldId = @foldsMarkerLayer.markRange(bufferRange).id
     @computeTransformation(bufferRange.start.row, bufferRange.end.row)
+    foldId
+
+  destroyFold: (foldId) ->
+    foldMarker = @foldsMarkerLayer.getMarker(foldId)
+    foldRange = foldMarker.getRange()
+    foldMarker.destroy()
+    if @foldsMarkerLayer.findMarkers(containsRange: foldRange).length is 0
+      foldExtent = foldRange.getExtent()
+      @patch.spliceInput(foldRange.start, foldExtent, foldExtent)
+      @computeTransformation(foldRange.start.row, foldRange.end.row)
 
   onDidChangeTextSync: (callback) ->
     @emitter.on 'did-change-text-sync', callback

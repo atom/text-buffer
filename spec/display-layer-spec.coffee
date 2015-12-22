@@ -45,11 +45,11 @@ describe "DisplayLayer", ->
 
       verifyTokenIterator(displayLayer)
 
-  it "supports folding ranges", ->
+  it "supports folding and unfolding ranges", ->
     buffer = new TextBuffer(text: SAMPLE_TEXT)
     displayLayer = buffer.addDisplayLayer()
 
-    displayLayer.foldBufferRange([[4, 29], [7, 4]])
+    foldId = displayLayer.foldBufferRange([[4, 29], [7, 4]])
 
     expect(displayLayer.getText()).toBe '''
       var quicksort = function () {
@@ -63,6 +63,10 @@ describe "DisplayLayer", ->
         return sort(Array.apply(this, arguments));
       };
     '''
+
+    displayLayer.destroyFold(foldId)
+
+    expect(displayLayer.getText()).toBe SAMPLE_TEXT
 
   it "updates the displayed text correctly when the underlying buffer changes", ->
     for i in [0...50] by 1
