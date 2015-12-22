@@ -813,6 +813,9 @@ describe "Marker", ->
       expect(buffer.findMarkers(containedInRange: [[0, 0], [0, 6]])).toEqual [marker2, marker1]
       expect(buffer.findMarkers(containedInRange: [[0, 4], [0, 7]])).toEqual [marker3]
 
+    it "can exclude markers that are nested within other markers", ->
+      expect(buffer.findMarkers(intersectsRange: [[0, 0], [1, 0]], excludeNested: true)).toEqual [marker4]
+
   describe "MarkerLayer", ->
     [layer1, layer2] = []
 
