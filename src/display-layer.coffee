@@ -33,7 +33,8 @@ class DisplayLayer
   foldBufferRange: (bufferRange) ->
     bufferRange = Range.fromObject(bufferRange)
     foldId = @foldsMarkerLayer.markRange(bufferRange).id
-    @computeTransformation(bufferRange.start.row, bufferRange.end.row)
+    if @foldsMarkerLayer.findMarkers(containsRange: bufferRange).length is 1
+      @computeTransformation(bufferRange.start.row, bufferRange.end.row)
     foldId
 
   destroyFold: (foldId) ->
