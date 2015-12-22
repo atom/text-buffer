@@ -60,20 +60,26 @@ class DisplayLayer
     @emitter.emit 'did-change-text-sync', {start, replacedExtent, replacementExtent}
 
   computeTransformation: (startBufferRow, endBufferRow) ->
+    startBufferRow = @translateScreenPosition(@translateBufferPosition(Point(startBufferRow, 0))).row
     folds = @computeFoldsInBufferRowRange(startBufferRow, endBufferRow)
     {row: screenRow, column: screenColumn} = @translateBufferPosition(Point(startBufferRow, 0))
-    for bufferRow in [startBufferRow...endBufferRow] by 1
+
+    bufferRow = startBufferRow
+    bufferColumn = 0
+    while bufferRow < endBufferRow
       line = @buffer.lineForRow(bufferRow)
       lineLength = line.length
-      bufferColumn = 0
       while bufferColumn <= lineLength
-        if foldEndPosition = folds[bufferRow]?[bufferColumn]
-          foldExtent = traversal(foldEndPosition, Point(bufferRow, bufferColumn))
-          @patch.spliceWithText(Point(screenRow, screenColumn), foldExtent, '⋯')
-          bufferRow = foldEndPosition.row
-          bufferColumn = foldEndPosition.column
+        if foldEndBufferPosition = folds[bufferRow]?[bufferColumn]
+          foldStartScreenPosition = Point(screenRow, screenColumn)
+          foldEndScreenPosition = @translateBufferPosition(foldEndBufferPosition)
+          foldScreenExtent = traversal(foldEndScreenPosition, foldStartScreenPosition)
+          @patch.spliceWithText(foldStartScreenPosition, foldScreenExtent, '⋯')
+          bufferRow = foldEndBufferPosition.row
+          bufferColumn = foldEndBufferPosition.column
           line = @buffer.lineForRow(bufferRow)
           lineLength = line.length
+          screenColumn += 1
         else if line[bufferColumn] is '\t'
           tabText = ''
           tabText += ' ' for i in [0...@tabLength - (screenColumn % @tabLength)] by 1
@@ -83,16 +89,27 @@ class DisplayLayer
         else
           bufferColumn += 1
           screenColumn += 1
-      screenRow++
+      bufferRow += 1
+      bufferColumn = 0
+      screenRow += 1
       screenColumn = 0
+
     Point(screenRow, screenColumn)
 
   computeFoldsInBufferRowRange: (startBufferRow, endBufferRow) ->
     folds = {}
-    for foldMarker in @foldsMarkerLayer.findMarkers(intersectsRowRange: [startBufferRow, endBufferRow], excludeNested: true)
-      start = foldMarker.getStartPosition()
+    foldMarkers = @foldsMarkerLayer.findMarkers(intersectsRowRange: [startBufferRow, endBufferRow], excludeNested: true)
+    foldMarkersLength = foldMarkers.length
+    i = 0
+    while i < foldMarkersLength
+      startMarker = endMarker = foldMarkers[i]
+      while foldMarkers[i + 1]? && endMarker.getRange().containsPoint(foldMarkers[i + 1].getStartPosition())
+        endMarker = foldMarkers[i + 1]
+        i++
+      start = startMarker.getStartPosition()
       folds[start.row] ?= {}
-      folds[start.row][start.column] = foldMarker.getEndPosition()
+      folds[start.row][start.column] = endMarker.getEndPosition()
+      i++
     folds
 
   buildTokenIterator: ->

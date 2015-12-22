@@ -126,6 +126,27 @@ describe "DisplayLayer", ->
 
       expect(displayLayer.getText()).toBe 'a⋯e⋯h⋯j'
 
+    it "unions folded ranges when folds overlap", ->
+      buffer = new TextBuffer(text: '''
+        abc
+        def
+        ghi
+        j
+      ''')
+      displayLayer = buffer.addDisplayLayer()
+
+      foldAId = displayLayer.foldBufferRange([[0, 1], [1, 2]])
+      foldBId = displayLayer.foldBufferRange([[1, 1], [2, 2]])
+      foldCId = displayLayer.foldBufferRange([[2, 1], [3, 0]])
+
+      expect(displayLayer.getText()).toBe 'a⋯j'
+
+      displayLayer.destroyFold(foldCId)
+      expect(displayLayer.getText()).toBe 'a⋯i\nj'
+
+      displayLayer.destroyFold(foldBId)
+      expect(displayLayer.getText()).toBe 'a⋯f\nghi\nj'
+
   it "updates the displayed text correctly when the underlying buffer changes", ->
     for i in [0...50] by 1
       seed = Date.now()
