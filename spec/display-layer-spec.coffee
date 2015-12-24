@@ -152,30 +152,42 @@ describe "DisplayLayer", ->
       seed = Date.now()
       seedFailureMessage = "Seed: #{seed}"
       random = new Random(seed)
-      buffer = new TextBuffer(text: buildRandomLines(10, random))
+      buffer = new TextBuffer(text: buildRandomLines(random, 10))
       actualDisplayLayer = buffer.addDisplayLayer(tabLength: 4, patchSeed: seed)
-      lastDisplayLayerChange = null
-      actualDisplayLayer.onDidChangeTextSync (change) -> lastDisplayLayerChange = change
 
       for k in [0...10] by 1
-        lastDisplayLayerChange = null
-        range = getRandomRange(buffer, random)
-        text = buildRandomLines(4, random)
-        bufferWithDisplayLayerText = new TextBuffer(text: actualDisplayLayer.getText())
-        buffer.setTextInRange(range, text)
-        expectedDisplayLayer = buffer.addDisplayLayer(tabLength: 4)
+        performRandomChange(random, buffer, actualDisplayLayer, seedFailureMessage)
+        return if currentSpecFailed()
 
         # incrementally-updated text matches freshly computed text
+        expectedDisplayLayer = buffer.addDisplayLayer(tabLength: 4)
         expect(actualDisplayLayer.getText()).toBe(expectedDisplayLayer.getText(), seedFailureMessage)
         return if currentSpecFailed()
 
-        # emitted text change event describes delta between the old and new text of display layer
-        verifyChangeEvent(bufferWithDisplayLayerText, lastDisplayLayerChange, actualDisplayLayer, seedFailureMessage)
-        return if currentSpecFailed()
+        # positions all translate correctly
+        verifyPositionTranslations(actualDisplayLayer, expectedDisplayLayer, seedFailureMessage)
 
         # token iterator matches contents of display layer
         verifyTokenIterator(actualDisplayLayer, seedFailureMessage)
         return if currentSpecFailed()
+
+performRandomChange = (random, buffer, displayLayer, seedFailureMessage) ->
+  previousDisplayLayerText = displayLayer.getText()
+  lastChange = null
+  displayLayer.onDidChangeTextSync (change) -> lastChange = change
+
+  range = getRandomRange(random, buffer)
+  text = buildRandomLines(random, 4)
+  buffer.setTextInRange(range, text)
+
+  # emitted text change event describes delta between the old and new text of display layer
+  replacedRange = Range.fromPointWithTraversalExtent(lastChange.start, lastChange.replacedExtent)
+  replacementRange = Range.fromPointWithTraversalExtent(lastChange.start, lastChange.replacementExtent)
+  replacementText = substringForRange(displayLayer.getText(), replacementRange)
+
+  bufferWithDisplayLayerText = new TextBuffer(text: previousDisplayLayerText)
+  bufferWithDisplayLayerText.setTextInRange(replacedRange, replacementText)
+  expect(bufferWithDisplayLayerText.getText()).toBe(displayLayer.getText(), seedFailureMessage)
 
 expectPositionTranslations = (displayLayer, tranlations) ->
   for [screenPosition, bufferPositions] in tranlations
@@ -189,13 +201,6 @@ expectPositionTranslations = (displayLayer, tranlations) ->
       bufferPosition = bufferPositions
       expect(displayLayer.translateScreenPosition(screenPosition)).toEqual(bufferPosition)
       expect(displayLayer.translateBufferPosition(bufferPosition)).toEqual(screenPosition)
-
-verifyChangeEvent = (bufferWithDisplayLayerText, lastDisplayLayerChange, actualDisplayLayer, seedFailureMessage) ->
-  replacedRange = Range.fromPointWithTraversalExtent(lastDisplayLayerChange.start, lastDisplayLayerChange.replacedExtent)
-  replacementRange = Range.fromPointWithTraversalExtent(lastDisplayLayerChange.start, lastDisplayLayerChange.replacementExtent)
-  replacementText = substringForRange(actualDisplayLayer.getText(), replacementRange)
-  bufferWithDisplayLayerText.setTextInRange(replacedRange, replacementText)
-  expect(bufferWithDisplayLayerText.getText()).toBe(actualDisplayLayer.getText(), seedFailureMessage)
 
 verifyTokenIterator = (displayLayer, failureMessage) ->
   {buffer} = displayLayer
@@ -228,8 +233,8 @@ verifyTokenIterator = (displayLayer, failureMessage) ->
 
   expect(text).toBe(displayLayer.getText(), failureMessage)
 
-verifyPositionTranslations = (actualDisplayLayer, expectedDisplayLayer) ->
-  {buffer} = displayLayer
+verifyPositionTranslations = (actualDisplayLayer, expectedDisplayLayer, seedFailureMessage) ->
+  {buffer} = actualDisplayLayer
 
   bufferLines = buffer.getText().split('\n')
   screenLines = actualDisplayLayer.getText().split('\n')
@@ -238,16 +243,15 @@ verifyPositionTranslations = (actualDisplayLayer, expectedDisplayLayer) ->
     for character, bufferColumn in bufferLine
       actualPosition = actualDisplayLayer.translateBufferPosition(Point(bufferRow, bufferColumn))
       expectedPosition = expectedDisplayLayer.translateBufferPosition(Point(bufferRow, bufferColumn))
-      expect(actualPosition).toEqual(expectedPosition)
+      expect(actualPosition).toEqual(expectedPosition, seedFailureMessage)
 
   for screenLine, screenRow in screenLines
     for character, screenColumn in screenLine
-      actualPosition = actualDisplayLayer.translateScrneePosition(Point(screenRow, screenColumn))
+      actualPosition = actualDisplayLayer.translateScreenPosition(Point(screenRow, screenColumn))
       expectedPosition = expectedDisplayLayer.translateScreenPosition(Point(screenRow, screenColumn))
-      expect(actualPosition).toEqual(expectedPosition)
+      expect(actualPosition).toEqual(expectedPosition, seedFailureMessage)
 
-
-buildRandomLines = (maxLines, random) ->
+buildRandomLines = (random, maxLines) ->
   lines = []
   for i in [0...random(maxLines)] by 1
     lines.push(buildRandomLine(random))
@@ -266,10 +270,10 @@ buildRandomLine = (random) ->
       line.push(WORDS[random(WORDS.length)])
   line.join('')
 
-getRandomRange = (buffer, random) ->
-  Range(getRandomPoint(buffer, random), getRandomPoint(buffer, random))
+getRandomRange = (random, buffer) ->
+  Range(getRandomPoint(random, buffer), getRandomPoint(random, buffer))
 
-getRandomPoint = (buffer, random) ->
+getRandomPoint = (random, buffer) ->
   row = random(buffer.getLineCount())
   column = random(buffer.lineForRow(row).length + 1)
   Point(row, column)
