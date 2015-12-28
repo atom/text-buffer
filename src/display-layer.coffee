@@ -8,11 +8,11 @@ TokenIterator = require './token-iterator'
 
 module.exports =
 class DisplayLayer
-  constructor: (@buffer, {@tabLength, patchSeed}={}) ->
+  constructor: (@buffer, {@tabLength, @foldsMarkerLayer, patchSeed}={}) ->
     @patch = new Patch(combineChanges: false, seed: patchSeed)
     @patchIterator = @patch.buildIterator()
     @displayMarkerLayersById = {}
-    @foldsMarkerLayer = @buffer.addMarkerLayer()
+    @foldsMarkerLayer ?= @buffer.addMarkerLayer()
     @foldIdCounter = 1
     @buffer.onDidChange(@bufferDidChange.bind(this))
     @computeTransformation(0, @buffer.getLineCount())
@@ -34,7 +34,7 @@ class DisplayLayer
     bufferRange = Range.fromObject(bufferRange)
     foldId = @foldsMarkerLayer.markRange(bufferRange).id
     if @foldsMarkerLayer.findMarkers(containsRange: bufferRange).length is 1
-      @computeTransformation(bufferRange.start.row, bufferRange.end.row)
+      @computeTransformation(bufferRange.start.row, bufferRange.end.row + 1)
     foldId
 
   destroyFold: (foldId) ->
@@ -44,26 +44,33 @@ class DisplayLayer
     if @foldsMarkerLayer.findMarkers(containsRange: foldRange).length is 0
       foldExtent = foldRange.getExtent()
       @patch.spliceInput(foldRange.start, foldExtent, foldExtent)
-      @computeTransformation(foldRange.start.row, foldRange.end.row)
+      @computeTransformation(foldRange.start.row, foldRange.end.row + 1)
 
   onDidChangeTextSync: (callback) ->
     @emitter.on 'did-change-text-sync', callback
 
   bufferDidChange: (change) ->
     {oldRange, newRange} = change
-    startRow = oldRange.start.row
-    oldEndRow = oldRange.end.row + 1
-    newEndRow = newRange.end.row + 1
-    {start, replacedExtent} = @patch.spliceInput(Point(startRow, 0), Point(oldEndRow - startRow, 0), Point(newEndRow - startRow, 0))
-    newOutputEnd = @computeTransformation(startRow, newEndRow)
+
+    startBufferRow = oldRange.start.row
+    oldEndBufferRow = oldRange.end.row + 1
+    newEndBufferRow = newRange.end.row + 1
+
+    {start, replacedExtent} = @patch.spliceInput(Point(startBufferRow, 0), Point(oldEndBufferRow - startBufferRow, 0), Point(newEndBufferRow - startBufferRow, 0))
+
+    debugger
+
+    newOutputEnd = @computeTransformation(startBufferRow, newEndBufferRow)
     replacementExtent = traversal(newOutputEnd, start)
     @emitter.emit 'did-change-text-sync', {start, replacedExtent, replacementExtent}
 
   computeTransformation: (startBufferRow, endBufferRow) ->
-    startBufferRow = @translateScreenPosition(@translateBufferPosition(Point(startBufferRow, 0))).row
-    folds = @computeFoldsInBufferRowRange(startBufferRow, endBufferRow)
-    {row: screenRow, column: screenColumn} = @translateBufferPosition(Point(startBufferRow, 0))
+    {folds, endBufferRow} = @computeFoldsInBufferRowRange(startBufferRow, endBufferRow)
+    start = Point(startBufferRow, 0)
+    extent = Point(endBufferRow - startBufferRow, 0)
+    @patch.spliceInput(start, extent, extent)
 
+    {row: screenRow, column: screenColumn} = @translateBufferPosition(Point(startBufferRow, 0))
     bufferRow = startBufferRow
     bufferColumn = 0
     while bufferRow < endBufferRow
@@ -71,10 +78,9 @@ class DisplayLayer
       lineLength = line.length
       while bufferColumn <= lineLength
         if foldEndBufferPosition = folds[bufferRow]?[bufferColumn]
-          foldStartScreenPosition = Point(screenRow, screenColumn)
-          foldEndScreenPosition = @translateBufferPosition(foldEndBufferPosition)
-          foldScreenExtent = traversal(foldEndScreenPosition, foldStartScreenPosition)
-          @patch.spliceWithText(foldStartScreenPosition, foldScreenExtent, '⋯')
+          foldStartBufferPosition = Point(bufferRow, bufferColumn)
+          foldBufferExtent = traversal(foldEndBufferPosition, foldStartBufferPosition)
+          @patch.spliceWithText(Point(screenRow, screenColumn), foldBufferExtent, '⋯')
           bufferRow = foldEndBufferPosition.row
           bufferColumn = foldEndBufferPosition.column
           line = @buffer.lineForRow(bufferRow)
@@ -97,7 +103,7 @@ class DisplayLayer
 
   computeFoldsInBufferRowRange: (startBufferRow, endBufferRow) ->
     folds = {}
-    foldMarkers = @foldsMarkerLayer.findMarkers(intersectsRowRange: [startBufferRow, endBufferRow], excludeNested: true)
+    foldMarkers = @foldsMarkerLayer.findMarkers(intersectsRowRange: [startBufferRow, endBufferRow - 1], excludeNested: true)
     foldMarkersLength = foldMarkers.length
     i = 0
     while i < foldMarkersLength
@@ -106,10 +112,14 @@ class DisplayLayer
         endMarker = foldMarkers[i + 1]
         i++
       start = startMarker.getStartPosition()
-      folds[start.row] ?= {}
-      folds[start.row][start.column] = endMarker.getEndPosition()
+      end = endMarker.getEndPosition()
+      unless end.isEqual(start)
+        foldEndBufferPosition = endMarker.getEndPosition()
+        folds[start.row] ?= {}
+        folds[start.row][start.column] = foldEndBufferPosition
+        endBufferRow = Math.max(endBufferRow, foldEndBufferPosition.row + 1)
       i++
-    folds
+    {folds, endBufferRow}
 
   buildTokenIterator: ->
     new TokenIterator(@buffer, @patch.buildIterator())
