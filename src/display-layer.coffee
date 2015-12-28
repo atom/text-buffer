@@ -81,8 +81,7 @@ class DisplayLayer
           lineLength = line.length
           screenColumn += 1
         else if line[bufferColumn] is '\t'
-          tabText = ''
-          tabText += ' ' for i in [0...@tabLength - (screenColumn % @tabLength)] by 1
+          tabText = ' '.repeat(@tabLength - (screenColumn % @tabLength))
           @patch.spliceWithText(Point(screenRow, screenColumn), Point(0, 1), tabText)
           bufferColumn += 1
           screenColumn += tabText.length
