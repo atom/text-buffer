@@ -52,15 +52,15 @@ class DisplayLayer
 
   bufferDidChange: (change) ->
     {oldRange, newRange} = change
+    {start, replacedExtent} = @patch.spliceInput(
+      oldRange.start,
+      traversal(oldRange.end, oldRange.start),
+      traversal(newRange.end, oldRange.start)
+    )
+    start = Point(start.row, 0)
+    replacedExtent = Point(replacedExtent.row + 1, 0)
 
-    startBufferRow = oldRange.start.row
-    oldEndBufferRow = oldRange.end.row + 1
-    newEndBufferRow = newRange.end.row + 1
-
-    {start, replacedExtent} = @patch.spliceInput(Point(startBufferRow, 0), Point(oldEndBufferRow - startBufferRow, 0), Point(newEndBufferRow - startBufferRow, 0))
-    replacedExtent = Point(replacedExtent.row + 1, 0) if replacedExtent.column > 0
-
-    newOutputEnd = @computeTransformation(startBufferRow, newEndBufferRow)
+    newOutputEnd = @computeTransformation(oldRange.start.row, newRange.end.row + 1)
     replacementExtent = traversal(newOutputEnd, start)
     @emitter.emit 'did-change-text-sync', {start, replacedExtent, replacementExtent}
 
