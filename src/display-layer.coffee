@@ -14,11 +14,12 @@ class DisplayLayer
     @displayMarkerLayersById = {}
     @foldsMarkerLayer ?= @buffer.addMarkerLayer()
     @foldIdCounter = 1
-    @buffer.onDidChange(@bufferDidChange.bind(this))
+    @disposables = @buffer.onDidChange(@bufferDidChange.bind(this))
     @computeTransformation(0, @buffer.getLineCount())
     @emitter = new Emitter
 
   destroy: ->
+    @disposables.dispose()
     @foldsMarkerLayer.destroy()
     for id, displayMarkerLayer of @displayMarkerLayersById
       displayMarkerLayer.destroy()
@@ -57,20 +58,20 @@ class DisplayLayer
     newEndBufferRow = newRange.end.row + 1
 
     {start, replacedExtent} = @patch.spliceInput(Point(startBufferRow, 0), Point(oldEndBufferRow - startBufferRow, 0), Point(newEndBufferRow - startBufferRow, 0))
-
-    debugger
+    replacedExtent = Point(replacedExtent.row + 1, 0) if replacedExtent.column > 0
 
     newOutputEnd = @computeTransformation(startBufferRow, newEndBufferRow)
     replacementExtent = traversal(newOutputEnd, start)
     @emitter.emit 'did-change-text-sync', {start, replacedExtent, replacementExtent}
 
   computeTransformation: (startBufferRow, endBufferRow) ->
-    {folds, endBufferRow} = @computeFoldsInBufferRowRange(startBufferRow, endBufferRow)
+    {startBufferRow, endBufferRow, folds} = @computeFoldsInBufferRowRange(startBufferRow, endBufferRow)
     start = Point(startBufferRow, 0)
     extent = Point(endBufferRow - startBufferRow, 0)
     @patch.spliceInput(start, extent, extent)
 
     {row: screenRow, column: screenColumn} = @translateBufferPosition(Point(startBufferRow, 0))
+
     bufferRow = startBufferRow
     bufferColumn = 0
     while bufferRow < endBufferRow
@@ -103,23 +104,35 @@ class DisplayLayer
 
   computeFoldsInBufferRowRange: (startBufferRow, endBufferRow) ->
     folds = {}
+
     foldMarkers = @foldsMarkerLayer.findMarkers(intersectsRowRange: [startBufferRow, endBufferRow - 1], excludeNested: true)
-    foldMarkersLength = foldMarkers.length
-    i = 0
-    while i < foldMarkersLength
-      startMarker = endMarker = foldMarkers[i]
-      while foldMarkers[i + 1]? && endMarker.getRange().containsPoint(foldMarkers[i + 1].getStartPosition())
-        endMarker = foldMarkers[i + 1]
+    if foldMarkers.length > 0
+      # widen search to include folds that intersect rows containing folds in the initial row range
+      loop
+        foldsStartBufferRow = foldMarkers[0].getStartPosition().row
+        foldsEndBufferRow = foldMarkers[foldMarkers.length - 1].getEndPosition().row
+        foldMarkersLength = foldMarkers.length
+        break unless foldsStartBufferRow < startBufferRow or foldsEndBufferRow >= endBufferRow
+        startBufferRow = Math.min(startBufferRow, foldsStartBufferRow)
+        endBufferRow = Math.max(endBufferRow, foldsEndBufferRow + 1)
+        foldMarkers = @foldsMarkerLayer.findMarkers(intersectsRowRange: [startBufferRow, endBufferRow - 1], excludeNested: true)
+        break unless foldMarkers.length > foldMarkersLength
+
+      # index fold end positions by their start row and column
+      i = 0
+      while i < foldMarkersLength
+        startMarker = endMarker = foldMarkers[i]
+        while foldMarkers[i + 1]? && endMarker.getRange().containsPoint(foldMarkers[i + 1].getStartPosition())
+          endMarker = foldMarkers[i + 1]
+          i++
+        start = startMarker.getStartPosition()
+        end = endMarker.getEndPosition()
+        unless end.isEqual(start)
+          folds[start.row] ?= {}
+          folds[start.row][start.column] = end
         i++
-      start = startMarker.getStartPosition()
-      end = endMarker.getEndPosition()
-      unless end.isEqual(start)
-        foldEndBufferPosition = endMarker.getEndPosition()
-        folds[start.row] ?= {}
-        folds[start.row][start.column] = foldEndBufferPosition
-        endBufferRow = Math.max(endBufferRow, foldEndBufferPosition.row + 1)
-      i++
-    {folds, endBufferRow}
+
+    {folds, startBufferRow, endBufferRow}
 
   buildTokenIterator: ->
     new TokenIterator(@buffer, @patch.buildIterator())
