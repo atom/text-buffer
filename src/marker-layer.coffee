@@ -133,24 +133,9 @@ class MarkerLayer
 
     markerIds ?= new Set(Object.keys(@markersById))
 
-    {excludeNested} = params
-    delete params.excludeNested
-
     result = []
     markerIds.forEach (markerId) =>
       marker = @markersById[markerId]
-      if excludeNested
-        markerStart = marker.getStartPosition()
-        markerEnd = marker.getEndPosition()
-        containingMarkers = @index.findContaining(markerStart, markerEnd)
-        if containingMarkers.size > 1
-          values = containingMarkers.values()
-          loop
-            {value: containingId, done} = values.next()
-            break if done
-            continue if containingId is markerId
-            return unless markerStart.isEqual(@index.getStart(containingId)) and markerEnd.isEqual(@index.getEnd(containingId))
-
       return unless marker.matchesParams(params)
       result.push(marker)
     result.sort (a, b) -> a.compare(b)
