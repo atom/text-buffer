@@ -65,6 +65,9 @@ describe "DisplayLayer", ->
         };
       '''
 
+      expect(displayLayer.clipScreenPosition([4, 29], clipDirection: 'forward')).toEqual([4, 29])
+      expect(displayLayer.translateScreenPosition([4, 29], clipDirection: 'forward')).toEqual([4, 29])
+
       displayLayer.destroyFold(foldId)
 
       expect(displayLayer.getText()).toBe SAMPLE_TEXT

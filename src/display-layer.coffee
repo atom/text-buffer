@@ -224,7 +224,7 @@ class DisplayLayer
 
     @patchIterator.seekToOutputPosition(screenPosition)
     if @patchIterator.inChange()
-      if options?.clipDirection is 'forward'
+      if options?.clipDirection is 'forward' and compare(screenPosition, @patchIterator.getOutputStart()) > 0
         bufferPosition = @patchIterator.getInputEnd()
       else
         bufferPosition = @patchIterator.getInputStart()
@@ -245,7 +245,7 @@ class DisplayLayer
 
     @patchIterator.seekToOutputPosition(screenPosition)
     if @patchIterator.inChange()
-      if options?.clipDirection is 'forward'
+      if options?.clipDirection is 'forward' and compare(screenPosition, @patchIterator.getOutputStart()) > 0
         clippedScreenPosition = @patchIterator.getOutputEnd()
       else
         clippedScreenPosition =  @patchIterator.getOutputStart()
