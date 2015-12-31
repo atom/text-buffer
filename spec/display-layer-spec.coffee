@@ -149,17 +149,12 @@ describe "DisplayLayer", ->
 
   ffit "updates the displayed text correctly when the underlying buffer changes", ->
     for i in [0...1000] by 1
-      console.log '==========================', i
       seed = Date.now()
-      # seed = 1451354517923
       seedFailureMessage = "Seed: #{seed}"
       random = new Random(seed)
       buffer = new TextBuffer(text: buildRandomLines(random, 10))
       displayLayer = buffer.addDisplayLayer(tabLength: 4, patchSeed: seed)
       foldIds = []
-
-      console.log 'start state ////'
-      console.log buffer.getLines()
 
       for j in [0...3] by 1
         k = random(10)
@@ -174,12 +169,6 @@ describe "DisplayLayer", ->
 
         # incrementally-updated text matches freshly computed text
         expectedDisplayLayer = buffer.addDisplayLayer(foldsMarkerLayer: displayLayer.foldsMarkerLayer.copy(), tabLength: 4)
-
-        console.log '>>>>>'
-        console.log displayLayer.getText().split('\n')
-        console.log expectedDisplayLayer.getText().split('\n')
-        console.log '<<<<<'
-
         expect(JSON.stringify(displayLayer.getText())).toBe(JSON.stringify(expectedDisplayLayer.getText()), seedFailureMessage)
         return if currentSpecFailed()
 
@@ -204,36 +193,24 @@ performRandomChange = (random, buffer, displayLayer, seedFailureMessage) ->
     return if --tries is 0
 
   text = buildRandomLines(random, 4)
-  console.log 'change', range.toString(), JSON.stringify(text)
   buffer.setTextInRange(range, text)
-
 
   # emitted text change event describes delta between the old and new text of display layer
   replacedRange = Range.fromPointWithTraversalExtent(lastChange.start, lastChange.replacedExtent)
   replacementRange = Range.fromPointWithTraversalExtent(lastChange.start, lastChange.replacementExtent)
   replacementText = substringForRange(displayLayer.getText(), replacementRange)
 
-  # console.log 'lastChange', lastChange
-  # console.log replacedRange.toString(), replacementRange.toString(), JSON.stringify(replacementText)
-
   bufferWithDisplayLayerText = new TextBuffer(text: previousDisplayLayerText)
   bufferWithDisplayLayerText.setTextInRange(replacedRange, replacementText)
-
-  # console.log '(((('
-  # console.log bufferWithDisplayLayerText.getText().split('\n')
-  # console.log '))))'
-
   expect(bufferWithDisplayLayerText.getText()).toBe(displayLayer.getText(), seedFailureMessage)
 
 createRandomFold = (random, displayLayer, foldIds) ->
   bufferRange = getRandomRange(random, displayLayer.buffer)
   foldId = displayLayer.foldBufferRange(bufferRange)
-  console.log 'create fold', foldId, bufferRange.toString()
   foldIds.push(foldId)
 
 destroyRandomFold = (random, displayLayer, foldIds) ->
   [foldId] = foldIds.splice(random(foldIds.length - 1), 1)
-  console.log 'destroy fold', foldId
   displayLayer.destroyFold(foldId)
 
 expectPositionTranslations = (displayLayer, tranlations) ->
