@@ -150,7 +150,28 @@ describe "DisplayLayer", ->
       displayLayer.destroyFold(foldBId)
       expect(displayLayer.getText()).toBe 'a⋯f\nghi\nj'
 
-  ffit "updates the displayed text correctly when the underlying buffer changes", ->
+    it "allows folds intersecting a buffer range to be destroyed", ->
+      buffer = new TextBuffer(text: '''
+        abc
+        def
+        ghi
+        j
+      ''')
+      displayLayer = buffer.addDisplayLayer()
+
+      displayLayer.foldBufferRange([[0, 1], [1, 2]])
+      displayLayer.foldBufferRange([[1, 1], [2, 2]])
+      displayLayer.foldBufferRange([[2, 1], [3, 0]])
+      displayLayer.foldBufferRange([[2, 2], [3, 0]])
+
+      expect(displayLayer.getText()).toBe 'a⋯j'
+
+      verifyChangeEvent displayLayer, ->
+        displayLayer.destroyFoldsIntersectingBufferRange([[1, 1], [2, 1]])
+
+      expect(displayLayer.getText()).toBe 'abc\ndef\ngh⋯j'
+
+  it "updates the displayed text correctly when the underlying buffer changes", ->
     for i in [0...50] by 1
       seed = Date.now()
       seedFailureMessage = "Seed: #{seed}"
@@ -184,29 +205,33 @@ describe "DisplayLayer", ->
 
         expectedDisplayLayer.destroy()
 
-performRandomChange = (random, buffer, displayLayer, seedFailureMessage) ->
+performRandomChange = (random, buffer, displayLayer, failureMessage) ->
   tries = 10
   range = getRandomRange(random, buffer)
   while displayLayer.foldsMarkerLayer.findMarkers(intersectsRange: range).length > 0
     range = getRandomRange(random, buffer)
     return if --tries is 0
 
-  verifyChangeEvent displayLayer, seedFailureMessage, ->
+  verifyChangeEvent displayLayer, failureMessage, ->
     text = buildRandomLines(random, 4)
     buffer.setTextInRange(range, text)
 
-createRandomFold = (random, displayLayer, foldIds, seedFailureMessage) ->
-  verifyChangeEvent displayLayer, seedFailureMessage, ->
+createRandomFold = (random, displayLayer, foldIds, failureMessage) ->
+  verifyChangeEvent displayLayer, failureMessage, ->
     bufferRange = getRandomRange(random, displayLayer.buffer)
     foldId = displayLayer.foldBufferRange(bufferRange)
     foldIds.push(foldId)
 
-destroyRandomFold = (random, displayLayer, foldIds, seedFailureMessage) ->
-  verifyChangeEvent displayLayer, seedFailureMessage, ->
+destroyRandomFold = (random, displayLayer, foldIds, failureMessage) ->
+  verifyChangeEvent displayLayer, failureMessage, ->
     [foldId] = foldIds.splice(random(foldIds.length - 1), 1)
     displayLayer.destroyFold(foldId)
 
-verifyChangeEvent = (displayLayer, seedFailureMessage, fn) ->
+verifyChangeEvent = (displayLayer, failureMessage, fn) ->
+  if arguments.length is 2
+    fn = failureMessage
+    failureMessage = ''
+
   previousDisplayLayerText = displayLayer.getText()
   lastChange = null
   disposable = displayLayer.onDidChangeTextSync (change) -> lastChange = change
@@ -220,7 +245,7 @@ verifyChangeEvent = (displayLayer, seedFailureMessage, fn) ->
     replacementText = substringForRange(displayLayer.getText(), replacementRange)
     bufferWithDisplayLayerText = new TextBuffer(text: previousDisplayLayerText)
     bufferWithDisplayLayerText.setTextInRange(replacedRange, replacementText)
-    expect(bufferWithDisplayLayerText.getText()).toBe(displayLayer.getText(), seedFailureMessage)
+    expect(bufferWithDisplayLayerText.getText()).toBe(displayLayer.getText(), failureMessage)
   else
     expect(displayLayer.getText()).toBe(previousDisplayLayerText)
 
@@ -255,7 +280,7 @@ verifyTokenIterator = (displayLayer, failureMessage) ->
 
   expect(text).toBe(displayLayer.getText(), failureMessage)
 
-verifyPositionTranslations = (actualDisplayLayer, expectedDisplayLayer, seedFailureMessage) ->
+verifyPositionTranslations = (actualDisplayLayer, expectedDisplayLayer, failureMessage) ->
   {buffer} = actualDisplayLayer
 
   bufferLines = buffer.getText().split('\n')
@@ -265,13 +290,13 @@ verifyPositionTranslations = (actualDisplayLayer, expectedDisplayLayer, seedFail
     for character, bufferColumn in bufferLine
       actualPosition = actualDisplayLayer.translateBufferPosition(Point(bufferRow, bufferColumn))
       expectedPosition = expectedDisplayLayer.translateBufferPosition(Point(bufferRow, bufferColumn))
-      expect(actualPosition).toEqual(expectedPosition, seedFailureMessage)
+      expect(actualPosition).toEqual(expectedPosition, failureMessage)
 
   for screenLine, screenRow in screenLines
     for character, screenColumn in screenLine
       actualPosition = actualDisplayLayer.translateScreenPosition(Point(screenRow, screenColumn))
       expectedPosition = expectedDisplayLayer.translateScreenPosition(Point(screenRow, screenColumn))
-      expect(actualPosition).toEqual(expectedPosition, seedFailureMessage)
+      expect(actualPosition).toEqual(expectedPosition, failureMessage)
 
 buildRandomLines = (random, maxLines) ->
   lines = []

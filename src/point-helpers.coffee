@@ -43,3 +43,10 @@ exports.clipNegativePoint = (point) ->
     Point(Math.max(0, point.row), Math.max(0, point.column))
   else
     point
+
+
+exports.max = (a, b) ->
+  if exports.compare(a, b) >= 0
+    a
+  else
+    b

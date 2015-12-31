@@ -4,7 +4,9 @@ Point = require './point'
 Range = require './range'
 DisplayMarkerLayer = require './display-marker-layer'
 TokenIterator = require './token-iterator'
-{traversal, clipNegativePoint, compare} = require './point-helpers'
+{traversal, clipNegativePoint} = pointHelpers = require './point-helpers'
+comparePoints = pointHelpers.compare
+maxPoint = pointHelpers.max
 
 module.exports =
 class DisplayLayer
@@ -50,6 +52,21 @@ class DisplayLayer
     foldMarker.destroy()
     if @foldsMarkerLayer.findMarkers(containsRange: foldRange).length is 0
       {bufferStart, bufferEnd} = @expandBufferRangeToScreenLineStarts(foldRange)
+      foldExtent = traversal(bufferEnd, bufferStart)
+      {start, replacedExtent} = @patch.spliceInput(bufferStart, foldExtent, foldExtent)
+      screenNewEnd = @computeTransformation(bufferStart.row, bufferEnd.row)
+      replacementExtent = traversal(screenNewEnd, start)
+      @emitter.emit 'did-change-text-sync', {start, replacedExtent, replacementExtent}
+
+  destroyFoldsIntersectingBufferRange: (bufferRange) ->
+    bufferRange = @buffer.clipRange(bufferRange)
+    foldMarkers = @foldsMarkerLayer.findMarkers(intersectsRange: bufferRange)
+    if foldMarkers.length > 0
+      combinedRangeStart = combinedRangeEnd = foldMarkers[0].getStartPosition()
+      for foldMarker in foldMarkers
+        combinedRangeEnd = maxPoint(combinedRangeEnd, foldMarker.getEndPosition())
+        foldMarker.destroy()
+      {bufferStart, bufferEnd} = @expandBufferRangeToScreenLineStarts(Range(combinedRangeStart, combinedRangeEnd))
       foldExtent = traversal(bufferEnd, bufferStart)
       {start, replacedExtent} = @patch.spliceInput(bufferStart, foldExtent, foldExtent)
       screenNewEnd = @computeTransformation(bufferStart.row, bufferEnd.row)
@@ -163,15 +180,15 @@ class DisplayLayer
 
           # Skip subsequent fold markers that nest within the current fold, and
           # merge folds that start within the the current fold but end after it.
-          if i < (foldMarkers.length - 1) and compare(foldMarkers[i + 1].getStartPosition(), foldEnd) <= 0
-            if compare(foldMarkers[i + 1].getEndPosition(), foldEnd) > 0
+          if i < (foldMarkers.length - 1) and comparePoints(foldMarkers[i + 1].getStartPosition(), foldEnd) <= 0
+            if comparePoints(foldMarkers[i + 1].getEndPosition(), foldEnd) > 0
               foldEnd = foldMarkers[i + 1].getEndPosition()
             i++
           else
             break
 
         # Add non-empty folds to the index.
-        if compare(foldEnd, foldStart) > 0
+        if comparePoints(foldEnd, foldStart) > 0
           folds[foldStart.row] ?= {}
           folds[foldStart.row][foldStart.column] = foldEnd
 
@@ -224,7 +241,7 @@ class DisplayLayer
 
     @patchIterator.seekToOutputPosition(screenPosition)
     if @patchIterator.inChange()
-      if options?.clipDirection is 'forward' and compare(screenPosition, @patchIterator.getOutputStart()) > 0
+      if options?.clipDirection is 'forward' and comparePoints(screenPosition, @patchIterator.getOutputStart()) > 0
         bufferPosition = @patchIterator.getInputEnd()
       else
         bufferPosition = @patchIterator.getInputStart()
@@ -245,7 +262,7 @@ class DisplayLayer
 
     @patchIterator.seekToOutputPosition(screenPosition)
     if @patchIterator.inChange()
-      if options?.clipDirection is 'forward' and compare(screenPosition, @patchIterator.getOutputStart()) > 0
+      if options?.clipDirection is 'forward' and comparePoints(screenPosition, @patchIterator.getOutputStart()) > 0
         clippedScreenPosition = @patchIterator.getOutputEnd()
       else
         clippedScreenPosition =  @patchIterator.getOutputStart()
