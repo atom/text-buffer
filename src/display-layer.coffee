@@ -46,6 +46,9 @@ class DisplayLayer
 
     foldId
 
+  foldsIntersectingBufferRange: (bufferRange) ->
+    @foldsMarkerLayer.findMarkers(intersectsRange: bufferRange).map ({id}) -> id
+
   destroyFold: (foldId) ->
     if foldMarker = @foldsMarkerLayer.getMarker(foldId)
       @destroyFoldMarkers([foldMarker])
