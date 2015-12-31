@@ -159,9 +159,9 @@ describe "DisplayLayer", ->
       for j in [0...3] by 1
         k = random(10)
         if k < 2
-          createRandomFold(random, displayLayer, foldIds)
+          createRandomFold(random, displayLayer, foldIds, seedFailureMessage)
         else if k < 4 and foldIds.length > 0
-          destroyRandomFold(random, displayLayer, foldIds)
+          destroyRandomFold(random, displayLayer, foldIds, seedFailureMessage)
         else
           performRandomChange(random, buffer, displayLayer, seedFailureMessage)
 
@@ -182,49 +182,44 @@ describe "DisplayLayer", ->
         expectedDisplayLayer.destroy()
 
 performRandomChange = (random, buffer, displayLayer, seedFailureMessage) ->
-  previousDisplayLayerText = displayLayer.getText()
-  lastChange = null
-  displayLayer.onDidChangeTextSync (change) -> lastChange = change
-
-  range = getRandomRange(random, buffer)
   tries = 10
+  range = getRandomRange(random, buffer)
   while displayLayer.foldsMarkerLayer.findMarkers(intersectsRange: range).length > 0
     range = getRandomRange(random, buffer)
     return if --tries is 0
 
-  text = buildRandomLines(random, 4)
-  buffer.setTextInRange(range, text)
+  verifyChangeEvent displayLayer, seedFailureMessage, ->
+    text = buildRandomLines(random, 4)
+    buffer.setTextInRange(range, text)
 
-  # emitted text change event describes delta between the old and new text of display layer
-  replacedRange = Range.fromPointWithTraversalExtent(lastChange.start, lastChange.replacedExtent)
-  replacementRange = Range.fromPointWithTraversalExtent(lastChange.start, lastChange.replacementExtent)
-  replacementText = substringForRange(displayLayer.getText(), replacementRange)
+createRandomFold = (random, displayLayer, foldIds, seedFailureMessage) ->
+  verifyChangeEvent displayLayer, seedFailureMessage, ->
+    bufferRange = getRandomRange(random, displayLayer.buffer)
+    foldId = displayLayer.foldBufferRange(bufferRange)
+    foldIds.push(foldId)
 
-  bufferWithDisplayLayerText = new TextBuffer(text: previousDisplayLayerText)
-  bufferWithDisplayLayerText.setTextInRange(replacedRange, replacementText)
-  expect(bufferWithDisplayLayerText.getText()).toBe(displayLayer.getText(), seedFailureMessage)
+destroyRandomFold = (random, displayLayer, foldIds, seedFailureMessage) ->
+  verifyChangeEvent displayLayer, seedFailureMessage, ->
+    [foldId] = foldIds.splice(random(foldIds.length - 1), 1)
+    displayLayer.destroyFold(foldId)
 
-createRandomFold = (random, displayLayer, foldIds) ->
-  bufferRange = getRandomRange(random, displayLayer.buffer)
-  foldId = displayLayer.foldBufferRange(bufferRange)
-  foldIds.push(foldId)
+verifyChangeEvent = (displayLayer, seedFailureMessage, fn) ->
+  previousDisplayLayerText = displayLayer.getText()
+  lastChange = null
+  disposable = displayLayer.onDidChangeTextSync (change) -> lastChange = change
 
-destroyRandomFold = (random, displayLayer, foldIds) ->
-  [foldId] = foldIds.splice(random(foldIds.length - 1), 1)
-  displayLayer.destroyFold(foldId)
+  fn()
 
-expectPositionTranslations = (displayLayer, tranlations) ->
-  for [screenPosition, bufferPositions] in tranlations
-    if Array.isArray(bufferPositions)
-      [backwardBufferPosition, forwardBufferPosition] = bufferPositions
-      expect(displayLayer.translateScreenPosition(screenPosition, clipDirection: 'backward')).toEqual(backwardBufferPosition)
-      expect(displayLayer.translateScreenPosition(screenPosition, clipDirection: 'forward')).toEqual(forwardBufferPosition)
-      expect(displayLayer.clipScreenPosition(screenPosition, clipDirection: 'backward')).toEqual(displayLayer.translateBufferPosition(backwardBufferPosition))
-      expect(displayLayer.clipScreenPosition(screenPosition, clipDirection: 'forward')).toEqual(displayLayer.translateBufferPosition(forwardBufferPosition))
-    else
-      bufferPosition = bufferPositions
-      expect(displayLayer.translateScreenPosition(screenPosition)).toEqual(bufferPosition)
-      expect(displayLayer.translateBufferPosition(bufferPosition)).toEqual(screenPosition)
+  disposable.dispose()
+  if lastChange?
+    replacedRange = Range.fromPointWithTraversalExtent(lastChange.start, lastChange.replacedExtent)
+    replacementRange = Range.fromPointWithTraversalExtent(lastChange.start, lastChange.replacementExtent)
+    replacementText = substringForRange(displayLayer.getText(), replacementRange)
+    bufferWithDisplayLayerText = new TextBuffer(text: previousDisplayLayerText)
+    bufferWithDisplayLayerText.setTextInRange(replacedRange, replacementText)
+    expect(bufferWithDisplayLayerText.getText()).toBe(displayLayer.getText(), seedFailureMessage)
+  else
+    expect(displayLayer.getText()).toBe(previousDisplayLayerText)
 
 verifyTokenIterator = (displayLayer, failureMessage) ->
   {buffer} = displayLayer
@@ -306,3 +301,16 @@ substringForRange = (text, range) ->
   startIndex = characterIndexForPoint(text, range.start)
   endIndex = characterIndexForPoint(text, range.end)
   text.substring(startIndex, endIndex)
+
+expectPositionTranslations = (displayLayer, tranlations) ->
+  for [screenPosition, bufferPositions] in tranlations
+    if Array.isArray(bufferPositions)
+      [backwardBufferPosition, forwardBufferPosition] = bufferPositions
+      expect(displayLayer.translateScreenPosition(screenPosition, clipDirection: 'backward')).toEqual(backwardBufferPosition)
+      expect(displayLayer.translateScreenPosition(screenPosition, clipDirection: 'forward')).toEqual(forwardBufferPosition)
+      expect(displayLayer.clipScreenPosition(screenPosition, clipDirection: 'backward')).toEqual(displayLayer.translateBufferPosition(backwardBufferPosition))
+      expect(displayLayer.clipScreenPosition(screenPosition, clipDirection: 'forward')).toEqual(displayLayer.translateBufferPosition(forwardBufferPosition))
+    else
+      bufferPosition = bufferPositions
+      expect(displayLayer.translateScreenPosition(screenPosition)).toEqual(bufferPosition)
+      expect(displayLayer.translateBufferPosition(bufferPosition)).toEqual(screenPosition)

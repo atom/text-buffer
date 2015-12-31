@@ -37,8 +37,11 @@ class DisplayLayer
     if @foldsMarkerLayer.findMarkers(containsRange: bufferRange).length is 1
       {bufferStart, bufferEnd} = @expandBufferRangeToScreenLineStarts(bufferRange)
       foldExtent = traversal(bufferEnd, bufferStart)
-      @patch.spliceInput(bufferStart, foldExtent, foldExtent)
-      @computeTransformation(bufferRange.start.row, bufferRange.end.row + 1)
+      {start, replacedExtent} = @patch.spliceInput(bufferStart, foldExtent, foldExtent)
+      screenNewEnd = @computeTransformation(bufferRange.start.row, bufferRange.end.row + 1)
+      replacementExtent = traversal(screenNewEnd, start)
+      @emitter.emit 'did-change-text-sync', {start, replacedExtent, replacementExtent}
+
     foldId
 
   destroyFold: (foldId) ->
@@ -48,8 +51,10 @@ class DisplayLayer
     if @foldsMarkerLayer.findMarkers(containsRange: foldRange).length is 0
       {bufferStart, bufferEnd} = @expandBufferRangeToScreenLineStarts(foldRange)
       foldExtent = traversal(bufferEnd, bufferStart)
-      @patch.spliceInput(bufferStart, foldExtent, foldExtent)
-      @computeTransformation(bufferStart.row, bufferEnd.row)
+      {start, replacedExtent} = @patch.spliceInput(bufferStart, foldExtent, foldExtent)
+      screenNewEnd = @computeTransformation(bufferStart.row, bufferEnd.row)
+      replacementExtent = traversal(screenNewEnd, start)
+      @emitter.emit 'did-change-text-sync', {start, replacedExtent, replacementExtent}
 
   onDidChangeTextSync: (callback) ->
     @emitter.on 'did-change-text-sync', callback
