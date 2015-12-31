@@ -32,7 +32,7 @@ class DisplayLayer
     @displayMarkerLayersById[id] ?= new DisplayMarkerLayer(this, @buffer.getMarkerLayer(id))
 
   foldBufferRange: (bufferRange) ->
-    bufferRange = Range.fromObject(bufferRange)
+    bufferRange = @buffer.clipRange(bufferRange)
     foldId = @foldsMarkerLayer.markRange(bufferRange).id
     if @foldsMarkerLayer.findMarkers(containsRange: bufferRange).length is 1
       {bufferStart, bufferEnd} = @expandBufferRangeToScreenLineStarts(bufferRange)
