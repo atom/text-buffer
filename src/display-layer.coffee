@@ -255,3 +255,6 @@ class DisplayLayer
       clippedScreenPosition =  @patchIterator.translateInputPosition(clippedBufferPosition)
 
     Point.fromObject(clippedScreenPosition)
+
+  getScreenLineCount: ->
+    @clipScreenPosition(Point(Infinity, Infinity)).row + 1
