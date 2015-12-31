@@ -148,7 +148,7 @@ describe "DisplayLayer", ->
       expect(displayLayer.getText()).toBe 'a⋯f\nghi\nj'
 
   ffit "updates the displayed text correctly when the underlying buffer changes", ->
-    for i in [0...1000] by 1
+    for i in [0...50] by 1
       seed = Date.now()
       seedFailureMessage = "Seed: #{seed}"
       random = new Random(seed)
