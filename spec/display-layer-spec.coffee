@@ -171,6 +171,27 @@ describe "DisplayLayer", ->
 
       expect(displayLayer.getText()).toBe 'abc\ndef\ngh⋯j'
 
+    it "allows all folds to be destroyed", ->
+      buffer = new TextBuffer(text: '''
+        abc
+        def
+        ghi
+        j
+      ''')
+      displayLayer = buffer.addDisplayLayer()
+
+      displayLayer.foldBufferRange([[0, 1], [1, 2]])
+      displayLayer.foldBufferRange([[1, 1], [2, 2]])
+      displayLayer.foldBufferRange([[2, 1], [3, 0]])
+      displayLayer.foldBufferRange([[2, 2], [3, 0]])
+
+      expect(displayLayer.getText()).toBe 'a⋯j'
+
+      verifyChangeEvent displayLayer, ->
+        displayLayer.destroyAllFolds()
+
+      expect(displayLayer.getText()).toBe 'abc\ndef\nghi\nj'
+
   it "updates the displayed text correctly when the underlying buffer changes", ->
     for i in [0...50] by 1
       seed = Date.now()

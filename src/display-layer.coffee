@@ -47,20 +47,17 @@ class DisplayLayer
     foldId
 
   destroyFold: (foldId) ->
-    foldMarker = @foldsMarkerLayer.getMarker(foldId)
-    foldRange = foldMarker.getRange()
-    foldMarker.destroy()
-    if @foldsMarkerLayer.findMarkers(containsRange: foldRange).length is 0
-      {bufferStart, bufferEnd} = @expandBufferRangeToScreenLineStarts(foldRange)
-      foldExtent = traversal(bufferEnd, bufferStart)
-      {start, replacedExtent} = @patch.spliceInput(bufferStart, foldExtent, foldExtent)
-      screenNewEnd = @computeTransformation(bufferStart.row, bufferEnd.row)
-      replacementExtent = traversal(screenNewEnd, start)
-      @emitter.emit 'did-change-text-sync', {start, replacedExtent, replacementExtent}
+    if foldMarker = @foldsMarkerLayer.getMarker(foldId)
+      @destroyFoldMarkers([foldMarker])
 
   destroyFoldsIntersectingBufferRange: (bufferRange) ->
     bufferRange = @buffer.clipRange(bufferRange)
-    foldMarkers = @foldsMarkerLayer.findMarkers(intersectsRange: bufferRange)
+    @destroyFoldMarkers(@foldsMarkerLayer.findMarkers(intersectsRange: bufferRange))
+
+  destroyAllFolds: ->
+    @destroyFoldMarkers(@foldsMarkerLayer.getMarkers())
+
+  destroyFoldMarkers: (foldMarkers) ->
     if foldMarkers.length > 0
       combinedRangeStart = combinedRangeEnd = foldMarkers[0].getStartPosition()
       for foldMarker in foldMarkers
