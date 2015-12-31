@@ -103,7 +103,7 @@ describe "DisplayMarkerLayer", ->
       updateEventCount is 4
 
   describe "findMarkers(params)", ->
-    markerLayer = null
+    [markerLayer, displayLayer] = []
 
     beforeEach ->
       buffer = new TextBuffer(text: SampleText)
@@ -121,38 +121,38 @@ describe "DisplayMarkerLayer", ->
 
     # TODO: Enable these tests once DisplayLayer supports folding so we actually
     # test row translation fully.
-    xit "allows the startScreenRow and endScreenRow to be specified", ->
+    it "allows the startScreenRow and endScreenRow to be specified", ->
       marker1 = markerLayer.markBufferRange([[6, 0], [7, 0]], class: 'a')
       marker2 = markerLayer.markBufferRange([[9, 0], [10, 0]], class: 'a')
-      markerLayer.createFold(4, 7)
+      displayLayer.foldBufferRange([[4, 0], [7, 0]])
       expect(markerLayer.findMarkers(class: 'a', startScreenRow: 6, endScreenRow: 7)).toEqual [marker2]
 
-    xit "allows intersectsBufferRowRange to be specified", ->
+    it "allows intersectsBufferRowRange to be specified", ->
       marker1 = markerLayer.markBufferRange([[5, 0], [5, 0]], class: 'a')
       marker2 = markerLayer.markBufferRange([[8, 0], [8, 0]], class: 'a')
-      markerLayer.createFold(4, 7)
+      displayLayer.foldBufferRange([[4, 0], [7, 0]])
       expect(markerLayer.findMarkers(class: 'a', intersectsBufferRowRange: [5, 6])).toEqual [marker1]
 
-    xit "allows intersectsScreenRowRange to be specified", ->
+    it "allows intersectsScreenRowRange to be specified", ->
       marker1 = markerLayer.markBufferRange([[5, 0], [5, 0]], class: 'a')
       marker2 = markerLayer.markBufferRange([[8, 0], [8, 0]], class: 'a')
-      markerLayer.createFold(4, 7)
+      displayLayer.foldBufferRange([[4, 0], [7, 0]])
       expect(markerLayer.findMarkers(class: 'a', intersectsScreenRowRange: [5, 10])).toEqual [marker2]
 
-    xit "allows containedInScreenRange to be specified", ->
+    it "allows containedInScreenRange to be specified", ->
       marker1 = markerLayer.markBufferRange([[5, 0], [5, 0]], class: 'a')
       marker2 = markerLayer.markBufferRange([[8, 0], [8, 0]], class: 'a')
-      markerLayer.createFold(4, 7)
+      displayLayer.foldBufferRange([[4, 0], [7, 0]])
       expect(markerLayer.findMarkers(class: 'a', containedInScreenRange: [[5, 0], [7, 0]])).toEqual [marker2]
 
-    xit "allows intersectsBufferRange to be specified", ->
+    it "allows intersectsBufferRange to be specified", ->
       marker1 = markerLayer.markBufferRange([[5, 0], [5, 0]], class: 'a')
       marker2 = markerLayer.markBufferRange([[8, 0], [8, 0]], class: 'a')
-      markerLayer.createFold(4, 7)
+      displayLayer.foldBufferRange([[4, 0], [7, 0]])
       expect(markerLayer.findMarkers(class: 'a', intersectsBufferRange: [[5, 0], [6, 0]])).toEqual [marker1]
 
-    xit "allows intersectsScreenRange to be specified", ->
+    it "allows intersectsScreenRange to be specified", ->
       marker1 = markerLayer.markBufferRange([[5, 0], [5, 0]], class: 'a')
       marker2 = markerLayer.markBufferRange([[8, 0], [8, 0]], class: 'a')
-      markerLayer.createFold(4, 7)
+      displayLayer.foldBufferRange([[4, 0], [7, 0]])
       expect(markerLayer.findMarkers(class: 'a', intersectsScreenRange: [[5, 0], [10, 0]])).toEqual [marker2]
