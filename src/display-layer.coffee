@@ -35,6 +35,9 @@ class DisplayLayer
     bufferRange = Range.fromObject(bufferRange)
     foldId = @foldsMarkerLayer.markRange(bufferRange).id
     if @foldsMarkerLayer.findMarkers(containsRange: bufferRange).length is 1
+      {bufferStart, bufferEnd} = @expandBufferRangeToScreenLineStarts(bufferRange)
+      foldExtent = traversal(bufferEnd, bufferStart)
+      @patch.spliceInput(bufferStart, foldExtent, foldExtent)
       @computeTransformation(bufferRange.start.row, bufferRange.end.row + 1)
     foldId
 
@@ -43,33 +46,46 @@ class DisplayLayer
     foldRange = foldMarker.getRange()
     foldMarker.destroy()
     if @foldsMarkerLayer.findMarkers(containsRange: foldRange).length is 0
-      foldExtent = foldRange.getExtent()
-      @patch.spliceInput(foldRange.start, foldExtent, foldExtent)
-      @computeTransformation(foldRange.start.row, foldRange.end.row + 1)
+      {bufferStart, bufferEnd} = @expandBufferRangeToScreenLineStarts(foldRange)
+      foldExtent = traversal(bufferEnd, bufferStart)
+      @patch.spliceInput(bufferStart, foldExtent, foldExtent)
+      @computeTransformation(bufferStart.row, bufferEnd.row)
 
   onDidChangeTextSync: (callback) ->
     @emitter.on 'did-change-text-sync', callback
 
   bufferDidChange: (change) ->
     {oldRange, newRange} = change
-    {start, replacedExtent} = @patch.spliceInput(
-      oldRange.start,
-      traversal(oldRange.end, oldRange.start),
-      traversal(newRange.end, oldRange.start)
-    )
-    start = Point(start.row, 0)
-    replacedExtent = Point(replacedExtent.row + 1, 0)
 
-    newOutputEnd = @computeTransformation(oldRange.start.row, newRange.end.row + 1)
-    replacementExtent = traversal(newOutputEnd, start)
+    {bufferStart, bufferEnd: bufferOldEnd} = @expandBufferRangeToScreenLineStarts(oldRange)
+    bufferOldExtent = traversal(bufferOldEnd, bufferStart)
+    bufferNewExtent = Point(bufferOldExtent.row + (newRange.end.row - oldRange.end.row), 0)
+    {start, replacedExtent} = @patch.spliceInput(bufferStart, bufferOldExtent, bufferNewExtent)
+
+    screenNewEnd = @computeTransformation(oldRange.start.row, newRange.end.row + 1)
+    replacementExtent = traversal(screenNewEnd, start)
+
     @emitter.emit 'did-change-text-sync', {start, replacedExtent, replacementExtent}
+
+  expandBufferRangeToScreenLineStarts: (range) ->
+    # Expand the start of the change to the buffer row that starts
+    # the screen row containing the start of the change
+    @patchIterator.seekToInputPosition(range.start)
+    screenStart = Point(@patchIterator.translateInputPosition(range.start).row, 0)
+    @patchIterator.seekToOutputPosition(screenStart)
+    bufferStart = @patchIterator.translateOutputPosition(screenStart)
+
+    # Expand the end of the change to the the buffer row that starts
+    # the screen row following the screen row containing the end of the change
+    @patchIterator.seekToInputPosition(range.end)
+    screenEnd = Point(@patchIterator.translateInputPosition(range.end).row + 1, 0)
+    @patchIterator.seekToOutputPosition(screenEnd)
+    bufferEnd = @patchIterator.translateOutputPosition(screenEnd)
+
+    {bufferStart, bufferEnd}
 
   computeTransformation: (startBufferRow, endBufferRow) ->
     {startBufferRow, endBufferRow, folds} = @computeFoldsInBufferRowRange(startBufferRow, endBufferRow)
-    start = Point(startBufferRow, 0)
-    extent = Point(endBufferRow - startBufferRow, 0)
-    @patch.spliceInput(start, extent, extent)
-
     {row: screenRow, column: screenColumn} = @translateBufferPosition(Point(startBufferRow, 0))
 
     bufferRow = startBufferRow
