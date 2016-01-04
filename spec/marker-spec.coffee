@@ -943,6 +943,14 @@ describe "Marker", ->
         buffer.redo()
         expect(marker.getRange()).toEqual [[0, 8], [0, 12]]
 
+      it "ignores snapshot references to marker layers that no longer exist", ->
+        layer3.markRange([[0, 6], [0, 9]])
+        buffer.append("stuff")
+        layer3.destroy()
+
+        # Should not throw an exception
+        buffer.undo()
+
     describe "::findMarkers(params)", ->
       it "does not find markers from other layers", ->
         defaultMarker = buffer.markRange([[0, 3], [0, 6]])

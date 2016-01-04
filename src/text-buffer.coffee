@@ -1453,7 +1453,7 @@ class TextBuffer
 
   restoreFromMarkerSnapshot: (snapshot) ->
     for markerLayerId, layerSnapshot of snapshot
-      @markerLayers[markerLayerId].restoreFromSnapshot(layerSnapshot)
+      @markerLayers[markerLayerId]?.restoreFromSnapshot(layerSnapshot)
 
   emitMarkerChangeEvents: (snapshot) ->
     for markerLayerId, markerLayer of @markerLayers
