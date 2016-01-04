@@ -201,7 +201,7 @@ describe "DisplayLayer", ->
       displayLayer = buffer.addDisplayLayer(tabLength: 4, patchSeed: seed)
       foldIds = []
 
-      for j in [0...3] by 1
+      for j in [0...10] by 1
         k = random(10)
         if k < 2
           createRandomFold(random, displayLayer, foldIds, seedFailureMessage)
