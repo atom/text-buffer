@@ -24,13 +24,17 @@ class TokenIterator
     @endBufferPosition = null
     @endScreenPosition = null
     @text = null
-    @iteratorsToAdvance = []
+    @openTags = []
+    @closeTags = []
+    @decorationIteratorsToAdvance = []
+    @advancePatchIterator = false
     @atLineEnd = false
 
   seekToScreenRow: (screenRow) ->
     @startScreenPosition = Point(screenRow, 0)
     @patchIterator.seekToOutputPosition(@startScreenPosition)
     @startBufferPosition = @patchIterator.translateOutputPosition(@startScreenPosition)
+    @openTags.length = 0
 
     for decorationIterator in @decorationIterators
       decorationIterator.seek(@startBufferPosition)
@@ -38,6 +42,8 @@ class TokenIterator
     @assignEndPositionsAndText()
 
   moveToSuccessor: ->
+    @openTags.length = 0
+
     if @atLineEnd
       @startScreenPosition = traverse(@endScreenPosition, Point(1, 0))
       @startBufferPosition = @patchIterator.translateOutputPosition(@startScreenPosition)
@@ -46,28 +52,31 @@ class TokenIterator
       @startScreenPosition = @endScreenPosition
       @startBufferPosition = @endBufferPosition
 
-    for iterator in @iteratorsToAdvance
-      unless iterator.moveToSuccessor()
-        if iterator is @patchIterator
-          return false
-        else
-          @decorationIterators.splice(@decorationIterators.indexOf(iterator), 1)
+    if @advancePatchIterator
+      unless @patchIterator.moveToSuccessor()
+        return false
+
+    for iterator in @decorationIteratorsToAdvance
+      if iterator.moveToSuccessor()
+        @openTags.push(iterator.getOpenTags()...)
+      else
+        @decorationIterators.splice(@decorationIterators.indexOf(iterator), 1)
 
     @assignEndPositionsAndText()
     true
 
   getOpenTags: ->
+    @openTags
 
   getCloseTags: ->
+    @closeTags
 
   assignEndPositionsAndText: ->
-    @iteratorsToAdvance.length = 0
-
     if @patchIterator.getOutputEnd().row is @startScreenPosition.row
+      @advancePatchIterator = true
       @atLineEnd = false
       @endScreenPosition = @patchIterator.getOutputEnd()
       @endBufferPosition = @patchIterator.getInputEnd()
-      @iteratorsToAdvance.push(@patchIterator)
 
       if @patchIterator.inChange()
         characterIndexInChangeText = characterIndexForPoint(@patchIterator.getReplacementText(), traversal(@startScreenPosition, @patchIterator.getOutputStart()))
@@ -75,6 +84,7 @@ class TokenIterator
       else
         @text = @buffer.getTextInRange(Range(@startBufferPosition, @endBufferPosition))
     else
+      @advancePatchIterator = false
       @atLineEnd = true
       if @patchIterator.inChange()
         nextNewlineIndex = @patchIterator.getReplacementText().indexOf('\n', @characterIndexInChangeText)
@@ -86,15 +96,20 @@ class TokenIterator
         @endBufferPosition = traverse(@startBufferPosition, Point(0, @text.length))
         @endScreenPosition = @patchIterator.translateInputPosition(@endBufferPosition)
 
+    @decorationIteratorsToAdvance.length = 0
+    @closeTags.length = 0
     for decorationIterator in @decorationIterators
       decorationIteratorEndPosition = decorationIterator.getEndPosition()
       comparison = compare(decorationIteratorEndPosition, @endBufferPosition)
       if comparison < 0
-        @iteratorsToAdvance.length = 0
+        @decorationIteratorsToAdvance.length = 0
+        @advancePatchIterator = false
+        @closeTags.length = 0
+        @atLineEnd = false
         @endBufferPosition = decorationIteratorEndPosition
         @endScreenPosition = @patchIterator.translateInputPosition(@endBufferPosition)
         @text = @text.substring(0, @endScreenPosition.column - @startScreenPosition.column)
-        @atLineEnd = false
 
       if comparison <= 0
-        @iteratorsToAdvance.push(decorationIterator)
+        @decorationIteratorsToAdvance.push(decorationIterator)
+        @closeTags.push(decorationIterator.getCloseTags()...)

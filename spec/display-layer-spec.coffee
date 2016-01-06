@@ -214,17 +214,17 @@ describe "DisplayLayer", ->
 
       verifyTokenIterator(displayLayer)
       expectTokens(displayLayer, [
-        {start: [0, 0], end: [0, 1], open: [], close: [], containing: []},
-        {start: [0, 1], end: [0, 2], open: ['aa'], close: [], containing: []},
-        {start: [0, 2], end: [0, 4], open: ['ab', 'ba'], close: ['aa'], containing: ['aa']},
-        {start: [0, 4], end: [0, 5], open: [], close: [], containing: ['ab', 'ba']},
-        {start: [1, 0], end: [1, 2], open: [], close: ['ab'], containing: ['ab', 'ba']},
-        {start: [1, 2], end: [1, 3], open: [], close: [], containing: ['ba']},
-        {start: [1, 3], end: [1, 5], open: ['ac'], close: [], containing: ['ba']},
-        {start: [2, 0], end: [2, 0], open: [], close: ['ac'], containing: ['ba', 'ac']},
-        {start: [2, 0], end: [2, 1], open: [], close: ['ba'], containing: ['ba']},
-        {start: [2, 1], end: [2, 3], open: [], close: [], containing: []},
-        {start: [2, 3], end: [2, 5], open: ['ad'], close: ['ad'], containing: []}
+        {start: [0, 0], end: [0, 1], open: [], close: []},
+        {start: [0, 1], end: [0, 2], open: ['aa'], close: []},
+        {start: [0, 2], end: [0, 4], open: ['ab', 'ba'], close: ['aa']},
+        {start: [0, 4], end: [0, 5], open: [], close: []},
+        {start: [1, 0], end: [1, 2], open: [], close: ['ab']},
+        {start: [1, 2], end: [1, 3], open: [], close: []},
+        {start: [1, 3], end: [1, 5], open: ['ac'], close: []},
+        {start: [2, 0], end: [2, 0], open: [], close: ['ac']},
+        {start: [2, 0], end: [2, 1], open: [], close: ['ba']},
+        {start: [2, 1], end: [2, 3], open: [], close: []},
+        {start: [2, 3], end: [2, 5], open: ['ad'], close: ['ad']}
       ])
 
   it "updates the displayed text correctly when the underlying buffer changes", ->
@@ -406,7 +406,6 @@ expectTokens = (displayLayer, expectedTokens) ->
     {start, end, text, open, close, containing} = expectedTokens.shift()
     expect(tokenIterator.getStartScreenPosition()).toEqual(start)
     expect(tokenIterator.getEndScreenPosition()).toEqual(end)
-    # expect(tokenIterator.getOpenTags()).toEqual(open)
-    # expect(tokenIterator.getCloseTags()).toEqual(close)
-    # expect(tokenIterator.getContainingTags()).toEqual(containing)
+    expect(tokenIterator.getOpenTags()).toEqual(open, "Open tags of token with start position: #{start}, end position: #{end}")
+    expect(tokenIterator.getCloseTags()).toEqual(close, "Close tags of token with start position #{start}, end position #{end}")
     break unless tokenIterator.moveToSuccessor()
