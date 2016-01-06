@@ -65,7 +65,11 @@ class TestDecorationLayerIterator
     for token, index in @tokens
       if comparePoints(token.endPosition, position) > 0
         @tokenIndex = index
-        return token.containingTags
+        if comparePoints(token.startPosition, position) < 0
+          return token.containingTags.concat(token.openTags)
+        else
+          return token.containingTags
+    return []
 
   moveToSuccessor: ->
     @tokenIndex++

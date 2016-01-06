@@ -227,6 +227,26 @@ describe "DisplayLayer", ->
         {start: [2, 3], end: [2, 5], open: ['ad'], close: ['ad']}
       ])
 
+      tokenIterator = displayLayer.buildTokenIterator()
+
+      expect(tokenIterator.seekToScreenRow(0)).toEqual []
+      expect(tokenIterator.getStartScreenPosition()).toEqual [0, 0]
+      expect(tokenIterator.getEndScreenPosition()).toEqual [0, 1]
+      expect(tokenIterator.getOpenTags()).toEqual []
+      expect(tokenIterator.getCloseTags()).toEqual []
+
+      expect(tokenIterator.seekToScreenRow(1)).toEqual ['ab', 'ba']
+      expect(tokenIterator.getStartScreenPosition()).toEqual [1, 0]
+      expect(tokenIterator.getEndScreenPosition()).toEqual [1, 2]
+      expect(tokenIterator.getOpenTags()).toEqual []
+      expect(tokenIterator.getCloseTags()).toEqual ['ab']
+
+      expect(tokenIterator.seekToScreenRow(2)).toEqual ['ba']
+      expect(tokenIterator.getStartScreenPosition()).toEqual [2, 0]
+      expect(tokenIterator.getEndScreenPosition()).toEqual [2, 1]
+      expect(tokenIterator.getOpenTags()).toEqual []
+      expect(tokenIterator.getCloseTags()).toEqual ['ba']
+
   it "updates the displayed text correctly when the underlying buffer changes", ->
     for i in [0...50] by 1
       seed = Date.now()

@@ -36,10 +36,13 @@ class TokenIterator
     @startBufferPosition = @patchIterator.translateOutputPosition(@startScreenPosition)
     @openTags.length = 0
 
+    containingTags = []
     for decorationIterator in @decorationIterators
-      decorationIterator.seek(@startBufferPosition)
+      containingTagsForIterator = decorationIterator.seek(@startBufferPosition)
+      containingTags.push(containingTagsForIterator...)
 
     @assignEndPositionsAndText()
+    containingTags
 
   moveToSuccessor: ->
     @openTags.length = 0
@@ -113,3 +116,4 @@ class TokenIterator
       if comparison <= 0
         @decorationIteratorsToAdvance.push(decorationIterator)
         @closeTags.push(decorationIterator.getCloseTags()...)
+    return
