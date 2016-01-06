@@ -6,6 +6,7 @@ Range = require '../src/range'
 WORDS = require './helpers/words'
 SAMPLE_TEXT = require './helpers/sample-text'
 {currentSpecFailed} = require "./spec-helper"
+TestDecorationLayer = require './helpers/test-decoration-layer'
 
 describe "DisplayLayer", ->
   describe "hard tabs", ->
@@ -192,6 +193,40 @@ describe "DisplayLayer", ->
 
       expect(displayLayer.getText()).toBe 'abc\ndef\nghi\nj'
 
+  describe "text decorations", ->
+    it "exposes decorations from all text decoration layers in the token iterator", ->
+      buffer = new TextBuffer(text: """
+        abcde
+        fghij
+        klmno
+      """)
+
+      displayLayer = buffer.addDisplayLayer()
+      displayLayer.addTextDecorationLayer(new TestDecorationLayer([
+        ['aa', [[0, 1], [0, 4]]]
+        ['ab', [[0, 2], [1, 2]]]
+        ['ac', [[1, 3], [2, 0]]]
+        ['ad', [[2, 3], [2, 5]]]
+      ]))
+      displayLayer.addTextDecorationLayer(new TestDecorationLayer([
+        ['ba', [[0, 2], [2, 1]]]
+      ]))
+
+      verifyTokenIterator(displayLayer)
+      expectTokens(displayLayer, [
+        {start: [0, 0], end: [0, 1], open: [], close: [], containing: []},
+        {start: [0, 1], end: [0, 2], open: ['aa'], close: [], containing: []},
+        {start: [0, 2], end: [0, 4], open: ['ab', 'ba'], close: ['aa'], containing: ['aa']},
+        {start: [0, 4], end: [0, 5], open: [], close: [], containing: ['ab', 'ba']},
+        {start: [1, 0], end: [1, 2], open: [], close: ['ab'], containing: ['ab', 'ba']},
+        {start: [1, 2], end: [1, 3], open: [], close: [], containing: ['ba']},
+        {start: [1, 3], end: [1, 5], open: ['ac'], close: [], containing: ['ba']},
+        {start: [2, 0], end: [2, 0], open: [], close: ['ac'], containing: ['ba', 'ac']},
+        {start: [2, 0], end: [2, 1], open: [], close: ['ba'], containing: ['ba']},
+        {start: [2, 1], end: [2, 3], open: [], close: [], containing: []},
+        {start: [2, 3], end: [2, 5], open: ['ad'], close: ['ad'], containing: []}
+      ])
+
   it "updates the displayed text correctly when the underlying buffer changes", ->
     for i in [0...50] by 1
       seed = Date.now()
@@ -363,3 +398,15 @@ expectPositionTranslations = (displayLayer, tranlations) ->
       bufferPosition = bufferPositions
       expect(displayLayer.translateScreenPosition(screenPosition)).toEqual(bufferPosition)
       expect(displayLayer.translateBufferPosition(bufferPosition)).toEqual(screenPosition)
+
+expectTokens = (displayLayer, expectedTokens) ->
+  tokenIterator = displayLayer.buildTokenIterator()
+  tokenIterator.seekToScreenRow(0)
+  loop
+    {start, end, text, open, close, containing} = expectedTokens.shift()
+    expect(tokenIterator.getStartScreenPosition()).toEqual(start)
+    expect(tokenIterator.getEndScreenPosition()).toEqual(end)
+    # expect(tokenIterator.getOpenTags()).toEqual(open)
+    # expect(tokenIterator.getCloseTags()).toEqual(close)
+    # expect(tokenIterator.getContainingTags()).toEqual(containing)
+    break unless tokenIterator.moveToSuccessor()

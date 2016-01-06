@@ -14,6 +14,7 @@ class DisplayLayer
     @patch = new Patch(combineChanges: false, seed: patchSeed)
     @patchIterator = @patch.buildIterator()
     @displayMarkerLayersById = {}
+    @textDecorationLayers = []
     @foldsMarkerLayer ?= @buffer.addMarkerLayer()
     @foldIdCounter = 1
     @disposables = @buffer.onDidChange(@bufferDidChange.bind(this))
@@ -32,6 +33,9 @@ class DisplayLayer
 
   getMarkerLayer: (id) ->
     @displayMarkerLayersById[id] ?= new DisplayMarkerLayer(this, @buffer.getMarkerLayer(id))
+
+  addTextDecorationLayer: (layer) ->
+    @textDecorationLayers.push(layer)
 
   foldBufferRange: (bufferRange) ->
     bufferRange = @buffer.clipRange(bufferRange)
@@ -197,7 +201,7 @@ class DisplayLayer
     {folds, startBufferRow, endBufferRow}
 
   buildTokenIterator: ->
-    new TokenIterator(@buffer, @patch.buildIterator())
+    new TokenIterator(@buffer, @patch.buildIterator(), @textDecorationLayers.map (layer) -> layer.buildIterator())
 
   getText: ->
     text = ''
