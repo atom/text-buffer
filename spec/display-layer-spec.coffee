@@ -309,7 +309,7 @@ verifyChangeEvent = (displayLayer, failureMessage, fn) ->
     fn = failureMessage
     failureMessage = ''
 
-  previousDisplayLayerText = displayLayer.getText()
+  previousTokenLines = getTokenLines(displayLayer)
   lastChanges = null
   disposable = displayLayer.onDidChangeSync (changes) -> lastChanges = changes
 
@@ -317,15 +317,10 @@ verifyChangeEvent = (displayLayer, failureMessage, fn) ->
 
   disposable.dispose()
   if lastChanges?
-    bufferWithDisplayLayerText = new TextBuffer(text: previousDisplayLayerText)
-    for change in lastChanges
-      replacedRange = Range.fromPointWithTraversalExtent(change.start, change.replacedExtent)
-      replacementRange = Range.fromPointWithTraversalExtent(change.start, change.replacementExtent)
-      replacementText = substringForRange(displayLayer.getText(), replacementRange)
-      bufferWithDisplayLayerText.setTextInRange(replacedRange, replacementText)
-    expect(bufferWithDisplayLayerText.getText()).toBe(displayLayer.getText(), failureMessage)
+    updateTokenLines(previousTokenLines, displayLayer, lastChanges)
+    expect(previousTokenLines).toEqual(getTokenLines(displayLayer), failureMessage)
   else
-    expect(displayLayer.getText()).toBe(previousDisplayLayerText)
+    expect(getTokenLines(displayLayer)).toEqual(previousTokenLines, failureMessage)
 
 verifyTokenIterator = (displayLayer, failureMessage) ->
   {buffer} = displayLayer
@@ -431,3 +426,37 @@ expectTokens = (displayLayer, expectedTokens) ->
     expect(tokenIterator.getOpenTags()).toEqual(open, "Open tags of token with start position: #{start}, end position: #{end}")
     expect(tokenIterator.getCloseTags()).toEqual(close, "Close tags of token with start position #{start}, end position #{end}")
     break unless tokenIterator.moveToSuccessor()
+
+getTokenLines = (displayLayer, startRow=0, endRow=displayLayer.getScreenLineCount()) ->
+  lines = displayLayer.getText().split('\n')
+  tokenIterator = displayLayer.buildTokenIterator()
+  tokenIterator.seekToScreenRow(startRow)
+  tokenLines = []
+  tokenLine = []
+  currentRow = startRow
+
+  loop
+    openTags = tokenIterator.getOpenTags()
+    closeTags = tokenIterator.getCloseTags()
+    startColumn = tokenIterator.getStartScreenPosition().column
+    endColumn = tokenIterator.getEndScreenPosition().column
+    text = lines[currentRow].substring(startColumn, endColumn)
+    tokenLine.push({openTags, closeTags, text})
+
+    unless tokenIterator.moveToSuccessor()
+      tokenLines.push(tokenLine)
+      break
+
+    if tokenIterator.getStartScreenPosition().row > currentRow
+      tokenLines.push(tokenLine)
+      currentRow++
+      if currentRow is endRow
+        break
+      else
+        tokenLine = []
+
+  tokenLines
+
+updateTokenLines = (tokenLines, displayLayer, changes) ->
+  for {start, replacedExtent, replacementExtent} in changes
+    tokenLines.splice(start.row, replacedExtent.row, getTokenLines(displayLayer, start.row, start.row + replacementExtent.row)...)

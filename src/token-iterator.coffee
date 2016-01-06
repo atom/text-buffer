@@ -51,6 +51,7 @@ class TokenIterator
       @startScreenPosition = traverse(@endScreenPosition, Point(1, 0))
       @startBufferPosition = @patchIterator.translateOutputPosition(@startScreenPosition)
       return false if compare(@startBufferPosition, @buffer.getEndPosition()) > 0
+      @advancePatchIterator = compare(@patchIterator.getOutputEnd(), @startScreenPosition) is 0
     else
       @startScreenPosition = @endScreenPosition
       @startBufferPosition = @endBufferPosition
@@ -69,10 +70,10 @@ class TokenIterator
     true
 
   getOpenTags: ->
-    @openTags
+    @openTags.slice()
 
   getCloseTags: ->
-    @closeTags
+    @closeTags.slice()
 
   assignEndPositionsAndText: ->
     if @patchIterator.getOutputEnd().row is @startScreenPosition.row
@@ -116,4 +117,5 @@ class TokenIterator
       if comparison <= 0
         @decorationIteratorsToAdvance.push(decorationIterator)
         @closeTags.unshift(decorationIterator.getCloseTags()...)
+
     return
