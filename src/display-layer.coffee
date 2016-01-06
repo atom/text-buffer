@@ -46,7 +46,7 @@ class DisplayLayer
       {start, replacedExtent} = @patch.spliceInput(bufferStart, foldExtent, foldExtent)
       screenNewEnd = @computeTransformation(bufferRange.start.row, bufferRange.end.row + 1)
       replacementExtent = traversal(screenNewEnd, start)
-      @emitter.emit 'did-change-text-sync', {start, replacedExtent, replacementExtent}
+      @emitter.emit 'did-change-sync', [{start, replacedExtent, replacementExtent}]
 
     foldId
 
@@ -75,10 +75,10 @@ class DisplayLayer
       {start, replacedExtent} = @patch.spliceInput(bufferStart, foldExtent, foldExtent)
       screenNewEnd = @computeTransformation(bufferStart.row, bufferEnd.row)
       replacementExtent = traversal(screenNewEnd, start)
-      @emitter.emit 'did-change-text-sync', {start, replacedExtent, replacementExtent}
+      @emitter.emit 'did-change-sync', [{start, replacedExtent, replacementExtent}]
 
-  onDidChangeTextSync: (callback) ->
-    @emitter.on 'did-change-text-sync', callback
+  onDidChangeSync: (callback) ->
+    @emitter.on 'did-change-sync', callback
 
   bufferDidChange: (change) ->
     {oldRange, newRange} = change
@@ -91,7 +91,7 @@ class DisplayLayer
     screenNewEnd = @computeTransformation(oldRange.start.row, newRange.end.row + 1)
     replacementExtent = traversal(screenNewEnd, start)
 
-    @emitter.emit 'did-change-text-sync', {start, replacedExtent, replacementExtent}
+    @emitter.emit 'did-change-sync', [{start, replacedExtent, replacementExtent}]
 
   expandBufferRangeToScreenLineStarts: (range) ->
     # Expand the start of the change to the buffer row that starts

@@ -310,18 +310,19 @@ verifyChangeEvent = (displayLayer, failureMessage, fn) ->
     failureMessage = ''
 
   previousDisplayLayerText = displayLayer.getText()
-  lastChange = null
-  disposable = displayLayer.onDidChangeTextSync (change) -> lastChange = change
+  lastChanges = null
+  disposable = displayLayer.onDidChangeSync (changes) -> lastChanges = changes
 
   fn()
 
   disposable.dispose()
-  if lastChange?
-    replacedRange = Range.fromPointWithTraversalExtent(lastChange.start, lastChange.replacedExtent)
-    replacementRange = Range.fromPointWithTraversalExtent(lastChange.start, lastChange.replacementExtent)
-    replacementText = substringForRange(displayLayer.getText(), replacementRange)
+  if lastChanges?
     bufferWithDisplayLayerText = new TextBuffer(text: previousDisplayLayerText)
-    bufferWithDisplayLayerText.setTextInRange(replacedRange, replacementText)
+    for change in lastChanges
+      replacedRange = Range.fromPointWithTraversalExtent(change.start, change.replacedExtent)
+      replacementRange = Range.fromPointWithTraversalExtent(change.start, change.replacementExtent)
+      replacementText = substringForRange(displayLayer.getText(), replacementRange)
+      bufferWithDisplayLayerText.setTextInRange(replacedRange, replacementText)
     expect(bufferWithDisplayLayerText.getText()).toBe(displayLayer.getText(), failureMessage)
   else
     expect(displayLayer.getText()).toBe(previousDisplayLayerText)
