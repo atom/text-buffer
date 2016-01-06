@@ -210,6 +210,7 @@ describe "DisplayLayer", ->
       ]))
       displayLayer.addTextDecorationLayer(new TestDecorationLayer([
         ['ba', [[0, 2], [2, 1]]]
+        ['bb', [[2, 1], [2, 5]]]
       ]))
 
       verifyTokenIterator(displayLayer)
@@ -223,8 +224,8 @@ describe "DisplayLayer", ->
         {start: [1, 3], end: [1, 5], open: ['ac'], close: []},
         {start: [2, 0], end: [2, 0], open: [], close: ['ac']},
         {start: [2, 0], end: [2, 1], open: [], close: ['ba']},
-        {start: [2, 1], end: [2, 3], open: [], close: []},
-        {start: [2, 3], end: [2, 5], open: ['ad'], close: ['ad']}
+        {start: [2, 1], end: [2, 3], open: ['bb'], close: []},
+        {start: [2, 3], end: [2, 5], open: ['ad'], close: ['bb', 'ad']}
       ])
 
       tokenIterator = displayLayer.buildTokenIterator()

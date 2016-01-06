@@ -115,5 +115,5 @@ class TokenIterator
 
       if comparison <= 0
         @decorationIteratorsToAdvance.push(decorationIterator)
-        @closeTags.push(decorationIterator.getCloseTags()...)
+        @closeTags.unshift(decorationIterator.getCloseTags()...)
     return
