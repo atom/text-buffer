@@ -216,7 +216,7 @@ class TextBuffer
   onDidConflict: (callback) ->
     @emitter.on 'did-conflict', callback
 
-  # Public: Invoke the given callback the value of {::isModified} changes.
+  # Public: Invoke the given callback if the value of {::isModified} changes.
   #
   # * `callback` {Function} to be called when {::isModified} changes.
   #   * `modified` {Boolean} indicating whether the buffer is modified.
