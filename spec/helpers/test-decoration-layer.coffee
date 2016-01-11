@@ -69,74 +69,69 @@ class TestDecorationLayerIterator
     markersSortedByEnd = nonEmptyMarkers.slice().sort (a, b) ->
       comparePoints(markerIndex.getEnd(a), markerIndex.getEnd(b)) or b - a
 
-    @tokens = []
-    containing = []
+    @boundaries = []
 
     nextEmptyMarkerStart = -> emptyMarkers.length > 0 and markerIndex.getStart(emptyMarkers[0])
     nextMarkerStart = -> markersSortedByStart.length > 0 and markerIndex.getStart(markersSortedByStart[0])
     nextMarkerEnd = -> markersSortedByEnd.length > 0 and markerIndex.getEnd(markersSortedByEnd[0])
-    previousTokenEnd = Point(0, 0)
 
     while emptyMarkers.length > 0 or markersSortedByStart.length > 0 or markersSortedByEnd.length > 0
-      token = {
-        startPosition: previousTokenEnd
-        endPosition: null
-        openTags: []
+      boundary = {
+        position: Point.INFINITY
         closeTags: []
-        containingTags: containing.slice()
+        openTags: []
       }
 
-      while nextMarkerStart() and isEqualPoint(nextMarkerStart(), token.startPosition)
-        openTag = tagsByMarkerId[markersSortedByStart.shift()]
-        token.openTags.push(openTag)
-        containing.push(openTag)
+      if nextMarkerStart()
+        boundary.position = minPoint(boundary.position, nextMarkerStart())
+      if nextEmptyMarkerStart()
+        boundary.position = minPoint(boundary.position, nextEmptyMarkerStart())
+      if nextMarkerEnd()
+        boundary.position = minPoint(boundary.position, nextMarkerEnd())
 
-      while nextEmptyMarkerStart() and isEqualPoint(nextEmptyMarkerStart(), token.startPosition)
-        token.endPosition = token.startPosition
-        tag = tagsByMarkerId[emptyMarkers.shift()]
-        token.openTags.push(tag)
-        token.closeTags.push(tag)
+      while nextMarkerEnd() and isEqualPoint(nextMarkerEnd(), boundary.position)
+        boundary.closeTags.push(tagsByMarkerId[markersSortedByEnd.shift()])
 
-      unless token.endPosition?
-        token.endPosition = Point.INFINITY
-        if nextMarkerStart()
-          token.endPosition = minPoint(token.endPosition, nextMarkerStart())
-        if nextEmptyMarkerStart()
-          token.endPosition = minPoint(token.endPosition, nextEmptyMarkerStart())
-        if nextMarkerEnd()
-          token.endPosition = minPoint(token.endPosition, nextMarkerEnd())
+      emptyTags = []
+      while nextEmptyMarkerStart() and isEqualPoint(nextEmptyMarkerStart(), boundary.position)
+        emptyTags.push(tagsByMarkerId[emptyMarkers.shift()])
 
-      while nextMarkerEnd() and isEqualPoint(nextMarkerEnd(), token.endPosition)
-        closeTag = tagsByMarkerId[markersSortedByEnd.shift()]
-        token.closeTags.push(closeTag)
-        containing.splice(containing.lastIndexOf(closeTag), 1)
+      if emptyTags.length > 0
+        boundary.openTags.push(emptyTags...)
+        @boundaries.push(boundary)
+        boundary = {
+          position: boundary.position
+          closeTags: []
+          openTags: []
+        }
+        boundary.closeTags.push(emptyTags...)
 
-      previousTokenEnd = token.endPosition
-      @tokens.push(token)
+      while nextMarkerStart() and isEqualPoint(nextMarkerStart(), boundary.position)
+        boundary.openTags.push(tagsByMarkerId[markersSortedByStart.shift()])
+
+      @boundaries.push(boundary)
 
   seek: (position) ->
-    for token, index in @tokens
-      endComparison = comparePoints(token.endPosition, position)
-      if endComparison > 0 or endComparison is 0 and token.closeTags.length > 0
-        @tokenIndex = index
-        if comparePoints(token.startPosition, position) < 0
-          return token.containingTags.concat(token.openTags)
-        else
-          return token.containingTags
-    return []
+    containingTags = []
+    for boundary, index in @boundaries
+      if comparePoints(boundary.position, position) >= 0
+        @boundaryIndex = index
+        return containingTags
+      else
+        for tag in boundary.closeTags
+          containingTags.splice(containingTags.lastIndexOf(tag), 1)
+        containingTags.push(boundary.openTags...)
+    @boundaryIndex = @boundaries.length
+    containingTags
 
   moveToSuccessor: ->
-    @tokenIndex++
-    @tokenIndex < @tokens.length
+    @boundaryIndex++
 
-  getStartPosition: ->
-    @tokens[@tokenIndex]?.startPosition ? Point(0, 0)
-
-  getEndPosition: ->
-    @tokens[@tokenIndex]?.endPosition ? @layer.buffer.getEndPosition()
-
-  getOpenTags: ->
-    @tokens[@tokenIndex]?.openTags ? []
+  getPosition: ->
+    @boundaries[@boundaryIndex]?.position ? Point.INFINITY
 
   getCloseTags: ->
-    @tokens[@tokenIndex]?.closeTags ? []
+    @boundaries[@boundaryIndex]?.closeTags ? []
+
+  getOpenTags: ->
+    @boundaries[@boundaryIndex]?.openTags ? []

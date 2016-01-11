@@ -211,16 +211,16 @@ describe "DisplayLayer", ->
 
       verifyTokenIterator(displayLayer)
       expectTokens(displayLayer, [
-        {start: [0, 0], end: [0, 1], open: [], close: []},
-        {start: [0, 1], end: [0, 2], open: ['aa'], close: []},
-        {start: [0, 2], end: [0, 4], open: ['ab'], close: ['aa']},
-        {start: [0, 4], end: [0, 5], open: [], close: []},
-        {start: [1, 0], end: [1, 2], open: [], close: ['ab']},
-        {start: [1, 2], end: [1, 3], open: [], close: []},
-        {start: [1, 3], end: [1, 5], open: ['ac'], close: []},
-        {start: [2, 0], end: [2, 0], open: [], close: ['ac']},
-        {start: [2, 0], end: [2, 3], open: [], close: []},
-        {start: [2, 3], end: [2, 5], open: ['ad'], close: ['ad']}
+        {start: [0, 0], end: [0, 1], close: [], open: []},
+        {start: [0, 1], end: [0, 2], close: [], open: ['aa']},
+        {start: [0, 2], end: [0, 4], close: [], open: ['ab']},
+        {start: [0, 4], end: [0, 5], close: ['aa'], open: []},
+        {start: [1, 0], end: [1, 2], close: [], open: []},
+        {start: [1, 2], end: [1, 3], close: ['ab'], open: []},
+        {start: [1, 3], end: [1, 5], close: [], open: ['ac']},
+        {start: [2, 0], end: [2, 3], close: ['ac'], open: []},
+        {start: [2, 3], end: [2, 5], close: [], open: ['ad']},
+        {start: [2, 5], end: [2, 5], close: ['ad'], open: []}
       ])
 
       tokenIterator = displayLayer.buildTokenIterator()
@@ -228,20 +228,20 @@ describe "DisplayLayer", ->
       expect(tokenIterator.seekToScreenRow(0)).toEqual []
       expect(tokenIterator.getStartScreenPosition()).toEqual [0, 0]
       expect(tokenIterator.getEndScreenPosition()).toEqual [0, 1]
-      expect(tokenIterator.getOpenTags()).toEqual []
       expect(tokenIterator.getCloseTags()).toEqual []
+      expect(tokenIterator.getOpenTags()).toEqual []
 
       expect(tokenIterator.seekToScreenRow(1)).toEqual ['ab']
       expect(tokenIterator.getStartScreenPosition()).toEqual [1, 0]
       expect(tokenIterator.getEndScreenPosition()).toEqual [1, 2]
+      expect(tokenIterator.getCloseTags()).toEqual []
       expect(tokenIterator.getOpenTags()).toEqual []
-      expect(tokenIterator.getCloseTags()).toEqual ['ab']
 
       expect(tokenIterator.seekToScreenRow(2)).toEqual ['ac']
       expect(tokenIterator.getStartScreenPosition()).toEqual [2, 0]
-      expect(tokenIterator.getEndScreenPosition()).toEqual [2, 0]
-      expect(tokenIterator.getOpenTags()).toEqual []
+      expect(tokenIterator.getEndScreenPosition()).toEqual [2, 3]
       expect(tokenIterator.getCloseTags()).toEqual ['ac']
+      expect(tokenIterator.getOpenTags()).toEqual []
 
   it "updates the displayed text correctly when the underlying buffer changes", ->
     for i in [0...10] by 1
