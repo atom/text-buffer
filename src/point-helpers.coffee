@@ -14,6 +14,9 @@ compareNumbers = (a, b) ->
   else
     0
 
+exports.isEqual = (a, b) ->
+  a.row is b.row and a.column is b.column
+
 exports.traverse = (start, distance) ->
   if distance.row is 0
     Point(start.row, start.column + distance.column)
@@ -44,9 +47,14 @@ exports.clipNegativePoint = (point) ->
   else
     point
 
-
 exports.max = (a, b) ->
   if exports.compare(a, b) >= 0
+    a
+  else
+    b
+
+exports.min = (a, b) ->
+  if exports.compare(a, b) <= 0
     a
   else
     b

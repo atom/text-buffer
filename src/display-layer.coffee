@@ -14,7 +14,7 @@ class DisplayLayer
     @patch = new Patch(combineChanges: false, seed: patchSeed)
     @patchIterator = @patch.buildIterator()
     @displayMarkerLayersById = {}
-    @textDecorationLayers = []
+    @textDecorationLayer = null
     @foldsMarkerLayer ?= @buffer.addMarkerLayer()
     @foldIdCounter = 1
     @disposables = @buffer.onDidChange(@bufferDidChange.bind(this))
@@ -34,8 +34,8 @@ class DisplayLayer
   getMarkerLayer: (id) ->
     @displayMarkerLayersById[id] ?= new DisplayMarkerLayer(this, @buffer.getMarkerLayer(id))
 
-  addTextDecorationLayer: (layer) ->
-    @textDecorationLayers.push(layer)
+  setTextDecorationLayer: (layer) ->
+    @textDecorationLayer = layer
 
   foldBufferRange: (bufferRange) ->
     bufferRange = @buffer.clipRange(bufferRange)
@@ -91,7 +91,20 @@ class DisplayLayer
     screenNewEnd = @computeTransformation(oldRange.start.row, newRange.end.row + 1)
     replacementExtent = traversal(screenNewEnd, start)
 
-    @emitter.emit 'did-change-sync', [{start, replacedExtent, replacementExtent}]
+    combinedChanges = new Patch
+    combinedChanges.splice(start, replacedExtent, replacementExtent)
+
+    if @textDecorationLayer?
+      invalidatedRanges = @textDecorationLayer.getInvalidatedRanges()
+      for range in invalidatedRanges
+        range = Range.fromObject(range, true)
+        range.start.column = 0
+        range.end.row++
+        range.end.column = 0
+        extent = range.getExtent()
+        combinedChanges.splice(range.start, extent, extent)
+
+    @emitter.emit 'did-change-sync', combinedChanges.getChanges()
 
   expandBufferRangeToScreenLineStarts: (range) ->
     # Expand the start of the change to the buffer row that starts
@@ -201,7 +214,7 @@ class DisplayLayer
     {folds, startBufferRow, endBufferRow}
 
   buildTokenIterator: ->
-    new TokenIterator(@buffer, @patch.buildIterator(), @textDecorationLayers.map (layer) -> layer.buildIterator())
+    new TokenIterator(@buffer, @patch.buildIterator(), @textDecorationLayer?.buildIterator())
 
   getText: ->
     text = ''
