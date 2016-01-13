@@ -24,21 +24,15 @@ class TestDecorationLayer
 
   getInvalidatedRanges: -> @invalidatedRanges
 
-  openTagsForPosition: (position) ->
-    ids = Array.from(@markerIndex.findStartingAt(position))
-    ids.map (id) => @tagsByMarkerId[id]
-
-  closeTagsForPosition: (position) ->
-    ids = Array.from(@markerIndex.findEndingAt(position))
-    ids.map (id) => @tagsByMarkerId[id]
+  containingTagsForPosition: (position) ->
+    containingIds = @markerIndex.findContaining(position)
+    @markerIndex.findEndingAt(position).forEach (id) -> containingIds.delete(id)
+    Array.from(containingIds).map (id) => @tagsByMarkerId[id]
 
   bufferDidChange: ({oldRange, newRange}) ->
     @invalidatedRanges = [Range.fromObject(newRange)]
     {overlap} = @markerIndex.splice(oldRange.start, oldRange.getExtent(), newRange.getExtent())
-    for id in overlap
-      @invalidatedRanges.push(@markerIndex.getRange(id))
-      delete @tagsByMarkerId[id]
-      @markerIndex.remove(id)
+    overlap.forEach (id) => @invalidatedRanges.push(@markerIndex.getRange(id))
 
     for i in [0..@random(5)]
       markerId = @nextMarkerId++

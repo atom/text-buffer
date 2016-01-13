@@ -288,9 +288,9 @@ describe "DisplayLayer", ->
       for j in [0...10] by 1
         k = random(10)
         if k < 2
-          # createRandomFold(random, displayLayer, foldIds, seedFailureMessage)
+          createRandomFold(random, displayLayer, foldIds, seedFailureMessage)
         else if k < 4 and foldIds.length > 0
-          # destroyRandomFold(random, displayLayer, foldIds, seedFailureMessage)
+          destroyRandomFold(random, displayLayer, foldIds, seedFailureMessage)
         else
           performRandomChange(random, buffer, displayLayer, seedFailureMessage)
 
@@ -368,6 +368,8 @@ verifyTokenIterator = (displayLayer, textDecorationLayer, failureMessage) ->
   lastTextRow = 0
   pendingOpenTags = []
   pendingCloseTags = []
+  previousTokenWasFold = false
+  containingTags = []
   loop
     startScreenPosition = tokenIterator.getStartScreenPosition()
     endScreenPosition = tokenIterator.getEndScreenPosition()
@@ -382,18 +384,6 @@ verifyTokenIterator = (displayLayer, textDecorationLayer, failureMessage) ->
     if startScreenPosition.row > lastTextRow
       expect(startScreenPosition.row).toBe(lastTextRow + 1, failureMessage) # don't skip lines
       text += '\n'
-
-      endOfLastScreenLine = displayLayer.clipScreenPosition(Point(lastTextRow, Infinity))
-      endOfLastScreenLineInBuffer = displayLayer.translateScreenPosition(endOfLastScreenLine)
-
-      if pendingOpenTags.length > 0
-        expect(pendingOpenTags.sort()).toEqual(textDecorationLayer.openTagsForPosition(endOfLastScreenLineInBuffer).sort(), "End of row #{lastTextRow} – " + failureMessage)
-        pendingOpenTags = []
-
-      if pendingCloseTags.length > 0
-        expect(pendingCloseTags.sort()).toEqual(textDecorationLayer.closeTagsForPosition(endOfLastScreenLineInBuffer).sort(), "End of row #{lastTextRow} – " + failureMessage)
-        pendingCloseTags = []
-
       lastTextRow = startScreenPosition.row
 
     tokenText = tokenIterator.getText()
@@ -401,19 +391,27 @@ verifyTokenIterator = (displayLayer, textDecorationLayer, failureMessage) ->
     text += tokenText
 
     if textDecorationLayer?
-      if isEqualPoint(startBufferPosition, endBufferPosition)
-        pendingOpenTags.push(tokenIterator.getOpenTags()...)
-        pendingCloseTags.push(tokenIterator.getCloseTags()...)
+      for tag in tokenIterator.getCloseTags()
+        index = containingTags.lastIndexOf(tag)
+        expect(index).not.toBe(-1, failureMessage)
+        containingTags.splice(index, 1)
+      containingTags.push(tokenIterator.getOpenTags()...)
+
+      if tokenIterator.isFold()
+        expect(tokenIterator.getOpenTags()).toEqual([], failureMessage)
+        expect(containingTags).toEqual([], failureMessage)
+        previousTokenWasFold = true
       else
-        openTags = tokenIterator.getOpenTags().concat(pendingOpenTags)
-        closeTags = tokenIterator.getCloseTags().concat(pendingCloseTags)
-        expect(openTags.sort()).toEqual(textDecorationLayer.openTagsForPosition(startBufferPosition).sort(), "Open tags at position (#{startBufferPosition.row}, #{startBufferPosition.column}) – " + failureMessage)
-        expect(closeTags.sort()).toEqual(textDecorationLayer.closeTagsForPosition(startBufferPosition).sort(), "Close tags at position (#{startBufferPosition.row}, #{startBufferPosition.column}) – " + failureMessage)
-        pendingOpenTags = []
-        pendingCloseTags = []
+        if previousTokenWasFold
+          expect(tokenIterator.getCloseTags()).toEqual([])
+          previousTokenWasFold = false
+
+        if tokenText.length > 0
+          expect(containingTags.sort()).toEqual(textDecorationLayer.containingTagsForPosition(startBufferPosition).sort())
 
     break unless tokenIterator.moveToSuccessor()
 
+  expect(containingTags).toEqual([], failureMessage)
   expect(text).toBe(displayLayer.getText(), failureMessage)
 
 verifyPositionTranslations = (actualDisplayLayer, expectedDisplayLayer, failureMessage) ->
