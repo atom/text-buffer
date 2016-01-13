@@ -51,6 +51,13 @@ class TokenIterator
     @containingTags
 
   moveToSuccessor: ->
+    if @closeTags?
+      for tag in @closeTags
+        @containingTags.splice(@containingTags.lastIndexOf(tag), 1)
+
+    if @openTags?
+      @containingTags.push(@openTags...)
+
     @startScreenPosition = @endScreenPosition
     @startBufferPosition = @endBufferPosition
     @closeTags = null
@@ -116,12 +123,8 @@ class TokenIterator
         @endScreenPosition = @patchIterator.translateInputPosition(@endBufferPosition)
 
     if @decorationIterator?
-      if @closeTags?
-        for tag in @closeTags
-          @containingTags.splice(@containingTags.lastIndexOf(tag), 1)
-
       if @isFold()
-        @closeTags = (@closeTags ? []).concat(@containingTags)
+        @closeTags = @containingTags.slice()
         @containingTags.length = 0
         @openTags = null
         @tagsToReopen = @decorationIterator.seek(@getEndBufferPosition())
@@ -136,6 +139,3 @@ class TokenIterator
           @endBufferPosition = decorationIteratorPosition
           @endScreenPosition = @patchIterator.translateInputPosition(@endBufferPosition)
           @text = @text.substring(0, @endScreenPosition.column - @startScreenPosition.column)
-
-      if @openTags?
-        @containingTags.push(@openTags...)
