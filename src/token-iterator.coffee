@@ -2,10 +2,11 @@ Point = require './point'
 Range = require './range'
 {traverse, traversal, compare: comparePoints, isEqual: isEqualPoint, characterIndexForPoint} = require './point-helpers'
 EMPTY_ARRAY = Object.freeze([])
+EmptyDecorationIterator = require './empty-decoration-iterator'
 
 module.exports =
 class TokenIterator
-  constructor: (@buffer, @patchIterator, @decorationIterator) ->
+  constructor: (@buffer, @patchIterator, @decorationIterator=new EmptyDecorationIterator) ->
     @reset()
 
   getStartBufferPosition: -> Point.fromObject(@startBufferPosition)
@@ -39,22 +40,19 @@ class TokenIterator
     @startBufferPosition = @patchIterator.translateOutputPosition(@startScreenPosition)
     @containingTags = []
     @closeTags = EMPTY_ARRAY
-    @openTags = EMPTY_ARRAY
+    @openTags = @decorationIterator.seek(@startBufferPosition)
 
-    if @decorationIterator?
-      @openTags = @decorationIterator.seek(@startBufferPosition)
-      if isEqualPoint(@startBufferPosition, @decorationIterator.getPosition())
-        for tag in @decorationIterator.getCloseTags()
-          @openTags.splice(@openTags.lastIndexOf(tag), 1)
-        @openTags.push(@decorationIterator.getOpenTags()...)
+    if isEqualPoint(@startBufferPosition, @decorationIterator.getPosition())
+      for tag in @decorationIterator.getCloseTags()
+        @openTags.splice(@openTags.lastIndexOf(tag), 1)
+      @openTags.push(@decorationIterator.getOpenTags()...)
 
     @assignEndPositionsAndText()
 
   moveToSuccessor: ->
-    if @decorationIterator?
-      for tag in @closeTags
-        @containingTags.splice(@containingTags.lastIndexOf(tag), 1)
-      @containingTags.push(@openTags...)
+    for tag in @closeTags
+      @containingTags.splice(@containingTags.lastIndexOf(tag), 1)
+    @containingTags.push(@openTags...)
 
     @startScreenPosition = @endScreenPosition
     @startBufferPosition = @endBufferPosition
@@ -62,7 +60,7 @@ class TokenIterator
     @openTags = EMPTY_ARRAY
 
     atLineEnd = true
-    if @decorationIterator? and isEqualPoint(@startBufferPosition, @decorationIterator.getPosition())
+    if isEqualPoint(@startBufferPosition, @decorationIterator.getPosition())
       atLineEnd = false
       @closeTags = @decorationIterator.getCloseTags()
       @openTags = @decorationIterator.getOpenTags()
@@ -74,19 +72,17 @@ class TokenIterator
     return false unless @closeTags.length > 0 or @openTags.length > 0 or comparePoints(@startBufferPosition, @buffer.getEndPosition()) < 0
 
     if atLineEnd
-      if not @decorationIterator? or @tagsToReopenAfterNewline?
+      if @containingTags.length is 0 or @tagsToReopenAfterNewline?
         @startScreenPosition = Point(@startScreenPosition.row + 1, 0)
         @startBufferPosition = @patchIterator.translateOutputPosition(@startScreenPosition)
+        @closeTags = EMPTY_ARRAY
+        @openTags = @tagsToReopenAfterNewline ? []
+        @tagsToReopenAfterNewline = null
 
-        if @decorationIterator?
-          @closeTags = EMPTY_ARRAY
-          @openTags = @tagsToReopenAfterNewline
-          @tagsToReopenAfterNewline = null
-
-          if isEqualPoint(@startBufferPosition, @decorationIterator.getPosition())
-            for tag in @decorationIterator.getCloseTags()
-              @openTags.splice(@openTags.lastIndexOf(tag), 1)
-            @openTags.push(@decorationIterator.getOpenTags()...)
+        if isEqualPoint(@startBufferPosition, @decorationIterator.getPosition())
+          for tag in @decorationIterator.getCloseTags()
+            @openTags.splice(@openTags.lastIndexOf(tag), 1)
+          @openTags.push(@decorationIterator.getOpenTags()...)
 
         if isEqualPoint(@startScreenPosition, @patchIterator.getOutputEnd())
           @patchIterator.moveToSuccessor()
@@ -134,20 +130,19 @@ class TokenIterator
         @endBufferPosition = traverse(@startBufferPosition, Point(0, @text.length))
         @endScreenPosition = @patchIterator.translateInputPosition(@endBufferPosition)
 
-    if @decorationIterator?
-      if @isFold()
-        @closeTags = @containingTags.slice()
-        @containingTags.length = 0
-        @openTags = EMPTY_ARRAY
-        @tagsToReopenAfterFold = @decorationIterator.seek(@endBufferPosition)
-      else
+    if @isFold()
+      @closeTags = @containingTags.slice()
+      @containingTags.length = 0
+      @openTags = EMPTY_ARRAY
+      @tagsToReopenAfterFold = @decorationIterator.seek(@endBufferPosition)
+    else
+      decorationIteratorPosition = @decorationIterator.getPosition()
+
+      if isEqualPoint(decorationIteratorPosition, @startBufferPosition)
+        @decorationIterator.moveToSuccessor()
         decorationIteratorPosition = @decorationIterator.getPosition()
 
-        if isEqualPoint(decorationIteratorPosition, @startBufferPosition)
-          @decorationIterator.moveToSuccessor()
-          decorationIteratorPosition = @decorationIterator.getPosition()
-
-        if comparePoints(decorationIteratorPosition, @endBufferPosition) < 0
-          @endBufferPosition = decorationIteratorPosition
-          @endScreenPosition = @patchIterator.translateInputPosition(@endBufferPosition)
-          @text = @text.substring(0, @endScreenPosition.column - @startScreenPosition.column)
+      if comparePoints(decorationIteratorPosition, @endBufferPosition) < 0
+        @endBufferPosition = decorationIteratorPosition
+        @endScreenPosition = @patchIterator.translateInputPosition(@endBufferPosition)
+        @text = @text.substring(0, @endScreenPosition.column - @startScreenPosition.column)
