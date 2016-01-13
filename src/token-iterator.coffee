@@ -31,7 +31,7 @@ class TokenIterator
     @openTags = EMPTY_ARRAY
     @closeTags = EMPTY_ARRAY
     @containingTags = null
-    @tagsToReopen = null
+    @tagsToReopenAfterFold = null
 
   seekToScreenRow: (screenRow) ->
     @startScreenPosition = Point(screenRow, 0)
@@ -83,12 +83,12 @@ class TokenIterator
       if isEqualPoint(@startScreenPosition, @patchIterator.getOutputEnd())
         @patchIterator.moveToSuccessor()
 
-    if @tagsToReopen?
+    if @tagsToReopenAfterFold?
       for tag in @closeTags
-        @tagsToReopen.splice(@tagsToReopen.lastIndexOf(tag), 1)
+        @tagsToReopenAfterFold.splice(@tagsToReopenAfterFold.lastIndexOf(tag), 1)
       @closeTags = EMPTY_ARRAY
-      @openTags = @tagsToReopen.concat(@openTags)
-      @tagsToReopen = null
+      @openTags = @tagsToReopenAfterFold.concat(@openTags)
+      @tagsToReopenAfterFold = null
 
     @assignEndPositionsAndText()
     true
@@ -123,7 +123,7 @@ class TokenIterator
         @closeTags = @containingTags.slice()
         @containingTags.length = 0
         @openTags = EMPTY_ARRAY
-        @tagsToReopen = @decorationIterator.seek(@getEndBufferPosition())
+        @tagsToReopenAfterFold = @decorationIterator.seek(@getEndBufferPosition())
       else
         decorationIteratorPosition = @decorationIterator.getPosition()
 
