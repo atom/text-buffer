@@ -97,7 +97,7 @@ class DisplayLayer
     if @textDecorationLayer?
       invalidatedRanges = @textDecorationLayer.getInvalidatedRanges()
       for range in invalidatedRanges
-        range = Range.fromObject(range, true)
+        range = @translateBufferRange(range)
         range.start.column = 0
         range.end.row++
         range.end.column = 0
