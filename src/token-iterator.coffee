@@ -51,9 +51,10 @@ class TokenIterator
     @containingTags
 
   moveToSuccessor: ->
-    for tag in @closeTags
-      @containingTags.splice(@containingTags.lastIndexOf(tag), 1)
-    @containingTags.push(@openTags...)
+    if @decorationIterator?
+      for tag in @closeTags
+        @containingTags.splice(@containingTags.lastIndexOf(tag), 1)
+      @containingTags.push(@openTags...)
 
     @startScreenPosition = @endScreenPosition
     @startBufferPosition = @endBufferPosition
