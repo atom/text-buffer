@@ -215,32 +215,34 @@ describe "DisplayLayer", ->
         {start: [0, 1], end: [0, 2], close: [], open: ['aa']},
         {start: [0, 2], end: [0, 4], close: [], open: ['ab']},
         {start: [0, 4], end: [0, 5], close: ['aa'], open: []},
-        {start: [1, 0], end: [1, 2], close: [], open: []},
+        {start: [0, 5], end: [0, 5], close: ['ab'], open: []},
+        {start: [1, 0], end: [1, 2], close: [], open: ['ab']},
         {start: [1, 2], end: [1, 3], close: ['ab'], open: []},
         {start: [1, 3], end: [1, 5], close: [], open: ['ac']},
-        {start: [2, 0], end: [2, 3], close: ['ac'], open: []},
+        {start: [1, 5], end: [1, 5], close: ['ac'], open: []},
+        {start: [2, 0], end: [2, 3], close: [], open: []},
         {start: [2, 3], end: [2, 5], close: [], open: ['ad']},
         {start: [2, 5], end: [2, 5], close: ['ad'], open: []}
       ])
 
       tokenIterator = displayLayer.buildTokenIterator()
 
-      expect(tokenIterator.seekToScreenRow(0)).toEqual []
+      tokenIterator.seekToScreenRow(0)
       expect(tokenIterator.getStartScreenPosition()).toEqual [0, 0]
       expect(tokenIterator.getEndScreenPosition()).toEqual [0, 1]
       expect(tokenIterator.getCloseTags()).toEqual []
       expect(tokenIterator.getOpenTags()).toEqual []
 
-      expect(tokenIterator.seekToScreenRow(1)).toEqual ['ab']
+      tokenIterator.seekToScreenRow(1)
       expect(tokenIterator.getStartScreenPosition()).toEqual [1, 0]
       expect(tokenIterator.getEndScreenPosition()).toEqual [1, 2]
       expect(tokenIterator.getCloseTags()).toEqual []
-      expect(tokenIterator.getOpenTags()).toEqual []
+      expect(tokenIterator.getOpenTags()).toEqual ['ab']
 
-      expect(tokenIterator.seekToScreenRow(2)).toEqual ['ac']
+      tokenIterator.seekToScreenRow(2)
       expect(tokenIterator.getStartScreenPosition()).toEqual [2, 0]
       expect(tokenIterator.getEndScreenPosition()).toEqual [2, 3]
-      expect(tokenIterator.getCloseTags()).toEqual ['ac']
+      expect(tokenIterator.getCloseTags()).toEqual []
       expect(tokenIterator.getOpenTags()).toEqual []
 
     it "truncates decoration tags at fold boundaries", ->

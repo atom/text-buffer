@@ -37,18 +37,18 @@ class TokenIterator
     @startScreenPosition = Point(screenRow, 0)
     @patchIterator.seekToOutputPosition(@startScreenPosition)
     @startBufferPosition = @patchIterator.translateOutputPosition(@startScreenPosition)
+    @containingTags = []
+    @closeTags = EMPTY_ARRAY
     @openTags = EMPTY_ARRAY
 
     if @decorationIterator?
-      @containingTags = @decorationIterator.seek(@startBufferPosition) ? EMPTY_ARRAY
-
+      @openTags = @decorationIterator.seek(@startBufferPosition)
       if isEqualPoint(@startBufferPosition, @decorationIterator.getPosition())
-        @closeTags = @decorationIterator.getCloseTags()
-        @openTags = @decorationIterator.getOpenTags()
+        for tag in @decorationIterator.getCloseTags()
+          @openTags.splice(@openTags.lastIndexOf(tag), 1)
+        @openTags.push(@decorationIterator.getOpenTags()...)
 
     @assignEndPositionsAndText()
-
-    @containingTags
 
   moveToSuccessor: ->
     if @decorationIterator?
@@ -61,28 +61,43 @@ class TokenIterator
     @closeTags = EMPTY_ARRAY
     @openTags = EMPTY_ARRAY
 
-    advanceToNextLine = true
+    atLineEnd = true
     if @decorationIterator? and isEqualPoint(@startBufferPosition, @decorationIterator.getPosition())
-      advanceToNextLine = false
+      atLineEnd = false
       @closeTags = @decorationIterator.getCloseTags()
       @openTags = @decorationIterator.getOpenTags()
 
     if isEqualPoint(@startScreenPosition, @patchIterator.getOutputEnd())
-      advanceToNextLine = false
+      atLineEnd = false
       @patchIterator.moveToSuccessor()
 
     return false unless @closeTags.length > 0 or @openTags.length > 0 or comparePoints(@startBufferPosition, @buffer.getEndPosition()) < 0
 
-    if advanceToNextLine
-      @startScreenPosition = Point(@startScreenPosition.row + 1, 0)
-      @startBufferPosition = @patchIterator.translateOutputPosition(@startScreenPosition)
+    if atLineEnd
+      if not @decorationIterator? or @tagsToReopenAfterNewline?
+        @startScreenPosition = Point(@startScreenPosition.row + 1, 0)
+        @startBufferPosition = @patchIterator.translateOutputPosition(@startScreenPosition)
 
-      if @decorationIterator? and isEqualPoint(@startBufferPosition, @decorationIterator.getPosition())
-        @closeTags = @decorationIterator.getCloseTags()
-        @openTags = @decorationIterator.getOpenTags()
+        if @decorationIterator?
+          @closeTags = EMPTY_ARRAY
+          @openTags = @tagsToReopenAfterNewline
+          @tagsToReopenAfterNewline = null
 
-      if isEqualPoint(@startScreenPosition, @patchIterator.getOutputEnd())
-        @patchIterator.moveToSuccessor()
+          if isEqualPoint(@startBufferPosition, @decorationIterator.getPosition())
+            for tag in @decorationIterator.getCloseTags()
+              @openTags.splice(@openTags.lastIndexOf(tag), 1)
+            @openTags.push(@decorationIterator.getOpenTags()...)
+
+        if isEqualPoint(@startScreenPosition, @patchIterator.getOutputEnd())
+          @patchIterator.moveToSuccessor()
+      else
+        @tagsToReopenAfterNewline = @containingTags.slice()
+        @closeTags = @containingTags.slice()
+        @openTags = EMPTY_ARRAY
+        @endBufferPosition = @startBufferPosition
+        @endScreenPosition = @startScreenPosition
+        @text = ''
+        return true
 
     if @tagsToReopenAfterFold?
       for tag in @closeTags
