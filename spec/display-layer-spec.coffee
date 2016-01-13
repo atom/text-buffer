@@ -243,6 +243,36 @@ describe "DisplayLayer", ->
       expect(tokenIterator.getCloseTags()).toEqual ['ac']
       expect(tokenIterator.getOpenTags()).toEqual []
 
+    it "truncates decoration tags at fold boundaries", ->
+      buffer = new TextBuffer(text: """
+        abcde
+        fghij
+        klmno
+      """)
+
+      displayLayer = buffer.addDisplayLayer()
+      displayLayer.foldBufferRange([[0, 3], [2, 2]])
+      displayLayer.setTextDecorationLayer(new TestDecorationLayer([
+        ['preceding-fold', [[0, 1], [0, 2]]]
+        ['ending-at-fold-start', [[0, 1], [0, 3]]]
+        ['overlapping-fold-start', [[0, 1], [1, 1]]]
+        ['inside-fold', [[0, 4], [1, 4]]]
+        ['overlapping-fold-end', [[1, 4], [2, 4]]]
+        ['starting-at-fold-end', [[2, 2], [2, 4]]]
+        ['following-fold', [[2, 4], [2, 5]]]
+        ['surrounding-fold', [[0, 1], [2, 5]]]
+      ]))
+
+      expectTokens(displayLayer, [
+        {start: [0, 0], end: [0, 1], close: [], open: []},
+        {start: [0, 1], end: [0, 2], close: [], open: ['preceding-fold', 'ending-at-fold-start', 'overlapping-fold-start', 'surrounding-fold']},
+        {start: [0, 2], end: [0, 3], close: ['preceding-fold'], open: []},
+        {start: [0, 3], end: [0, 4], close: ['ending-at-fold-start', 'overlapping-fold-start', 'surrounding-fold'], open: []},
+        {start: [0, 4], end: [0, 6], close: [], open: ['surrounding-fold', 'overlapping-fold-end', 'starting-at-fold-end']},
+        {start: [0, 6], end: [0, 7], close: ['starting-at-fold-end', 'overlapping-fold-end'], open: ['following-fold']},
+        {start: [0, 7], end: [0, 7], close: ['surrounding-fold', 'following-fold'], open: []}
+      ])
+
   it "updates the displayed text correctly when the underlying buffer changes", ->
     for i in [0...10] by 1
       seed = Date.now()
