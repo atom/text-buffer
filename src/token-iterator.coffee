@@ -124,7 +124,7 @@ class TokenIterator
         @closeTags = @containingTags.slice()
         @containingTags.length = 0
         @openTags = EMPTY_ARRAY
-        @tagsToReopenAfterFold = @decorationIterator.seek(@getEndBufferPosition())
+        @tagsToReopenAfterFold = @decorationIterator.seek(@endBufferPosition)
       else
         decorationIteratorPosition = @decorationIterator.getPosition()
 
