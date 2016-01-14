@@ -7,13 +7,17 @@ class DisplayMarker
     @hasChangeObservers = false
     @emitter = new Emitter
     @disposables = null
+    @destroyed = false
 
   destroy: ->
     @bufferMarker.destroy()
+    @destroyed = true
     @emitter.emit('did-destroy')
 
   onDidDestroy: (callback) ->
     @emitter.on('did-destroy', callback)
+
+  isDestroyed: -> @destroyed
 
   getBufferRange: ->
     @bufferMarker.getRange()
