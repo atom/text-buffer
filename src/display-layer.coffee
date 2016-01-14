@@ -35,7 +35,9 @@ class DisplayLayer
     @displayMarkerLayersById[id] ?= new DisplayMarkerLayer(this, @buffer.getMarkerLayer(id))
 
   setTextDecorationLayer: (layer) ->
+    @decorationLayerDisposable?.dispose()
     @textDecorationLayer = layer
+    @decorationLayerDisposable = layer.onDidInvalidateRange?(@decorationLayerDidInvalidateRange.bind(this))
 
   foldBufferRange: (bufferRange) ->
     bufferRange = @buffer.clipRange(bufferRange)
@@ -105,6 +107,15 @@ class DisplayLayer
         combinedChanges.splice(range.start, extent, extent)
 
     @emitter.emit 'did-change-sync', combinedChanges.getChanges()
+
+  decorationLayerDidInvalidateRange: (bufferRange) ->
+    screenRange = @translateBufferRange(bufferRange)
+    extent = screenRange.getExtent()
+    @emitter.emit 'did-change-sync', {
+      start: screenRange.start,
+      replacedExtent: extent,
+      replacementExtent: extent
+    }
 
   expandBufferRangeToScreenLineStarts: (range) ->
     # Expand the start of the change to the buffer row that starts

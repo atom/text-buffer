@@ -275,6 +275,25 @@ describe "DisplayLayer", ->
         {start: [0, 7], end: [0, 7], close: ['surrounding-fold', 'following-fold'], open: []}
       ])
 
+    it "emits update events from the display layer when text decoration ranges are invalidated", ->
+      buffer = new TextBuffer(text: """
+        abc
+        def
+        ghi
+        jkl
+        mno
+      """)
+      displayLayer = buffer.addDisplayLayer()
+      displayLayer.foldBufferRange([[1, 3], [2, 0]])
+      decorationLayer = new TestDecorationLayer([])
+      displayLayer.setTextDecorationLayer(decorationLayer)
+
+      events = []
+      displayLayer.onDidChangeSync((changes) -> events.push(changes))
+
+      decorationLayer.emitInvalidateRangeEvent([[2, 1], [3, 2]])
+      expect(events).toEqual [{start: Point(1, 5), replacedExtent: Point(1, 2), replacementExtent: Point(1, 2)}]
+
   it "updates the displayed text correctly when the underlying buffer changes", ->
     for i in [0...10] by 1
       seed = Date.now()

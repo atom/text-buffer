@@ -1,5 +1,6 @@
 MarkerIndex = require 'marker-index/dist/js/marker-index'
 Random = require 'random-seed'
+{Emitter} = require 'event-kit'
 {compare: comparePoints, isEqual: isEqualPoint, min: minPoint} = require('../../src/point-helpers')
 Point = require '../../src/point'
 Range = require '../../src/range'
@@ -11,6 +12,7 @@ class TestDecorationLayer
     @nextMarkerId = 1
     @markerIndex = new MarkerIndex
     @tagsByMarkerId = {}
+    @emitter = new Emitter
 
     for [tag, [rangeStart, rangeEnd]] in decorations
       markerId = @nextMarkerId++
@@ -23,6 +25,12 @@ class TestDecorationLayer
     new TestDecorationLayerIterator(this)
 
   getInvalidatedRanges: -> @invalidatedRanges
+
+  onDidInvalidateRange: (fn) ->
+    @emitter.on 'did-invalidate-range', fn
+
+  emitInvalidateRangeEvent: (range) ->
+    @emitter.emit 'did-invalidate-range', range
 
   containingTagsForPosition: (position) ->
     containingIds = @markerIndex.findContaining(position)
