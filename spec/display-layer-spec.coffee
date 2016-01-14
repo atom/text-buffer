@@ -288,11 +288,11 @@ describe "DisplayLayer", ->
       decorationLayer = new TestDecorationLayer([])
       displayLayer.setTextDecorationLayer(decorationLayer)
 
-      events = []
-      displayLayer.onDidChangeSync((changes) -> events.push(changes))
+      allChanges = []
+      displayLayer.onDidChangeSync((changes) -> allChanges.push(changes...))
 
       decorationLayer.emitInvalidateRangeEvent([[2, 1], [3, 2]])
-      expect(events).toEqual [{start: Point(1, 5), replacedExtent: Point(1, 2), replacementExtent: Point(1, 2)}]
+      expect(allChanges).toEqual [{start: Point(1, 5), replacedExtent: Point(1, 2), replacementExtent: Point(1, 2)}]
 
   it "updates the displayed text correctly when the underlying buffer changes", ->
     for i in [0...10] by 1

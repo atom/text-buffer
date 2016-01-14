@@ -111,11 +111,11 @@ class DisplayLayer
   decorationLayerDidInvalidateRange: (bufferRange) ->
     screenRange = @translateBufferRange(bufferRange)
     extent = screenRange.getExtent()
-    @emitter.emit 'did-change-sync', {
+    @emitter.emit 'did-change-sync', [{
       start: screenRange.start,
       replacedExtent: extent,
       replacementExtent: extent
-    }
+    }]
 
   expandBufferRangeToScreenLineStarts: (range) ->
     # Expand the start of the change to the buffer row that starts
