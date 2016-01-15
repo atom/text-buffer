@@ -1,4 +1,5 @@
 Patch = require 'atom-patch'
+LineLengthIndex = require 'line-length-index'
 {Emitter} = require 'event-kit'
 Point = require './point'
 Range = require './range'
@@ -13,12 +14,14 @@ class DisplayLayer
   constructor: (@buffer, {@tabLength, @foldsMarkerLayer, patchSeed}={}) ->
     @patch = new Patch(combineChanges: false, seed: patchSeed)
     @patchIterator = @patch.buildIterator()
+    @lineLengthIndex = new LineLengthIndex
     @displayMarkerLayersById = {}
     @textDecorationLayer = null
     @foldsMarkerLayer ?= @buffer.addMarkerLayer()
     @foldIdCounter = 1
     @disposables = @buffer.onDidChange(@bufferDidChange.bind(this))
-    @computeTransformation(0, @buffer.getLineCount())
+    {screenLineLengths} = @computeTransformation(0, @buffer.getLineCount())
+    @lineLengthIndex.splice(0, 0, screenLineLengths)
     @emitter = new Emitter
 
   destroy: ->
@@ -46,7 +49,8 @@ class DisplayLayer
       {bufferStart, bufferEnd} = @expandBufferRangeToScreenLineStarts(bufferRange)
       foldExtent = traversal(bufferEnd, bufferStart)
       {start, replacedExtent} = @patch.spliceInput(bufferStart, foldExtent, foldExtent)
-      screenNewEnd = @computeTransformation(bufferRange.start.row, bufferRange.end.row + 1)
+      {screenNewEnd, screenLineLengths} = @computeTransformation(bufferRange.start.row, bufferRange.end.row + 1)
+      @lineLengthIndex.splice(start.row, replacedExtent.row, screenLineLengths)
       replacementExtent = traversal(screenNewEnd, start)
       @emitter.emit 'did-change-sync', [{start, replacedExtent, replacementExtent}]
 
@@ -75,7 +79,8 @@ class DisplayLayer
       {bufferStart, bufferEnd} = @expandBufferRangeToScreenLineStarts(Range(combinedRangeStart, combinedRangeEnd))
       foldExtent = traversal(bufferEnd, bufferStart)
       {start, replacedExtent} = @patch.spliceInput(bufferStart, foldExtent, foldExtent)
-      screenNewEnd = @computeTransformation(bufferStart.row, bufferEnd.row)
+      {screenNewEnd, screenLineLengths} = @computeTransformation(bufferStart.row, bufferEnd.row)
+      @lineLengthIndex.splice(start.row, replacedExtent.row, screenLineLengths)
       replacementExtent = traversal(screenNewEnd, start)
       @emitter.emit 'did-change-sync', [{start, replacedExtent, replacementExtent}]
 
@@ -90,9 +95,10 @@ class DisplayLayer
     bufferNewExtent = Point(bufferOldExtent.row + (newRange.end.row - oldRange.end.row), 0)
     {start, replacedExtent} = @patch.spliceInput(bufferStart, bufferOldExtent, bufferNewExtent)
 
-    screenNewEnd = @computeTransformation(oldRange.start.row, newRange.end.row + 1)
-    replacementExtent = traversal(screenNewEnd, start)
+    {screenNewEnd, screenLineLengths} = @computeTransformation(oldRange.start.row, newRange.end.row + 1)
+    @lineLengthIndex.splice(start.row, replacedExtent.row, screenLineLengths)
 
+    replacementExtent = traversal(screenNewEnd, start)
     combinedChanges = new Patch
     combinedChanges.splice(start, replacedExtent, replacementExtent)
 
@@ -138,22 +144,23 @@ class DisplayLayer
     {startBufferRow, endBufferRow, folds} = @computeFoldsInBufferRowRange(startBufferRow, endBufferRow)
     {row: screenRow, column: screenColumn} = @translateBufferPosition(Point(startBufferRow, 0))
 
+    screenLineLengths = []
     bufferRow = startBufferRow
     bufferColumn = 0
     while bufferRow < endBufferRow
-      line = @buffer.lineForRow(bufferRow)
-      lineLength = line.length
-      while bufferColumn <= lineLength
+      bufferLine = @buffer.lineForRow(bufferRow)
+      bufferLineLength = bufferLine.length
+      while bufferColumn <= bufferLineLength
         if foldEndBufferPosition = folds[bufferRow]?[bufferColumn]
           foldStartBufferPosition = Point(bufferRow, bufferColumn)
           foldBufferExtent = traversal(foldEndBufferPosition, foldStartBufferPosition)
           @patch.spliceWithText(Point(screenRow, screenColumn), foldBufferExtent, '⋯')
           bufferRow = foldEndBufferPosition.row
           bufferColumn = foldEndBufferPosition.column
-          line = @buffer.lineForRow(bufferRow)
-          lineLength = line.length
+          bufferLine = @buffer.lineForRow(bufferRow)
+          bufferLineLength = bufferLine.length
           screenColumn += 1
-        else if line[bufferColumn] is '\t'
+        else if bufferLine[bufferColumn] is '\t'
           tabText = ' '.repeat(@tabLength - (screenColumn % @tabLength))
           @patch.spliceWithText(Point(screenRow, screenColumn), Point(0, 1), tabText)
           bufferColumn += 1
@@ -163,10 +170,11 @@ class DisplayLayer
           screenColumn += 1
       bufferRow += 1
       bufferColumn = 0
+      screenLineLengths.push(screenColumn)
       screenRow += 1
       screenColumn = 0
 
-    Point(screenRow, screenColumn)
+    {screenNewEnd: Point(screenRow, screenColumn), screenLineLengths}
 
   # Given a buffer row range, compute an index of all folds that appear on
   # screen lines containing this range. This may expand the initial buffer range
@@ -303,3 +311,6 @@ class DisplayLayer
 
   getScreenLineCount: ->
     @clipScreenPosition(Point(Infinity, Infinity)).row + 1
+
+  getLongestScreenRow: ->
+    @lineLengthIndex.getPointWithMaxLineLength().row

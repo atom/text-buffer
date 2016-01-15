@@ -324,9 +324,13 @@ describe "DisplayLayer", ->
 
         # positions all translate correctly
         verifyPositionTranslations(displayLayer, expectedDisplayLayer, seedFailureMessage)
+        return if currentSpecFailed()
 
         # token iterator matches contents of display layer
         verifyTokenIterator(displayLayer, textDecorationLayer, seedFailureMessage)
+        return if currentSpecFailed()
+
+        verifyLongestScreenRow(displayLayer, seedFailureMessage)
         return if currentSpecFailed()
 
         expectedDisplayLayer.destroy()
@@ -452,6 +456,21 @@ verifyPositionTranslations = (actualDisplayLayer, expectedDisplayLayer, failureM
       actualPosition = actualDisplayLayer.translateScreenPosition(Point(screenRow, screenColumn))
       expectedPosition = expectedDisplayLayer.translateScreenPosition(Point(screenRow, screenColumn))
       expect(actualPosition).toEqual(expectedPosition, failureMessage)
+
+verifyLongestScreenRow = (displayLayer, failureMessage) ->
+  screenLines = displayLayer.getText().split('\n')
+  maxLineLength = -1
+  longestScreenRows = new Set
+  for screenLine, row in screenLines
+    if screenLine.length > maxLineLength
+      longestScreenRows.clear()
+      maxLineLength = screenLine.length
+
+    if screenLine.length >= maxLineLength
+      longestScreenRows.add(row)
+
+  actualLongestScreenRow = displayLayer.getLongestScreenRow()
+  expect(longestScreenRows.has(actualLongestScreenRow)).toBe(true, failureMessage)
 
 buildRandomLines = (random, maxLines) ->
   lines = []

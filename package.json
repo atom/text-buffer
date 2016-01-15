@@ -34,11 +34,12 @@
     "temp": "^0.8.3"
   },
   "dependencies": {
-    "delegato": "^1.0.0",
     "atom-diff": "^2",
+    "delegato": "^1.0.0",
     "emissary": "^1.0.0",
     "event-kit": "^1.0.2",
     "fs-plus": "^2.0.0",
+    "line-length-index": "0.0.1",
     "marker-index": "^3.1.0",
     "pathwatcher": "^6.2.3",
     "serializable": "^1.0.3",
