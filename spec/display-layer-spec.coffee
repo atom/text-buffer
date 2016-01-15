@@ -462,6 +462,8 @@ verifyRightmostScreenPosition = (displayLayer, failureMessage) ->
   maxLineLength = -1
   longestScreenRows = new Set
   for screenLine, row in screenLines
+    expect(displayLayer.lineLengthForScreenRow(row)).toBe(screenLine.length)
+
     if screenLine.length > maxLineLength
       longestScreenRows.clear()
       maxLineLength = screenLine.length
