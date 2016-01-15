@@ -170,7 +170,7 @@ class DisplayLayer
           screenColumn += 1
       bufferRow += 1
       bufferColumn = 0
-      screenLineLengths.push(screenColumn)
+      screenLineLengths.push(screenColumn - 1)
       screenRow += 1
       screenColumn = 0
 
@@ -312,5 +312,5 @@ class DisplayLayer
   getScreenLineCount: ->
     @clipScreenPosition(Point(Infinity, Infinity)).row + 1
 
-  getLongestScreenRow: ->
-    @lineLengthIndex.getPointWithMaxLineLength().row
+  getRightmostScreenPosition: ->
+    @lineLengthIndex.getPointWithMaxLineLength()

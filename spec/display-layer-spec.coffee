@@ -330,7 +330,7 @@ describe "DisplayLayer", ->
         verifyTokenIterator(displayLayer, textDecorationLayer, seedFailureMessage)
         return if currentSpecFailed()
 
-        verifyLongestScreenRow(displayLayer, seedFailureMessage)
+        verifyRightmostScreenPosition(displayLayer, seedFailureMessage)
         return if currentSpecFailed()
 
         expectedDisplayLayer.destroy()
@@ -457,7 +457,7 @@ verifyPositionTranslations = (actualDisplayLayer, expectedDisplayLayer, failureM
       expectedPosition = expectedDisplayLayer.translateScreenPosition(Point(screenRow, screenColumn))
       expect(actualPosition).toEqual(expectedPosition, failureMessage)
 
-verifyLongestScreenRow = (displayLayer, failureMessage) ->
+verifyRightmostScreenPosition = (displayLayer, failureMessage) ->
   screenLines = displayLayer.getText().split('\n')
   maxLineLength = -1
   longestScreenRows = new Set
@@ -469,8 +469,9 @@ verifyLongestScreenRow = (displayLayer, failureMessage) ->
     if screenLine.length >= maxLineLength
       longestScreenRows.add(row)
 
-  actualLongestScreenRow = displayLayer.getLongestScreenRow()
-  expect(longestScreenRows.has(actualLongestScreenRow)).toBe(true, failureMessage)
+  rightmostScreenPosition = displayLayer.getRightmostScreenPosition()
+  expect(rightmostScreenPosition.column).toBe(maxLineLength, failureMessage)
+  expect(longestScreenRows.has(rightmostScreenPosition.row)).toBe(true, failureMessage)
 
 buildRandomLines = (random, maxLines) ->
   lines = []
