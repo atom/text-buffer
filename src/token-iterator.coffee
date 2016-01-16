@@ -88,7 +88,7 @@ class TokenIterator
           @patchIterator.moveToSuccessor()
       else
         @tagsToReopenAfterNewline = @containingTags.slice()
-        @closeTags = @containingTags.slice()
+        @closeTags = @containingTags.slice().reverse()
         @openTags = EMPTY_ARRAY
         @endBufferPosition = @startBufferPosition
         @endScreenPosition = @startScreenPosition
@@ -131,7 +131,7 @@ class TokenIterator
         @endScreenPosition = @patchIterator.translateInputPosition(@endBufferPosition)
 
     if @isFold()
-      @closeTags = @containingTags.slice()
+      @closeTags = @containingTags.slice().reverse()
       @containingTags.length = 0
       @openTags = EMPTY_ARRAY
       @tagsToReopenAfterFold = @decorationIterator.seek(@endBufferPosition)

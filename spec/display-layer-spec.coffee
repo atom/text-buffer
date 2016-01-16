@@ -205,24 +205,26 @@ describe "DisplayLayer", ->
       displayLayer.setTextDecorationLayer(new TestDecorationLayer([
         ['aa', [[0, 1], [0, 4]]]
         ['ab', [[0, 2], [1, 2]]]
-        ['ac', [[1, 3], [2, 0]]]
-        ['ad', [[2, 3], [2, 5]]]
+        ['ac', [[0, 3], [1, 2]]]
+        ['ad', [[1, 3], [2, 0]]]
+        ['ae', [[2, 3], [2, 5]]]
       ]))
 
       verifyTokenIterator(displayLayer)
       expectTokens(displayLayer, [
         {start: [0, 0], end: [0, 1], close: [], open: []},
         {start: [0, 1], end: [0, 2], close: [], open: ['aa']},
-        {start: [0, 2], end: [0, 4], close: [], open: ['ab']},
+        {start: [0, 2], end: [0, 3], close: [], open: ['ab']},
+        {start: [0, 3], end: [0, 4], close: [], open: ['ac']},
         {start: [0, 4], end: [0, 5], close: ['aa'], open: []},
-        {start: [0, 5], end: [0, 5], close: ['ab'], open: []},
-        {start: [1, 0], end: [1, 2], close: [], open: ['ab']},
-        {start: [1, 2], end: [1, 3], close: ['ab'], open: []},
-        {start: [1, 3], end: [1, 5], close: [], open: ['ac']},
-        {start: [1, 5], end: [1, 5], close: ['ac'], open: []},
+        {start: [0, 5], end: [0, 5], close: ['ac', 'ab'], open: []},
+        {start: [1, 0], end: [1, 2], close: [], open: ['ab', 'ac']},
+        {start: [1, 2], end: [1, 3], close: ['ac', 'ab'], open: []},
+        {start: [1, 3], end: [1, 5], close: [], open: ['ad']},
+        {start: [1, 5], end: [1, 5], close: ['ad'], open: []},
         {start: [2, 0], end: [2, 3], close: [], open: []},
-        {start: [2, 3], end: [2, 5], close: [], open: ['ad']},
-        {start: [2, 5], end: [2, 5], close: ['ad'], open: []}
+        {start: [2, 3], end: [2, 5], close: [], open: ['ae']},
+        {start: [2, 5], end: [2, 5], close: ['ae'], open: []}
       ])
 
       tokenIterator = displayLayer.buildTokenIterator()
@@ -237,7 +239,7 @@ describe "DisplayLayer", ->
       expect(tokenIterator.getStartScreenPosition()).toEqual [1, 0]
       expect(tokenIterator.getEndScreenPosition()).toEqual [1, 2]
       expect(tokenIterator.getCloseTags()).toEqual []
-      expect(tokenIterator.getOpenTags()).toEqual ['ab']
+      expect(tokenIterator.getOpenTags()).toEqual ['ab', 'ac']
 
       tokenIterator.seekToScreenRow(2)
       expect(tokenIterator.getStartScreenPosition()).toEqual [2, 0]
@@ -269,7 +271,7 @@ describe "DisplayLayer", ->
         {start: [0, 0], end: [0, 1], close: [], open: []},
         {start: [0, 1], end: [0, 2], close: [], open: ['preceding-fold', 'ending-at-fold-start', 'overlapping-fold-start', 'surrounding-fold']},
         {start: [0, 2], end: [0, 3], close: ['preceding-fold'], open: []},
-        {start: [0, 3], end: [0, 4], close: ['ending-at-fold-start', 'overlapping-fold-start', 'surrounding-fold'], open: []},
+        {start: [0, 3], end: [0, 4], close: ['surrounding-fold', 'overlapping-fold-start', 'ending-at-fold-start'], open: []},
         {start: [0, 4], end: [0, 6], close: [], open: ['surrounding-fold', 'overlapping-fold-end', 'starting-at-fold-end']},
         {start: [0, 6], end: [0, 7], close: ['starting-at-fold-end', 'overlapping-fold-end'], open: ['following-fold']},
         {start: [0, 7], end: [0, 7], close: ['surrounding-fold', 'following-fold'], open: []}
