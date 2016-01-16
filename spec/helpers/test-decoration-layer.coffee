@@ -39,8 +39,9 @@ class TestDecorationLayer
 
   bufferDidChange: ({oldRange, newRange}) ->
     @invalidatedRanges = [Range.fromObject(newRange)]
-    {overlap} = @markerIndex.splice(oldRange.start, oldRange.getExtent(), newRange.getExtent())
+    {inside, overlap} = @markerIndex.splice(oldRange.start, oldRange.getExtent(), newRange.getExtent())
     overlap.forEach (id) => @invalidatedRanges.push(@markerIndex.getRange(id))
+    inside.forEach (id) => @invalidatedRanges.push(@markerIndex.getRange(id))
 
     for i in [0..@random(5)]
       markerId = @nextMarkerId++
