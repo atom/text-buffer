@@ -167,8 +167,7 @@ describe "DisplayLayer", ->
 
       expect(displayLayer.getText()).toBe 'a⋯j'
 
-      verifyChangeEvent displayLayer, ->
-        displayLayer.destroyFoldsIntersectingBufferRange([[1, 1], [2, 1]])
+      displayLayer.destroyFoldsIntersectingBufferRange([[1, 1], [2, 1]])
 
       expect(displayLayer.getText()).toBe 'abc\ndef\ngh⋯j'
 
@@ -188,8 +187,7 @@ describe "DisplayLayer", ->
 
       expect(displayLayer.getText()).toBe 'a⋯j'
 
-      verifyChangeEvent displayLayer, ->
-        displayLayer.destroyAllFolds()
+      displayLayer.destroyAllFolds()
 
       expect(displayLayer.getText()).toBe 'abc\ndef\nghi\nj'
 
@@ -298,44 +296,45 @@ describe "DisplayLayer", ->
 
   it "updates the displayed text correctly when the underlying buffer changes", ->
     for i in [0...10] by 1
-      seed = Date.now()
-      seedFailureMessage = "Seed: #{seed}"
-      random = new Random(seed)
-      buffer = new TextBuffer(text: buildRandomLines(random, 10))
-      displayLayer = buffer.addDisplayLayer(tabLength: 4, patchSeed: seed)
-      textDecorationLayer = new TestDecorationLayer([], buffer, random)
-      displayLayer.setTextDecorationLayer(textDecorationLayer)
+      waitsFor 1000, (done) ->
+        seed = Date.now()
+        seedFailureMessage = "Seed: #{seed}"
+        random = new Random(seed)
+        buffer = new TextBuffer(text: buildRandomLines(random, 10))
+        displayLayer = buffer.addDisplayLayer(tabLength: 4, patchSeed: seed)
+        textDecorationLayer = new TestDecorationLayer([], buffer, random)
+        displayLayer.setTextDecorationLayer(textDecorationLayer)
+        previousTokenLines = getTokenLines(displayLayer)
+        previousText = displayLayer.getText()
+        changedSinceLastVerification = false
 
-      foldIds = []
+        foldIds = []
 
-      for j in [0...10] by 1
-        k = random(10)
-        if k < 2
-          createRandomFold(random, displayLayer, foldIds, seedFailureMessage)
-        else if k < 4 and foldIds.length > 0
-          destroyRandomFold(random, displayLayer, foldIds, seedFailureMessage)
-        else
+        for j in [0...10] by 1
+          # k = random(10)
+          # if k < 2
+          #   # createRandomFold(random, displayLayer, foldIds, seedFailureMessage)
+          # else if k < 4 and foldIds.length > 0
+          #   # destroyRandomFold(random, displayLayer, foldIds, seedFailureMessage)
+          # else
           performRandomChange(random, buffer, displayLayer, seedFailureMessage)
 
-        return if currentSpecFailed()
+          return if currentSpecFailed()
 
-        # incrementally-updated text matches freshly computed text
-        expectedDisplayLayer = buffer.addDisplayLayer(foldsMarkerLayer: displayLayer.foldsMarkerLayer.copy(), tabLength: 4)
-        expect(JSON.stringify(displayLayer.getText())).toBe(JSON.stringify(expectedDisplayLayer.getText()), seedFailureMessage)
-        return if currentSpecFailed()
+          changedSinceLastVerification = true
+          if random(10) < 1
+            verifyDisplayLayer(buffer, displayLayer, textDecorationLayer, seedFailureMessage)
+            changedSinceLastVerification = false
+            return if currentSpecFailed()
 
-        # positions all translate correctly
-        verifyPositionTranslations(displayLayer, expectedDisplayLayer, seedFailureMessage)
-        return if currentSpecFailed()
+        displayLayer.onDidChange (changes) ->
+          # console.log JSON.stringify(changes)
+          # console.log JSON.stringify(previousText.split('\n'))
+          # console.log JSON.stringify(displayLayer.getText().split('\n'))
+          verifyDisplayLayer(buffer, displayLayer, textDecorationLayer, seedFailureMessage)
+          verifyChanges(displayLayer, previousTokenLines, changes, seedFailureMessage)
+          done()
 
-        # token iterator matches contents of display layer
-        verifyTokenIterator(displayLayer, textDecorationLayer, seedFailureMessage)
-        return if currentSpecFailed()
-
-        verifyRightmostScreenPosition(displayLayer, seedFailureMessage)
-        return if currentSpecFailed()
-
-        expectedDisplayLayer.destroy()
 
 performRandomChange = (random, buffer, displayLayer, failureMessage) ->
   tries = 10
@@ -343,48 +342,50 @@ performRandomChange = (random, buffer, displayLayer, failureMessage) ->
   while displayLayer.foldsMarkerLayer.findMarkers(intersectsRange: range).length > 0
     range = getRandomRange(random, buffer)
     return if --tries is 0
-
-  verifyChangeEvent displayLayer, failureMessage, ->
-    text = buildRandomLines(random, 4)
-    buffer.setTextInRange(range, text)
+  text = buildRandomLines(random, 4)
+  buffer.setTextInRange(range, text)
 
 createRandomFold = (random, displayLayer, foldIds, failureMessage) ->
-  verifyChangeEvent displayLayer, failureMessage, ->
-    bufferRange = getRandomRange(random, displayLayer.buffer)
-    foldId = displayLayer.foldBufferRange(bufferRange)
-    foldIds.push(foldId)
+  bufferRange = getRandomRange(random, displayLayer.buffer)
+  foldId = displayLayer.foldBufferRange(bufferRange)
+  foldIds.push(foldId)
 
 destroyRandomFold = (random, displayLayer, foldIds, failureMessage) ->
-  verifyChangeEvent displayLayer, failureMessage, ->
-    [foldId] = foldIds.splice(random(foldIds.length - 1), 1)
-    displayLayer.destroyFold(foldId)
+  [foldId] = foldIds.splice(random(foldIds.length - 1), 1)
+  displayLayer.destroyFold(foldId)
 
-verifyChangeEvent = (displayLayer, failureMessage, fn) ->
-  if arguments.length is 2
-    fn = failureMessage
-    failureMessage = ''
+verifyDisplayLayer = (buffer, displayLayer, textDecorationLayer, failureMessage) ->
+  # incrementally-updated text matches freshly computed text
+  expectedDisplayLayer = buffer.addDisplayLayer(foldsMarkerLayer: displayLayer.foldsMarkerLayer.copy(), tabLength: 4)
+  expect(JSON.stringify(displayLayer.getText())).toBe(JSON.stringify(expectedDisplayLayer.getText()), failureMessage)
+  return if currentSpecFailed()
 
-  previousTokenLines = getTokenLines(displayLayer)
-  lastChanges = null
-  disposable = displayLayer.onDidChangeSync (changes) -> lastChanges = changes
+  # positions all translate correctly
+  verifyPositionTranslations(displayLayer, expectedDisplayLayer, failureMessage)
+  return if currentSpecFailed()
 
-  fn()
+  # token iterator matches contents of display layer
+  verifyTokenIterator(displayLayer, textDecorationLayer, failureMessage)
+  return if currentSpecFailed()
 
-  disposable.dispose()
-  if lastChanges?
-    expectedTokenLines = getTokenLines(displayLayer)
-    updateTokenLines(previousTokenLines, displayLayer, lastChanges)
+  verifyRightmostScreenPosition(displayLayer, failureMessage)
+  return if currentSpecFailed()
 
-    # npm install json-diff locally if you need to uncomment this code
-    # {diffString} = require 'json-diff'
-    # diff = diffString(expectedTokenLines, previousTokenLines, color: false)
-    # console.log diff
-    # console.log previousTokenLines
-    # console.log expectedTokenLines
+  expectedDisplayLayer.destroy()
 
-    expect(previousTokenLines).toEqual(expectedTokenLines, failureMessage)
-  else
-    expect(getTokenLines(displayLayer)).toEqual(previousTokenLines, failureMessage)
+verifyChanges = (displayLayer, previousTokenLines, changes, failureMessage) ->
+  for {start, replacedExtent, replacementExtent} in changes
+    previousTokenLines.splice(start.row, replacedExtent.row, getTokenLines(displayLayer, start.row, start.row + replacementExtent.row)...)
+
+  expectedTokenLines = getTokenLines(displayLayer)
+  # npm install json-diff locally if you need to uncomment this code
+  # {diffString} = require 'json-diff'
+  # diff = diffString(expectedTokenLines, previousTokenLines, color: false)
+  # console.log diff
+  # console.log previousTokenLines
+  # console.log expectedTokenLines
+
+  expect(previousTokenLines).toEqual(expectedTokenLines, failureMessage)
 
 verifyTokenIterator = (displayLayer, textDecorationLayer, failureMessage) ->
   {buffer} = displayLayer
@@ -562,7 +563,3 @@ getTokenLines = (displayLayer, startRow=0, endRow=displayLayer.getScreenLineCoun
         tokenLine = []
 
   tokenLines
-
-updateTokenLines = (tokenLines, displayLayer, changes) ->
-  for {start, replacedExtent, replacementExtent} in changes
-    tokenLines.splice(start.row, replacedExtent.row, getTokenLines(displayLayer, start.row, start.row + replacementExtent.row)...)

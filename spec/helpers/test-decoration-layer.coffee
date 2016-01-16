@@ -1,4 +1,5 @@
-MarkerIndex = require 'marker-index/dist/js/marker-index'
+MarkerIndex = require 'marker-index'
+Patch = require 'atom-patch'
 Random = require 'random-seed'
 {Emitter} = require 'event-kit'
 {compare: comparePoints, isEqual: isEqualPoint, min: minPoint} = require('../../src/point-helpers')
@@ -9,10 +10,12 @@ WORDS = require './words'
 module.exports =
 class TestDecorationLayer
   constructor: (decorations, @buffer, @random) ->
+    @nextInvalidationRangeId = 1
     @nextMarkerId = 1
     @markerIndex = new MarkerIndex
     @tagsByMarkerId = {}
     @emitter = new Emitter
+    @invalidatedRangesIndex = null
 
     for [tag, [rangeStart, rangeEnd]] in decorations
       markerId = @nextMarkerId++
@@ -24,7 +27,12 @@ class TestDecorationLayer
   buildIterator: ->
     new TestDecorationLayerIterator(this)
 
-  getInvalidatedRanges: -> @invalidatedRanges
+  getInvalidatedRanges: ->
+    invalidatedRanges = []
+    for id, range of @invalidatedRangesIndex.dump()
+      invalidatedRanges.push(range)
+    @invalidatedRangesIndex = null
+    invalidatedRanges
 
   onDidInvalidateRange: (fn) ->
     @emitter.on 'did-invalidate-range', fn
@@ -33,22 +41,24 @@ class TestDecorationLayer
     @emitter.emit 'did-invalidate-range', range
 
   containingTagsForPosition: (position) ->
-    containingIds = @markerIndex.findContaining(position)
+    containingIds = @markerIndex.findContaining(position, position)
     @markerIndex.findEndingAt(position).forEach (id) -> containingIds.delete(id)
     Array.from(containingIds).map (id) => @tagsByMarkerId[id]
 
   bufferDidChange: ({oldRange, newRange}) ->
-    @invalidatedRanges = [Range.fromObject(newRange)]
+    @invalidatedRangesIndex ?= new MarkerIndex
+    @invalidatedRangesIndex.splice(oldRange.start, oldRange.getExtent(), newRange.getExtent())
     {inside, overlap} = @markerIndex.splice(oldRange.start, oldRange.getExtent(), newRange.getExtent())
-    overlap.forEach (id) => @invalidatedRanges.push(@markerIndex.getRange(id))
-    inside.forEach (id) => @invalidatedRanges.push(@markerIndex.getRange(id))
+    for id in Array.from(inside).concat(Array.from(overlap))
+      [start, end] = @markerIndex.getRange(id)
+      @invalidatedRangesIndex.insert(@nextInvalidationRangeId++, start, end)
 
     for i in [0..@random(5)]
       markerId = @nextMarkerId++
       @tagsByMarkerId[markerId] = WORDS[@random(WORDS.length)]
       range = @getRandomRange()
       @markerIndex.insert(markerId, range.start, range.end)
-      @invalidatedRanges.push(range)
+      @invalidatedRangesIndex.insert(@nextInvalidationRangeId++, range.start, range.end)
 
   getRandomRange: ->
     Range(@getRandomPoint(), @getRandomPoint())
