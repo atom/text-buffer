@@ -43,9 +43,14 @@ class TestDecorationLayer
     overlap.forEach (id) => @invalidatedRanges.push(@markerIndex.getRange(id))
     inside.forEach (id) => @invalidatedRanges.push(@markerIndex.getRange(id))
 
+    @insertRandomDecorations()
+
+  insertRandomDecorations: ->
+    @invalidatedRanges ?= []
     for i in [0..@random(5)]
       markerId = @nextMarkerId++
-      @tagsByMarkerId[markerId] = WORDS[@random(WORDS.length)]
+      tag = WORDS[@random(WORDS.length)]
+      @tagsByMarkerId[markerId] = tag
       range = @getRandomRange()
       @markerIndex.insert(markerId, range.start, range.end)
       @invalidatedRanges.push(range)

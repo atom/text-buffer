@@ -51,7 +51,10 @@ class TokenIterator
 
   moveToSuccessor: ->
     for tag in @closeTags
-      @containingTags.splice(@containingTags.lastIndexOf(tag), 1)
+      index = @containingTags.lastIndexOf(tag)
+      if index is -1
+        throw new Error("Close tag not found in containing tags stack.")
+      @containingTags.splice(index, 1)
     @containingTags.push(@openTags...)
 
     @startScreenPosition = @endScreenPosition
@@ -62,8 +65,26 @@ class TokenIterator
     atLineEnd = true
     if isEqualPoint(@startBufferPosition, @decorationIterator.getPosition())
       atLineEnd = false
-      @closeTags = @decorationIterator.getCloseTags()
-      @openTags = @decorationIterator.getOpenTags()
+      @openTags = []
+      @closeTags = []
+
+      closeTags = @decorationIterator.getCloseTags()
+      closeTagsToProcess = new Set(closeTags)
+      containingTagsIndex = @containingTags.length - 1
+
+      for closeTag in closeTags when closeTagsToProcess.has(closeTag)
+        while mostRecentOpenTag = @containingTags[containingTagsIndex--]
+          break if mostRecentOpenTag is closeTag
+
+          @closeTags.push(mostRecentOpenTag)
+          if closeTagsToProcess.has(mostRecentOpenTag)
+            closeTagsToProcess.delete(mostRecentOpenTag)
+          else
+            @openTags.unshift(mostRecentOpenTag)
+
+        @closeTags.push(closeTag)
+
+      @openTags.push(@decorationIterator.getOpenTags()...)
 
     if isEqualPoint(@startScreenPosition, @patchIterator.getOutputEnd())
       atLineEnd = false
@@ -132,7 +153,6 @@ class TokenIterator
 
     if @isFold()
       @closeTags = @containingTags.slice().reverse()
-      @containingTags.length = 0
       @openTags = EMPTY_ARRAY
       @tagsToReopenAfterFold = @decorationIterator.seek(@endBufferPosition)
     else
