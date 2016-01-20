@@ -11,13 +11,14 @@ maxPoint = pointHelpers.max
 
 module.exports =
 class DisplayLayer
-  constructor: (@buffer, {@tabLength, @foldsMarkerLayer, patchSeed}={}) ->
+  constructor: (@buffer, {@tabLength, @foldsMarkerLayer, @invisibles, patchSeed}={}) ->
     @patch = new Patch(combineChanges: false, seed: patchSeed)
     @patchIterator = @patch.buildIterator()
     @lineLengthIndex = new LineLengthIndex
     @displayMarkerLayersById = {}
     @textDecorationLayer = null
     @foldsMarkerLayer ?= @buffer.addMarkerLayer()
+    @invisibles ?= {}
     @foldIdCounter = 1
     @disposables = @buffer.onDidChange(@bufferDidChange.bind(this))
     {screenLineLengths} = @computeTransformation(0, @buffer.getLineCount())
@@ -147,10 +148,13 @@ class DisplayLayer
     screenLineLengths = []
     bufferRow = startBufferRow
     bufferColumn = 0
+    inLeadingWhitespace = true
+    leadingWhitespaceStartColumn = 0
     while bufferRow < endBufferRow
       bufferLine = @buffer.lineForRow(bufferRow)
       bufferLineLength = bufferLine.length
       while bufferColumn <= bufferLineLength
+        character = bufferLine[bufferColumn]
         if foldEndBufferPosition = folds[bufferRow]?[bufferColumn]
           foldStartBufferPosition = Point(bufferRow, bufferColumn)
           foldBufferExtent = traversal(foldEndBufferPosition, foldStartBufferPosition)
@@ -160,16 +164,26 @@ class DisplayLayer
           bufferLine = @buffer.lineForRow(bufferRow)
           bufferLineLength = bufferLine.length
           screenColumn += 1
-        else if bufferLine[bufferColumn] is '\t'
-          tabText = ' '.repeat(@tabLength - (screenColumn % @tabLength))
-          @patch.spliceWithText(Point(screenRow, screenColumn), Point(0, 1), tabText)
-          bufferColumn += 1
-          screenColumn += tabText.length
         else
-          bufferColumn += 1
-          screenColumn += 1
+          if inLeadingWhitespace and bufferColumn < bufferLineLength and character isnt ' '
+            inLeadingWhitespace = false unless character is '\t'
+            if @invisibles.space? and screenColumn > 0
+              spaceCount = screenColumn - leadingWhitespaceStartColumn
+              @patch.spliceWithText(Point(screenRow, leadingWhitespaceStartColumn), Point(0, spaceCount), @invisibles.space.repeat(spaceCount))
+
+          if character is '\t'
+            tabText = ' '.repeat(@tabLength - (screenColumn % @tabLength))
+            @patch.spliceWithText(Point(screenRow, screenColumn), Point(0, 1), tabText)
+            bufferColumn += 1
+            screenColumn += tabText.length
+            leadingWhitespaceStartColumn = screenColumn if inLeadingWhitespace
+          else
+            bufferColumn += 1
+            screenColumn += 1
       bufferRow += 1
       bufferColumn = 0
+      inLeadingWhitespace = true
+      leadingWhitespaceStartColumn = 0
       screenLineLengths.push(screenColumn - 1)
       screenRow += 1
       screenColumn = 0

@@ -193,6 +193,24 @@ describe "DisplayLayer", ->
 
       expect(displayLayer.getText()).toBe 'abc\ndef\nghi\nj'
 
+  describe "invisibles", ->
+    it "replaces leading whitespaces with the corresponding invisible character", ->
+      buffer = new TextBuffer(text: """
+      az
+        b c
+         d
+       \t e
+      """)
+
+      displayLayer = buffer.addDisplayLayer({tabLength: 4, invisibles: {space: '•'}})
+
+      expect(displayLayer.getText()).toBe("""
+      az
+      ••b c
+      •••d
+      •   •e
+      """)
+
   describe "text decorations", ->
     it "exposes open and close tags from the text decoration layer in the token iterator", ->
       buffer = new TextBuffer(text: """
