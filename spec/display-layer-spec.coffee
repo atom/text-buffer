@@ -211,6 +211,11 @@ describe "DisplayLayer", ->
       •   •e
       """)
 
+    it "does not clip positions within runs of invisible characters", ->
+      buffer = new TextBuffer(text: "   a")
+      displayLayer = buffer.addDisplayLayer({invisibles: {space: '•'}})
+      expect(displayLayer.clipScreenPosition(Point(0, 2))).toEqual(Point(0, 2))
+
   describe "text decorations", ->
     it "exposes open and close tags from the text decoration layer in the token iterator", ->
       buffer = new TextBuffer(text: """
