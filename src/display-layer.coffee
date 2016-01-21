@@ -154,20 +154,27 @@ class DisplayLayer
       bufferLine = @buffer.lineForRow(bufferRow)
       bufferLineLength = bufferLine.length
       while bufferColumn <= bufferLineLength
-        character = bufferLine[bufferColumn]
         if foldEndBufferPosition = folds[bufferRow]?[bufferColumn]
           foldStartBufferPosition = Point(bufferRow, bufferColumn)
           foldBufferExtent = traversal(foldEndBufferPosition, foldStartBufferPosition)
-          @patch.spliceWithText(Point(screenRow, screenColumn), foldBufferExtent, '⋯')
+          @patch.spliceWithText(Point(screenRow, screenColumn), foldBufferExtent, '⋯', {metadata: {fold: true}})
           bufferRow = foldEndBufferPosition.row
           bufferColumn = foldEndBufferPosition.column
           bufferLine = @buffer.lineForRow(bufferRow)
           bufferLineLength = bufferLine.length
           screenColumn += 1
+          inLeadingWhitespace = true
+          for column in [0...bufferColumn] by 1
+            character = bufferLine[column]
+            unless character is ' ' or character is '\t'
+              inLeadingWhitespace = false
+              break
+          leadingWhitespaceStartColumn = screenColumn if inLeadingWhitespace
         else
+          character = bufferLine[bufferColumn]
           if inLeadingWhitespace and bufferColumn < bufferLineLength and character isnt ' '
             inLeadingWhitespace = false unless character is '\t'
-            if @invisibles.space? and screenColumn > 0
+            if @invisibles.space? and screenColumn > leadingWhitespaceStartColumn
               spaceCount = screenColumn - leadingWhitespaceStartColumn
               @patch.spliceWithText(Point(screenRow, leadingWhitespaceStartColumn), Point(0, spaceCount), @invisibles.space.repeat(spaceCount))
 

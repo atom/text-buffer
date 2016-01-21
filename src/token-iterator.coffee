@@ -20,7 +20,7 @@ class TokenIterator
   getText: -> @text
 
   isFold: ->
-    @patchIterator.inChange() and @text is '⋯'
+    @patchIterator.inChange() and @patchIterator.getMetadata()?.fold
 
   reset: ->
     @patchIterator.reset()
