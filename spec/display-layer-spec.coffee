@@ -320,7 +320,9 @@ describe "DisplayLayer", ->
       seedFailureMessage = "Seed: #{seed}"
       random = new Random(seed)
       buffer = new TextBuffer(text: buildRandomLines(random, 10))
-      displayLayer = buffer.addDisplayLayer(tabLength: 4, patchSeed: seed)
+      invisibles = {}
+      invisibles.space = '•' if random(2) > 0
+      displayLayer = buffer.addDisplayLayer({tabLength: 4, patchSeed: seed, invisibles})
       textDecorationLayer = new TestDecorationLayer([], buffer, random)
       displayLayer.setTextDecorationLayer(textDecorationLayer)
 
@@ -338,7 +340,7 @@ describe "DisplayLayer", ->
         return if currentSpecFailed()
 
         # incrementally-updated text matches freshly computed text
-        expectedDisplayLayer = buffer.addDisplayLayer(foldsMarkerLayer: displayLayer.foldsMarkerLayer.copy(), tabLength: 4)
+        expectedDisplayLayer = buffer.addDisplayLayer({foldsMarkerLayer: displayLayer.foldsMarkerLayer.copy(), tabLength: 4, invisibles})
         expect(JSON.stringify(displayLayer.getText())).toBe(JSON.stringify(expectedDisplayLayer.getText()), seedFailureMessage)
         return if currentSpecFailed()
 
