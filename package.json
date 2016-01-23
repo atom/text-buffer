@@ -35,6 +35,7 @@
   },
   "dependencies": {
     "atom-diff": "^2",
+    "atom-patch": "~0.0.2",
     "delegato": "^1.0.0",
     "emissary": "^1.0.0",
     "event-kit": "^1.0.2",
