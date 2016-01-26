@@ -319,6 +319,25 @@ describe "DisplayLayer", ->
       decorationLayer.emitInvalidateRangeEvent([[2, 1], [3, 2]])
       expect(allChanges).toEqual [{start: Point(1, 5), replacedExtent: Point(1, 2), replacementExtent: Point(1, 2)}]
 
+    it "throws an error if the text decoration iterator reports a boundary beyond the end of a line", ->
+      buffer = new TextBuffer(text: """
+        abc
+        \tdef
+      """)
+      displayLayer = buffer.addDisplayLayer(tabLength: 2)
+      decorationLayer = new TestDecorationLayer([
+        ['a', [[0, 1], [0, 10]]]
+      ])
+      displayLayer.setTextDecorationLayer(decorationLayer)
+
+      exception = null
+      try
+        getTokenLines(displayLayer)
+      catch e
+        exception = e
+
+      expect(e.message).toMatch(/Invalid text decoration iterator position/)
+
   it "updates the displayed text correctly when the underlying buffer changes", ->
     for i in [0...10] by 1
       seed = Date.now()

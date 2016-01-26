@@ -158,7 +158,14 @@ class TokenIterator
     else
       decorationIteratorPosition = @decorationIterator.getPosition()
 
-      if isEqualPoint(decorationIteratorPosition, @startBufferPosition)
+      comparison = comparePoints(decorationIteratorPosition, @startBufferPosition)
+      if comparison < 0
+        bufferRow = decorationIteratorPosition.row
+        throw new Error("""
+          Invalid text decoration iterator position: #{decorationIteratorPosition}.
+          Buffer row #{bufferRow} has length #{@buffer.lineLengthForRow(bufferRow)}.
+        """)
+      else if comparison is 0
         @decorationIterator.moveToSuccessor()
         decorationIteratorPosition = @decorationIterator.getPosition()
 
