@@ -7,12 +7,12 @@ _ = require 'underscore-plus'
 fs = require 'fs-plus'
 path = require 'path'
 crypto = require 'crypto'
+Patch = require 'atom-patch'
 
 Point = require './point'
 Range = require './range'
 History = require './history'
 MarkerLayer = require './marker-layer'
-Patch = require './patch'
 MatchIterator = require './match-iterator'
 {spliceArray, newlineRegex} = require './helpers'
 
@@ -62,7 +62,7 @@ class TextBuffer
   @version: 5
   @Point: Point
   @Range: Range
-  @Patch: Patch
+  @Patch: require('./patch')
   @newlineRegex: newlineRegex
 
   Serializable.includeInto(this)
@@ -95,6 +95,7 @@ class TextBuffer
     text = params if typeof params is 'string'
 
     @emitter = new Emitter
+    @stoppedChangingPatch = new Patch(combineChanges: true)
     @id = params?.id ? crypto.randomBytes(16).toString('hex')
     @lines = ['']
     @lineEndings = ['']
@@ -736,6 +737,7 @@ class TextBuffer
     @scheduleModifiedEvents()
 
     @changeCount++
+    @stoppedChangingPatch.splice(oldRange.start, oldRange.getExtent(), newRange.getExtent(), text: newText)
     @emitter.emit 'did-change', changeEvent
 
   # Public: Delete the text in the given range.
@@ -1474,7 +1476,8 @@ class TextBuffer
     stoppedChangingCallback = =>
       @stoppedChangingTimeout = null
       modifiedStatus = @isModified()
-      @emitter.emit 'did-stop-changing'
+      @emitter.emit 'did-stop-changing', Object.freeze(@stoppedChangingPatch.getChanges())
+      @stoppedChangingPatch = new Patch
       @emitModifiedStatusChanged(modifiedStatus)
     @stoppedChangingTimeout = setTimeout(stoppedChangingCallback, @stoppedChangingDelay)
 

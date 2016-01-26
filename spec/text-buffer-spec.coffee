@@ -2336,15 +2336,20 @@ describe "TextBuffer", ->
     it "notifies observers after a delay passes following changes", ->
       delay = buffer.stoppedChangingDelay
       didStopChangingCallback = jasmine.createSpy("didStopChangingCallback")
-      buffer.onDidStopChanging didStopChangingCallback
 
-      buffer.insert([0, 0], 'a')
-      expect(didStopChangingCallback).not.toHaveBeenCalled()
+      waits delay
+
+      runs ->
+        buffer.onDidStopChanging didStopChangingCallback
+
+        buffer.insert([0, 0], 'a')
+        expect(didStopChangingCallback).not.toHaveBeenCalled()
 
       waits delay / 2
 
       runs ->
         buffer.insert([0, 0], 'b')
+        buffer.insert([1, 0], 'c')
         expect(didStopChangingCallback).not.toHaveBeenCalled()
 
       waits delay / 2
@@ -2356,6 +2361,20 @@ describe "TextBuffer", ->
 
       runs ->
         expect(didStopChangingCallback).toHaveBeenCalled()
+        expect(didStopChangingCallback.mostRecentCall.args[0]).toEqual [
+          {
+            start: {row: 0, column: 0},
+            replacedExtent: {row: 0, column: 0},
+            replacementExtent: {row: 0, column: 2},
+            replacementText: 'ba'
+          },
+          {
+            start: {row: 1, column: 0},
+            replacedExtent: {row: 0, column: 0},
+            replacementExtent: {row: 0, column: 1},
+            replacementText: 'c'
+          }
+        ]
 
         didStopChangingCallback.reset()
         buffer.undo()
