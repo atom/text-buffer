@@ -2364,15 +2364,15 @@ describe "TextBuffer", ->
         expect(didStopChangingCallback.mostRecentCall.args[0]).toEqual [
           {
             start: {row: 0, column: 0},
-            replacedExtent: {row: 0, column: 0},
-            replacementExtent: {row: 0, column: 2},
-            replacementText: 'ba'
+            oldExtent: {row: 0, column: 0},
+            newExtent: {row: 0, column: 2},
+            newText: 'ba'
           },
           {
             start: {row: 1, column: 0},
-            replacedExtent: {row: 0, column: 0},
-            replacementExtent: {row: 0, column: 1},
-            replacementText: 'c'
+            oldExtent: {row: 0, column: 0},
+            newExtent: {row: 0, column: 1},
+            newText: 'c'
           }
         ]
 
