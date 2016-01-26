@@ -49,11 +49,11 @@ class DisplayLayer
     if @foldsMarkerLayer.findMarkers(containsRange: bufferRange).length is 1
       {bufferStart, bufferEnd} = @expandBufferRangeToScreenLineStarts(bufferRange)
       foldExtent = traversal(bufferEnd, bufferStart)
-      {start, replacedExtent} = @patch.spliceInput(bufferStart, foldExtent, foldExtent)
+      {start, oldExtent} = @patch.spliceInput(bufferStart, foldExtent, foldExtent)
       {screenNewEnd, screenLineLengths} = @computeTransformation(bufferRange.start.row, bufferRange.end.row + 1)
-      @lineLengthIndex.splice(start.row, replacedExtent.row, screenLineLengths)
-      replacementExtent = traversal(screenNewEnd, start)
-      @emitter.emit 'did-change-sync', [{start, replacedExtent, replacementExtent}]
+      @lineLengthIndex.splice(start.row, oldExtent.row, screenLineLengths)
+      newExtent = traversal(screenNewEnd, start)
+      @emitter.emit 'did-change-sync', [{start, oldExtent, newExtent}]
 
     foldId
 
@@ -79,11 +79,11 @@ class DisplayLayer
         foldMarker.destroy()
       {bufferStart, bufferEnd} = @expandBufferRangeToScreenLineStarts(Range(combinedRangeStart, combinedRangeEnd))
       foldExtent = traversal(bufferEnd, bufferStart)
-      {start, replacedExtent} = @patch.spliceInput(bufferStart, foldExtent, foldExtent)
+      {start, oldExtent} = @patch.spliceInput(bufferStart, foldExtent, foldExtent)
       {screenNewEnd, screenLineLengths} = @computeTransformation(bufferStart.row, bufferEnd.row)
-      @lineLengthIndex.splice(start.row, replacedExtent.row, screenLineLengths)
-      replacementExtent = traversal(screenNewEnd, start)
-      @emitter.emit 'did-change-sync', [{start, replacedExtent, replacementExtent}]
+      @lineLengthIndex.splice(start.row, oldExtent.row, screenLineLengths)
+      newExtent = traversal(screenNewEnd, start)
+      @emitter.emit 'did-change-sync', [{start, oldExtent, newExtent}]
 
   onDidChangeSync: (callback) ->
     @emitter.on 'did-change-sync', callback
@@ -94,14 +94,14 @@ class DisplayLayer
     {bufferStart, bufferEnd: bufferOldEnd} = @expandBufferRangeToScreenLineStarts(oldRange)
     bufferOldExtent = traversal(bufferOldEnd, bufferStart)
     bufferNewExtent = Point(bufferOldExtent.row + (newRange.end.row - oldRange.end.row), 0)
-    {start, replacedExtent} = @patch.spliceInput(bufferStart, bufferOldExtent, bufferNewExtent)
+    {start, oldExtent} = @patch.spliceInput(bufferStart, bufferOldExtent, bufferNewExtent)
 
     {screenNewEnd, screenLineLengths} = @computeTransformation(oldRange.start.row, newRange.end.row + 1)
-    @lineLengthIndex.splice(start.row, replacedExtent.row, screenLineLengths)
+    @lineLengthIndex.splice(start.row, oldExtent.row, screenLineLengths)
 
-    replacementExtent = traversal(screenNewEnd, start)
+    newExtent = traversal(screenNewEnd, start)
     combinedChanges = new Patch
-    combinedChanges.splice(start, replacedExtent, replacementExtent)
+    combinedChanges.splice(start, oldExtent, newExtent)
 
     if @textDecorationLayer?
       invalidatedRanges = @textDecorationLayer.getInvalidatedRanges()
@@ -120,8 +120,8 @@ class DisplayLayer
     extent = screenRange.getExtent()
     @emitter.emit 'did-change-sync', [{
       start: screenRange.start,
-      replacedExtent: extent,
-      replacementExtent: extent
+      oldExtent: extent,
+      newExtent: extent
     }]
 
   expandBufferRangeToScreenLineStarts: (range) ->
@@ -264,7 +264,7 @@ class DisplayLayer
 
     loop
       if iterator.inChange()
-        text += iterator.getReplacementText()
+        text += iterator.getNewText()
       else
         text += @buffer.getTextInRange(Range(iterator.getInputStart(), iterator.getInputEnd()))
       break unless iterator.moveToSuccessor()

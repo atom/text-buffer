@@ -135,15 +135,15 @@ class TokenIterator
       @endScreenPosition = @patchIterator.getOutputEnd()
       @endBufferPosition = @patchIterator.getInputEnd()
       if @patchIterator.inChange()
-        characterIndexInChangeText = characterIndexForPoint(@patchIterator.getReplacementText(), traversal(@startScreenPosition, @patchIterator.getOutputStart()))
-        @text = @patchIterator.getReplacementText().substring(characterIndexInChangeText)
+        characterIndexInChangeText = characterIndexForPoint(@patchIterator.getNewText(), traversal(@startScreenPosition, @patchIterator.getOutputStart()))
+        @text = @patchIterator.getNewText().substring(characterIndexInChangeText)
       else
         @text = @buffer.getTextInRange(Range(@startBufferPosition, @endBufferPosition))
     else
       if @patchIterator.inChange()
-        characterIndexInChangeText = characterIndexForPoint(@patchIterator.getReplacementText(), traversal(@startScreenPosition, @patchIterator.getOutputStart()))
-        nextNewlineIndex = @patchIterator.getReplacementText().indexOf('\n', characterIndexInChangeText)
-        @text = @patchIterator.getReplacementText().substring(characterIndexInChangeText, nextNewlineIndex)
+        characterIndexInChangeText = characterIndexForPoint(@patchIterator.getNewText(), traversal(@startScreenPosition, @patchIterator.getOutputStart()))
+        nextNewlineIndex = @patchIterator.getNewText().indexOf('\n', characterIndexInChangeText)
+        @text = @patchIterator.getNewText().substring(characterIndexInChangeText, nextNewlineIndex)
         @endScreenPosition = traverse(@startScreenPosition, Point(0, @text.length))
         @endBufferPosition = @patchIterator.translateOutputPosition(@endScreenPosition)
       else

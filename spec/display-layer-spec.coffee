@@ -317,7 +317,7 @@ describe "DisplayLayer", ->
       displayLayer.onDidChangeSync((changes) -> allChanges.push(changes...))
 
       decorationLayer.emitInvalidateRangeEvent([[2, 1], [3, 2]])
-      expect(allChanges).toEqual [{start: Point(1, 5), replacedExtent: Point(1, 2), replacementExtent: Point(1, 2)}]
+      expect(allChanges).toEqual [{start: Point(1, 5), oldExtent: Point(1, 2), newExtent: Point(1, 2)}]
 
     it "throws an error if the text decoration iterator reports a boundary beyond the end of a line", ->
       buffer = new TextBuffer(text: """
@@ -607,5 +607,5 @@ getTokenLines = (displayLayer, startRow=0, endRow=displayLayer.getScreenLineCoun
   tokenLines
 
 updateTokenLines = (tokenLines, displayLayer, changes) ->
-  for {start, replacedExtent, replacementExtent} in changes
-    tokenLines.splice(start.row, replacedExtent.row, getTokenLines(displayLayer, start.row, start.row + replacementExtent.row)...)
+  for {start, oldExtent, newExtent} in changes
+    tokenLines.splice(start.row, oldExtent.row, getTokenLines(displayLayer, start.row, start.row + newExtent.row)...)
