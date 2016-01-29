@@ -741,8 +741,8 @@ class TextBuffer
 
     @changeCount++
     @stoppedChangingPatch.splice(oldRange.start, oldRange.getExtent(), newRange.getExtent(), text: newText)
-    @transactionPatch ?= new Patch
-    @transactionPatch.splice(oldRange.start, oldRange.getExtent(), newRange.getExtent(), text: newText)
+    @didChangeTextPatch ?= new Patch
+    @didChangeTextPatch.splice(oldRange.start, oldRange.getExtent(), newRange.getExtent(), text: newText)
     @emitter.emit 'did-change', changeEvent
 
   # Public: Delete the text in the given range.
@@ -1469,10 +1469,10 @@ class TextBuffer
       markerLayer.emitChangeEvents(snapshot?[markerLayerId])
 
   emitChangeTextEvent: ->
-    return unless @transactionPatch?
+    return unless @didChangeTextPatch?
 
-    @emitter.emit 'did-change-text', Object.freeze(@transactionPatch.getChanges())
-    @transactionPatch = null
+    @emitter.emit 'did-change-text', Object.freeze(@didChangeTextPatch.getChanges())
+    @didChangeTextPatch = null
 
   # Identifies if the buffer belongs to multiple editors.
   #
