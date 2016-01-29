@@ -9,8 +9,12 @@ TokenIterator = require './token-iterator'
 comparePoints = pointHelpers.compare
 maxPoint = pointHelpers.max
 
+LEADING_WHITESPACE_TEXT_DECORATION = 'invisible-character leading-whitespace'
+
 module.exports =
 class DisplayLayer
+  PATCH_TAGS: [LEADING_WHITESPACE_TEXT_DECORATION]
+
   constructor: (@buffer, {@tabLength, @foldsMarkerLayer, @invisibles, patchSeed}={}) ->
     @patch = new Patch(combineChanges: false, seed: patchSeed)
     @patchIterator = @patch.buildIterator()
@@ -176,7 +180,12 @@ class DisplayLayer
             inLeadingWhitespace = false unless character is '\t'
             if @invisibles.space? and screenColumn > leadingWhitespaceStartColumn
               spaceCount = screenColumn - leadingWhitespaceStartColumn
-              @patch.spliceWithText(Point(screenRow, leadingWhitespaceStartColumn), Point(0, spaceCount), @invisibles.space.repeat(spaceCount))
+              @patch.spliceWithText(
+                Point(screenRow, leadingWhitespaceStartColumn),
+                Point(0, spaceCount),
+                @invisibles.space.repeat(spaceCount),
+                {metadata: {textDecoration: LEADING_WHITESPACE_TEXT_DECORATION}}
+              )
 
           if character is '\t'
             tabText = ' '.repeat(@tabLength - (screenColumn % @tabLength))

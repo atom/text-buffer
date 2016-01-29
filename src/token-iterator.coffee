@@ -40,12 +40,15 @@ class TokenIterator
     @startBufferPosition = @patchIterator.translateOutputPosition(@startScreenPosition)
     @containingTags = []
     @closeTags = EMPTY_ARRAY
-    @openTags = @decorationIterator.seek(@startBufferPosition)
+    @openTags = @decorationIterator.seek(@startBufferPosition) ? []
 
     if isEqualPoint(@startBufferPosition, @decorationIterator.getPosition())
       for tag in @decorationIterator.getCloseTags()
         @openTags.splice(@openTags.lastIndexOf(tag), 1)
       @openTags.push(@decorationIterator.getOpenTags()...)
+
+    if textDecoration = @patchIterator.getMetadata()?.textDecoration
+      @openTags.push(textDecoration)
 
     @assignEndPositionsAndText()
 
@@ -61,34 +64,51 @@ class TokenIterator
     @startBufferPosition = @endBufferPosition
     @closeTags = EMPTY_ARRAY
     @openTags = EMPTY_ARRAY
-
+    tagsToClose = null
+    tagsToOpen = null
     atLineEnd = true
+
+    if isEqualPoint(@startScreenPosition, @patchIterator.getOutputEnd())
+      atLineEnd = false
+      if textDecoration = @patchIterator.getMetadata()?.textDecoration
+        tagsToClose = [textDecoration]
+      @patchIterator.moveToSuccessor()
+      if textDecoration = @patchIterator.getMetadata()?.textDecoration
+        tagsToOpen = [textDecoration]
+
     if isEqualPoint(@startBufferPosition, @decorationIterator.getPosition())
       atLineEnd = false
-      @openTags = []
+      tagsToClose ?= []
+      tagsToClose.push(@decorationIterator.getCloseTags()...)
+      tagsToOpen = (@decorationIterator.getOpenTags() ? []).concat(tagsToOpen ? [])
+
+    if tagsToClose?
       @closeTags = []
+      @openTags = []
 
-      closeTags = @decorationIterator.getCloseTags()
-      closeTagsToProcess = new Set(closeTags)
+      remainingCloseTagOccurrences = {}
+      for tag in tagsToClose
+        remainingCloseTagOccurrences[tag] ?= 0
+        remainingCloseTagOccurrences[tag]++
+
       containingTagsIndex = @containingTags.length - 1
-
-      for closeTag in closeTags when closeTagsToProcess.has(closeTag)
+      for closeTag in tagsToClose when remainingCloseTagOccurrences[closeTag] > 0
         while mostRecentOpenTag = @containingTags[containingTagsIndex--]
           break if mostRecentOpenTag is closeTag
 
           @closeTags.push(mostRecentOpenTag)
-          if closeTagsToProcess.has(mostRecentOpenTag)
-            closeTagsToProcess.delete(mostRecentOpenTag)
+          if remainingCloseTagOccurrences[mostRecentOpenTag] > 0
+            remainingCloseTagOccurrences[mostRecentOpenTag]--
           else
             @openTags.unshift(mostRecentOpenTag)
 
         @closeTags.push(closeTag)
 
-      @openTags.push(@decorationIterator.getOpenTags()...)
-
-    if isEqualPoint(@startScreenPosition, @patchIterator.getOutputEnd())
-      atLineEnd = false
-      @patchIterator.moveToSuccessor()
+    if tagsToOpen?
+      if @openTags.length > 0
+        @openTags.push(tagsToOpen...)
+      else
+        @openTags = tagsToOpen
 
     return false unless @closeTags.length > 0 or @openTags.length > 0 or comparePoints(@startBufferPosition, @buffer.getEndPosition()) < 0
 
@@ -107,6 +127,9 @@ class TokenIterator
 
         if isEqualPoint(@startScreenPosition, @patchIterator.getOutputEnd())
           @patchIterator.moveToSuccessor()
+          if textDecoration = @patchIterator.getMetadata()?.textDecoration
+            @openTags.push(textDecoration)
+
       else
         @tagsToReopenAfterNewline = @containingTags.slice()
         @closeTags = @containingTags.slice().reverse()

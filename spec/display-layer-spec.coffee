@@ -194,7 +194,7 @@ describe "DisplayLayer", ->
       expect(displayLayer.getText()).toBe 'abc\ndef\nghi\nj'
 
   describe "invisibles", ->
-    it "replaces leading whitespaces with the corresponding invisible character", ->
+    it "replaces leading whitespaces with the corresponding invisible character, appropriately decorated", ->
       buffer = new TextBuffer(text: """
       az
         b c
@@ -210,6 +210,29 @@ describe "DisplayLayer", ->
       •••d
       •   •e
       """)
+
+      expectTokens(displayLayer, [
+        {start: [0, 0], end: [0, 2], close: [], open: []}
+        {start: [1, 0], end: [1, 2], close: [], open: ['invisible-character leading-whitespace']}
+        {start: [1, 2], end: [1, 5], close: ['invisible-character leading-whitespace'], open: []}
+        {start: [2, 0], end: [2, 3], close: [], open: ['invisible-character leading-whitespace']}
+        {start: [2, 3], end: [2, 4], close: ['invisible-character leading-whitespace'], open: []}
+        {start: [3, 0], end: [3, 1], close: [], open: ['invisible-character leading-whitespace']}
+        {start: [3, 1], end: [3, 4], close: ['invisible-character leading-whitespace'], open: []}
+        {start: [3, 4], end: [3, 5], close: [], open: ['invisible-character leading-whitespace']}
+        {start: [3, 5], end: [3, 6], close: ['invisible-character leading-whitespace'], open: []}
+      ])
+
+      tokenIterator = displayLayer.buildTokenIterator()
+      tokenIterator.seekToScreenRow(1)
+      expect(tokenIterator.getCloseTags()).toEqual []
+      expect(tokenIterator.getOpenTags()).toEqual ['invisible-character leading-whitespace']
+      tokenIterator.seekToScreenRow(2)
+      expect(tokenIterator.getCloseTags()).toEqual []
+      expect(tokenIterator.getOpenTags()).toEqual ['invisible-character leading-whitespace']
+      tokenIterator.seekToScreenRow(3)
+      expect(tokenIterator.getCloseTags()).toEqual []
+      expect(tokenIterator.getOpenTags()).toEqual ['invisible-character leading-whitespace']
 
     it "does not clip positions within runs of invisible characters", ->
       buffer = new TextBuffer(text: "   a")
@@ -477,7 +500,9 @@ verifyTokenIterator = (displayLayer, textDecorationLayer, failureMessage) ->
           previousTokenWasFold = false
 
         if tokenText.length > 0
-          expect(containingTags.slice().sort()).toEqual(textDecorationLayer.containingTagsForPosition(startBufferPosition).sort())
+          actualContainingTags = containingTags.filter((tag) -> not (tag in displayLayer.PATCH_TAGS)).sort()
+          expectedContainingTags = textDecorationLayer.containingTagsForPosition(startBufferPosition).sort()
+          expect(actualContainingTags).toEqual(expectedContainingTags, failureMessage)
 
     break unless tokenIterator.moveToSuccessor()
 
