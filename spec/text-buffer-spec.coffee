@@ -2333,22 +2333,19 @@ describe "TextBuffer", ->
       waitsFor ->
         buffer.loaded
 
-    it "notifies observers at the end of each transaction", ->
+    it "notifies observers after a transaction, an undo or a redo", ->
       textChanges = []
-      buffer.onDidChangeText (changes) -> textChanges.push(changes)
+      buffer.onDidChangeText (changes) -> textChanges.push(changes...)
 
       buffer.insert([0, 0], "abc")
       buffer.delete([[0, 0], [0, 1]])
-      expect(textChanges.length).toBe(2)
-      expect(textChanges[0]).toEqual([
+      expect(textChanges).toEqual([
         {
           start: {row: 0, column: 0},
           oldExtent: {row: 0, column: 0},
           newExtent: {row: 0, column: 3},
           newText: "abc"
-        }
-      ])
-      expect(textChanges[1]).toEqual([
+        },
         {
           start: {row: 0, column: 0},
           oldExtent: {row: 0, column: 1},
@@ -2364,8 +2361,41 @@ describe "TextBuffer", ->
         buffer.insert([2, 3], "zw")
         buffer.delete([[2, 3], [2, 4]])
 
-      expect(textChanges.length).toBe(1)
-      expect(textChanges[0]).toEqual([
+      expect(textChanges).toEqual([
+        {
+          start: {row: 1, column: 0},
+          oldExtent: {row: 0, column: 0},
+          newExtent: {row: 0, column: 2},
+          newText: "xy"
+        },
+        {
+          start: {row: 2, column: 3},
+          oldExtent: {row: 0, column: 0},
+          newExtent: {row: 0, column: 1},
+          newText: "w"
+        }
+      ])
+
+      textChanges = []
+      buffer.undo()
+      expect(textChanges).toEqual([
+        {
+          start: {row: 1, column: 0},
+          oldExtent: {row: 0, column: 2},
+          newExtent: {row: 0, column: 0},
+          newText: ""
+        },
+        {
+          start: {row: 2, column: 3},
+          oldExtent: {row: 0, column: 1},
+          newExtent: {row: 0, column: 0},
+          newText: ""
+        }
+      ])
+
+      textChanges = []
+      buffer.redo()
+      expect(textChanges).toEqual([
         {
           start: {row: 1, column: 0},
           oldExtent: {row: 0, column: 0},
@@ -2385,8 +2415,7 @@ describe "TextBuffer", ->
         buffer.transact ->
           buffer.insert([0, 0], "j")
 
-      expect(textChanges.length).toBe(1)
-      expect(textChanges[0]).toEqual([
+      expect(textChanges).toEqual([
         {
           start: {row: 0, column: 0},
           oldExtent: {row: 0, column: 0},

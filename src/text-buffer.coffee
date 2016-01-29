@@ -741,7 +741,8 @@ class TextBuffer
 
     @changeCount++
     @stoppedChangingPatch.splice(oldRange.start, oldRange.getExtent(), newRange.getExtent(), text: newText)
-    @transactionPatch?.splice(oldRange.start, oldRange.getExtent(), newRange.getExtent(), text: newText)
+    @transactionPatch ?= new Patch
+    @transactionPatch.splice(oldRange.start, oldRange.getExtent(), newRange.getExtent(), text: newText)
     @emitter.emit 'did-change', changeEvent
 
   # Public: Delete the text in the given range.
@@ -926,6 +927,7 @@ class TextBuffer
       @applyChange(change, true) for change in pop.changes
       @restoreFromMarkerSnapshot(pop.snapshot)
       @emitMarkerChangeEvents(pop.snapshot)
+      @emitChangeTextEvent()
       true
     else
       false
@@ -936,6 +938,7 @@ class TextBuffer
       @applyChange(change, true) for change in pop.changes
       @restoreFromMarkerSnapshot(pop.snapshot)
       @emitMarkerChangeEvents(pop.snapshot)
+      @emitChangeTextEvent()
       true
     else
       false
@@ -960,9 +963,6 @@ class TextBuffer
 
     checkpointBefore = @history.createCheckpoint(@createMarkerSnapshot(), true)
 
-    if @transactCallDepth is 0
-      @transactionPatch = new Patch
-
     try
       @transactCallDepth++
       result = fn()
@@ -977,11 +977,7 @@ class TextBuffer
     @history.groupChangesSinceCheckpoint(checkpointBefore, endMarkerSnapshot, true)
     @history.applyGroupingInterval(groupingInterval)
     @emitMarkerChangeEvents(endMarkerSnapshot)
-
-    if @transactCallDepth is 0
-      @emitter.emit "did-change-text", Object.freeze(@transactionPatch.getChanges())
-      @transactionPatch = null
-
+    @emitChangeTextEvent() if @transactCallDepth is 0
     result
 
   abortTransaction: ->
@@ -1471,6 +1467,12 @@ class TextBuffer
   emitMarkerChangeEvents: (snapshot) ->
     for markerLayerId, markerLayer of @markerLayers
       markerLayer.emitChangeEvents(snapshot?[markerLayerId])
+
+  emitChangeTextEvent: ->
+    return unless @transactionPatch?
+
+    @emitter.emit 'did-change-text', Object.freeze(@transactionPatch.getChanges())
+    @transactionPatch = null
 
   # Identifies if the buffer belongs to multiple editors.
   #
