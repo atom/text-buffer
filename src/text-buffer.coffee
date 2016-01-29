@@ -191,6 +191,9 @@ class TextBuffer
   onDidChange: (callback) ->
     @emitter.on 'did-change', callback
 
+  onDidChangeText: (callback) ->
+    @emitter.on 'did-change-text', callback
+
   preemptDidChange: (callback) ->
     @emitter.preempt 'did-change', callback
 
@@ -738,6 +741,7 @@ class TextBuffer
 
     @changeCount++
     @stoppedChangingPatch.splice(oldRange.start, oldRange.getExtent(), newRange.getExtent(), text: newText)
+    @transactionPatch?.splice(oldRange.start, oldRange.getExtent(), newRange.getExtent(), text: newText)
     @emitter.emit 'did-change', changeEvent
 
   # Public: Delete the text in the given range.
@@ -956,6 +960,9 @@ class TextBuffer
 
     checkpointBefore = @history.createCheckpoint(@createMarkerSnapshot(), true)
 
+    if @transactCallDepth is 0
+      @transactionPatch = new Patch
+
     try
       @transactCallDepth++
       result = fn()
@@ -970,6 +977,10 @@ class TextBuffer
     @history.groupChangesSinceCheckpoint(checkpointBefore, endMarkerSnapshot, true)
     @history.applyGroupingInterval(groupingInterval)
     @emitMarkerChangeEvents(endMarkerSnapshot)
+
+    if @transactCallDepth is 0
+      @emitter.emit "did-change-text", Object.freeze(@transactionPatch.getChanges())
+      @transactionPatch = null
 
     result
 

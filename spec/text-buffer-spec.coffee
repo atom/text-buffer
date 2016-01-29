@@ -2325,6 +2325,76 @@ describe "TextBuffer", ->
       buffer.setText('\n')
       expect(buffer.isEmpty()).toBeFalsy()
 
+  describe "::onDidChangeText(callback)", ->
+    beforeEach ->
+      filePath = require.resolve('./fixtures/sample.js')
+      buffer = new TextBuffer({filePath, load: true})
+
+      waitsFor ->
+        buffer.loaded
+
+    it "notifies observers at the end of each transaction", ->
+      textChanges = []
+      buffer.onDidChangeText (changes) -> textChanges.push(changes)
+
+      buffer.insert([0, 0], "abc")
+      buffer.delete([[0, 0], [0, 1]])
+      expect(textChanges.length).toBe(2)
+      expect(textChanges[0]).toEqual([
+        {
+          start: {row: 0, column: 0},
+          oldExtent: {row: 0, column: 0},
+          newExtent: {row: 0, column: 3},
+          newText: "abc"
+        }
+      ])
+      expect(textChanges[1]).toEqual([
+        {
+          start: {row: 0, column: 0},
+          oldExtent: {row: 0, column: 1},
+          newExtent: {row: 0, column: 0},
+          newText: ""
+        }
+      ])
+
+      textChanges = []
+      buffer.transact ->
+        buffer.insert([1, 0], "x")
+        buffer.insert([1, 1], "y")
+        buffer.insert([2, 3], "zw")
+        buffer.delete([[2, 3], [2, 4]])
+
+      expect(textChanges.length).toBe(1)
+      expect(textChanges[0]).toEqual([
+        {
+          start: {row: 1, column: 0},
+          oldExtent: {row: 0, column: 0},
+          newExtent: {row: 0, column: 2},
+          newText: "xy"
+        },
+        {
+          start: {row: 2, column: 3},
+          oldExtent: {row: 0, column: 0},
+          newExtent: {row: 0, column: 1},
+          newText: "w"
+        }
+      ])
+
+      textChanges = []
+      buffer.transact ->
+        buffer.transact ->
+          buffer.insert([0, 0], "j")
+
+      expect(textChanges.length).toBe(1)
+      expect(textChanges[0]).toEqual([
+        {
+          start: {row: 0, column: 0},
+          oldExtent: {row: 0, column: 0},
+          newExtent: {row: 0, column: 1},
+          newText: "j"
+        }
+      ])
+
   describe "::onDidStopChanging(callback)", ->
     beforeEach ->
       filePath = require.resolve('./fixtures/sample.js')
