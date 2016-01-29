@@ -10,10 +10,12 @@ comparePoints = pointHelpers.compare
 maxPoint = pointHelpers.max
 
 LEADING_WHITESPACE_TEXT_DECORATION = 'invisible-character leading-whitespace'
+HARD_TAB_TEXT_DECORATION = 'invisible-character hard-tab'
+LEADING_WHITESPACE_HARD_TAB_TEXT_DECORATION = 'invisible-character hard-tab leading-whitespace'
 
 module.exports =
 class DisplayLayer
-  PATCH_TAGS: [LEADING_WHITESPACE_TEXT_DECORATION]
+  PATCH_TAGS: [LEADING_WHITESPACE_TEXT_DECORATION, HARD_TAB_TEXT_DECORATION, LEADING_WHITESPACE_HARD_TAB_TEXT_DECORATION]
 
   constructor: (@buffer, {@tabLength, @foldsMarkerLayer, @invisibles, patchSeed}={}) ->
     @patch = new Patch(combineChanges: false, seed: patchSeed)
@@ -188,8 +190,18 @@ class DisplayLayer
               )
 
           if character is '\t'
-            tabText = ' '.repeat(@tabLength - (screenColumn % @tabLength))
-            @patch.spliceWithText(Point(screenRow, screenColumn), Point(0, 1), tabText, {metadata: {atomic: true}})
+            distanceToNextTabStop = @tabLength - (screenColumn % @tabLength)
+            metadata = {atomic: true}
+            if @invisibles.tab?
+              tabText = @invisibles.tab + ' '.repeat(distanceToNextTabStop - 1)
+              if inLeadingWhitespace
+                metadata.textDecoration = LEADING_WHITESPACE_HARD_TAB_TEXT_DECORATION
+              else
+                metadata.textDecoration = HARD_TAB_TEXT_DECORATION
+            else
+              tabText = ' '.repeat(distanceToNextTabStop)
+
+            @patch.spliceWithText(Point(screenRow, screenColumn), Point(0, 1), tabText, {metadata})
             bufferColumn += 1
             screenColumn += tabText.length
             leadingWhitespaceStartColumn = screenColumn if inLeadingWhitespace
