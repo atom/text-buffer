@@ -1489,7 +1489,7 @@ class TextBuffer
     stoppedChangingCallback = =>
       @stoppedChangingTimeout = null
       modifiedStatus = @isModified()
-      @emitter.emit 'did-stop-changing', Object.freeze(@stoppedChangingPatch.getChanges())
+      @emitter.emit 'did-stop-changing', Object.freeze(normalizeChangesObject(@stoppedChangingPatch.getChanges()))
       @stoppedChangingPatch = new Patch
       @emitModifiedStatusChanged(modifiedStatus)
     @stoppedChangingTimeout = setTimeout(stoppedChangingCallback, @stoppedChangingDelay)
