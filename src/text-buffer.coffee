@@ -14,7 +14,7 @@ Range = require './range'
 History = require './history'
 MarkerLayer = require './marker-layer'
 MatchIterator = require './match-iterator'
-{spliceArray, newlineRegex, normalizeChangesObject} = require './helpers'
+{spliceArray, newlineRegex, normalizePatchChanges} = require './helpers'
 
 class SearchCallbackArgument
   Object.defineProperty @::, "range",
@@ -1471,7 +1471,7 @@ class TextBuffer
   emitChangeTextEvent: ->
     return unless @didChangeTextPatch?
 
-    @emitter.emit 'did-change-text', Object.freeze(normalizeChangesObject(@didChangeTextPatch.getChanges()))
+    @emitter.emit 'did-change-text', Object.freeze(normalizePatchChanges(@didChangeTextPatch.getChanges()))
     @didChangeTextPatch = null
 
   # Identifies if the buffer belongs to multiple editors.
@@ -1489,7 +1489,7 @@ class TextBuffer
     stoppedChangingCallback = =>
       @stoppedChangingTimeout = null
       modifiedStatus = @isModified()
-      @emitter.emit 'did-stop-changing', Object.freeze(normalizeChangesObject(@stoppedChangingPatch.getChanges()))
+      @emitter.emit 'did-stop-changing', Object.freeze(normalizePatchChanges(@stoppedChangingPatch.getChanges()))
       @stoppedChangingPatch = new Patch
       @emitModifiedStatusChanged(modifiedStatus)
     @stoppedChangingTimeout = setTimeout(stoppedChangingCallback, @stoppedChangingDelay)

@@ -16,7 +16,7 @@ module.exports =
 
   newlineRegex: /\r\n|\n|\r/g
 
-  normalizeChangesObject: (changes) ->
+  normalizePatchChanges: (changes) ->
     changes.map (change) -> {
       start: Point.fromObject(change.start)
       oldExtent: Point.fromObject(change.oldExtent)
