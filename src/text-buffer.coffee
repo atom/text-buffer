@@ -104,7 +104,7 @@ class TextBuffer
     maxUndoEntries = params?.maxUndoEntries ? @defaultMaxUndoEntries
     @history = params?.history ? new History(this, maxUndoEntries)
     @nextMarkerLayerId = params?.nextMarkerLayerId ? 0
-    @defaultMarkerLayer = params?.defaultMarkerLayer ? new MarkerLayer(this, String(@nextMarkerLayerId++))
+    @defaultMarkerLayer = params?.defaultMarkerLayer ? new MarkerLayer(this, String(@nextMarkerLayerId++), maintainHistory: true)
     @markerLayers = params?.markerLayers ? {}
     @markerLayers[@defaultMarkerLayer.id] = @defaultMarkerLayer
     @nextMarkerId = params?.nextMarkerId ? 1

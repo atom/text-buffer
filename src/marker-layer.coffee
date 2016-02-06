@@ -246,11 +246,12 @@ class MarkerLayer
     @delegate.markersUpdated(this)
 
   serialize: ->
-    ranges = @index.dump()
     markersById = {}
-    for id in Object.keys(@markersById)
-      marker = @markersById[id]
-      markersById[id] = marker.getSnapshot(Range.fromObject(ranges[id]), false) if marker.persistent
+    if @maintainHistory
+      ranges = @index.dump()
+      for id in Object.keys(@markersById)
+        marker = @markersById[id]
+        markersById[id] = marker.getSnapshot(Range.fromObject(ranges[id]), false) if marker.persistent
     {@id, @maintainHistory, markersById, version: SerializationVersion}
 
   deserialize: (state) ->
