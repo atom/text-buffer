@@ -234,10 +234,30 @@ describe "DisplayLayer", ->
       expect(tokenIterator.getCloseTags()).toEqual []
       expect(tokenIterator.getOpenTags()).toEqual ['invisible-character leading-whitespace']
 
+    it "replaces trailing whitespaces with the corresponding invisible character, appropriately decorated", ->
+      buffer = new TextBuffer("abcd\n       \nefgh   jkl\nmno  pqr   \nst  uvw  \t  ")
+      displayLayer = buffer.addDisplayLayer({tabLength: 4, invisibles: {space: '•'}})
+      expect(displayLayer.getText()).toEqual("abcd\n•••••••\nefgh   jkl\nmno  pqr•••\nst  uvw••   ••")
+
+      expectTokens(displayLayer, [
+        {start: [0, 0], end: [0, 4], close: [], open: []}
+        {start: [1, 0], end: [1, 7], close: [], open: ['invisible-character trailing-whitespace']}
+        {start: [1, 7], end: [1, 7], close: ['invisible-character trailing-whitespace'], open: []}
+        {start: [2, 0], end: [2, 10], close: [], open: []}
+        {start: [3, 0], end: [3, 8], close: [], open: []}
+        {start: [3, 8], end: [3, 11], close: [], open: ['invisible-character trailing-whitespace']}
+        {start: [3, 11], end: [3, 11], close: ['invisible-character trailing-whitespace'], open: []}
+        {start: [4, 0], end: [4, 7], close: [], open: []}
+        {start: [4, 7], end: [4, 9], close: [], open: ['invisible-character trailing-whitespace']}
+        {start: [4, 9], end: [4, 12], close: ['invisible-character trailing-whitespace'], open: ['invisible-character hard-tab trailing-whitespace']}
+        {start: [4, 12], end: [4, 14], close: ['invisible-character hard-tab trailing-whitespace'], open: ['invisible-character trailing-whitespace']}
+        {start: [4, 14], end: [4, 14], close: ['invisible-character trailing-whitespace'], open: []}
+      ])
+
     it "renders tab invisibles, appropriately decorated", ->
-      buffer = new TextBuffer(text: "a\tb\t\n \t d")
+      buffer = new TextBuffer(text: "a\tb\t\n \t d  \t  ")
       displayLayer = buffer.addDisplayLayer({tabLength: 4, invisibles: {tab: '»', space: '•'}})
-      expect(displayLayer.getText()).toBe("a»  b»  \n•»  •d")
+      expect(displayLayer.getText()).toBe("a»  b»  \n•»  •d••»   ••")
 
       expectTokens(displayLayer, [
         {start: [0, 0], end: [0, 1], close: [], open: []}
@@ -249,6 +269,10 @@ describe "DisplayLayer", ->
         {start: [1, 1], end: [1, 4], close: ['invisible-character leading-whitespace'], open: ['invisible-character hard-tab leading-whitespace']}
         {start: [1, 4], end: [1, 5], close: ['invisible-character hard-tab leading-whitespace'], open: ['invisible-character leading-whitespace']}
         {start: [1, 5], end: [1, 6], close: ['invisible-character leading-whitespace'], open: []}
+        {start: [1, 6], end: [1, 8], close: [], open: ['invisible-character trailing-whitespace']}
+        {start: [1, 8], end: [1, 12], close: ['invisible-character trailing-whitespace'], open: ['invisible-character hard-tab trailing-whitespace']}
+        {start: [1, 12], end: [1, 14], close: ['invisible-character hard-tab trailing-whitespace'], open: ['invisible-character trailing-whitespace']}
+        {start: [1, 14], end: [1, 14], close: ['invisible-character trailing-whitespace'], open: []}
       ])
 
     it "does not clip positions within runs of invisible characters", ->
