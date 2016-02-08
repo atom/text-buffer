@@ -928,6 +928,7 @@ class TextBuffer
       @restoreFromMarkerSnapshot(pop.snapshot)
       @emitMarkerChangeEvents(pop.snapshot)
       @emitChangeTextEvent()
+      @stoppedChangingPatch.rebalance()
       true
     else
       false
@@ -939,6 +940,7 @@ class TextBuffer
       @restoreFromMarkerSnapshot(pop.snapshot)
       @emitMarkerChangeEvents(pop.snapshot)
       @emitChangeTextEvent()
+      @stoppedChangingPatch.rebalance()
       true
     else
       false
@@ -977,7 +979,9 @@ class TextBuffer
     @history.groupChangesSinceCheckpoint(checkpointBefore, endMarkerSnapshot, true)
     @history.applyGroupingInterval(groupingInterval)
     @emitMarkerChangeEvents(endMarkerSnapshot)
-    @emitChangeTextEvent() if @transactCallDepth is 0
+    if @transactCallDepth is 0
+      @emitChangeTextEvent()
+      @stoppedChangingPatch.rebalance()
     result
 
   abortTransaction: ->
