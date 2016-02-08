@@ -95,7 +95,8 @@ class TextBuffer
     text = params if typeof params is 'string'
 
     @emitter = new Emitter
-    @stoppedChangingPatch = new Patch(combineChanges: true)
+    @stoppedChangingPatch = new Patch(combineChanges: true, batchMode: true)
+    @didChangeTextPatch = new Patch(combineChanges: true, batchMode: true)
     @id = params?.id ? crypto.randomBytes(16).toString('hex')
     @lines = ['']
     @lineEndings = ['']
@@ -741,7 +742,6 @@ class TextBuffer
 
     @changeCount++
     @stoppedChangingPatch.splice(oldRange.start, oldRange.getExtent(), newRange.getExtent(), text: newText)
-    @didChangeTextPatch ?= new Patch
     @didChangeTextPatch.splice(oldRange.start, oldRange.getExtent(), newRange.getExtent(), text: newText)
     @emitter.emit 'did-change', changeEvent
 
@@ -1469,10 +1469,8 @@ class TextBuffer
       markerLayer.emitChangeEvents(snapshot?[markerLayerId])
 
   emitChangeTextEvent: ->
-    return unless @didChangeTextPatch?
-
     @emitter.emit 'did-change-text', Object.freeze(normalizePatchChanges(@didChangeTextPatch.getChanges()))
-    @didChangeTextPatch = null
+    @didChangeTextPatch = new Patch(combineChanges: true, batchMode: true)
 
   # Identifies if the buffer belongs to multiple editors.
   #
@@ -1490,7 +1488,7 @@ class TextBuffer
       @stoppedChangingTimeout = null
       modifiedStatus = @isModified()
       @emitter.emit 'did-stop-changing', Object.freeze(normalizePatchChanges(@stoppedChangingPatch.getChanges()))
-      @stoppedChangingPatch = new Patch
+      @stoppedChangingPatch = new Patch(combineChanges: true, batchMode: true)
       @emitModifiedStatusChanged(modifiedStatus)
     @stoppedChangingTimeout = setTimeout(stoppedChangingCallback, @stoppedChangingDelay)
 
