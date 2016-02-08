@@ -1428,7 +1428,7 @@ class TextBuffer
       previousContents = @cachedDiskContents
 
       # Synchrounously update the disk contents because the {File} has already cached them. If the
-      # contents updated asynchrounously multiple `conlict` events could trigger for the same disk
+      # contents updated asynchrounously multiple `conflict` events could trigger for the same disk
       # contents.
       @updateCachedDiskContentsSync()
       return if previousContents == @cachedDiskContents
