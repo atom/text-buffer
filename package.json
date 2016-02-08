@@ -36,7 +36,7 @@
   "dependencies": {
     "delegato": "^1.0.0",
     "atom-diff": "^2",
-    "atom-patch": "0.0.4",
+    "atom-patch": "0.0.6",
     "emissary": "^1.0.0",
     "event-kit": "^1.0.2",
     "fs-plus": "^2.0.0",
