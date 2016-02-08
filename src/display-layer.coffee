@@ -156,11 +156,15 @@ class DisplayLayer
     screenLineLengths = []
     bufferRow = startBufferRow
     bufferColumn = 0
-    inLeadingWhitespace = true
-    inTrailingWhitespace = false
     leadingWhitespaceStartColumn = 0
     while bufferRow < endBufferRow
+      inLeadingWhitespace = true
+      leadingWhitespaceStartColumn = 0
+
+      inTrailingWhitespace = false
+      trailingWhitespaceStartColumn = 0
       expandedTabsInTrailingWhitespace = []
+
       bufferLine = @buffer.lineForRow(bufferRow)
       bufferLineLength = bufferLine.length
       while bufferColumn <= bufferLineLength
@@ -219,7 +223,7 @@ class DisplayLayer
               tabText = ' '.repeat(distanceToNextTabStop)
 
             @patch.spliceWithText(Point(screenRow, screenColumn), Point(0, 1), tabText, {metadata})
-            expandedTabsInTrailingWhitespace.push({screenColumn, tabText})
+            expandedTabsInTrailingWhitespace.push({screenColumn, tabText}) if inTrailingWhitespace
             bufferColumn += 1
             screenColumn += tabText.length
             leadingWhitespaceStartColumn = screenColumn if inLeadingWhitespace
@@ -260,10 +264,6 @@ class DisplayLayer
 
       bufferRow += 1
       bufferColumn = 0
-      inLeadingWhitespace = true
-      inTrailingWhitespace = false
-      leadingWhitespaceStartColumn = 0
-      trailingWhitespaceStartColumn = 0
       screenLineLengths.push(latestScreenColumn)
       screenRow += 1
       screenColumn = 0
