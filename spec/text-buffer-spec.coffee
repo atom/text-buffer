@@ -899,7 +899,7 @@ describe "TextBuffer", ->
       layer2B = bufferB.getMarkerLayer(layer2A.id)
       expect(layer2B.maintainHistory).toBe true
 
-      expectSameMarkers(layer1A, layer1B)
+      expect(layer1B).toBe undefined
       expectSameMarkers(layer2A, layer2B)
 
     it "doesn't serialize markers with the 'persistent' option set to false", ->
