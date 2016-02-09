@@ -294,6 +294,26 @@ describe "DisplayLayer", ->
         {start: [1, 14], end: [1, 14], close: ['invisible-character trailing-whitespace'], open: []}
       ])
 
+    it "renders end of line invisibles, appropriately decorated", ->
+      buffer = new TextBuffer(text: "a\nb\n\nd e f")
+      displayLayer = buffer.addDisplayLayer({tabLength: 4, invisibles: {eol: '¬'}})
+      expect(displayLayer.getText()).toBe("a¬\nb¬\n¬\nd e f")
+
+      expectTokens(displayLayer, [
+        {start: [0, 0], end: [0, 1], close: [], open: []}
+        {start: [0, 1], end: [0, 2], close: [], open: ['invisible-character eol']}
+        {start: [0, 2], end: [0, 2], close: ['invisible-character eol'], open: []}
+        {start: [1, 0], end: [1, 1], close: [], open: []}
+        {start: [1, 1], end: [1, 2], close: [], open: ['invisible-character eol']}
+        {start: [1, 2], end: [1, 2], close: ['invisible-character eol'], open: []}
+        {start: [2, 0], end: [2, 1], close: [], open: ['invisible-character eol']}
+        {start: [2, 1], end: [2, 1], close: ['invisible-character eol'], open: []}
+        {start: [3, 0], end: [3, 5], close: [], open: []}
+      ])
+
+      buffer.setTextInRange([[2, 0], [3, 5]], "ghi\njklm\nopqr")
+      expect(displayLayer.getText()).toBe("a¬\nb¬\nghi¬\njklm¬\nopqr")
+
     it "does not clip positions within runs of invisible characters", ->
       buffer = new TextBuffer(text: "   a")
       displayLayer = buffer.addDisplayLayer({invisibles: {space: '•'}})
@@ -429,6 +449,7 @@ describe "DisplayLayer", ->
       buffer = new TextBuffer(text: buildRandomLines(random, 10))
       invisibles = {}
       invisibles.space = '•' if random(2) > 0
+      invisibles.eol = '¬' if random(2) > 0
       displayLayer = buffer.addDisplayLayer({tabLength: 4, patchSeed: seed, invisibles})
       textDecorationLayer = new TestDecorationLayer([], buffer, random)
       displayLayer.setTextDecorationLayer(textDecorationLayer)
@@ -589,16 +610,22 @@ verifyPositionTranslations = (actualDisplayLayer, expectedDisplayLayer, failureM
 
 verifyRightmostScreenPosition = (displayLayer, failureMessage) ->
   screenLines = displayLayer.getText().split('\n')
+  hasEolInvisibles = displayLayer.invisibles.eol?
+  lastScreenRow = screenLines.length - 1
+
   maxLineLength = -1
   longestScreenRows = new Set
   for screenLine, row in screenLines
-    expect(displayLayer.lineLengthForScreenRow(row)).toBe(screenLine.length)
+    screenLineLength = screenLine.length
+    screenLineLength -= 1 if row isnt lastScreenRow and hasEolInvisibles
 
-    if screenLine.length > maxLineLength
+    expect(displayLayer.lineLengthForScreenRow(row)).toBe(screenLineLength)
+
+    if screenLineLength > maxLineLength
       longestScreenRows.clear()
-      maxLineLength = screenLine.length
+      maxLineLength = screenLineLength
 
-    if screenLine.length >= maxLineLength
+    if screenLineLength >= maxLineLength
       longestScreenRows.add(row)
 
   rightmostScreenPosition = displayLayer.getRightmostScreenPosition()
@@ -654,6 +681,7 @@ expectTokens = (displayLayer, expectedTokens) ->
   tokenIterator = displayLayer.buildTokenIterator()
   tokenIterator.seekToScreenRow(0)
   loop
+    throw new Error("The actual tokens are more than the expected ones.") if expectedTokens.length is 0
     {start, end, text, open, close, containing} = expectedTokens.shift()
     expect(tokenIterator.getStartScreenPosition()).toEqual(start)
     expect(tokenIterator.getEndScreenPosition()).toEqual(end)

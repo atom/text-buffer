@@ -126,6 +126,10 @@ class TokenIterator
           @openTags.push(@decorationIterator.getOpenTags()...)
 
         if isEqualPoint(@startScreenPosition, @patchIterator.getOutputEnd())
+          if textDecoration = @patchIterator.getMetadata()?.textDecoration
+            index = @openTags.lastIndexOf(textDecoration)
+            @openTags.splice(index, 1) if index isnt -1
+
           @patchIterator.moveToSuccessor()
           if textDecoration = @patchIterator.getMetadata()?.textDecoration
             @openTags.push(textDecoration)

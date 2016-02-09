@@ -19,6 +19,7 @@ INVISIBLE_TRAILING_WHITESPACE = 'invisible-character trailing-whitespace'
 INVISIBLE_HARD_TAB = 'invisible-character hard-tab'
 INVISIBLE_HARD_TAB_LEADING_WHITESPACE = 'invisible-character hard-tab leading-whitespace'
 INVISIBLE_HARD_TAB_TRAILING_WHITESPACE = 'invisible-character hard-tab trailing-whitespace'
+INVISIBLE_EOL = 'invisible-character eol'
 
 module.exports =
 class DisplayLayer
@@ -26,7 +27,8 @@ class DisplayLayer
     LEADING_WHITESPACE, TRAILING_WHITESPACE,
     HARD_TAB, HARD_TAB_LEADING_WHITESPACE, HARD_TAB_TRAILING_WHITESPACE,
     INVISIBLE_LEADING_WHITESPACE, INVISIBLE_TRAILING_WHITESPACE, INVISIBLE_HARD_TAB,
-    INVISIBLE_HARD_TAB_LEADING_WHITESPACE, INVISIBLE_HARD_TAB_TRAILING_WHITESPACE
+    INVISIBLE_HARD_TAB_LEADING_WHITESPACE, INVISIBLE_HARD_TAB_TRAILING_WHITESPACE,
+    INVISIBLE_EOL
   ]
 
   constructor: (@buffer, {@tabLength, @foldsMarkerLayer, @invisibles, patchSeed}={}) ->
@@ -265,6 +267,13 @@ class DisplayLayer
             bufferColumn += 1
             screenColumn += 1
 
+      if @invisibles.eol? and bufferRow isnt @buffer.getLastRow()
+        @patch.splice(
+          Point(screenRow, screenColumn - 1),
+          Point(1, 0),
+          Point(1, 0),
+          {text: @invisibles.eol + "\n", metadata: {textDecoration: INVISIBLE_EOL}}
+        )
       screenLineLengths.push(screenColumn - 1)
       bufferRow += 1
       bufferColumn = 0
