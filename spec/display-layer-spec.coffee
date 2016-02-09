@@ -249,8 +249,8 @@ describe "DisplayLayer", ->
         {start: [3, 11], end: [3, 11], close: ['invisible-character trailing-whitespace'], open: []}
         {start: [4, 0], end: [4, 7], close: [], open: []}
         {start: [4, 7], end: [4, 9], close: [], open: ['invisible-character trailing-whitespace']}
-        {start: [4, 9], end: [4, 12], close: ['invisible-character trailing-whitespace'], open: ['invisible-character hard-tab trailing-whitespace']}
-        {start: [4, 12], end: [4, 14], close: ['invisible-character hard-tab trailing-whitespace'], open: ['invisible-character trailing-whitespace']}
+        {start: [4, 9], end: [4, 12], close: ['invisible-character trailing-whitespace'], open: []}
+        {start: [4, 12], end: [4, 14], close: [], open: ['invisible-character trailing-whitespace']}
         {start: [4, 14], end: [4, 14], close: ['invisible-character trailing-whitespace'], open: []}
       ])
 
@@ -263,8 +263,8 @@ describe "DisplayLayer", ->
         {start: [0, 0], end: [0, 1], close: [], open: []}
         {start: [0, 1], end: [0, 4], close: [], open: ['invisible-character hard-tab']}
         {start: [0, 4], end: [0, 5], close: ['invisible-character hard-tab'], open: []}
-        {start: [0, 5], end: [0, 8], close: [], open: ['invisible-character hard-tab']}
-        {start: [0, 8], end: [0, 8], close: ['invisible-character hard-tab'], open: []}
+        {start: [0, 5], end: [0, 8], close: [], open: ['invisible-character hard-tab trailing-whitespace']}
+        {start: [0, 8], end: [0, 8], close: ['invisible-character hard-tab trailing-whitespace'], open: []}
         {start: [1, 0], end: [1, 1], close: [], open: ['invisible-character leading-whitespace']}
         {start: [1, 1], end: [1, 4], close: ['invisible-character leading-whitespace'], open: ['invisible-character hard-tab leading-whitespace']}
         {start: [1, 4], end: [1, 5], close: ['invisible-character hard-tab leading-whitespace'], open: ['invisible-character leading-whitespace']}

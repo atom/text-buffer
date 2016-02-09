@@ -9,15 +9,15 @@ TokenIterator = require './token-iterator'
 comparePoints = pointHelpers.compare
 maxPoint = pointHelpers.max
 
-LEADING_WHITESPACE_TEXT_DECORATION = 'invisible-character leading-whitespace'
-TRAILING_WHITESPACE_TEXT_DECORATION = 'invisible-character trailing-whitespace'
-HARD_TAB_TEXT_DECORATION = 'invisible-character hard-tab'
-LEADING_WHITESPACE_HARD_TAB_TEXT_DECORATION = 'invisible-character hard-tab leading-whitespace'
-TRAILING_WHITESPACE_HARD_TAB_TEXT_DECORATION = 'invisible-character hard-tab trailing-whitespace'
+INVISIBLE_LEADING_WHITESPACE = 'invisible-character leading-whitespace'
+INVISIBLE_TRAILING_WHITESPACE = 'invisible-character trailing-whitespace'
+INVISIBLE_HARD_TAB = 'invisible-character hard-tab'
+INVISIBLE_HARD_TAB_LEADING_WHITESPACE = 'invisible-character hard-tab leading-whitespace'
+INVISIBLE_HARD_TAB_TRAILING_WHITESPACE = 'invisible-character hard-tab trailing-whitespace'
 
 module.exports =
 class DisplayLayer
-  PATCH_TAGS: [LEADING_WHITESPACE_TEXT_DECORATION, TRAILING_WHITESPACE_TEXT_DECORATION, HARD_TAB_TEXT_DECORATION, LEADING_WHITESPACE_HARD_TAB_TEXT_DECORATION, TRAILING_WHITESPACE_HARD_TAB_TEXT_DECORATION]
+  PATCH_TAGS: [INVISIBLE_LEADING_WHITESPACE, INVISIBLE_TRAILING_WHITESPACE, INVISIBLE_HARD_TAB, INVISIBLE_HARD_TAB_LEADING_WHITESPACE, INVISIBLE_HARD_TAB_TRAILING_WHITESPACE]
 
   constructor: (@buffer, {@tabLength, @foldsMarkerLayer, @invisibles, patchSeed}={}) ->
     @patch = new Patch(combineChanges: false, seed: patchSeed)
@@ -156,18 +156,18 @@ class DisplayLayer
     screenLineLengths = []
     bufferRow = startBufferRow
     bufferColumn = 0
-    leadingWhitespaceStartColumn = 0
+
     while bufferRow < endBufferRow
-      inLeadingWhitespace = true
-      leadingWhitespaceStartColumn = 0
-
-      inTrailingWhitespace = false
-      trailingWhitespaceStartColumn = 0
-      expandedTabsInTrailingWhitespace = []
-
       bufferLine = @buffer.lineForRow(bufferRow)
       bufferLineLength = bufferLine.length
+
+      trailingWhitespaceStartBufferColumn = @findTrailingWhitespaceStartColumn(bufferLine)
+      inLeadingWhitespace = trailingWhitespaceStartBufferColumn > 0
+      leadingWhitespaceStartScreenColumn = 0
+
       while bufferColumn <= bufferLineLength
+        inTrailingWhitespace = bufferColumn >= trailingWhitespaceStartBufferColumn
+
         if foldEndBufferPosition = folds[bufferRow]?[bufferColumn]
           foldStartBufferPosition = Point(bufferRow, bufferColumn)
           foldBufferExtent = traversal(foldEndBufferPosition, foldStartBufferPosition)
@@ -183,32 +183,32 @@ class DisplayLayer
             unless character is ' ' or character is '\t'
               inLeadingWhitespace = false
               break
-          leadingWhitespaceStartColumn = screenColumn if inLeadingWhitespace
-          if bufferLine[screenColumn] is ' '
-            inTrailingWhitespace = true
-            trailingWhitespaceStartColumn = screenColumn
-          else
-            inTrailingWhitespace = false
-            expandedTabsInTrailingWhitespace = []
+          leadingWhitespaceStartScreenColumn = screenColumn if inLeadingWhitespace
         else
           character = bufferLine[bufferColumn]
-          if inLeadingWhitespace and bufferColumn < bufferLineLength and character isnt ' '
-            inLeadingWhitespace = false unless character is '\t'
-            if @invisibles.space? and screenColumn > leadingWhitespaceStartColumn
-              spaceCount = screenColumn - leadingWhitespaceStartColumn
-              @patch.spliceWithText(
-                Point(screenRow, leadingWhitespaceStartColumn),
-                Point(0, spaceCount),
-                @invisibles.space.repeat(spaceCount),
-                {metadata: {textDecoration: LEADING_WHITESPACE_TEXT_DECORATION}}
-              )
 
-          if character is ' ' and not inTrailingWhitespace
-            inTrailingWhitespace = true
-            trailingWhitespaceStartColumn = screenColumn
-          else if bufferColumn < bufferLineLength and character isnt ' ' and character isnt '\t'
-            inTrailingWhitespace = false
-            expandedTabsInTrailingWhitespace = []
+          if character isnt ' '
+            if inLeadingWhitespace and bufferColumn < bufferLineLength
+              inLeadingWhitespace = false unless character is '\t'
+              if @invisibles.space? and screenColumn > leadingWhitespaceStartScreenColumn
+                spaceCount = screenColumn - leadingWhitespaceStartScreenColumn
+                @patch.spliceWithText(
+                  Point(screenRow, leadingWhitespaceStartScreenColumn),
+                  Point(0, spaceCount),
+                  @invisibles.space.repeat(spaceCount),
+                  {metadata: {textDecoration: INVISIBLE_LEADING_WHITESPACE}}
+                )
+
+            if inTrailingWhitespace and @invisibles.space?
+              spaceCount = bufferColumn - trailingWhitespaceStartBufferColumn
+              if spaceCount > 0
+                @patch.spliceWithText(
+                  Point(screenRow, screenColumn - spaceCount),
+                  Point(0, spaceCount),
+                  @invisibles.space.repeat(spaceCount),
+                  {metadata: {textDecoration: INVISIBLE_TRAILING_WHITESPACE}}
+                )
+              trailingWhitespaceStartBufferColumn = bufferColumn + 1
 
           if character is '\t'
             distanceToNextTabStop = @tabLength - (screenColumn % @tabLength)
@@ -216,55 +216,25 @@ class DisplayLayer
             if @invisibles.tab?
               tabText = @invisibles.tab + ' '.repeat(distanceToNextTabStop - 1)
               if inLeadingWhitespace
-                metadata.textDecoration = LEADING_WHITESPACE_HARD_TAB_TEXT_DECORATION
+                metadata.textDecoration = INVISIBLE_HARD_TAB_LEADING_WHITESPACE
+              else if inTrailingWhitespace
+                metadata.textDecoration = INVISIBLE_HARD_TAB_TRAILING_WHITESPACE
               else
-                metadata.textDecoration = HARD_TAB_TEXT_DECORATION
+                metadata.textDecoration = INVISIBLE_HARD_TAB
             else
               tabText = ' '.repeat(distanceToNextTabStop)
 
             @patch.spliceWithText(Point(screenRow, screenColumn), Point(0, 1), tabText, {metadata})
-            expandedTabsInTrailingWhitespace.push({screenColumn, tabText}) if inTrailingWhitespace
             bufferColumn += 1
             screenColumn += tabText.length
-            leadingWhitespaceStartColumn = screenColumn if inLeadingWhitespace
+            leadingWhitespaceStartScreenColumn = screenColumn if inLeadingWhitespace
           else
             bufferColumn += 1
             screenColumn += 1
 
-      latestScreenColumn = screenColumn - 1
-
-      if @invisibles.space? and inTrailingWhitespace
-        for expandedTab in expandedTabsInTrailingWhitespace
-          spaceCount = expandedTab.screenColumn - trailingWhitespaceStartColumn
-          if spaceCount > 0
-            @patch.spliceWithText(
-              Point(screenRow, trailingWhitespaceStartColumn),
-              Point(0, spaceCount),
-              @invisibles.space.repeat(spaceCount),
-              {metadata: {textDecoration: TRAILING_WHITESPACE_TEXT_DECORATION}}
-            )
-
-          @patch.spliceWithText(
-            Point(screenRow, expandedTab.screenColumn),
-            Point(0, expandedTab.tabText.length),
-            expandedTab.tabText,
-            {metadata: {atomic: true, textDecoration: TRAILING_WHITESPACE_HARD_TAB_TEXT_DECORATION}}
-          )
-
-          trailingWhitespaceStartColumn = expandedTab.screenColumn + tabText.length
-
-        spaceCount = latestScreenColumn - trailingWhitespaceStartColumn
-        if spaceCount > 0
-          @patch.spliceWithText(
-            Point(screenRow, trailingWhitespaceStartColumn),
-            Point(0, spaceCount),
-            @invisibles.space.repeat(spaceCount),
-            {metadata: {textDecoration: TRAILING_WHITESPACE_TEXT_DECORATION}}
-          )
-
+      screenLineLengths.push(screenColumn - 1)
       bufferRow += 1
       bufferColumn = 0
-      screenLineLengths.push(latestScreenColumn)
       screenRow += 1
       screenColumn = 0
 
@@ -325,6 +295,15 @@ class DisplayLayer
         i++
 
     {folds, startBufferRow, endBufferRow}
+
+  # Walk backwards through the line, looking for the first non whitespace
+  # character. The trailing whitespace starts *after* that character. If we
+  # return the line's length, this means there is no trailing whitespace.
+  findTrailingWhitespaceStartColumn: (line) ->
+    for character, column in line by -1
+      unless character is ' ' or character is '\t'
+        return column + 1
+    0
 
   buildTokenIterator: ->
     new TokenIterator(@buffer, @patch.buildIterator(), @textDecorationLayer?.buildIterator())
