@@ -1473,7 +1473,7 @@ class TextBuffer
       markerLayer.emitChangeEvents(snapshot?[markerLayerId])
 
   emitChangeTextEvent: ->
-    @emitter.emit 'did-change-text', Object.freeze(normalizePatchChanges(@didChangeTextPatch.getChanges()))
+    @emitter.emit 'did-change-text', {changes: Object.freeze(normalizePatchChanges(@didChangeTextPatch.getChanges()))}
     @didChangeTextPatch = new Patch(combineChanges: true, batchMode: true)
 
   # Identifies if the buffer belongs to multiple editors.
@@ -1491,7 +1491,7 @@ class TextBuffer
     stoppedChangingCallback = =>
       @stoppedChangingTimeout = null
       modifiedStatus = @isModified()
-      @emitter.emit 'did-stop-changing', Object.freeze(normalizePatchChanges(@stoppedChangingPatch.getChanges()))
+      @emitter.emit 'did-stop-changing', {changes: Object.freeze(normalizePatchChanges(@stoppedChangingPatch.getChanges()))}
       @stoppedChangingPatch = new Patch(combineChanges: true, batchMode: true)
       @emitModifiedStatusChanged(modifiedStatus)
     @stoppedChangingTimeout = setTimeout(stoppedChangingCallback, @stoppedChangingDelay)

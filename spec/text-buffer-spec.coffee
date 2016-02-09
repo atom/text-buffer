@@ -2335,7 +2335,7 @@ describe "TextBuffer", ->
 
     it "notifies observers after a transaction, an undo or a redo", ->
       textChanges = []
-      buffer.onDidChangeText (changes) -> textChanges.push(changes...)
+      buffer.onDidChangeText ({changes}) -> textChanges.push(changes...)
 
       buffer.insert([0, 0], "abc")
       buffer.delete([[0, 0], [0, 1]])
@@ -2460,7 +2460,7 @@ describe "TextBuffer", ->
 
       runs ->
         expect(didStopChangingCallback).toHaveBeenCalled()
-        expect(didStopChangingCallback.mostRecentCall.args[0]).toEqual [
+        expect(didStopChangingCallback.mostRecentCall.args[0].changes).toEqual [
           {
             start: {row: 0, column: 0},
             oldExtent: {row: 0, column: 0},
