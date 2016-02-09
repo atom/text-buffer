@@ -218,8 +218,8 @@ describe "DisplayLayer", ->
         {start: [2, 0], end: [2, 3], close: [], open: ['invisible-character leading-whitespace']}
         {start: [2, 3], end: [2, 4], close: ['invisible-character leading-whitespace'], open: []}
         {start: [3, 0], end: [3, 1], close: [], open: ['invisible-character leading-whitespace']}
-        {start: [3, 1], end: [3, 4], close: ['invisible-character leading-whitespace'], open: []}
-        {start: [3, 4], end: [3, 5], close: [], open: ['invisible-character leading-whitespace']}
+        {start: [3, 1], end: [3, 4], close: ['invisible-character leading-whitespace'], open: ['hard-tab leading-whitespace']}
+        {start: [3, 4], end: [3, 5], close: ['hard-tab leading-whitespace'], open: ['invisible-character leading-whitespace']}
         {start: [3, 5], end: [3, 6], close: ['invisible-character leading-whitespace'], open: []}
       ])
 
@@ -249,9 +249,28 @@ describe "DisplayLayer", ->
         {start: [3, 11], end: [3, 11], close: ['invisible-character trailing-whitespace'], open: []}
         {start: [4, 0], end: [4, 7], close: [], open: []}
         {start: [4, 7], end: [4, 9], close: [], open: ['invisible-character trailing-whitespace']}
-        {start: [4, 9], end: [4, 12], close: ['invisible-character trailing-whitespace'], open: []}
-        {start: [4, 12], end: [4, 14], close: [], open: ['invisible-character trailing-whitespace']}
+        {start: [4, 9], end: [4, 12], close: ['invisible-character trailing-whitespace'], open: ['hard-tab trailing-whitespace']}
+        {start: [4, 12], end: [4, 14], close: ['hard-tab trailing-whitespace'], open: ['invisible-character trailing-whitespace']}
         {start: [4, 14], end: [4, 14], close: ['invisible-character trailing-whitespace'], open: []}
+      ])
+
+    it "decorates hard tabs, leading whitespace, and trailing whitespace, even when no invisible characters are specified", ->
+      buffer = new TextBuffer(" \t a\tb \t \n  ")
+      displayLayer = buffer.addDisplayLayer({tabLength: 4})
+      expect(displayLayer.getText()).toEqual("     a  b    \n  ")
+      expectTokens(displayLayer, [
+        {start: [0, 0], end: [0, 1], close: [], open: ['leading-whitespace']}
+        {start: [0, 1], end: [0, 4], close: ['leading-whitespace'], open: ['hard-tab leading-whitespace']}
+        {start: [0, 4], end: [0, 5], close: ['hard-tab leading-whitespace'], open: ['leading-whitespace']}
+        {start: [0, 5], end: [0, 6], close: ['leading-whitespace'], open: []}
+        {start: [0, 6], end: [0, 8], close: [], open: ['hard-tab']}
+        {start: [0, 8], end: [0, 9], close: ['hard-tab'], open: []}
+        {start: [0, 9], end: [0, 10], close: [], open: ['trailing-whitespace']}
+        {start: [0, 10], end: [0, 12], close: ['trailing-whitespace'], open: ['hard-tab trailing-whitespace']}
+        {start: [0, 12], end: [0, 13], close: ['hard-tab trailing-whitespace'], open: ['trailing-whitespace']}
+        {start: [0, 13], end: [0, 13], close: ['trailing-whitespace'], open: []}
+        {start: [1, 0], end: [1, 2], close: [], open: ['trailing-whitespace']}
+        {start: [1, 2], end: [1, 2], close: ['trailing-whitespace'], open: []}
       ])
 
     it "renders tab invisibles, appropriately decorated", ->

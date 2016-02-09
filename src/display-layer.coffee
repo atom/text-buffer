@@ -9,6 +9,11 @@ TokenIterator = require './token-iterator'
 comparePoints = pointHelpers.compare
 maxPoint = pointHelpers.max
 
+LEADING_WHITESPACE = 'leading-whitespace'
+TRAILING_WHITESPACE = 'trailing-whitespace'
+HARD_TAB = 'hard-tab'
+HARD_TAB_LEADING_WHITESPACE = 'hard-tab leading-whitespace'
+HARD_TAB_TRAILING_WHITESPACE = 'hard-tab trailing-whitespace'
 INVISIBLE_LEADING_WHITESPACE = 'invisible-character leading-whitespace'
 INVISIBLE_TRAILING_WHITESPACE = 'invisible-character trailing-whitespace'
 INVISIBLE_HARD_TAB = 'invisible-character hard-tab'
@@ -17,7 +22,12 @@ INVISIBLE_HARD_TAB_TRAILING_WHITESPACE = 'invisible-character hard-tab trailing-
 
 module.exports =
 class DisplayLayer
-  PATCH_TAGS: [INVISIBLE_LEADING_WHITESPACE, INVISIBLE_TRAILING_WHITESPACE, INVISIBLE_HARD_TAB, INVISIBLE_HARD_TAB_LEADING_WHITESPACE, INVISIBLE_HARD_TAB_TRAILING_WHITESPACE]
+  PATCH_TAGS: [
+    LEADING_WHITESPACE, TRAILING_WHITESPACE,
+    HARD_TAB, HARD_TAB_LEADING_WHITESPACE, HARD_TAB_TRAILING_WHITESPACE,
+    INVISIBLE_LEADING_WHITESPACE, INVISIBLE_TRAILING_WHITESPACE, INVISIBLE_HARD_TAB,
+    INVISIBLE_HARD_TAB_LEADING_WHITESPACE, INVISIBLE_HARD_TAB_TRAILING_WHITESPACE
+  ]
 
   constructor: (@buffer, {@tabLength, @foldsMarkerLayer, @invisibles, patchSeed}={}) ->
     @patch = new Patch(combineChanges: false, seed: patchSeed)
@@ -184,29 +194,46 @@ class DisplayLayer
               inLeadingWhitespace = false
               break
           leadingWhitespaceStartScreenColumn = screenColumn if inLeadingWhitespace
+          trailingWhitespaceStartBufferColumn = Math.max(bufferColumn, @findTrailingWhitespaceStartColumn(bufferLine))
         else
           character = bufferLine[bufferColumn]
 
           if character isnt ' '
             if inLeadingWhitespace and bufferColumn < bufferLineLength
               inLeadingWhitespace = false unless character is '\t'
-              if @invisibles.space? and screenColumn > leadingWhitespaceStartScreenColumn
+              if screenColumn > leadingWhitespaceStartScreenColumn
                 spaceCount = screenColumn - leadingWhitespaceStartScreenColumn
+
+                if @invisibles.space?
+                  text = @invisibles.space.repeat(spaceCount)
+                  metadata = {textDecoration: INVISIBLE_LEADING_WHITESPACE}
+                else
+                  text = ' '.repeat(spaceCount)
+                  metadata = {textDecoration: LEADING_WHITESPACE}
+
                 @patch.spliceWithText(
                   Point(screenRow, leadingWhitespaceStartScreenColumn),
                   Point(0, spaceCount),
-                  @invisibles.space.repeat(spaceCount),
-                  {metadata: {textDecoration: INVISIBLE_LEADING_WHITESPACE}}
+                  text,
+                  {metadata}
                 )
 
-            if inTrailingWhitespace and @invisibles.space?
+            if inTrailingWhitespace
               spaceCount = bufferColumn - trailingWhitespaceStartBufferColumn
+
               if spaceCount > 0
+                if @invisibles.space?
+                  text = @invisibles.space.repeat(spaceCount)
+                  metadata = {textDecoration: INVISIBLE_TRAILING_WHITESPACE}
+                else
+                  text = ' '.repeat(spaceCount)
+                  metadata = {textDecoration: TRAILING_WHITESPACE}
+
                 @patch.spliceWithText(
                   Point(screenRow, screenColumn - spaceCount),
                   Point(0, spaceCount),
-                  @invisibles.space.repeat(spaceCount),
-                  {metadata: {textDecoration: INVISIBLE_TRAILING_WHITESPACE}}
+                  text,
+                  {metadata}
                 )
               trailingWhitespaceStartBufferColumn = bufferColumn + 1
 
@@ -223,6 +250,12 @@ class DisplayLayer
                 metadata.textDecoration = INVISIBLE_HARD_TAB
             else
               tabText = ' '.repeat(distanceToNextTabStop)
+              if inLeadingWhitespace
+                metadata.textDecoration = HARD_TAB_LEADING_WHITESPACE
+              else if inTrailingWhitespace
+                metadata.textDecoration = HARD_TAB_TRAILING_WHITESPACE
+              else
+                metadata.textDecoration = HARD_TAB
 
             @patch.spliceWithText(Point(screenRow, screenColumn), Point(0, 1), tabText, {metadata})
             bufferColumn += 1
