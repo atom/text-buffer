@@ -273,6 +273,14 @@ describe "DisplayLayer", ->
         {start: [1, 2], end: [1, 2], close: ['trailing-whitespace'], open: []}
       ])
 
+    it "renders invisibles correctly when leading or trailing whitespace intersects folds", ->
+      buffer = new TextBuffer("    a    \n    b\nc    \nd")
+      displayLayer = buffer.addDisplayLayer({tabLength: 4, invisibles: {space: '•'}})
+      displayLayer.foldBufferRange([[0, 2], [0, 7]])
+      displayLayer.foldBufferRange([[1, 2], [2, 2]])
+      displayLayer.foldBufferRange([[2, 4], [3, 0]])
+      expect(displayLayer.getText()).toBe("••⋯••\n••⋯••⋯d")
+
     it "renders tab invisibles, appropriately decorated", ->
       buffer = new TextBuffer(text: "a\tb\t\n \t d  \t  ")
       displayLayer = buffer.addDisplayLayer({tabLength: 4, invisibles: {tab: '»', space: '•'}})

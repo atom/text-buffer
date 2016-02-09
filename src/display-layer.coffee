@@ -183,9 +183,50 @@ class DisplayLayer
       leadingWhitespaceStartScreenColumn = 0
 
       while bufferColumn <= bufferLineLength
+        character = bufferLine[bufferColumn]
         inTrailingWhitespace = bufferColumn >= trailingWhitespaceStartBufferColumn
+        foldEndBufferPosition = folds[bufferRow]?[bufferColumn]
 
-        if foldEndBufferPosition = folds[bufferRow]?[bufferColumn]
+        if character isnt ' ' or foldEndBufferPosition?
+          if inLeadingWhitespace and bufferColumn < bufferLineLength
+            inLeadingWhitespace = false unless character is '\t'
+            if screenColumn > leadingWhitespaceStartScreenColumn
+              spaceCount = screenColumn - leadingWhitespaceStartScreenColumn
+
+              if @invisibles.space?
+                text = @invisibles.space.repeat(spaceCount)
+                metadata = {textDecoration: INVISIBLE_LEADING_WHITESPACE}
+              else
+                text = ' '.repeat(spaceCount)
+                metadata = {textDecoration: LEADING_WHITESPACE}
+
+              @patch.spliceWithText(
+                Point(screenRow, leadingWhitespaceStartScreenColumn),
+                Point(0, spaceCount),
+                text,
+                {metadata}
+              )
+
+          if inTrailingWhitespace
+            spaceCount = bufferColumn - trailingWhitespaceStartBufferColumn
+
+            if spaceCount > 0
+              if @invisibles.space?
+                text = @invisibles.space.repeat(spaceCount)
+                metadata = {textDecoration: INVISIBLE_TRAILING_WHITESPACE}
+              else
+                text = ' '.repeat(spaceCount)
+                metadata = {textDecoration: TRAILING_WHITESPACE}
+
+              @patch.spliceWithText(
+                Point(screenRow, screenColumn - spaceCount),
+                Point(0, spaceCount),
+                text,
+                {metadata}
+              )
+            trailingWhitespaceStartBufferColumn = bufferColumn + 1
+
+        if foldEndBufferPosition?
           foldStartBufferPosition = Point(bufferRow, bufferColumn)
           foldBufferExtent = traversal(foldEndBufferPosition, foldStartBufferPosition)
           @patch.spliceWithText(Point(screenRow, screenColumn), foldBufferExtent, '⋯', {metadata: {fold: true}})
@@ -203,47 +244,6 @@ class DisplayLayer
           leadingWhitespaceStartScreenColumn = screenColumn if inLeadingWhitespace
           trailingWhitespaceStartBufferColumn = Math.max(bufferColumn, @findTrailingWhitespaceStartColumn(bufferLine))
         else
-          character = bufferLine[bufferColumn]
-
-          if character isnt ' '
-            if inLeadingWhitespace and bufferColumn < bufferLineLength
-              inLeadingWhitespace = false unless character is '\t'
-              if screenColumn > leadingWhitespaceStartScreenColumn
-                spaceCount = screenColumn - leadingWhitespaceStartScreenColumn
-
-                if @invisibles.space?
-                  text = @invisibles.space.repeat(spaceCount)
-                  metadata = {textDecoration: INVISIBLE_LEADING_WHITESPACE}
-                else
-                  text = ' '.repeat(spaceCount)
-                  metadata = {textDecoration: LEADING_WHITESPACE}
-
-                @patch.spliceWithText(
-                  Point(screenRow, leadingWhitespaceStartScreenColumn),
-                  Point(0, spaceCount),
-                  text,
-                  {metadata}
-                )
-
-            if inTrailingWhitespace
-              spaceCount = bufferColumn - trailingWhitespaceStartBufferColumn
-
-              if spaceCount > 0
-                if @invisibles.space?
-                  text = @invisibles.space.repeat(spaceCount)
-                  metadata = {textDecoration: INVISIBLE_TRAILING_WHITESPACE}
-                else
-                  text = ' '.repeat(spaceCount)
-                  metadata = {textDecoration: TRAILING_WHITESPACE}
-
-                @patch.spliceWithText(
-                  Point(screenRow, screenColumn - spaceCount),
-                  Point(0, spaceCount),
-                  text,
-                  {metadata}
-                )
-              trailingWhitespaceStartBufferColumn = bufferColumn + 1
-
           if character is '\t'
             distanceToNextTabStop = @tabLength - (screenColumn % @tabLength)
             metadata = {atomic: true}
