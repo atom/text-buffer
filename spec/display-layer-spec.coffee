@@ -46,6 +46,20 @@ describe "DisplayLayer", ->
 
       verifyTokenIterator(displayLayer)
 
+  describe "soft tabs", ->
+    it "breaks leading whitespace into atomic units corresponding to the tab length", ->
+      buffer = new TextBuffer(text: '          a\n     \n  \t    \t  ')
+      displayLayer = buffer.addDisplayLayer(tabLength: 4, invisibles: {space: '•'})
+
+      expect(displayLayer.getText()).toBe('••••••••••a\n•••••\n••  ••••    ••')
+
+      expect(displayLayer.clipScreenPosition([0, 2])).toEqual [0, 0]
+      expect(displayLayer.clipScreenPosition([0, 6])).toEqual [0, 4]
+      expect(displayLayer.clipScreenPosition([0, 9])).toEqual [0, 9]
+      expect(displayLayer.clipScreenPosition([2, 1])).toEqual [2, 1]
+      expect(displayLayer.clipScreenPosition([2, 6])).toEqual [2, 4]
+      expect(displayLayer.clipScreenPosition([2, 13])).toEqual [2, 13]
+
   describe "folds", ->
     it "allows single folds to be created and destroyed", ->
       buffer = new TextBuffer(text: SAMPLE_TEXT)
@@ -241,7 +255,8 @@ describe "DisplayLayer", ->
 
       expectTokens(displayLayer, [
         {start: [0, 0], end: [0, 4], close: [], open: []}
-        {start: [1, 0], end: [1, 7], close: [], open: ['invisible-character trailing-whitespace']}
+        {start: [1, 0], end: [1, 4], close: [], open: ['invisible-character trailing-whitespace']}
+        {start: [1, 4], end: [1, 7], close: ['invisible-character trailing-whitespace'], open: ['invisible-character trailing-whitespace']}
         {start: [1, 7], end: [1, 7], close: ['invisible-character trailing-whitespace'], open: []}
         {start: [2, 0], end: [2, 10], close: [], open: []}
         {start: [3, 0], end: [3, 8], close: [], open: []}

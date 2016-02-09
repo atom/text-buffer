@@ -179,17 +179,27 @@ class DisplayLayer
       bufferLineLength = bufferLine.length
 
       trailingWhitespaceStartBufferColumn = @findTrailingWhitespaceStartColumn(bufferLine)
-      inLeadingWhitespace = trailingWhitespaceStartBufferColumn > 0
+      trailingWhitespaceStartScreenColumn = Infinity # will be assigned during line traversal
+      isBlankLine = trailingWhitespaceStartBufferColumn is 0
+      inLeadingWhitespace = not isBlankLine
       leadingWhitespaceStartScreenColumn = 0
 
       while bufferColumn <= bufferLineLength
         character = bufferLine[bufferColumn]
-        inTrailingWhitespace = bufferColumn >= trailingWhitespaceStartBufferColumn
         foldEndBufferPosition = folds[bufferRow]?[bufferColumn]
+        inTrailingWhitespace = bufferColumn >= trailingWhitespaceStartBufferColumn
+        trailingWhitespaceStartScreenColumn = screenColumn if bufferColumn is trailingWhitespaceStartBufferColumn
 
-        if character isnt ' ' or foldEndBufferPosition?
+        if inLeadingWhitespace
+          atSoftTabBoundary = (screenColumn % @tabLength) is 0 and (screenColumn - leadingWhitespaceStartScreenColumn) is @tabLength
+        else if isBlankLine and inTrailingWhitespace
+          atSoftTabBoundary = (screenColumn % @tabLength) is 0 and (screenColumn - trailingWhitespaceStartScreenColumn) is @tabLength
+        else
+          atSoftTabBoundary = false
+
+        if character isnt ' ' or foldEndBufferPosition? or atSoftTabBoundary
           if inLeadingWhitespace and bufferColumn < bufferLineLength
-            inLeadingWhitespace = false unless character is '\t'
+            inLeadingWhitespace = false unless character is ' ' or character is '\t'
             if screenColumn > leadingWhitespaceStartScreenColumn
               spaceCount = screenColumn - leadingWhitespaceStartScreenColumn
 
@@ -199,6 +209,7 @@ class DisplayLayer
               else
                 text = ' '.repeat(spaceCount)
                 metadata = {textDecoration: LEADING_WHITESPACE}
+              metadata.atomic = true if atSoftTabBoundary
 
               @patch.spliceWithText(
                 Point(screenRow, leadingWhitespaceStartScreenColumn),
@@ -206,25 +217,26 @@ class DisplayLayer
                 text,
                 {metadata}
               )
+              leadingWhitespaceStartScreenColumn = screenColumn
 
-          if inTrailingWhitespace
-            spaceCount = bufferColumn - trailingWhitespaceStartBufferColumn
+          if screenColumn > trailingWhitespaceStartScreenColumn
+            spaceCount = screenColumn - trailingWhitespaceStartScreenColumn
 
-            if spaceCount > 0
-              if @invisibles.space?
-                text = @invisibles.space.repeat(spaceCount)
-                metadata = {textDecoration: INVISIBLE_TRAILING_WHITESPACE}
-              else
-                text = ' '.repeat(spaceCount)
-                metadata = {textDecoration: TRAILING_WHITESPACE}
+            if @invisibles.space?
+              text = @invisibles.space.repeat(spaceCount)
+              metadata = {textDecoration: INVISIBLE_TRAILING_WHITESPACE}
+            else
+              text = ' '.repeat(spaceCount)
+              metadata = {textDecoration: TRAILING_WHITESPACE}
+            metadata.atomic = true if atSoftTabBoundary
 
-              @patch.spliceWithText(
-                Point(screenRow, screenColumn - spaceCount),
-                Point(0, spaceCount),
-                text,
-                {metadata}
-              )
-            trailingWhitespaceStartBufferColumn = bufferColumn + 1
+            @patch.spliceWithText(
+              Point(screenRow, trailingWhitespaceStartScreenColumn),
+              Point(0, spaceCount),
+              text,
+              {metadata}
+            )
+            trailingWhitespaceStartScreenColumn = screenColumn
 
         if foldEndBufferPosition?
           foldStartBufferPosition = Point(bufferRow, bufferColumn)
@@ -242,7 +254,12 @@ class DisplayLayer
               inLeadingWhitespace = false
               break
           leadingWhitespaceStartScreenColumn = screenColumn if inLeadingWhitespace
-          trailingWhitespaceStartBufferColumn = Math.max(bufferColumn, @findTrailingWhitespaceStartColumn(bufferLine))
+          trailingWhitespaceStartBufferColumn = @findTrailingWhitespaceStartColumn(bufferLine)
+          if bufferColumn >= trailingWhitespaceStartBufferColumn
+            trailingWhitespaceStartBufferColumn = bufferColumn
+            trailingWhitespaceStartScreenColumn = screenColumn
+          else
+            trailingWhitespaceStartScreenColumn = Infinity
         else
           if character is '\t'
             distanceToNextTabStop = @tabLength - (screenColumn % @tabLength)
@@ -268,6 +285,7 @@ class DisplayLayer
             bufferColumn += 1
             screenColumn += tabText.length
             leadingWhitespaceStartScreenColumn = screenColumn if inLeadingWhitespace
+            trailingWhitespaceStartScreenColumn = screenColumn if inTrailingWhitespace
           else
             bufferColumn += 1
             screenColumn += 1
