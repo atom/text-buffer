@@ -39,6 +39,11 @@ class DisplayLayer
     @textDecorationLayer = null
     @foldsMarkerLayer ?= @buffer.addMarkerLayer()
     @invisibles ?= {}
+    @eolInvisibles = {
+      "\r": @invisibles.cr
+      "\n": @invisibles.eol
+      "\r\n": @invisibles.cr + @invisibles.eol
+    }
     @foldIdCounter = 1
     @disposables = @buffer.onDidChange(@bufferDidChange.bind(this))
     {screenLineLengths} = @computeTransformation(0, @buffer.getLineCount())
@@ -267,12 +272,12 @@ class DisplayLayer
             bufferColumn += 1
             screenColumn += 1
 
-      if @invisibles.eol? and bufferRow isnt @buffer.getLastRow()
+      if invisibleReplacement = @eolInvisibles[@buffer.lineEndingForRow(bufferRow)]
         @patch.splice(
           Point(screenRow, screenColumn - 1),
           Point(1, 0),
           Point(1, 0),
-          {text: @invisibles.eol + "\n", metadata: {textDecoration: INVISIBLE_EOL}}
+          {text: invisibleReplacement + "\n", metadata: {textDecoration: INVISIBLE_EOL}}
         )
       screenLineLengths.push(screenColumn - 1)
       bufferRow += 1

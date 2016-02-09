@@ -295,9 +295,9 @@ describe "DisplayLayer", ->
       ])
 
     it "renders end of line invisibles, appropriately decorated", ->
-      buffer = new TextBuffer(text: "a\nb\n\nd e f")
-      displayLayer = buffer.addDisplayLayer({tabLength: 4, invisibles: {eol: '¬'}})
-      expect(displayLayer.getText()).toBe("a¬\nb¬\n¬\nd e f")
+      buffer = new TextBuffer(text: "a\nb\n\nd e f\r\ngh\rij\n\r\n")
+      displayLayer = buffer.addDisplayLayer({tabLength: 4, invisibles: {cr: '¤', eol: '¬'}})
+      expect(displayLayer.getText()).toBe("a¬\nb¬\n¬\nd e f¤¬\ngh¤\nij¬\n¤¬\n")
 
       expectTokens(displayLayer, [
         {start: [0, 0], end: [0, 1], close: [], open: []}
@@ -309,10 +309,18 @@ describe "DisplayLayer", ->
         {start: [2, 0], end: [2, 1], close: [], open: ['invisible-character eol']}
         {start: [2, 1], end: [2, 1], close: ['invisible-character eol'], open: []}
         {start: [3, 0], end: [3, 5], close: [], open: []}
+        {start: [3, 5], end: [3, 7], close: [], open: ['invisible-character eol']}
+        {start: [3, 7], end: [3, 7], close: ['invisible-character eol'], open: []}
+        {start: [4, 0], end: [4, 2], close: [], open: []}
+        {start: [4, 2], end: [4, 3], close: [], open: ['invisible-character eol']}
+        {start: [4, 3], end: [4, 3], close: ['invisible-character eol'], open: []}
+        {start: [5, 0], end: [5, 2], close: [], open: []}
+        {start: [5, 2], end: [5, 3], close: [], open: ['invisible-character eol']}
+        {start: [5, 3], end: [5, 3], close: ['invisible-character eol'], open: []}
+        {start: [6, 0], end: [6, 2], close: [], open: ['invisible-character eol']}
+        {start: [6, 2], end: [6, 2], close: ['invisible-character eol'], open: []}
+        {start: [7, 0], end: [7, 0], close: [], open: []}
       ])
-
-      buffer.setTextInRange([[2, 0], [3, 5]], "ghi\njklm\nopqr")
-      expect(displayLayer.getText()).toBe("a¬\nb¬\nghi¬\njklm¬\nopqr")
 
     it "does not clip positions within runs of invisible characters", ->
       buffer = new TextBuffer(text: "   a")
@@ -450,6 +458,7 @@ describe "DisplayLayer", ->
       invisibles = {}
       invisibles.space = '•' if random(2) > 0
       invisibles.eol = '¬' if random(2) > 0
+      invisibles.cr = '¤' if random(2) > 0
       displayLayer = buffer.addDisplayLayer({tabLength: 4, patchSeed: seed, invisibles})
       textDecorationLayer = new TestDecorationLayer([], buffer, random)
       displayLayer.setTextDecorationLayer(textDecorationLayer)
@@ -610,14 +619,14 @@ verifyPositionTranslations = (actualDisplayLayer, expectedDisplayLayer, failureM
 
 verifyRightmostScreenPosition = (displayLayer, failureMessage) ->
   screenLines = displayLayer.getText().split('\n')
-  hasEolInvisibles = displayLayer.invisibles.eol?
   lastScreenRow = screenLines.length - 1
 
   maxLineLength = -1
   longestScreenRows = new Set
   for screenLine, row in screenLines
     screenLineLength = screenLine.length
-    screenLineLength -= 1 if row isnt lastScreenRow and hasEolInvisibles
+    screenLineLength -= 1 if screenLine.indexOf(displayLayer.invisibles.cr) isnt -1
+    screenLineLength -= 1 if screenLine.indexOf(displayLayer.invisibles.eol) isnt -1
 
     expect(displayLayer.lineLengthForScreenRow(row)).toBe(screenLineLength)
 
