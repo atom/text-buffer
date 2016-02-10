@@ -11,7 +11,7 @@ maxPoint = pointHelpers.max
 
 module.exports =
 class DisplayLayer
-  constructor: (@buffer, {@tabLength, @foldsMarkerLayer, @invisibles, patchSeed}={}) ->
+  constructor: (@buffer, {@tabLength, @foldsMarkerLayer, @invisibles, @showIndentGuides, patchSeed}={}) ->
     @patch = new Patch(combineChanges: false, seed: patchSeed)
     @patchIterator = @patch.buildIterator()
     @lineLengthIndex = new LineLengthIndex
@@ -195,6 +195,7 @@ class DisplayLayer
                   leadingWhitespace: true,
                   invisibleCharacter: @invisibles.space?
                   atomic: atSoftTabBoundary
+                  showIndentGuide: (leadingWhitespaceStartScreenColumn % @tabLength) is 0
                 }
               )
               leadingWhitespaceStartScreenColumn = screenColumn
@@ -214,6 +215,7 @@ class DisplayLayer
                 trailingWhitespace: true,
                 invisibleCharacter: @invisibles.space?,
                 atomic: atSoftTabBoundary
+                showIndentGuide: isBlankLine and (trailingWhitespaceStartScreenColumn % @tabLength) is 0
               }
             )
             trailingWhitespaceStartScreenColumn = screenColumn
@@ -258,6 +260,7 @@ class DisplayLayer
                 leadingWhitespace: inLeadingWhitespace
                 trailingWhitespace: inTrailingWhitespace
                 invisibleCharacter: @invisibles.tab?
+                showIndentGuide: (inLeadingWhitespace or isBlankLine and inTrailingWhitespace) and distanceToNextTabStop is @tabLength
               }
             )
             bufferColumn += 1
@@ -349,7 +352,7 @@ class DisplayLayer
     0
 
   buildTokenIterator: ->
-    new TokenIterator(@buffer, @patch.buildIterator(), @textDecorationLayer?.buildIterator())
+    new TokenIterator(this, @buffer, @patch.buildIterator(), @textDecorationLayer?.buildIterator())
 
   getText: ->
     text = ''

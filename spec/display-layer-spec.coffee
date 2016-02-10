@@ -5,7 +5,7 @@ Range = require '../src/range'
 {characterIndexForPoint, isEqual: isEqualPoint} = require '../src/point-helpers'
 WORDS = require './helpers/words'
 SAMPLE_TEXT = require './helpers/sample-text'
-OMITTED_DECORATIONS_REGEX = /leading-whitespace|trailing-whitespace|invisible-character|hard-tab|eol/
+OMITTED_DECORATIONS_REGEX = /leading-whitespace|trailing-whitespace|invisible-character|hard-tab|eol|indent-guide/
 {currentSpecFailed} = require "./spec-helper"
 TestDecorationLayer = require './helpers/test-decoration-layer'
 
@@ -350,6 +350,30 @@ describe "DisplayLayer", ->
       buffer = new TextBuffer(text: "   a")
       displayLayer = buffer.addDisplayLayer({invisibles: {space: '•'}})
       expect(displayLayer.clipScreenPosition(Point(0, 2))).toEqual(Point(0, 2))
+
+  describe "indent guides", ->
+    it "decorates tab-stop-aligned regions of leading whitespace with indent guides", ->
+      buffer = new TextBuffer(text: "         a      \t  \n  \t\t b\n  \t\t")
+      displayLayer = buffer.addDisplayLayer({showIndentGuides: true, tabLength: 4})
+      expectTokens(displayLayer, [
+        {start: [0, 0], end: [0, 4], close: [], open: ['leading-whitespace indent-guide']}
+        {start: [0, 4], end: [0, 8], close: ['leading-whitespace indent-guide'], open: ['leading-whitespace indent-guide']}
+        {start: [0, 8], end: [0, 9], close: ['leading-whitespace indent-guide'], open: ['leading-whitespace indent-guide']}
+        {start: [0, 9], end: [0, 10], close: ['leading-whitespace indent-guide'], open: []}
+        {start: [0, 10], end: [0, 16], close: [], open: ['trailing-whitespace']}
+        {start: [0, 16], end: [0, 20], close: ['trailing-whitespace'], open: ['hard-tab trailing-whitespace']}
+        {start: [0, 20], end: [0, 22], close: ['hard-tab trailing-whitespace'], open: ['trailing-whitespace']}
+        {start: [0, 22], end: [0, 22], close: ['trailing-whitespace'], open: []}
+        {start: [1, 0], end: [1, 2], close: [], open: ['leading-whitespace indent-guide']}
+        {start: [1, 2], end: [1, 4], close: ['leading-whitespace indent-guide'], open: ['hard-tab leading-whitespace']}
+        {start: [1, 4], end: [1, 8], close: ['hard-tab leading-whitespace'], open: ['hard-tab leading-whitespace indent-guide']}
+        {start: [1, 8], end: [1, 9], close: ['hard-tab leading-whitespace indent-guide'], open: ['leading-whitespace indent-guide']}
+        {start: [1, 9], end: [1, 10], close: ['leading-whitespace indent-guide'], open: []}
+        {start: [2, 0], end: [2, 2], close: [], open: ['trailing-whitespace indent-guide']}
+        {start: [2, 2], end: [2, 4], close: ['trailing-whitespace indent-guide'], open: ['hard-tab trailing-whitespace']}
+        {start: [2, 4], end: [2, 8], close: ['hard-tab trailing-whitespace'], open: ['hard-tab trailing-whitespace indent-guide']}
+        {start: [2, 8], end: [2, 8], close: ['hard-tab trailing-whitespace indent-guide'], open: []}
+      ])
 
   describe "text decorations", ->
     it "exposes open and close tags from the text decoration layer in the token iterator", ->

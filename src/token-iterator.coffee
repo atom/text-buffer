@@ -6,7 +6,7 @@ EmptyDecorationIterator = require './empty-decoration-iterator'
 
 module.exports =
 class TokenIterator
-  constructor: (@buffer, @patchIterator, @decorationIterator=new EmptyDecorationIterator) ->
+  constructor: (@displayLayer, @buffer, @patchIterator, @decorationIterator=new EmptyDecorationIterator) ->
     @reset()
 
   getStartBufferPosition: -> Point.fromObject(@startBufferPosition)
@@ -209,5 +209,6 @@ class TokenIterator
       decoration += 'leading-whitespace ' if metadata.leadingWhitespace
       decoration += 'trailing-whitespace ' if metadata.trailingWhitespace
       decoration += 'eol ' if metadata.eol
+      decoration += 'indent-guide ' if metadata.showIndentGuide and @displayLayer.showIndentGuides
       if decoration.length > 0
         decoration.trim()
