@@ -528,8 +528,6 @@ describe "DisplayLayer", ->
   it "updates the displayed text correctly when the underlying buffer changes", ->
     for i in [0...10] by 1
       seed = Date.now()
-      # seed = 1455064492569
-      # seed = 1455064532720
       seedFailureMessage = "Seed: #{seed}"
       random = new Random(seed)
       buffer = new TextBuffer(text: buildRandomLines(random, 10))
