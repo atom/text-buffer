@@ -846,32 +846,32 @@ describe "TextBuffer", ->
       bufferB = TextBuffer.deserialize(state)
 
       expect(bufferB.getText()).toBe "hello there\ngood friend\r\nhow are you doing??"
-      expectSameMarkers(bufferB, bufferA)
+      expectSameMarkers(bufferB.getMarkerLayer(layerA.id), bufferA.getMarkerLayer(layerA.id))
 
       bufferA.redo()
       bufferB.redo()
       expect(bufferB.getText()).toBe "hellooo there\ngood friend\r\nhow are you doing??"
-      expectSameMarkers(bufferB, bufferA)
+      expectSameMarkers(bufferB.getMarkerLayer(layerA.id), bufferA.getMarkerLayer(layerA.id))
 
       bufferA.undo()
       bufferB.undo()
       expect(bufferB.getText()).toBe "hello there\ngood friend\r\nhow are you doing??"
-      expectSameMarkers(bufferB, bufferA)
+      expectSameMarkers(bufferB.getMarkerLayer(layerA.id), bufferA.getMarkerLayer(layerA.id))
 
       bufferA.undo()
       bufferB.undo()
       expect(bufferB.getText()).toBe "hello there\nfriend\r\nhow are you doing?"
-      expectSameMarkers(bufferB, bufferA)
+      expectSameMarkers(bufferB.getMarkerLayer(layerA.id), bufferA.getMarkerLayer(layerA.id))
 
       bufferA.undo()
       bufferB.undo()
       expect(bufferB.getText()).toBe "hello there\nworld\r\nhow are you doing?"
-      expectSameMarkers(bufferB, bufferA)
+      expectSameMarkers(bufferB.getMarkerLayer(layerA.id), bufferA.getMarkerLayer(layerA.id))
 
       bufferA.undo()
       bufferB.undo()
       expect(bufferB.getText()).toBe "hello\nworld\r\nhow are you doing?"
-      expectSameMarkers(bufferB, bufferA)
+      expectSameMarkers(bufferB.getMarkerLayer(layerA.id), bufferA.getMarkerLayer(layerA.id))
 
       # Accounts for deserialized markers when selecting the next marker's id
       marker3A = layerA.markRange([[0, 1], [2, 3]])
@@ -904,12 +904,27 @@ describe "TextBuffer", ->
 
     it "doesn't serialize markers with the 'persistent' option set to false", ->
       bufferA = new TextBuffer(text: "hello\nworld\r\nhow are you doing?")
-      marker1A = bufferA.markRange([[0, 1], [1, 2]], persistent: false, foo: 1)
+
+      layerA = bufferA.addMarkerLayer(maintainHistory: true)
+
+      marker1A = layerA.markRange([[0, 1], [1, 2]], persistent: false, foo: 1)
+      marker2A = layerA.markPosition([2, 2], bar: 2)
+
+      bufferB = TextBuffer.deserialize(bufferA.serialize())
+      expect(bufferB.getMarkerLayer(layerA.id).getMarker(marker1A.id)).toBeUndefined()
+      expect(bufferB.getMarkerLayer(layerA.id).getMarker(marker2A.id)).toBeDefined()
+
+    it "doesn't serialize default marker layer", ->
+      bufferA = new TextBuffer(text: "hello\nworld\r\nhow are you doing?")
+      markerLayerA = bufferA.getDefaultMarkerLayer()
+      marker1A = bufferA.markRange([[0, 1], [1, 2]], foo: 1)
       marker2A = bufferA.markPosition([2, 2], bar: 2)
 
       bufferB = TextBuffer.deserialize(bufferA.serialize())
+      markerLayerB = bufferB.getDefaultMarkerLayer()
+      expect(markerLayerA.id).not.toBe(markerLayerB.id)
       expect(bufferB.getMarker(marker1A.id)).toBeUndefined()
-      expect(bufferB.getMarker(marker2A.id)).toBeDefined()
+      expect(bufferB.getMarker(marker2A.id)).toBeUndefined()
 
     it "serializes / deserializes the buffer's unique identifier", ->
       bufferA = new TextBuffer()
