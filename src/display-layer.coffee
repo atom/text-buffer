@@ -271,13 +271,48 @@ class DisplayLayer
             bufferColumn += 1
             screenColumn += 1
 
-      if invisibleReplacement = @eolInvisibles[@buffer.lineEndingForRow(bufferRow)]
-        @patch.splice(
-          Point(screenRow, screenColumn - 1),
-          Point(1, 0),
-          Point(1, 0),
-          {text: invisibleReplacement + "\n", metadata: {eol: true, invisibleCharacter: true}}
-        )
+      bufferRowLineEnding = @buffer.lineEndingForRow(bufferRow)
+      indentGuidesStartColumn = 0
+      indentGuidesCount = @emptyLineIndentationForBufferRow(bufferRow)
+
+      if eolInvisibleReplacement = @eolInvisibles[bufferRowLineEnding]
+        if isBlankLine and @showIndentGuides and indentGuidesCount > 0
+          @patch.splice(
+            Point(screenRow, 0),
+            Point(0, 0),
+            Point(0, 1),
+            {text: eolInvisibleReplacement, metadata: {eol: true, invisibleCharacter: true, showIndentGuide: true, atomic: true}}
+          )
+          indentGuidesStartColumn += 1
+        else
+          @patch.splice(
+            Point(screenRow, screenColumn - 1),
+            Point(1, 0),
+            Point(1, 0),
+            {text: eolInvisibleReplacement + "\n", metadata: {atomic: true, eol: true, invisibleCharacter: true, phantom: true}}
+          )
+
+      while @showIndentGuides and indentGuidesCount > 0
+        metadata = {showIndentGuide: not eolInvisibleReplacement or indentGuidesStartColumn > 1, atomic: true}
+        distanceToNextTabStop = @tabLength - (indentGuidesStartColumn % @tabLength)
+        if indentGuidesCount is 1 and bufferRowLineEnding
+          metadata.phantom = true
+          @patch.splice(
+            Point(screenRow, indentGuidesStartColumn),
+            Point(1, 0),
+            Point(1, 0),
+            {text: " ".repeat(distanceToNextTabStop) + "\n", metadata}
+          )
+        else
+          @patch.splice(
+            Point(screenRow, indentGuidesStartColumn),
+            Point(0, 0),
+            Point(0, distanceToNextTabStop),
+            {text: " ".repeat(distanceToNextTabStop), metadata}
+          )
+        indentGuidesCount--
+        indentGuidesStartColumn += distanceToNextTabStop
+
       screenLineLengths.push(screenColumn - 1)
       bufferRow += 1
       bufferColumn = 0
@@ -341,6 +376,34 @@ class DisplayLayer
         i++
 
     {folds, startBufferRow, endBufferRow}
+
+  emptyLineIndentationForBufferRow: (bufferRow) ->
+    return 0 if @buffer.lineForRow(bufferRow).length > 0
+
+    previousBufferRow = bufferRow - 1
+    nextBufferRow = bufferRow + 1
+    loop
+      previousLine = @buffer.lineForRow(previousBufferRow--)
+      break if not previousLine? or previousLine.length > 0
+    loop
+      nextLine = @buffer.lineForRow(nextBufferRow++)
+      break if not nextLine? or nextLine.length > 0
+
+    maxLeadingWhitespace = 0
+    if previousLine?
+      maxLeadingWhitespace = Math.max(maxLeadingWhitespace, @findLeadingWhitespaceEndColumn(previousLine))
+    if nextLine?
+      maxLeadingWhitespace = Math.max(maxLeadingWhitespace, @findLeadingWhitespaceEndColumn(nextLine))
+
+    Math.floor(maxLeadingWhitespace / @tabLength)
+
+  # Walk forward through the line, looking for the first non whitespace
+  # character and expanding tabs as we go. If we return 0, this means there is
+  # no leading whitespace.
+  findLeadingWhitespaceEndColumn: (line) ->
+    for character, column in line by 1
+      return column unless character is ' ' or character is '\t'
+    line.length
 
   # Walk backwards through the line, looking for the first non whitespace
   # character. The trailing whitespace starts *after* that character. If we

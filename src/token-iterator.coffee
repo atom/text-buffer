@@ -172,7 +172,10 @@ class TokenIterator
         nextNewlineIndex = @patchIterator.getNewText().indexOf('\n', characterIndexInChangeText)
         @text = @patchIterator.getNewText().substring(characterIndexInChangeText, nextNewlineIndex)
         @endScreenPosition = traverse(@startScreenPosition, Point(0, @text.length))
-        @endBufferPosition = @patchIterator.translateOutputPosition(@endScreenPosition)
+        if @patchIterator.getMetadata().phantom
+          @endBufferPosition = @patchIterator.getInputStart()
+        else
+          @endBufferPosition = @patchIterator.translateOutputPosition(@endScreenPosition)
       else
         @text = @buffer.lineForRow(@startBufferPosition.row).substring(@startBufferPosition.column)
         @endBufferPosition = traverse(@startBufferPosition, Point(0, @text.length))

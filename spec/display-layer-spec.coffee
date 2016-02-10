@@ -375,19 +375,18 @@ describe "DisplayLayer", ->
         {start: [2, 8], end: [2, 8], close: ['hard-tab trailing-whitespace indent-guide'], open: []}
       ])
 
-    ffit "decorates empty lines with the appropriate number of indent guides", ->
+    it "decorates empty lines with the appropriate number of indent guides", ->
       buffer = new TextBuffer(text: "\n\n          a\n\n     b\n\n\n")
       displayLayer = buffer.addDisplayLayer({showIndentGuides: true, tabLength: 4, invisibles: {eol: '¬'}})
 
-      expect(displayLayer.getText()).toBe("¬       \n¬       \n          a¬\n¬       \n     b¬\n¬   \n¬   \n¬   ")
-
+      expect(displayLayer.getText()).toBe("¬       \n¬       \n          a¬\n¬       \n     b¬\n¬   \n¬   \n    ")
       expectTokens(displayLayer, [
         {start: [0, 0], end: [0, 1], close: [], open: ['invisible-character eol indent-guide']}
-        {start: [0, 1], end: [0, 4], close: [], open: []}
+        {start: [0, 1], end: [0, 4], close: ['invisible-character eol indent-guide'], open: []}
         {start: [0, 4], end: [0, 8], close: [], open: ['indent-guide']}
         {start: [0, 8], end: [0, 8], close: ['indent-guide'], open: []}
         {start: [1, 0], end: [1, 1], close: [], open: ['invisible-character eol indent-guide']}
-        {start: [1, 1], end: [1, 4], close: [], open: []}
+        {start: [1, 1], end: [1, 4], close: ['invisible-character eol indent-guide'], open: []}
         {start: [1, 4], end: [1, 8], close: [], open: ['indent-guide']}
         {start: [1, 8], end: [1, 8], close: ['indent-guide'], open: []}
         {start: [2, 0], end: [2, 4], close: [], open: ['leading-whitespace indent-guide']}
@@ -397,11 +396,27 @@ describe "DisplayLayer", ->
         {start: [2, 11], end: [2, 12], close: [], open: ['invisible-character eol']}
         {start: [2, 12], end: [2, 12], close: ['invisible-character eol'], open: []}
         {start: [3, 0], end: [3, 1], close: [], open: ['invisible-character eol indent-guide']}
-        {start: [3, 1], end: [3, 4], close: [], open: []}
+        {start: [3, 1], end: [3, 4], close: ['invisible-character eol indent-guide'], open: []}
         {start: [3, 4], end: [3, 8], close: [], open: ['indent-guide']}
         {start: [3, 8], end: [3, 8], close: ['indent-guide'], open: []}
-        # THIS IS INCOMPLETE
+        {start: [4, 0], end: [4, 4], close: [], open: ['leading-whitespace indent-guide']}
+        {start: [4, 4], end: [4, 5], close: ['leading-whitespace indent-guide'], open: ['leading-whitespace indent-guide']}
+        {start: [4, 5], end: [4, 6], close: ['leading-whitespace indent-guide'], open: []}
+        {start: [4, 6], end: [4, 7], close: [], open: ['invisible-character eol']}
+        {start: [4, 7], end: [4, 7], close: ['invisible-character eol'], open: []}
+        {start: [5, 0], end: [5, 1], close: [], open: ['invisible-character eol indent-guide']}
+        {start: [5, 1], end: [5, 4], close: ['invisible-character eol indent-guide'], open: []}
+        {start: [6, 0], end: [6, 1], close: [], open: ['invisible-character eol indent-guide']}
+        {start: [6, 1], end: [6, 4], close: ['invisible-character eol indent-guide'], open: []}
+        {start: [7, 0], end: [7, 4], close: [], open: ['indent-guide']}
+        {start: [7, 4], end: [7, 4], close: ['indent-guide'], open: []}
       ])
+
+      # TODO: discuss. we should return 0 in the call below; not sure we want to
+      # implement this in the patch, as it feels like a correct behavior.
+      # instead we should probably just clip.
+      displayLayer.translateBufferPosition([0, 40])
+      throw new Error("Read above!")
 
   describe "text decorations", ->
     it "exposes open and close tags from the text decoration layer in the token iterator", ->
@@ -526,7 +541,7 @@ describe "DisplayLayer", ->
       expect(e.message).toMatch(/Invalid text decoration iterator position/)
 
   it "updates the displayed text correctly when the underlying buffer changes", ->
-    for i in [0...10] by 1
+    for i in [0...100] by 1
       seed = Date.now()
       seedFailureMessage = "Seed: #{seed}"
       random = new Random(seed)
@@ -535,7 +550,8 @@ describe "DisplayLayer", ->
       invisibles.space = '•' if random(2) > 0
       invisibles.eol = '¬' if random(2) > 0
       invisibles.cr = '¤' if random(2) > 0
-      displayLayer = buffer.addDisplayLayer({tabLength: 4, patchSeed: seed, invisibles})
+      showIndentGuides = Boolean(random(2))
+      displayLayer = buffer.addDisplayLayer({tabLength: 4, patchSeed: seed, invisibles, showIndentGuides})
       textDecorationLayer = new TestDecorationLayer([], buffer, random)
       displayLayer.setTextDecorationLayer(textDecorationLayer)
 
@@ -553,7 +569,7 @@ describe "DisplayLayer", ->
         return if currentSpecFailed()
 
         # incrementally-updated text matches freshly computed text
-        expectedDisplayLayer = buffer.addDisplayLayer({foldsMarkerLayer: displayLayer.foldsMarkerLayer.copy(), tabLength: 4, invisibles})
+        expectedDisplayLayer = buffer.addDisplayLayer({foldsMarkerLayer: displayLayer.foldsMarkerLayer.copy(), patchSeed: seed, tabLength: 4, invisibles, showIndentGuides})
         expect(JSON.stringify(displayLayer.getText())).toBe(JSON.stringify(expectedDisplayLayer.getText()), seedFailureMessage)
         return if currentSpecFailed()
 
@@ -638,8 +654,9 @@ verifyTokenIterator = (displayLayer, textDecorationLayer, failureMessage) ->
 
     expect(displayLayer.translateScreenPosition(startScreenPosition)).toEqual(startBufferPosition, failureMessage)
     expect(displayLayer.translateScreenPosition(endScreenPosition)).toEqual(endBufferPosition, failureMessage)
-    expect(displayLayer.translateBufferPosition(startBufferPosition)).toEqual(startScreenPosition, failureMessage)
-    expect(displayLayer.translateBufferPosition(endBufferPosition)).toEqual(endScreenPosition, failureMessage)
+    unless endBufferPosition.traversalFrom(startBufferPosition).isZero()
+      expect(displayLayer.translateBufferPosition(startBufferPosition)).toEqual(startScreenPosition, failureMessage)
+      expect(displayLayer.translateBufferPosition(endBufferPosition)).toEqual(endScreenPosition, failureMessage)
 
     if startScreenPosition.row > lastTextRow
       expect(startScreenPosition.row).toBe(lastTextRow + 1, failureMessage) # don't skip lines
@@ -665,7 +682,7 @@ verifyTokenIterator = (displayLayer, textDecorationLayer, failureMessage) ->
           expect(tokenIterator.getCloseTags()).toEqual([])
           previousTokenWasFold = false
 
-        if tokenText.length > 0
+        if tokenText.length > 0 and not endBufferPosition.traversalFrom(startBufferPosition).isZero()
           actualContainingTags = containingTags.filter((tag) -> not (tag.match(OMITTED_DECORATIONS_REGEX))).sort()
           expectedContainingTags = textDecorationLayer.containingTagsForPosition(startBufferPosition).sort()
           expect(actualContainingTags).toEqual(expectedContainingTags, failureMessage)
