@@ -47,7 +47,7 @@ class TokenIterator
         @openTags.splice(@openTags.lastIndexOf(tag), 1)
       @openTags.push(@decorationIterator.getOpenTags()...)
 
-    if textDecoration = @patchIterator.getMetadata()?.textDecoration
+    if textDecoration = @getPatchDecoration()
       @openTags.push(textDecoration)
 
     @assignEndPositionsAndText()
@@ -70,10 +70,10 @@ class TokenIterator
 
     if isEqualPoint(@startScreenPosition, @patchIterator.getOutputEnd())
       atLineEnd = false
-      if textDecoration = @patchIterator.getMetadata()?.textDecoration
+      if textDecoration = @getPatchDecoration()
         tagsToClose = [textDecoration]
       @patchIterator.moveToSuccessor()
-      if textDecoration = @patchIterator.getMetadata()?.textDecoration
+      if textDecoration = @getPatchDecoration()
         tagsToOpen = [textDecoration]
 
     if isEqualPoint(@startBufferPosition, @decorationIterator.getPosition())
@@ -126,12 +126,12 @@ class TokenIterator
           @openTags.push(@decorationIterator.getOpenTags()...)
 
         if isEqualPoint(@startScreenPosition, @patchIterator.getOutputEnd())
-          if textDecoration = @patchIterator.getMetadata()?.textDecoration
+          if textDecoration = @getPatchDecoration()
             index = @openTags.lastIndexOf(textDecoration)
             @openTags.splice(index, 1) if index isnt -1
 
           @patchIterator.moveToSuccessor()
-          if textDecoration = @patchIterator.getMetadata()?.textDecoration
+          if textDecoration = @getPatchDecoration()
             @openTags.push(textDecoration)
 
       else
@@ -200,3 +200,14 @@ class TokenIterator
         @endBufferPosition = decorationIteratorPosition
         @endScreenPosition = @patchIterator.translateInputPosition(@endBufferPosition)
         @text = @text.substring(0, @endScreenPosition.column - @startScreenPosition.column)
+
+  getPatchDecoration: ->
+    if metadata = @patchIterator.getMetadata()
+      decoration = ''
+      decoration += 'invisible-character ' if metadata.invisibleCharacter
+      decoration += 'hard-tab ' if metadata.hardTab
+      decoration += 'leading-whitespace ' if metadata.leadingWhitespace
+      decoration += 'trailing-whitespace ' if metadata.trailingWhitespace
+      decoration += 'eol ' if metadata.eol
+      if decoration.length > 0
+        decoration.trim()

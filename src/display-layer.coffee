@@ -9,28 +9,8 @@ TokenIterator = require './token-iterator'
 comparePoints = pointHelpers.compare
 maxPoint = pointHelpers.max
 
-LEADING_WHITESPACE = 'leading-whitespace'
-TRAILING_WHITESPACE = 'trailing-whitespace'
-HARD_TAB = 'hard-tab'
-HARD_TAB_LEADING_WHITESPACE = 'hard-tab leading-whitespace'
-HARD_TAB_TRAILING_WHITESPACE = 'hard-tab trailing-whitespace'
-INVISIBLE_LEADING_WHITESPACE = 'invisible-character leading-whitespace'
-INVISIBLE_TRAILING_WHITESPACE = 'invisible-character trailing-whitespace'
-INVISIBLE_HARD_TAB = 'invisible-character hard-tab'
-INVISIBLE_HARD_TAB_LEADING_WHITESPACE = 'invisible-character hard-tab leading-whitespace'
-INVISIBLE_HARD_TAB_TRAILING_WHITESPACE = 'invisible-character hard-tab trailing-whitespace'
-INVISIBLE_EOL = 'invisible-character eol'
-
 module.exports =
 class DisplayLayer
-  PATCH_TAGS: [
-    LEADING_WHITESPACE, TRAILING_WHITESPACE,
-    HARD_TAB, HARD_TAB_LEADING_WHITESPACE, HARD_TAB_TRAILING_WHITESPACE,
-    INVISIBLE_LEADING_WHITESPACE, INVISIBLE_TRAILING_WHITESPACE, INVISIBLE_HARD_TAB,
-    INVISIBLE_HARD_TAB_LEADING_WHITESPACE, INVISIBLE_HARD_TAB_TRAILING_WHITESPACE,
-    INVISIBLE_EOL
-  ]
-
   constructor: (@buffer, {@tabLength, @foldsMarkerLayer, @invisibles, patchSeed}={}) ->
     @patch = new Patch(combineChanges: false, seed: patchSeed)
     @patchIterator = @patch.buildIterator()
@@ -202,39 +182,39 @@ class DisplayLayer
             inLeadingWhitespace = false unless character is ' ' or character is '\t'
             if screenColumn > leadingWhitespaceStartScreenColumn
               spaceCount = screenColumn - leadingWhitespaceStartScreenColumn
-
               if @invisibles.space?
                 text = @invisibles.space.repeat(spaceCount)
-                metadata = {textDecoration: INVISIBLE_LEADING_WHITESPACE}
               else
                 text = ' '.repeat(spaceCount)
-                metadata = {textDecoration: LEADING_WHITESPACE}
-              metadata.atomic = true if atSoftTabBoundary
 
               @patch.spliceWithText(
                 Point(screenRow, leadingWhitespaceStartScreenColumn),
                 Point(0, spaceCount),
                 text,
-                {metadata}
+                metadata: {
+                  leadingWhitespace: true,
+                  invisibleCharacter: @invisibles.space?
+                  atomic: atSoftTabBoundary
+                }
               )
               leadingWhitespaceStartScreenColumn = screenColumn
 
           if screenColumn > trailingWhitespaceStartScreenColumn
             spaceCount = screenColumn - trailingWhitespaceStartScreenColumn
-
             if @invisibles.space?
               text = @invisibles.space.repeat(spaceCount)
-              metadata = {textDecoration: INVISIBLE_TRAILING_WHITESPACE}
             else
               text = ' '.repeat(spaceCount)
-              metadata = {textDecoration: TRAILING_WHITESPACE}
-            metadata.atomic = true if atSoftTabBoundary
 
             @patch.spliceWithText(
               Point(screenRow, trailingWhitespaceStartScreenColumn),
               Point(0, spaceCount),
               text,
-              {metadata}
+              metadata: {
+                trailingWhitespace: true,
+                invisibleCharacter: @invisibles.space?,
+                atomic: atSoftTabBoundary
+              }
             )
             trailingWhitespaceStartScreenColumn = screenColumn
 
@@ -263,25 +243,23 @@ class DisplayLayer
         else
           if character is '\t'
             distanceToNextTabStop = @tabLength - (screenColumn % @tabLength)
-            metadata = {atomic: true}
             if @invisibles.tab?
               tabText = @invisibles.tab + ' '.repeat(distanceToNextTabStop - 1)
-              if inLeadingWhitespace
-                metadata.textDecoration = INVISIBLE_HARD_TAB_LEADING_WHITESPACE
-              else if inTrailingWhitespace
-                metadata.textDecoration = INVISIBLE_HARD_TAB_TRAILING_WHITESPACE
-              else
-                metadata.textDecoration = INVISIBLE_HARD_TAB
             else
               tabText = ' '.repeat(distanceToNextTabStop)
-              if inLeadingWhitespace
-                metadata.textDecoration = HARD_TAB_LEADING_WHITESPACE
-              else if inTrailingWhitespace
-                metadata.textDecoration = HARD_TAB_TRAILING_WHITESPACE
-              else
-                metadata.textDecoration = HARD_TAB
 
-            @patch.spliceWithText(Point(screenRow, screenColumn), Point(0, 1), tabText, {metadata})
+            @patch.spliceWithText(
+              Point(screenRow, screenColumn),
+              Point(0, 1),
+              tabText,
+              metadata: {
+                hardTab: true
+                atomic: true
+                leadingWhitespace: inLeadingWhitespace
+                trailingWhitespace: inTrailingWhitespace
+                invisibleCharacter: @invisibles.tab?
+              }
+            )
             bufferColumn += 1
             screenColumn += tabText.length
             leadingWhitespaceStartScreenColumn = screenColumn if inLeadingWhitespace
@@ -295,7 +273,7 @@ class DisplayLayer
           Point(screenRow, screenColumn - 1),
           Point(1, 0),
           Point(1, 0),
-          {text: invisibleReplacement + "\n", metadata: {textDecoration: INVISIBLE_EOL}}
+          {text: invisibleReplacement + "\n", metadata: {eol: true, invisibleCharacter: true}}
         )
       screenLineLengths.push(screenColumn - 1)
       bufferRow += 1

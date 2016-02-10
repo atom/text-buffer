@@ -5,6 +5,7 @@ Range = require '../src/range'
 {characterIndexForPoint, isEqual: isEqualPoint} = require '../src/point-helpers'
 WORDS = require './helpers/words'
 SAMPLE_TEXT = require './helpers/sample-text'
+OMITTED_DECORATIONS_REGEX = /leading-whitespace|trailing-whitespace|invisible-character|hard-tab|eol/
 {currentSpecFailed} = require "./spec-helper"
 TestDecorationLayer = require './helpers/test-decoration-layer'
 
@@ -613,7 +614,7 @@ verifyTokenIterator = (displayLayer, textDecorationLayer, failureMessage) ->
           previousTokenWasFold = false
 
         if tokenText.length > 0
-          actualContainingTags = containingTags.filter((tag) -> not (tag in displayLayer.PATCH_TAGS)).sort()
+          actualContainingTags = containingTags.filter((tag) -> not (tag.match(OMITTED_DECORATIONS_REGEX))).sort()
           expectedContainingTags = textDecorationLayer.containingTagsForPosition(startBufferPosition).sort()
           expect(actualContainingTags).toEqual(expectedContainingTags, failureMessage)
 
