@@ -375,6 +375,34 @@ describe "DisplayLayer", ->
         {start: [2, 8], end: [2, 8], close: ['hard-tab trailing-whitespace indent-guide'], open: []}
       ])
 
+    ffit "decorates empty lines with the appropriate number of indent guides", ->
+      buffer = new TextBuffer(text: "\n\n          a\n\n     b\n\n\n")
+      displayLayer = buffer.addDisplayLayer({showIndentGuides: true, tabLength: 4, invisibles: {eol: '¬'}})
+
+      expect(displayLayer.getText()).toBe("¬       \n¬       \n          a¬\n¬       \n     b¬\n¬   \n¬   \n¬   ")
+
+      expectTokens(displayLayer, [
+        {start: [0, 0], end: [0, 1], close: [], open: ['invisible-character eol indent-guide']}
+        {start: [0, 1], end: [0, 4], close: [], open: []}
+        {start: [0, 4], end: [0, 8], close: [], open: ['indent-guide']}
+        {start: [0, 8], end: [0, 8], close: ['indent-guide'], open: []}
+        {start: [1, 0], end: [1, 1], close: [], open: ['invisible-character eol indent-guide']}
+        {start: [1, 1], end: [1, 4], close: [], open: []}
+        {start: [1, 4], end: [1, 8], close: [], open: ['indent-guide']}
+        {start: [1, 8], end: [1, 8], close: ['indent-guide'], open: []}
+        {start: [2, 0], end: [2, 4], close: [], open: ['leading-whitespace indent-guide']}
+        {start: [2, 4], end: [2, 8], close: ['leading-whitespace indent-guide'], open: ['leading-whitespace indent-guide']}
+        {start: [2, 8], end: [2, 10], close: ['leading-whitespace indent-guide'], open: ['leading-whitespace indent-guide']}
+        {start: [2, 10], end: [2, 11], close: ['leading-whitespace indent-guide'], open: []}
+        {start: [2, 11], end: [2, 12], close: [], open: ['invisible-character eol']}
+        {start: [2, 12], end: [2, 12], close: ['invisible-character eol'], open: []}
+        {start: [3, 0], end: [3, 1], close: [], open: ['invisible-character eol indent-guide']}
+        {start: [3, 1], end: [3, 4], close: [], open: []}
+        {start: [3, 4], end: [3, 8], close: [], open: ['indent-guide']}
+        {start: [3, 8], end: [3, 8], close: ['indent-guide'], open: []}
+        # THIS IS INCOMPLETE
+      ])
+
   describe "text decorations", ->
     it "exposes open and close tags from the text decoration layer in the token iterator", ->
       buffer = new TextBuffer(text: """
