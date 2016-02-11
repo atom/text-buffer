@@ -846,32 +846,32 @@ describe "TextBuffer", ->
       bufferB = TextBuffer.deserialize(state)
 
       expect(bufferB.getText()).toBe "hello there\ngood friend\r\nhow are you doing??"
-      expectSameMarkers(bufferB.getMarkerLayer(layerA.id), bufferA.getMarkerLayer(layerA.id))
+      expectSameMarkers(bufferB.getMarkerLayer(layerA.id), layerA)
 
       bufferA.redo()
       bufferB.redo()
       expect(bufferB.getText()).toBe "hellooo there\ngood friend\r\nhow are you doing??"
-      expectSameMarkers(bufferB.getMarkerLayer(layerA.id), bufferA.getMarkerLayer(layerA.id))
+      expectSameMarkers(bufferB.getMarkerLayer(layerA.id), layerA)
 
       bufferA.undo()
       bufferB.undo()
       expect(bufferB.getText()).toBe "hello there\ngood friend\r\nhow are you doing??"
-      expectSameMarkers(bufferB.getMarkerLayer(layerA.id), bufferA.getMarkerLayer(layerA.id))
+      expectSameMarkers(bufferB.getMarkerLayer(layerA.id), layerA)
 
       bufferA.undo()
       bufferB.undo()
       expect(bufferB.getText()).toBe "hello there\nfriend\r\nhow are you doing?"
-      expectSameMarkers(bufferB.getMarkerLayer(layerA.id), bufferA.getMarkerLayer(layerA.id))
+      expectSameMarkers(bufferB.getMarkerLayer(layerA.id), layerA)
 
       bufferA.undo()
       bufferB.undo()
       expect(bufferB.getText()).toBe "hello there\nworld\r\nhow are you doing?"
-      expectSameMarkers(bufferB.getMarkerLayer(layerA.id), bufferA.getMarkerLayer(layerA.id))
+      expectSameMarkers(bufferB.getMarkerLayer(layerA.id), layerA)
 
       bufferA.undo()
       bufferB.undo()
       expect(bufferB.getText()).toBe "hello\nworld\r\nhow are you doing?"
-      expectSameMarkers(bufferB.getMarkerLayer(layerA.id), bufferA.getMarkerLayer(layerA.id))
+      expectSameMarkers(bufferB.getMarkerLayer(layerA.id), layerA)
 
       # Accounts for deserialized markers when selecting the next marker's id
       marker3A = layerA.markRange([[0, 1], [2, 3]])
@@ -918,13 +918,11 @@ describe "TextBuffer", ->
       bufferA = new TextBuffer(text: "hello\nworld\r\nhow are you doing?")
       markerLayerA = bufferA.getDefaultMarkerLayer()
       marker1A = bufferA.markRange([[0, 1], [1, 2]], foo: 1)
-      marker2A = bufferA.markPosition([2, 2], bar: 2)
 
       bufferB = TextBuffer.deserialize(bufferA.serialize())
       markerLayerB = bufferB.getDefaultMarkerLayer()
       expect(markerLayerA.id).not.toBe(markerLayerB.id)
       expect(bufferB.getMarker(marker1A.id)).toBeUndefined()
-      expect(bufferB.getMarker(marker2A.id)).toBeUndefined()
 
     it "serializes / deserializes the buffer's unique identifier", ->
       bufferA = new TextBuffer()
