@@ -412,11 +412,8 @@ describe "DisplayLayer", ->
         {start: [7, 4], end: [7, 4], close: ['indent-guide'], open: []}
       ])
 
-      # TODO: discuss. we should return 0 in the call below; not sure we want to
-      # implement this in the patch, as it feels like a correct behavior.
-      # instead we should probably just clip.
-      displayLayer.translateBufferPosition([0, 40])
-      throw new Error("Read above!")
+      # does not translate buffer positions to the end of inserted indent guides
+      expect(displayLayer.translateBufferPosition([0, 40])).toEqual([0, 0])
 
   describe "text decorations", ->
     it "exposes open and close tags from the text decoration layer in the token iterator", ->

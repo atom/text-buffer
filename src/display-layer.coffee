@@ -418,8 +418,7 @@ class DisplayLayer
     text
 
   translateBufferPosition: (bufferPosition, options) ->
-    bufferPosition = Point.fromObject(bufferPosition)
-    bufferPosition = clipNegativePoint(bufferPosition)
+    bufferPosition = @buffer.clipPosition(bufferPosition, options)
 
     @patchIterator.seekToInputPosition(bufferPosition)
     if @patchIterator.inChange()
@@ -431,7 +430,7 @@ class DisplayLayer
       else
         screenPosition = @patchIterator.translateInputPosition(bufferPosition)
     else
-      screenPosition = @patchIterator.translateInputPosition(@buffer.clipPosition(bufferPosition, options))
+      screenPosition = @patchIterator.translateInputPosition(bufferPosition)
 
     Point.fromObject(screenPosition)
 
