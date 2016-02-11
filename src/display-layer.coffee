@@ -176,6 +176,7 @@ class DisplayLayer
       bufferLine = @buffer.lineForRow(bufferRow)
       bufferLineLength = bufferLine.length
 
+      previousPositionWasFold = false
       trailingWhitespaceStartBufferColumn = @findTrailingWhitespaceStartColumn(bufferLine)
       trailingWhitespaceStartScreenColumn = Infinity # will be assigned during line traversal
       isBlankLine = trailingWhitespaceStartBufferColumn is 0
@@ -240,6 +241,7 @@ class DisplayLayer
             trailingWhitespaceStartScreenColumn = screenColumn
 
         if foldEndBufferPosition?
+          previousPositionWasFold = true
           foldStartBufferPosition = Point(bufferRow, bufferColumn)
           foldBufferExtent = traversal(foldEndBufferPosition, foldStartBufferPosition)
           @patch.spliceWithText(Point(screenRow, screenColumn), foldBufferExtent, '⋯', {metadata: {fold: true}})
@@ -303,7 +305,7 @@ class DisplayLayer
         )
         indentGuidesStartColumn += 1
 
-      while @showIndentGuides and indentGuidesCount > 0
+      while @showIndentGuides and indentGuidesCount > 0 and not previousPositionWasFold
         distanceToNextTabStop = @tabLength - (indentGuidesStartColumn % @tabLength)
         @patch.splice(
           Point(screenRow, indentGuidesStartColumn),
