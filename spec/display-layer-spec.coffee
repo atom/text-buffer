@@ -412,12 +412,36 @@ describe "DisplayLayer", ->
         {start: [7, 4], end: [7, 4], close: ['indent-guide'], open: []}
       ])
 
+      tokenIterator = displayLayer.buildTokenIterator()
+
+      tokenIterator.seekToScreenRow(0)
+      expect(tokenIterator.getStartScreenPosition()).toEqual([0, 0])
+      expect(tokenIterator.getStartBufferPosition()).toEqual([0, 0])
+      expect(tokenIterator.getEndScreenPosition()).toEqual([0, 1])
+      expect(tokenIterator.getEndBufferPosition()).toEqual([0, 0])
+
+      tokenIterator.moveToSuccessor()
+      expect(tokenIterator.getStartScreenPosition()).toEqual([0, 1])
+      expect(tokenIterator.getStartBufferPosition()).toEqual([0, 0])
+      expect(tokenIterator.getEndScreenPosition()).toEqual([0, 4])
+      expect(tokenIterator.getEndBufferPosition()).toEqual([0, 0])
+
+      tokenIterator.moveToSuccessor()
+      expect(tokenIterator.getStartScreenPosition()).toEqual([0, 4])
+      expect(tokenIterator.getStartBufferPosition()).toEqual([0, 0])
+      expect(tokenIterator.getEndScreenPosition()).toEqual([0, 8])
+      expect(tokenIterator.getEndBufferPosition()).toEqual([0, 0])
+
+      tokenIterator.moveToSuccessor()
+      expect(tokenIterator.getStartScreenPosition()).toEqual([0, 8])
+      expect(tokenIterator.getStartBufferPosition()).toEqual([0, 0])
+      expect(tokenIterator.getEndScreenPosition()).toEqual([0, 8])
+      expect(tokenIterator.getEndBufferPosition()).toEqual([0, 0])
+
       # does not translate buffer positions to the end of inserted indent guides
-      expect(displayLayer.translateBufferPosition([0, 40])).toEqual([0, 0])
-      expect(displayLayer.clipScreenPosition([0, 4])).toEqual([0, 0])
-      expect(displayLayer.clipScreenPosition([0, 6])).toEqual([0, 0])
-      expect(displayLayer.clipScreenPosition([0, 8])).toEqual([0, 0])
-      expect(displayLayer.clipScreenPosition([0, 10])).toEqual([0, 0])
+      for i in [0..20]
+        expect(displayLayer.translateBufferPosition([0, i])).toEqual([0, 0])
+        expect(displayLayer.clipScreenPosition([0, i])).toEqual([0, 0])
 
   describe "text decorations", ->
     it "exposes open and close tags from the text decoration layer in the token iterator", ->
