@@ -745,8 +745,10 @@ verifyRightmostScreenPosition = (displayLayer, failureMessage) ->
   longestScreenRows = new Set
   for screenLine, row in screenLines
     bufferRow = displayLayer.translateScreenPosition({row: row, column: 0}).row
+    bufferLine = displayLayer.buffer.lineForRow(bufferRow)
+    hasNoFoldMarker = screenLine.indexOf("⋯") is -1
 
-    if displayLayer.buffer.lineForRow(bufferRow).length is 0
+    if hasNoFoldMarker and bufferLine.length is 0
       screenLineLength = 0
     else
       screenLineLength = screenLine.length
