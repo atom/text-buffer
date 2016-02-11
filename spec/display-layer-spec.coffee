@@ -720,9 +720,14 @@ verifyRightmostScreenPosition = (displayLayer, failureMessage) ->
   maxLineLength = -1
   longestScreenRows = new Set
   for screenLine, row in screenLines
-    screenLineLength = screenLine.length
-    screenLineLength -= 1 if displayLayer.invisibles.cr? and screenLine.indexOf(displayLayer.invisibles.cr) isnt -1
-    screenLineLength -= 1 if displayLayer.invisibles.eol? and screenLine.indexOf(displayLayer.invisibles.eol) isnt -1
+    bufferRow = displayLayer.translateScreenPosition({row: row, column: 0}).row
+
+    if displayLayer.buffer.lineForRow(bufferRow).length is 0
+      screenLineLength = 0
+    else
+      screenLineLength = screenLine.length
+      screenLineLength -= 1 if displayLayer.invisibles.cr? and screenLine.indexOf(displayLayer.invisibles.cr) isnt -1
+      screenLineLength -= 1 if displayLayer.invisibles.eol? and screenLine.indexOf(displayLayer.invisibles.eol) isnt -1
 
     expect(displayLayer.lineLengthForScreenRow(row)).toBe(screenLineLength)
 
