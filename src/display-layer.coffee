@@ -161,6 +161,7 @@ class DisplayLayer
       trailingWhitespaceStartBufferColumn = @findTrailingWhitespaceStartColumn(bufferLine)
       trailingWhitespaceStartScreenColumn = Infinity # will be assigned during line traversal
       isBlankLine = trailingWhitespaceStartBufferColumn is 0
+      isEmptyLine = bufferLineLength is 0
       inLeadingWhitespace = not isBlankLine
       leadingWhitespaceStartScreenColumn = 0
 
@@ -276,40 +277,24 @@ class DisplayLayer
       indentGuidesCount = @emptyLineIndentationForBufferRow(bufferRow)
 
       if eolInvisibleReplacement = @eolInvisibles[bufferRowLineEnding]
-        if isBlankLine and @showIndentGuides and indentGuidesCount > 0
-          @patch.splice(
-            Point(screenRow, 0),
-            Point(0, 0),
-            Point(0, 1),
-            {text: eolInvisibleReplacement, metadata: {eol: true, invisibleCharacter: true, showIndentGuide: true, atomic: true}}
-          )
-          indentGuidesStartColumn += 1
-        else
-          @patch.splice(
-            Point(screenRow, screenColumn - 1),
-            Point(1, 0),
-            Point(1, 0),
-            {text: eolInvisibleReplacement + "\n", metadata: {atomic: true, eol: true, invisibleCharacter: true, phantom: true}}
-          )
+        showIndentGuide = isEmptyLine and @showIndentGuides and indentGuidesCount > 0
+        @patch.splice(
+          Point(screenRow, screenColumn - 1),
+          Point(0, 0),
+          Point(0, eolInvisibleReplacement.length),
+          {text: eolInvisibleReplacement, metadata: {atomic: true, eol: true, invisibleCharacter: true, phantom: true, showIndentGuide}}
+        )
+        indentGuidesStartColumn += 1
 
       while @showIndentGuides and indentGuidesCount > 0
-        metadata = {showIndentGuide: not eolInvisibleReplacement or indentGuidesStartColumn > 1, atomic: true}
+        metadata = {showIndentGuide: (indentGuidesStartColumn % @tabLength is 0), atomic: true, phantom: true}
         distanceToNextTabStop = @tabLength - (indentGuidesStartColumn % @tabLength)
-        if indentGuidesCount is 1 and bufferRowLineEnding
-          metadata.phantom = true
-          @patch.splice(
-            Point(screenRow, indentGuidesStartColumn),
-            Point(1, 0),
-            Point(1, 0),
-            {text: " ".repeat(distanceToNextTabStop) + "\n", metadata}
-          )
-        else
-          @patch.splice(
-            Point(screenRow, indentGuidesStartColumn),
-            Point(0, 0),
-            Point(0, distanceToNextTabStop),
-            {text: " ".repeat(distanceToNextTabStop), metadata}
-          )
+        @patch.splice(
+          Point(screenRow, indentGuidesStartColumn),
+          Point(0, 0),
+          Point(0, distanceToNextTabStop),
+          {text: " ".repeat(distanceToNextTabStop), metadata}
+        )
         indentGuidesCount--
         indentGuidesStartColumn += distanceToNextTabStop
 

@@ -69,12 +69,15 @@ class TokenIterator
     atLineEnd = true
 
     if isEqualPoint(@startScreenPosition, @patchIterator.getOutputEnd())
-      atLineEnd = false
       if textDecoration = @getPatchDecoration()
         tagsToClose = [textDecoration]
       @patchIterator.moveToSuccessor()
       if textDecoration = @getPatchDecoration()
         tagsToOpen = [textDecoration]
+      if @patchIterator.inChange()
+        atLineEnd = false
+      else
+        atLineEnd = not tagsToClose? and @startBufferPosition.column is @buffer.lineLengthForRow(@startBufferPosition.row)
 
     if isEqualPoint(@startBufferPosition, @decorationIterator.getPosition())
       atLineEnd = false

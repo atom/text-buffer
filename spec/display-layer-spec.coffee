@@ -321,7 +321,7 @@ describe "DisplayLayer", ->
     it "renders end of line invisibles, appropriately decorated", ->
       buffer = new TextBuffer(text: "a\nb\n\nd e f\r\ngh\rij\n\r\n")
       displayLayer = buffer.addDisplayLayer({tabLength: 4, invisibles: {cr: '¤', eol: '¬'}})
-      expect(displayLayer.getText()).toBe("a¬\nb¬\n¬\nd e f¤¬\ngh¤\nij¬\n¤¬\n")
+      expect(displayLayer.getText()).toBe("a¬\nb¬\n¬\nd e f¤¬\r\ngh¤\rij¬\n¤¬\r\n")
 
       expectTokens(displayLayer, [
         {start: [0, 0], end: [0, 1], close: [], open: []}
