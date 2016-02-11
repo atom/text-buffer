@@ -653,11 +653,13 @@ verifyTokenIterator = (displayLayer, textDecorationLayer, failureMessage) ->
     startBufferPosition = tokenIterator.getStartBufferPosition()
     endBufferPosition = tokenIterator.getEndBufferPosition()
 
-    expect(displayLayer.translateScreenPosition(startScreenPosition)).toEqual(startBufferPosition, failureMessage)
-    expect(displayLayer.translateScreenPosition(endScreenPosition)).toEqual(endBufferPosition, failureMessage)
-    unless endBufferPosition.traversalFrom(startBufferPosition).isZero()
-      expect(displayLayer.translateBufferPosition(startBufferPosition)).toEqual(startScreenPosition, failureMessage)
-      expect(displayLayer.translateBufferPosition(endBufferPosition)).toEqual(endScreenPosition, failureMessage)
+    unless tokenIterator.patchIterator.inChange() and tokenIterator.patchIterator.getMetadata()?.atomic
+      expect(displayLayer.translateScreenPosition(startScreenPosition)).toEqual(startBufferPosition, failureMessage)
+      expect(displayLayer.translateScreenPosition(endScreenPosition)).toEqual(endBufferPosition, failureMessage)
+
+      if endBufferPosition.traversalFrom(startBufferPosition).isPositive()
+        expect(displayLayer.translateBufferPosition(startBufferPosition)).toEqual(startScreenPosition, failureMessage)
+        expect(displayLayer.translateBufferPosition(endBufferPosition)).toEqual(endScreenPosition, failureMessage)
 
     if startScreenPosition.row > lastTextRow
       expect(startScreenPosition.row).toBe(lastTextRow + 1, failureMessage) # don't skip lines
