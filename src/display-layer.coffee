@@ -52,6 +52,7 @@ class DisplayLayer
     bufferRange = @buffer.clipRange(bufferRange)
     foldId = @foldsMarkerLayer.markRange(bufferRange).id
     if @foldsMarkerLayer.findMarkers(containsRange: bufferRange).length is 1
+      {newRange: bufferRange} = @expandChangeRegionToSurroundingEmptyLines(bufferRange, bufferRange)
       {bufferStart, bufferEnd} = @expandBufferRangeToScreenLineStarts(bufferRange)
       foldExtent = traversal(bufferEnd, bufferStart)
       {start, oldExtent} = @patch.spliceInput(bufferStart, foldExtent, foldExtent)
@@ -82,7 +83,9 @@ class DisplayLayer
       for foldMarker in foldMarkers
         combinedRangeEnd = maxPoint(combinedRangeEnd, foldMarker.getEndPosition())
         foldMarker.destroy()
-      {bufferStart, bufferEnd} = @expandBufferRangeToScreenLineStarts(Range(combinedRangeStart, combinedRangeEnd))
+      combinedRange = Range(combinedRangeStart, combinedRangeEnd)
+      {newRange: combinedRange} = @expandChangeRegionToSurroundingEmptyLines(combinedRange, combinedRange)
+      {bufferStart, bufferEnd} = @expandBufferRangeToScreenLineStarts(combinedRange)
       foldExtent = traversal(bufferEnd, bufferStart)
       {start, oldExtent} = @patch.spliceInput(bufferStart, foldExtent, foldExtent)
       {screenNewEnd, screenLineLengths} = @computeTransformation(bufferStart.row, bufferEnd.row)
