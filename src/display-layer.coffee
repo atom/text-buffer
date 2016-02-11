@@ -272,28 +272,26 @@ class DisplayLayer
             bufferColumn += 1
             screenColumn += 1
 
-      bufferRowLineEnding = @buffer.lineEndingForRow(bufferRow)
       indentGuidesStartColumn = 0
       indentGuidesCount = @emptyLineIndentationForBufferRow(bufferRow)
 
-      if eolInvisibleReplacement = @eolInvisibles[bufferRowLineEnding]
+      if eolInvisibleReplacement = @eolInvisibles[@buffer.lineEndingForRow(bufferRow)]
         showIndentGuide = isEmptyLine and @showIndentGuides and indentGuidesCount > 0
         @patch.splice(
           Point(screenRow, screenColumn - 1),
           Point(0, 0),
           Point(0, eolInvisibleReplacement.length),
-          {text: eolInvisibleReplacement, metadata: {atomic: true, eol: true, invisibleCharacter: true, phantom: true, showIndentGuide}}
+          {text: eolInvisibleReplacement, metadata: {eol: true, invisibleCharacter: true, showIndentGuide}}
         )
         indentGuidesStartColumn += 1
 
       while @showIndentGuides and indentGuidesCount > 0
-        metadata = {showIndentGuide: (indentGuidesStartColumn % @tabLength is 0), atomic: true, phantom: true}
         distanceToNextTabStop = @tabLength - (indentGuidesStartColumn % @tabLength)
         @patch.splice(
           Point(screenRow, indentGuidesStartColumn),
           Point(0, 0),
           Point(0, distanceToNextTabStop),
-          {text: " ".repeat(distanceToNextTabStop), metadata}
+          {text: " ".repeat(distanceToNextTabStop), metadata: {showIndentGuide: (indentGuidesStartColumn % @tabLength is 0)}}
         )
         indentGuidesCount--
         indentGuidesStartColumn += distanceToNextTabStop
@@ -466,16 +464,19 @@ class DisplayLayer
     screenPosition = clipNegativePoint(screenPosition)
 
     @patchIterator.seekToOutputPosition(screenPosition)
-    if @patchIterator.inChange() and @patchIterator.getMetadata()?.atomic
-      if options?.clipDirection is 'forward' and comparePoints(screenPosition, @patchIterator.getOutputStart()) > 0
-        screenPosition = @patchIterator.getOutputEnd()
-      else
-        screenPosition = @patchIterator.getOutputStart()
+    if @patchIterator.inChange()
+      if @patchIterator.getMetadata()?.atomic
+        if options?.clipDirection is 'forward' and comparePoints(screenPosition, @patchIterator.getOutputStart()) > 0
+          screenPosition = @patchIterator.getOutputEnd()
+        else
+          screenPosition = @patchIterator.getOutputStart()
 
-    bufferPosition = @patchIterator.translateOutputPosition(screenPosition)
-    clippedBufferPosition = @buffer.clipPosition(bufferPosition, options)
-    @patchIterator.seekToInputPosition(clippedBufferPosition)
-    clippedScreenPosition = @patchIterator.translateInputPosition(clippedBufferPosition)
+      bufferPosition = @patchIterator.translateOutputPosition(screenPosition)
+    else
+      bufferPosition = @buffer.clipPosition(@patchIterator.translateOutputPosition(screenPosition), options)
+
+    @patchIterator.seekToInputPosition(bufferPosition)
+    clippedScreenPosition = @patchIterator.translateInputPosition(bufferPosition)
 
     Point.fromObject(clippedScreenPosition)
 
