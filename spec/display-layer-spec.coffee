@@ -565,9 +565,21 @@ describe "DisplayLayer", ->
 
       expect(e.message).toMatch(/Invalid text decoration iterator position/)
 
-  it "updates the displayed text correctly when the underlying buffer changes", ->
-    for i in [0...100] by 1
+  fffit "updates empty lines after the fold when a change occur inside it", ->
+    buffer = new TextBuffer(text: "a\n\n      x\ny\n        z\n\n")
+    options = {showIndentGuides: true, tabLength: 4, invisibles: {eol: '¬'}}
+    displayLayer = buffer.addDisplayLayer(options)
+    displayLayer.foldBufferRange([[2, 1], [4, 8]])
+    buffer.insert([3, 1], 'p')
+
+    console.log JSON.stringify(displayLayer.getText())
+    console.log JSON.stringify("a¬\n¬   \n ⋯z¬\n¬       \n        ")
+    expect(displayLayer.getText()).toEqual("a¬\n¬   \n ⋯z¬\n¬       \n        ")
+
+  fffit "updates the displayed text correctly when the underlying buffer changes", ->
+    for i in [0...1] by 1
       seed = Date.now()
+      # seed = 1455200743303
       seedFailureMessage = "Seed: #{seed}"
       random = new Random(seed)
       buffer = new TextBuffer(text: buildRandomLines(random, 10))
@@ -582,7 +594,7 @@ describe "DisplayLayer", ->
 
       foldIds = []
 
-      for j in [0...10] by 1
+      for j in [0...3] by 1
         k = random(10)
         if k < 2
           createRandomFold(random, displayLayer, foldIds, seedFailureMessage)
