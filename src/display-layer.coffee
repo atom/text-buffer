@@ -421,14 +421,11 @@ class DisplayLayer
     bufferPosition = @buffer.clipPosition(bufferPosition, options)
 
     @patchIterator.seekToInputPosition(bufferPosition)
-    if @patchIterator.inChange()
-      if @patchIterator.getMetadata()?.atomic
-        if options?.clipDirection is 'forward'
-          screenPosition = @patchIterator.getOutputEnd()
-        else
-          screenPosition = @patchIterator.getOutputStart()
+    if @patchIterator.inChange() and @patchIterator.getMetadata()?.atomic
+      if options?.clipDirection is 'forward'
+        screenPosition = @patchIterator.getOutputEnd()
       else
-        screenPosition = @patchIterator.translateInputPosition(bufferPosition)
+        screenPosition = @patchIterator.getOutputStart()
     else
       screenPosition = @patchIterator.translateInputPosition(bufferPosition)
 
@@ -469,19 +466,16 @@ class DisplayLayer
     screenPosition = clipNegativePoint(screenPosition)
 
     @patchIterator.seekToOutputPosition(screenPosition)
-    if @patchIterator.inChange()
-      if @patchIterator.getMetadata()?.atomic
-        if options?.clipDirection is 'forward' and comparePoints(screenPosition, @patchIterator.getOutputStart()) > 0
-          clippedScreenPosition = @patchIterator.getOutputEnd()
-        else
-          clippedScreenPosition = @patchIterator.getOutputStart()
+    if @patchIterator.inChange() and @patchIterator.getMetadata()?.atomic
+      if options?.clipDirection is 'forward' and comparePoints(screenPosition, @patchIterator.getOutputStart()) > 0
+        screenPosition = @patchIterator.getOutputEnd()
       else
-        clippedScreenPosition = screenPosition
-    else
-      bufferPosition = @patchIterator.translateOutputPosition(screenPosition)
-      clippedBufferPosition = @buffer.clipPosition(bufferPosition, options)
-      @patchIterator.seekToInputPosition(clippedBufferPosition)
-      clippedScreenPosition =  @patchIterator.translateInputPosition(clippedBufferPosition)
+        screenPosition = @patchIterator.getOutputStart()
+
+    bufferPosition = @patchIterator.translateOutputPosition(screenPosition)
+    clippedBufferPosition = @buffer.clipPosition(bufferPosition, options)
+    @patchIterator.seekToInputPosition(clippedBufferPosition)
+    clippedScreenPosition = @patchIterator.translateInputPosition(clippedBufferPosition)
 
     Point.fromObject(clippedScreenPosition)
 
