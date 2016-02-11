@@ -94,8 +94,7 @@ class DisplayLayer
     @emitter.on 'did-change-sync', callback
 
   bufferDidChange: (change) ->
-    {oldRange, newRange} = change
-
+    {oldRange, newRange} = @expandChangeRegionToSurroundingEmptyLines(change.oldRange, change.newRange)
     {bufferStart, bufferEnd: bufferOldEnd} = @expandBufferRangeToScreenLineStarts(oldRange)
     bufferOldExtent = traversal(bufferOldEnd, bufferStart)
     bufferNewExtent = Point(bufferOldExtent.row + (newRange.end.row - oldRange.end.row), 0)
@@ -128,6 +127,22 @@ class DisplayLayer
       oldExtent: extent,
       newExtent: extent
     }]
+
+  expandChangeRegionToSurroundingEmptyLines: (oldRange, newRange) ->
+    oldRange = oldRange.copy()
+    newRange = newRange.copy()
+
+    while oldRange.start.row > 0
+      break if @buffer.lineForRow(oldRange.start.row - 1).length isnt 0
+      oldRange.start.row--
+      newRange.start.row--
+
+    while newRange.end.row < @buffer.getLastRow()
+      break if @buffer.lineForRow(newRange.end.row + 1).length isnt 0
+      oldRange.end.row++
+      newRange.end.row++
+
+    {oldRange, newRange}
 
   expandBufferRangeToScreenLineStarts: (range) ->
     # Expand the start of the change to the buffer row that starts
