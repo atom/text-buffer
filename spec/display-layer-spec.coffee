@@ -375,7 +375,7 @@ describe "DisplayLayer", ->
         {start: [2, 8], end: [2, 8], close: ['hard-tab trailing-whitespace indent-guide'], open: []}
       ])
 
-    it "decorates empty lines with the appropriate number of indent guides", ->
+    ffit "decorates empty lines with the appropriate number of indent guides", ->
       buffer = new TextBuffer(text: "\n\n          a\n\n     b\n\n\n")
       displayLayer = buffer.addDisplayLayer({showIndentGuides: true, tabLength: 4, invisibles: {eol: '¬'}})
 
@@ -414,6 +414,10 @@ describe "DisplayLayer", ->
 
       # does not translate buffer positions to the end of inserted indent guides
       expect(displayLayer.translateBufferPosition([0, 40])).toEqual([0, 0])
+      expect(displayLayer.clipScreenPosition([0, 4])).toEqual([0, 0])
+      expect(displayLayer.clipScreenPosition([0, 6])).toEqual([0, 0])
+      expect(displayLayer.clipScreenPosition([0, 8])).toEqual([0, 0])
+      expect(displayLayer.clipScreenPosition([0, 10])).toEqual([0, 0])
 
   describe "text decorations", ->
     it "exposes open and close tags from the text decoration layer in the token iterator", ->

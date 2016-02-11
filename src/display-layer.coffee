@@ -480,6 +480,7 @@ class DisplayLayer
     else
       bufferPosition = @patchIterator.translateOutputPosition(screenPosition)
       clippedBufferPosition = @buffer.clipPosition(bufferPosition, options)
+      @patchIterator.seekToInputPosition(clippedBufferPosition)
       clippedScreenPosition =  @patchIterator.translateInputPosition(clippedBufferPosition)
 
     Point.fromObject(clippedScreenPosition)
