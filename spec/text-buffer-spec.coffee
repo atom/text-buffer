@@ -2284,13 +2284,12 @@ describe "TextBuffer", ->
       buffer.setText('\n')
       expect(buffer.isEmpty()).toBeFalsy()
 
-  describe "::onDidChangeText(callback)", ->
-    beforeEach ->
+  describe "::onDidChangeText(callback)",  ->
+    beforeEach (done) ->
       filePath = require.resolve('./fixtures/sample.js')
-      buffer = new TextBuffer({filePath, load: true})
-
-      waitsFor ->
-        buffer.loaded
+      buffer = new TextBuffer({filePath, load: false})
+      buffer.load().then ->
+        done()
 
     it "notifies observers after a transaction, an undo or a redo", ->
       textChanges = []

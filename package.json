@@ -54,7 +54,7 @@
     "event-kit": "^1.0.2",
     "fs-plus": "^2.0.0",
     "marker-index": "^3.1.0",
-    "pathwatcher": "^6.2.3",
+    "pathwatcher": "^6.3.1",
     "serializable": "^1.0.3",
     "span-skip-list": "~0.2.0",
     "underscore-plus": "^1.0.0"
