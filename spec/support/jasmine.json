@@ -1,0 +1,13 @@
+{
+  "spec_dir": "spec",
+  "spec_files": [
+    "**/*.js",
+    "**/*.coffee"
+  ],
+  "helpers": [
+    "../node_modules/babel-core/register.js",
+    "helpers/**/*.js"
+  ],
+  "stopSpecOnExpectationFailure": false,
+  "random": false
+}

@@ -5,6 +5,7 @@ describe "Marker", ->
   [buffer, markerCreations, markersUpdatedCount] = []
 
   beforeEach ->
+    jasmine.addCustomEqualityTester(require("underscore-plus").isEqual)
     buffer = new TextBuffer(text: "abcdefghijklmnopqrstuvwxyz")
     markerCreations = []
     buffer.onDidCreateMarker (marker) -> markerCreations.push(marker)
@@ -47,9 +48,9 @@ describe "Marker", ->
         marker1 = buffer.markRange([[0, 1], [0, 2]])
 
         expect -> buffer.markRange([[0, NaN], [0, 2]])
-          .toThrow "Invalid Point: (0, NaN)"
+          .toThrowError "Invalid Point: (0, NaN)"
         expect -> buffer.markRange([[0, 1], [0, NaN]])
-          .toThrow "Invalid Point: (0, NaN)"
+          .toThrowError "Invalid Point: (0, NaN)"
 
         expect(buffer.findMarkers({})).toEqual [marker1]
         expect(buffer.getMarkers()).toEqual [marker1]
@@ -76,7 +77,7 @@ describe "Marker", ->
         marker1 = buffer.markPosition([0, 1])
 
         expect -> buffer.markPosition([0, NaN])
-          .toThrow "Invalid Point: (0, NaN)"
+          .toThrowError "Invalid Point: (0, NaN)"
 
         expect(buffer.findMarkers({})).toEqual [marker1]
         expect(buffer.getMarkers()).toEqual [marker1]
@@ -334,7 +335,7 @@ describe "Marker", ->
 
       it "throws an error if an invalid range is given", ->
         expect -> marker.setRange([[0, NaN], [0, 12]])
-          .toThrow "Invalid Point: (0, NaN)"
+          .toThrowError "Invalid Point: (0, NaN)"
 
         expect(buffer.findMarkers({})).toEqual [marker]
         expect(marker.getRange()).toEqual [[0, 6], [0, 9]]
@@ -697,7 +698,7 @@ describe "Marker", ->
 
       marker.destroy()
 
-      expect(destroyedHandler.callCount).toBe 1
+      expect(destroyedHandler.calls.count()).toBe 1
       expect(buffer.getMarker(marker.id)).toBeUndefined()
       expect(marker.isDestroyed()).toBe true
       expect(marker.isValid()).toBe false
@@ -962,32 +963,24 @@ describe "Marker", ->
         expect(layer2.findMarkers(containsPoint: [0, 4])).toEqual [layer2Marker]
 
     describe "::onDidUpdate", ->
-      it "notifies observers asynchronously when markers are created, updated, or destroyed", ->
+      it "notifies observers asynchronously when markers are created, updated, or destroyed", (done) ->
         updateCount = 0
-        layer1.onDidUpdate -> updateCount++
+        layer1.onDidUpdate ->
+          updateCount++
+          if updateCount is 1
+            marker1.setRange([[1, 2], [3, 4]])
+            marker2.setRange([[4, 5], [6, 7]])
+          else if updateCount is 2
+            buffer.insert([0, 1], "xxx")
+            buffer.insert([0, 1], "yyy")
+          else if updateCount is 3
+            marker1.destroy()
+            marker2.destroy()
+          else if updateCount is 4
+            done()
 
         marker1 = layer1.markRange([[0, 2], [0, 4]])
         marker2 = layer1.markRange([[0, 6], [0, 8]])
-
-        waitsFor -> updateCount is 1
-
-        runs ->
-          marker1.setRange([[1, 2], [3, 4]])
-          marker2.setRange([[4, 5], [6, 7]])
-
-        waitsFor -> updateCount is 2
-
-        runs ->
-          buffer.insert([0, 1], "xxx")
-          buffer.insert([0, 1], "yyy")
-
-        waitsFor -> updateCount is 3
-
-        runs ->
-          marker1.destroy()
-          marker2.destroy()
-
-        waitsFor -> updateCount is 4
 
     describe "::copy", ->
       it "creates a new marker layer with markers in the same states", ->
