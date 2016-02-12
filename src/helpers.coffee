@@ -1,3 +1,5 @@
+Point = require './point'
+
 SpliceArrayChunkSize = 100000
 
 module.exports =
@@ -13,3 +15,11 @@ module.exports =
       removedValues
 
   newlineRegex: /\r\n|\n|\r/g
+
+  normalizePatchChanges: (changes) ->
+    changes.map (change) -> {
+      start: Point.fromObject(change.start)
+      oldExtent: Point.fromObject(change.oldExtent)
+      newExtent: Point.fromObject(change.newExtent)
+      newText: change.newText
+    }
