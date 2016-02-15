@@ -2383,62 +2383,68 @@ describe "TextBuffer", ->
       ])
 
   describe "::onDidStopChanging(callback)", ->
+    [delay, didStopChangingCallback] = []
     beforeEach (done) ->
       filePath = require.resolve('./fixtures/sample.js')
       buffer = new TextBuffer({filePath, load: false})
       buffer.load().then ->
         done()
 
-    xit "notifies observers after a delay passes following changes", ->
+    beforeEach (done) ->
       delay = buffer.stoppedChangingDelay
       didStopChangingCallback = jasmine.createSpy("didStopChangingCallback")
+      setTimeout(->
+        done()
+      , delay)
 
-      waits delay
+    beforeEach (done) ->
+      buffer.onDidStopChanging didStopChangingCallback
 
-      runs ->
-        buffer.onDidStopChanging didStopChangingCallback
+      buffer.insert([0, 0], 'a')
+      expect(didStopChangingCallback).not.toHaveBeenCalled()
+      setTimeout(->
+        done()
+      , delay / 2)
 
-        buffer.insert([0, 0], 'a')
-        expect(didStopChangingCallback).not.toHaveBeenCalled()
+    beforeEach (done) ->
+      buffer.insert([0, 0], 'b')
+      buffer.insert([1, 0], 'c')
+      expect(didStopChangingCallback).not.toHaveBeenCalled()
+      setTimeout(->
+        done()
+      , delay / 2)
 
-      waits delay / 2
+    beforeEach (done) ->
+      expect(didStopChangingCallback).not.toHaveBeenCalled()
+      setTimeout(->
+        done()
+      , delay / 2)
 
-      runs ->
-        buffer.insert([0, 0], 'b')
-        buffer.insert([1, 0], 'c')
-        expect(didStopChangingCallback).not.toHaveBeenCalled()
+    beforeEach (done) ->
+      expect(didStopChangingCallback).toHaveBeenCalled()
+      expect(didStopChangingCallback.calls.mostRecent().args[0].changes).toEqual [
+        {
+          start: {row: 0, column: 0},
+          oldExtent: {row: 0, column: 0},
+          newExtent: {row: 0, column: 2},
+          newText: 'ba'
+        },
+        {
+          start: {row: 1, column: 0},
+          oldExtent: {row: 0, column: 0},
+          newExtent: {row: 0, column: 1},
+          newText: 'c'
+        }
+      ]
 
-      waits delay / 2
+      didStopChangingCallback.calls.reset()
+      buffer.undo()
+      buffer.undo()
+      setTimeout(->
+        done()
+      , delay)
 
-      runs ->
-        expect(didStopChangingCallback).not.toHaveBeenCalled()
-
-      waits delay / 2
-
-      runs ->
-        expect(didStopChangingCallback).toHaveBeenCalled()
-        expect(didStopChangingCallback.mostRecentCall.args[0].changes).toEqual [
-          {
-            start: {row: 0, column: 0},
-            oldExtent: {row: 0, column: 0},
-            newExtent: {row: 0, column: 2},
-            newText: 'ba'
-          },
-          {
-            start: {row: 1, column: 0},
-            oldExtent: {row: 0, column: 0},
-            newExtent: {row: 0, column: 1},
-            newText: 'c'
-          }
-        ]
-
-        didStopChangingCallback.reset()
-        buffer.undo()
-        buffer.undo()
-
-      waits delay
-
-      runs ->
+    it "notifies observers after a delay passes following changes", ->
         expect(didStopChangingCallback).toHaveBeenCalled()
 
   describe "::append(text)", ->
