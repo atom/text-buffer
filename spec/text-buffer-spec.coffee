@@ -1075,7 +1075,10 @@ describe "TextBuffer", ->
 
     it "notifies observers when the buffer's file is moved", (done) ->
       # FIXME: This doesn't pass on Linux
-      return if process.platform in ['linux', 'win32']
+      if process.platform in ['linux', 'win32']
+        done()
+        return
+
       bufferToChange.onDidChangePath (p) ->
         expect(p).toBe(newPath)
         done()
