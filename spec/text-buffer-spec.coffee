@@ -950,32 +950,30 @@ describe "TextBuffer", ->
         buffer2?.destroy()
 
       describe "when the serialized buffer had no unsaved changes", ->
-        xit "loads the current contents of the file at the serialized path", ->
+        [buffer2, buffer2ModifiedEvents] = []
+        beforeEach (done) ->
           buffer.append("!")
           buffer.save()
           expect(buffer.isModified()).toBeFalsy()
-          buffer2 = buffer.testSerialization()
-
+          buffer2 = buffer.testSerialization({load: false})
           buffer2ModifiedEvents = []
           buffer2.onDidChangeModified (value) -> buffer2ModifiedEvents.push(value)
+          buffer2.load().then ->
+            done()
 
-          waitsFor ->
-            buffer2.loaded
+        it "loads the current contents of the file at the serialized path", (done) ->
+          expect(buffer2.isModified()).toBeFalsy()
+          expect(buffer2ModifiedEvents).toEqual [false]
+          expect(buffer2.getPath()).toBe(filePath)
+          expect(buffer2.getText()).toBe('words!')
 
-          runs ->
-            expect(buffer2.isModified()).toBeFalsy()
-            expect(buffer2ModifiedEvents).toEqual [false]
-            expect(buffer2.getPath()).toBe(filePath)
-            expect(buffer2.getText()).toBe('words!')
-
-            buffer.undo()
-            buffer2.undo()
-
-          waits(buffer.stoppedChangingDelay)
-
-          runs ->
+          buffer.undo()
+          buffer2.undo()
+          setTimeout(->
             expect(buffer2.getText()).toBe('words')
             expect(buffer2ModifiedEvents).toEqual [false, true]
+            done()
+          , buffer.stoppedChangingDelay)
 
       describe "when the serialized buffer had unsaved changes", ->
         describe "when the disk contents were changed since serialization", ->
