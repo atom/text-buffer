@@ -12,11 +12,13 @@ describe "TextBuffer", ->
   buffer = null
 
   beforeEach ->
+    temp.track()
     jasmine.addCustomEqualityTester(require("underscore-plus").isEqual)
     # When running specs in Atom, setTimeout is spied on by default.
     jasmine.useRealClock?()
 
   afterEach ->
+    buffer?.destroy()
     buffer = null
 
   describe "construction", ->
@@ -1055,7 +1057,8 @@ describe "TextBuffer", ->
     [filePath, newPath, bufferToChange, eventHandler] = []
 
     beforeEach (done) ->
-      filePath = join(__dirname, "fixtures", "manipulate-me")
+      tempDir = temp.mkdirSync('text-buffer')
+      filePath = join(tempDir, "manipulate-me")
       newPath = "#{filePath}-i-moved"
       fs.writeFileSync(filePath, "")
       bufferToChange = new TextBuffer({filePath, load: false})
@@ -1090,7 +1093,8 @@ describe "TextBuffer", ->
     [filePath, bufferToChange, eventHandler] = []
 
     beforeEach (done) ->
-      filePath = join(__dirname, "fixtures", "manipulate-me")
+      tempDir = temp.mkdirSync('text-buffer')
+      filePath = join(tempDir , "manipulate-me")
       fs.writeFileSync(filePath, "")
       bufferToChange = new TextBuffer({filePath, load: false})
       eventHandler = jasmine.createSpy('eventHandler')
@@ -1117,7 +1121,7 @@ describe "TextBuffer", ->
         done()
 
     afterEach ->
-      buffer.destroy()
+      buffer?.destroy()
 
     it "does not notify ::onDidChange observers when the file is written via TextBuffer::save", (done) ->
       buffer.insert([0,0], "HELLO!")
@@ -1130,28 +1134,27 @@ describe "TextBuffer", ->
       , 30)
 
     describe "when the buffer is in an unmodified state before the file is modified on disk", ->
-      [changeHandler] = []
+      [event1, event2] = []
       beforeEach (done) ->
         calls = 0
-        changeHandler = jasmine.createSpy('changeHandler').and.callFake ->
+        buffer.onDidChange (args) ->
           calls = calls + 1
-          done() if calls >= 2
-        buffer.onDidChange changeHandler
+          event1 = args if calls is 1
+          event2 = args if calls is 2
+          done() if calls > 1
         fs.writeFileSync(filePath, "second")
-        expect(changeHandler.calls.count()).toBe 0
+        expect(calls).toBe(0)
 
       it "changes the in-memory contents of the buffer to match the new disk contents and notifies ::onDidChange observers", ->
-        [event] = changeHandler.calls.allArgs()[0]
-        expect(event.oldRange).toEqual [[0, 0], [0, 0]]
-        expect(event.newRange).toEqual [[0, 0], [0, 6]]
-        expect(event.oldText).toBe ""
-        expect(event.newText).toBe "second"
+        expect(event1.oldRange).toEqual [[0, 0], [0, 0]]
+        expect(event1.newRange).toEqual [[0, 0], [0, 6]]
+        expect(event1.oldText).toBe ""
+        expect(event1.newText).toBe "second"
 
-        [event] = changeHandler.calls.allArgs()[1]
-        expect(event.oldRange).toEqual [[0, 6], [0, 11]]
-        expect(event.newRange).toEqual [[0, 6], [0, 6]]
-        expect(event.oldText).toBe "first"
-        expect(event.newText).toBe ""
+        expect(event2.oldRange).toEqual [[0, 6], [0, 11]]
+        expect(event2.newRange).toEqual [[0, 6], [0, 6]]
+        expect(event2.oldText).toBe "first"
+        expect(event2.newText).toBe ""
 
         expect(buffer.isModified()).toBeFalsy()
 
@@ -1183,7 +1186,8 @@ describe "TextBuffer", ->
     [filePath, bufferToDelete] = []
 
     beforeEach (done) ->
-      filePath = join(temp.dir, 'atom-file-to-delete.txt')
+      tempDir = temp.mkdirSync()
+      filePath = join(tempDir, 'atom-file-to-delete.txt')
       fs.writeFileSync(filePath, 'delete me')
       bufferToDelete = new TextBuffer({filePath, load: false})
       filePath = bufferToDelete.getPath() # symlinks may have been converted
@@ -1192,7 +1196,7 @@ describe "TextBuffer", ->
         done()
 
     afterEach ->
-      bufferToDelete.destroy()
+      bufferToDelete?.destroy()
 
     describe "when the file is modified", ->
       beforeEach (done) ->
