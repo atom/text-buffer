@@ -1240,7 +1240,8 @@ describe "TextBuffer", ->
     [filePath, modifiedHandler, doneFunc] = []
 
     beforeEach (done) ->
-      filePath = join(temp.dir, 'atom-tmp-file')
+      tempDir = temp.mkdirSync()
+      filePath = join(tempDir, 'atom-tmp-file')
       fs.writeFileSync(filePath, '')
       buffer = new TextBuffer({filePath, load: false})
       buffer.load().then ->
@@ -1657,7 +1658,8 @@ describe "TextBuffer", ->
       filePath = null
 
       beforeEach (done) ->
-        filePath = join(temp.dir, 'temp.txt')
+        tempDir = temp.mkdirSync()
+        filePath = join(tempDir, 'temp.txt')
         fs.writeFileSync(filePath, "")
         saveBuffer = new TextBuffer({filePath, load: false})
         saveBuffer.load().then ->
@@ -1738,13 +1740,16 @@ describe "TextBuffer", ->
         done()
 
   describe "::saveAs(path, {backup})", ->
-    [filePath, saveAsBuffer] = []
+    [filePath, saveAsBuffer, tempDir] = []
+
+    beforeEach ->
+      tempDir = temp.mkdirSync()
 
     afterEach ->
       saveAsBuffer?.destroy()
 
     it "saves the contents of the buffer to the path", ->
-      filePath = join(temp.dir, 'temp.txt')
+      filePath = join(tempDir, 'temp.txt')
       fs.removeSync(filePath)
 
       saveAsBuffer = new TextBuffer()
@@ -1761,8 +1766,8 @@ describe "TextBuffer", ->
       [changeHandler, originalPath, newPath, saveAsBuffer, doneFunc] = []
       beforeEach (done) ->
         changeHandler = null
-        originalPath = join(temp.dir, 'original.txt')
-        newPath = join(temp.dir, 'new.txt')
+        originalPath = join(tempDir, 'original.txt')
+        newPath = join(tempDir, 'new.txt')
         fs.writeFileSync(originalPath, "")
 
         saveAsBuffer = new TextBuffer({filePath: originalPath, load: false})
@@ -1795,7 +1800,8 @@ describe "TextBuffer", ->
       [backupFilePath, saveAsBuffer] = []
 
       beforeEach ->
-        filePath = join(temp.dir, 'temp.txt')
+        tempDir = temp.mkdirSync()
+        filePath = join(tempDir, 'temp.txt')
         saveAsBuffer = new TextBuffer()
         saveAsBuffer.setText 'Buffer contents'
         backupFilePath = filePath + '~'
