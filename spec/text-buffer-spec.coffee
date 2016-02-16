@@ -1057,7 +1057,7 @@ describe "TextBuffer", ->
     [filePath, newPath, bufferToChange, eventHandler] = []
 
     beforeEach (done) ->
-      tempDir = temp.mkdirSync('text-buffer')
+      tempDir = fs.realpathSync(temp.mkdirSync('text-buffer'))
       filePath = join(tempDir, "manipulate-me")
       newPath = "#{filePath}-i-moved"
       fs.writeFileSync(filePath, "")
@@ -1093,7 +1093,7 @@ describe "TextBuffer", ->
     [filePath, bufferToChange, eventHandler] = []
 
     beforeEach (done) ->
-      tempDir = temp.mkdirSync('text-buffer')
+      tempDir = fs.realpathSync(temp.mkdirSync('text-buffer'))
       filePath = join(tempDir , "manipulate-me")
       fs.writeFileSync(filePath, "")
       bufferToChange = new TextBuffer({filePath, load: false})
@@ -1186,7 +1186,7 @@ describe "TextBuffer", ->
     [filePath, bufferToDelete] = []
 
     beforeEach (done) ->
-      tempDir = temp.mkdirSync()
+      tempDir = fs.realpathSync(temp.mkdirSync())
       filePath = join(tempDir, 'atom-file-to-delete.txt')
       fs.writeFileSync(filePath, 'delete me')
       bufferToDelete = new TextBuffer({filePath, load: false})
