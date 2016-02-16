@@ -977,19 +977,16 @@ describe "TextBuffer", ->
 
       describe "when the serialized buffer had unsaved changes", ->
         describe "when the disk contents were changed since serialization", ->
-          xit "loads the disk contents instead of the previous unsaved state", ->
+          it "loads the disk contents instead of the previous unsaved state", (done) ->
             buffer.setText("BUFFER CHANGE")
             fs.writeFileSync(filePath, "DISK CHANGE")
 
-            buffer2 = buffer.testSerialization()
-
-            waitsFor ->
-              buffer2.cachedDiskContents
-
-            runs ->
+            buffer2 = buffer.testSerialization({load: false})
+            buffer2.load().then ->
               expect(buffer2.getPath()).toBe(buffer.getPath())
               expect(buffer2.getText()).toBe("DISK CHANGE")
               expect(buffer2.isModified()).toBeFalsy()
+              done()
 
         describe "when the disk contents are the same since serialization", ->
           [previousText] = []
@@ -1240,7 +1237,7 @@ describe "TextBuffer", ->
         done()
 
   describe "modified status", ->
-    [filePath] = []
+    [filePath, modifiedHandler, doneFunc] = []
 
     beforeEach (done) ->
       filePath = join(temp.dir, 'atom-tmp-file')
@@ -1251,129 +1248,118 @@ describe "TextBuffer", ->
 
     afterEach ->
       buffer?.destroy()
+      modifiedHandler = null
+      doneFunc = null
 
-    xit "reports the modified status changing to true or false after the user changes buffer", ->
-      modifiedHandler = jasmine.createSpy("modifiedHandler")
-      buffer.onDidChangeModified modifiedHandler
+    describe "after the user changes buffer", ->
+      beforeEach (done) ->
+        doneFunc = done
+        modifiedHandler = jasmine.createSpy("modifiedHandler").and.callFake ->
+          doneFunc()
+        buffer.onDidChangeModified modifiedHandler
 
-      expect(buffer.isModified()).toBeFalsy()
-      buffer.insert([0,0], "hi")
-      expect(buffer.isModified()).toBe true
-
-      waitsFor ->
-        modifiedHandler.calls.count() is 1
-
-      runs ->
-        expect(modifiedHandler).toHaveBeenCalledWith(true)
-
-        modifiedHandler.reset()
-        buffer.insert([0,2], "ho")
-
-      waits buffer.stoppedChangingDelay * 2
-
-      runs ->
-        expect(modifiedHandler).not.toHaveBeenCalled()
-
-        modifiedHandler.reset()
-        buffer.undo()
-        buffer.undo()
-
-      waitsFor ->
-        modifiedHandler.calls.count() is 1
-
-      runs ->
-        expect(modifiedHandler).toHaveBeenCalledWith(false)
-
-    xit "reports the modified status changing to false after a modified buffer is saved", ->
-      modifiedHandler = jasmine.createSpy("modifiedHandler")
-      buffer.onDidChangeModified modifiedHandler
-      buffer.insert([0,0], "hi")
-
-      waitsFor ->
-        modifiedHandler.calls.count() is 1
-
-      runs ->
+        expect(buffer.isModified()).toBeFalsy()
+        buffer.insert([0,0], "hi")
         expect(buffer.isModified()).toBe true
 
-        modifiedHandler.reset()
+      beforeEach (done) ->
+        expect(modifiedHandler).toHaveBeenCalledWith(true)
+
+        modifiedHandler.calls.reset()
+        buffer.insert([0,2], "ho")
+        setTimeout(->
+          expect(modifiedHandler).not.toHaveBeenCalled()
+          done()
+        , buffer.stoppedChangingDelay * 2)
+
+      it "reports the modified status changing to true or false", (done) ->
+        modifiedHandler.calls.reset()
+        doneFunc = ->
+          expect(modifiedHandler).toHaveBeenCalledWith(false)
+          done()
+        buffer.undo()
+        buffer.undo()
+
+    describe "after a modified buffer is saved", ->
+      beforeEach (done) ->
+        doneFunc = done
+        modifiedHandler = jasmine.createSpy("modifiedHandler").and.callFake ->
+          doneFunc()
+        buffer.onDidChangeModified modifiedHandler
+        buffer.insert([0,0], "hi")
+
+      it "reports the modified status changing to false", (done) ->
+        expect(buffer.isModified()).toBe true
+
+        modifiedHandler.calls.reset()
         buffer.save()
 
         expect(modifiedHandler).toHaveBeenCalledWith(false)
         expect(buffer.isModified()).toBe false
-        modifiedHandler.reset()
-
+        modifiedHandler.calls.reset()
+        doneFunc = ->
+          expect(modifiedHandler).toHaveBeenCalledWith(true)
+          expect(buffer.isModified()).toBe true
+          done()
         buffer.insert([0, 0], 'x')
 
-      waitsFor ->
-        modifiedHandler.calls.count() is 1
+    describe "after a modified buffer is reloaded", ->
+      beforeEach (done) ->
+        doneFunc = done
+        modifiedHandler = jasmine.createSpy("modifiedHandler").and.callFake ->
+          doneFunc()
+        buffer.onDidChangeModified modifiedHandler
+        buffer.insert([0,0], "hi")
 
-      runs ->
-        expect(modifiedHandler).toHaveBeenCalledWith(true)
+      it "reports the modified status changing to false after a modified buffer is reloaded", ->
         expect(buffer.isModified()).toBe true
 
-    xit "reports the modified status changing to false after a modified buffer is reloaded", ->
-      modifiedHandler = jasmine.createSpy("modifiedHandler")
-      buffer.onDidChangeModified modifiedHandler
-      buffer.insert([0,0], "hi")
-
-      waitsFor ->
-        modifiedHandler.calls.count() is 1
-
-      runs ->
-        expect(buffer.isModified()).toBe true
-
-        modifiedHandler.reset()
+        modifiedHandler.calls.reset()
         buffer.reload()
 
         expect(modifiedHandler).toHaveBeenCalledWith(false)
         expect(buffer.isModified()).toBe false
 
-        modifiedHandler.reset()
+        modifiedHandler.calls.reset()
+        doneFunc = ->
+          expect(modifiedHandler).toHaveBeenCalledWith(true)
+          expect(buffer.isModified()).toBe true
+          done()
         buffer.insert([0, 0], 'x')
 
-      waitsFor ->
-        modifiedHandler.calls.count() is 1
+    describe "after a buffer to a non-existent file is saved", ->
+      beforeEach (done) ->
+        buffer.destroy()
+        fs.removeSync(filePath)
+        expect(fs.existsSync(filePath)).toBeFalsy()
 
-      runs ->
-        expect(modifiedHandler).toHaveBeenCalledWith(true)
-        expect(buffer.isModified()).toBe true
+        buffer = new TextBuffer({filePath, load: false})
+        buffer.load().then ->
+          done()
 
-    xit "reports the modified status changing to false after a buffer to a non-existent file is saved", ->
-      buffer.destroy()
-      fs.removeSync(filePath)
-      expect(fs.existsSync(filePath)).toBeFalsy()
-
-      buffer = new TextBuffer({filePath, load: false})
-      modifiedHandler = jasmine.createSpy("modifiedHandler")
-      buffer.load().then ->
-        done()
-
-      runs ->
+      beforeEach (done) ->
+        doneFunc = done
+        modifiedHandler = jasmine.createSpy("modifiedHandler").and.callFake ->
+          doneFunc()
         buffer.onDidChangeModified modifiedHandler
         buffer.insert([0,0], "hi")
 
-      waitsFor ->
-        modifiedHandler.calls.count() is 1
-
-      runs ->
+      it "reports the modified status changing to false", (done) ->
         expect(buffer.isModified()).toBe true
 
-        modifiedHandler.reset()
+        modifiedHandler.calls.reset()
         buffer.save()
 
         expect(fs.existsSync(filePath)).toBeTruthy()
         expect(modifiedHandler).toHaveBeenCalledWith(false)
         expect(buffer.isModified()).toBe false
 
-        modifiedHandler.reset()
+        modifiedHandler.calls.reset()
+        doneFunc = ->
+          expect(modifiedHandler).toHaveBeenCalledWith(true)
+          expect(buffer.isModified()).toBe true
+          done()
         buffer.insert([0, 0], 'x')
-
-      waitsFor ->
-        modifiedHandler.calls.count() is 1
-
-      runs ->
-        expect(modifiedHandler).toHaveBeenCalledWith(true)
-        expect(buffer.isModified()).toBe true
 
     it "returns false for an empty buffer with no path", ->
       buffer.destroy()
@@ -1770,33 +1756,39 @@ describe "TextBuffer", ->
 
       expect(eventHandler).toHaveBeenCalledWith(filePath)
 
-    xit "stops listening to events on previous path and begins listening to events on new path", ->
-      changeHandler = null
-      originalPath = join(temp.dir, 'original.txt')
-      newPath = join(temp.dir, 'new.txt')
-      fs.writeFileSync(originalPath, "")
+    describe "when the path is changed", ->
+      [changeHandler, originalPath, newPath, saveAsBuffer, doneFunc] = []
+      beforeEach (done) ->
+        changeHandler = null
+        originalPath = join(temp.dir, 'original.txt')
+        newPath = join(temp.dir, 'new.txt')
+        fs.writeFileSync(originalPath, "")
 
-      saveAsBuffer = new TextBuffer({filePath: originalPath, load: true})
+        saveAsBuffer = new TextBuffer({filePath: originalPath, load: false})
+        saveAsBuffer.load().then ->
+          done()
 
-      waitsFor ->
-        saveAsBuffer.loaded
+      beforeEach (done) ->
+        doneFunc = ->
+          # No-op
 
-      runs ->
-        changeHandler = jasmine.createSpy('changeHandler')
+        changeHandler = jasmine.createSpy('changeHandler').and.callFake ->
+          doneFunc()
         saveAsBuffer.onDidChange changeHandler
         saveAsBuffer.saveAs(newPath)
         expect(changeHandler).not.toHaveBeenCalled()
 
         fs.writeFileSync(originalPath, "should not trigger buffer event")
+        setTimeout(->
+          expect(changeHandler).not.toHaveBeenCalled()
+          done()
+        , 20)
 
-      waits 20
-
-      runs ->
-        expect(changeHandler).not.toHaveBeenCalled()
+      it "stops listening to events on previous path and begins listening to events on new path", (done) ->
+        doneFunc = ->
+          expect(changeHandler).toHaveBeenCalled()
+          done()
         fs.writeFileSync(newPath, "should trigger buffer event")
-
-      waitsFor ->
-        changeHandler.calls.count() > 0
 
     describe "if the 'backup' option is true", ->
       [backupFilePath, saveAsBuffer] = []
