@@ -1330,7 +1330,8 @@ describe "TextBuffer", ->
     describe "after a buffer to a non-existent file is saved", ->
       beforeEach (done) ->
         buffer.destroy()
-        fs.removeSync(filePath)
+        tempDir = temp.mkdirSync()
+        filePath = join(tempDir, 'atom-file')
         expect(fs.existsSync(filePath)).toBeFalsy()
 
         buffer = new TextBuffer({filePath, load: false})
