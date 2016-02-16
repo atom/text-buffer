@@ -14,7 +14,7 @@ Range = require './range'
 History = require './history'
 MarkerLayer = require './marker-layer'
 MatchIterator = require './match-iterator'
-{spliceArray, newlineRegex} = require './helpers'
+{spliceArray, newlineRegex, normalizePatchChanges} = require './helpers'
 
 class SearchCallbackArgument
   Object.defineProperty @::, "range",
@@ -95,7 +95,8 @@ class TextBuffer
     text = params if typeof params is 'string'
 
     @emitter = new Emitter
-    @stoppedChangingPatch = new Patch(combineChanges: true)
+    @stoppedChangingPatch = new Patch(combineChanges: true, batchMode: true)
+    @didChangeTextPatch = new Patch(combineChanges: true, batchMode: true)
     @id = params?.id ? crypto.randomBytes(16).toString('hex')
     @lines = ['']
     @lineEndings = ['']
@@ -190,6 +191,9 @@ class TextBuffer
   # Returns a {Disposable} on which `.dispose()` can be called to unsubscribe.
   onDidChange: (callback) ->
     @emitter.on 'did-change', callback
+
+  onDidChangeText: (callback) ->
+    @emitter.on 'did-change-text', callback
 
   preemptDidChange: (callback) ->
     @emitter.preempt 'did-change', callback
@@ -738,6 +742,7 @@ class TextBuffer
 
     @changeCount++
     @stoppedChangingPatch.splice(oldRange.start, oldRange.getExtent(), newRange.getExtent(), text: newText)
+    @didChangeTextPatch.splice(oldRange.start, oldRange.getExtent(), newRange.getExtent(), text: newText)
     @emitter.emit 'did-change', changeEvent
 
   # Public: Delete the text in the given range.
@@ -922,6 +927,8 @@ class TextBuffer
       @applyChange(change, true) for change in pop.changes
       @restoreFromMarkerSnapshot(pop.snapshot)
       @emitMarkerChangeEvents(pop.snapshot)
+      @emitChangeTextEvent()
+      @stoppedChangingPatch.rebalance()
       true
     else
       false
@@ -932,6 +939,8 @@ class TextBuffer
       @applyChange(change, true) for change in pop.changes
       @restoreFromMarkerSnapshot(pop.snapshot)
       @emitMarkerChangeEvents(pop.snapshot)
+      @emitChangeTextEvent()
+      @stoppedChangingPatch.rebalance()
       true
     else
       false
@@ -970,7 +979,9 @@ class TextBuffer
     @history.groupChangesSinceCheckpoint(checkpointBefore, endMarkerSnapshot, true)
     @history.applyGroupingInterval(groupingInterval)
     @emitMarkerChangeEvents(endMarkerSnapshot)
-
+    if @transactCallDepth is 0
+      @emitChangeTextEvent()
+      @stoppedChangingPatch.rebalance()
     result
 
   abortTransaction: ->
@@ -1461,6 +1472,10 @@ class TextBuffer
     for markerLayerId, markerLayer of @markerLayers
       markerLayer.emitChangeEvents(snapshot?[markerLayerId])
 
+  emitChangeTextEvent: ->
+    @emitter.emit 'did-change-text', {changes: Object.freeze(normalizePatchChanges(@didChangeTextPatch.getChanges()))}
+    @didChangeTextPatch = new Patch(combineChanges: true, batchMode: true)
+
   # Identifies if the buffer belongs to multiple editors.
   #
   # For example, if the {EditorView} was split.
@@ -1476,8 +1491,8 @@ class TextBuffer
     stoppedChangingCallback = =>
       @stoppedChangingTimeout = null
       modifiedStatus = @isModified()
-      @emitter.emit 'did-stop-changing', Object.freeze(@stoppedChangingPatch.getChanges())
-      @stoppedChangingPatch = new Patch
+      @emitter.emit 'did-stop-changing', {changes: Object.freeze(normalizePatchChanges(@stoppedChangingPatch.getChanges()))}
+      @stoppedChangingPatch = new Patch(combineChanges: true, batchMode: true)
       @emitModifiedStatusChanged(modifiedStatus)
     @stoppedChangingTimeout = setTimeout(stoppedChangingCallback, @stoppedChangingDelay)
 

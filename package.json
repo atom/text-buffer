@@ -1,6 +1,6 @@
 {
   "name": "text-buffer",
-  "version": "8.2.2-2",
+  "version": "8.3.0",
   "description": "A container for large mutable strings with annotated regions",
   "main": "./lib/text-buffer",
   "scripts": {
@@ -36,7 +36,7 @@
   "dependencies": {
     "delegato": "^1.0.0",
     "atom-diff": "^2",
-    "atom-patch": "0.0.4",
+    "atom-patch": "0.0.8",
     "emissary": "^1.0.0",
     "event-kit": "^1.0.2",
     "fs-plus": "^2.0.0",
