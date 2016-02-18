@@ -1,20 +1,17 @@
 Patch = require 'atom-patch'
-LineLengthIndex = require 'line-length-index'
+ScreenLineIndex = require 'atom-screen-line-index'
 {Emitter} = require 'event-kit'
 Point = require './point'
 Range = require './range'
 DisplayMarkerLayer = require './display-marker-layer'
 TokenIterator = require './token-iterator'
-{traversal, clipNegativePoint} = pointHelpers = require './point-helpers'
+{traverse, traversal, clipNegativePoint} = pointHelpers = require './point-helpers'
 comparePoints = pointHelpers.compare
 maxPoint = pointHelpers.max
 
 module.exports =
 class DisplayLayer
   constructor: (@buffer, {@tabLength, @foldsMarkerLayer, @invisibles, @showIndentGuides, patchSeed}={}) ->
-    @patch = new Patch(combineChanges: false, seed: patchSeed)
-    @patchIterator = @patch.buildIterator()
-    @lineLengthIndex = new LineLengthIndex
     @displayMarkerLayersById = {}
     @textDecorationLayer = null
     @foldsMarkerLayer ?= @buffer.addMarkerLayer()
@@ -26,8 +23,10 @@ class DisplayLayer
     }
     @foldIdCounter = 1
     @disposables = @buffer.onDidChange(@bufferDidChange.bind(this))
-    {screenLineLengths} = @computeTransformation(0, @buffer.getLineCount())
-    @lineLengthIndex.splice(0, 0, screenLineLengths)
+    @screenLineIndex = new ScreenLineIndex
+    @spatialTokenIterator = @screenLineIndex.buildTokenIterator()
+    @screenLineIterator = @screenLineIndex.buildScreenLineIterator()
+    @screenLineIndex.splice(0, 0, @buildScreenLines(0, @buffer.getLineCount()))
     @emitter = new Emitter
 
   destroy: ->
@@ -52,14 +51,16 @@ class DisplayLayer
     bufferRange = @buffer.clipRange(bufferRange)
     foldId = @foldsMarkerLayer.markRange(bufferRange).id
     if @foldsMarkerLayer.findMarkers(containsRange: bufferRange).length is 1
-      {newRange: bufferRange} = @expandChangeRegionToSurroundingEmptyLines(bufferRange, bufferRange)
-      {bufferStart, bufferEnd} = @expandBufferRangeToScreenLineStarts(bufferRange)
-      foldExtent = traversal(bufferEnd, bufferStart)
-      {start, oldExtent} = @patch.spliceInput(bufferStart, foldExtent, foldExtent)
-      {screenNewEnd, screenLineLengths} = @computeTransformation(bufferRange.start.row, bufferRange.end.row + 1)
-      @lineLengthIndex.splice(start.row, oldExtent.row, screenLineLengths)
-      newExtent = traversal(screenNewEnd, start)
-      @emitter.emit 'did-change-sync', [{start, oldExtent, newExtent}]
+      {startScreenRow, endScreenRow, startBufferRow, endBufferRow} = @expandBufferRangeToScreenLineBoundaries(bufferRange)
+      oldRowExtent = endScreenRow - startScreenRow
+      newScreenLines = @buildScreenLines(startBufferRow, endBufferRow)
+      newRowExtent = newScreenLines.length
+      @screenLineIndex.splice(startScreenRow, endScreenRow - startScreenRow, newScreenLines)
+      @emitter.emit 'did-change-sync', [{
+        start: Point(startScreenRow, 0),
+        oldExtent: Point(oldRowExtent, 0),
+        newExtent: Point(newRowExtent, 0)
+      }]
 
     foldId
 
@@ -84,29 +85,33 @@ class DisplayLayer
         combinedRangeEnd = maxPoint(combinedRangeEnd, foldMarker.getEndPosition())
         foldMarker.destroy()
       combinedRange = Range(combinedRangeStart, combinedRangeEnd)
-      {newRange: combinedRange} = @expandChangeRegionToSurroundingEmptyLines(combinedRange, combinedRange)
-      {bufferStart, bufferEnd} = @expandBufferRangeToScreenLineStarts(combinedRange)
-      foldExtent = traversal(bufferEnd, bufferStart)
-      {start, oldExtent} = @patch.spliceInput(bufferStart, foldExtent, foldExtent)
-      {screenNewEnd, screenLineLengths} = @computeTransformation(bufferStart.row, bufferEnd.row)
-      @lineLengthIndex.splice(start.row, oldExtent.row, screenLineLengths)
-      newExtent = traversal(screenNewEnd, start)
-      @emitter.emit 'did-change-sync', [{start, oldExtent, newExtent}]
+      {startScreenRow, endScreenRow, startBufferRow, endBufferRow} = @expandBufferRangeToScreenLineBoundaries(combinedRange)
+      oldRowExtent = endScreenRow - startScreenRow
+      newScreenLines = @buildScreenLines(startBufferRow, endBufferRow)
+      newRowExtent = newScreenLines.length
+      @screenLineIndex.splice(startScreenRow, endScreenRow - startScreenRow, newScreenLines)
+      @emitter.emit 'did-change-sync', [{
+        start: Point(startScreenRow, 0),
+        oldExtent: Point(oldRowExtent, 0),
+        newExtent: Point(newRowExtent, 0)
+      }]
 
   onDidChangeSync: (callback) ->
     @emitter.on 'did-change-sync', callback
 
   bufferDidChange: (change) ->
     {oldRange, newRange} = @expandChangeRegionToSurroundingEmptyLines(change.oldRange, change.newRange)
-    {bufferStart, bufferEnd: bufferOldEnd} = @expandBufferRangeToScreenLineStarts(oldRange)
-    bufferOldExtent = traversal(bufferOldEnd, bufferStart)
-    bufferNewExtent = Point(bufferOldExtent.row + (newRange.end.row - oldRange.end.row), 0)
-    {start, oldExtent} = @patch.spliceInput(bufferStart, bufferOldExtent, bufferNewExtent)
+    {startScreenRow, endScreenRow, startBufferRow, endBufferRow} = @expandBufferRangeToScreenLineBoundaries(oldRange)
 
-    {screenNewEnd, screenLineLengths} = @computeTransformation(oldRange.start.row, newRange.end.row + 1)
-    @lineLengthIndex.splice(start.row, oldExtent.row, screenLineLengths)
+    oldRowExtent = endScreenRow - startScreenRow
+    newScreenLines = @buildScreenLines(startBufferRow, endBufferRow)
+    newRowExtent = newScreenLines.length
+    @screenLineIndex.splice(startScreenRow, oldRowExtent, newScreenLines)
 
-    newExtent = traversal(screenNewEnd, start)
+    start = Point(startScreenRow, 0)
+    oldExtent = Point(oldRowExtent, 0)
+    newExtent = Point(newRowExtent, 0)
+
     combinedChanges = new Patch
     combinedChanges.splice(start, oldExtent, newExtent)
 
@@ -147,42 +152,36 @@ class DisplayLayer
 
     {oldRange, newRange}
 
-  expandBufferRangeToScreenLineStarts: (range) ->
-    # Expand the start of the change to the buffer row that starts
-    # the screen row containing the start of the change
-    @patchIterator.seekToInputPosition(range.start)
-    screenStart = Point(@patchIterator.translateInputPosition(range.start).row, 0)
-    @patchIterator.seekToOutputPosition(screenStart)
-    bufferStart = @patchIterator.translateOutputPosition(screenStart)
+  expandBufferRangeToScreenLineBoundaries: (range) ->
+    @screenLineIterator.seekToBufferPosition(range.start)
+    startScreenRow = @screenLineIterator.getScreenRow()
+    startBufferRow = @screenLineIterator.getBufferStart().row
 
-    # Expand the end of the change to the the buffer row that starts
-    # the screen row following the screen row containing the end of the change
-    @patchIterator.seekToInputPosition(range.end)
-    screenEnd = Point(@patchIterator.translateInputPosition(range.end).row + 1, 0)
-    @patchIterator.seekToOutputPosition(screenEnd)
-    bufferEnd = @patchIterator.translateOutputPosition(screenEnd)
+    @screenLineIterator.seekToBufferPosition(range.end)
+    endScreenRow = @screenLineIterator.getScreenRow() + 1
+    endBufferRow = @screenLineIterator.getBufferEnd().row
 
-    {bufferStart, bufferEnd}
+    {startScreenRow, endScreenRow, startBufferRow, endBufferRow}
 
-  computeTransformation: (startBufferRow, endBufferRow) ->
+  buildScreenLines: (startBufferRow, endBufferRow) ->
     {startBufferRow, endBufferRow, folds} = @computeFoldsInBufferRowRange(startBufferRow, endBufferRow)
-    {row: screenRow, column: screenColumn} = @translateBufferPosition(Point(startBufferRow, 0))
 
-    screenLineLengths = []
+    screenLines = []
     bufferRow = startBufferRow
     bufferColumn = 0
+    screenColumn = 0
 
     while bufferRow < endBufferRow
+      tokens = []
+      tokensScreenExtent = 0
+      screenLineBufferStart = Point(bufferRow, 0)
       bufferLine = @buffer.lineForRow(bufferRow)
       bufferLineLength = bufferLine.length
-
       previousPositionWasFold = false
       trailingWhitespaceStartBufferColumn = @findTrailingWhitespaceStartColumn(bufferLine)
-      trailingWhitespaceStartScreenColumn = Infinity # will be assigned during line traversal
       isBlankLine = trailingWhitespaceStartBufferColumn is 0
       isEmptyLine = bufferLineLength is 0
       inLeadingWhitespace = not isBlankLine
-      leadingWhitespaceStartScreenColumn = 0
 
       while bufferColumn <= bufferLineLength
         character = bufferLine[bufferColumn]
@@ -190,91 +189,96 @@ class DisplayLayer
         inTrailingWhitespace = bufferColumn >= trailingWhitespaceStartBufferColumn
         trailingWhitespaceStartScreenColumn = screenColumn if bufferColumn is trailingWhitespaceStartBufferColumn
 
-        if inLeadingWhitespace
-          atSoftTabBoundary = (screenColumn % @tabLength) is 0 and (screenColumn - leadingWhitespaceStartScreenColumn) is @tabLength
-        else if isBlankLine and inTrailingWhitespace
-          atSoftTabBoundary = (screenColumn % @tabLength) is 0 and (screenColumn - trailingWhitespaceStartScreenColumn) is @tabLength
-        else
-          atSoftTabBoundary = false
+        atSoftTabBoundary =
+          (inLeadingWhitespace or isBlankLine and inTrailingWhitespace) and
+            (screenColumn % @tabLength) is 0 and (screenColumn - tokensScreenExtent) is @tabLength
 
         if character isnt ' ' or foldEndBufferPosition? or atSoftTabBoundary
           if inLeadingWhitespace and bufferColumn < bufferLineLength
             inLeadingWhitespace = false unless character is ' ' or character is '\t'
-            if screenColumn > leadingWhitespaceStartScreenColumn
-              spaceCount = screenColumn - leadingWhitespaceStartScreenColumn
-              if @invisibles.space?
-                text = @invisibles.space.repeat(spaceCount)
-              else
-                text = ' '.repeat(spaceCount)
-
-              @patch.spliceWithText(
-                Point(screenRow, leadingWhitespaceStartScreenColumn),
-                Point(0, spaceCount),
-                text,
+            if screenColumn > tokensScreenExtent
+              spaceCount = screenColumn - tokensScreenExtent
+              tokens.push({
+                screenExtent: spaceCount,
+                bufferExtent: Point(0, spaceCount),
                 metadata: {
                   leadingWhitespace: true,
-                  invisibleCharacter: @invisibles.space?
-                  atomic: atSoftTabBoundary
-                  showIndentGuide: (leadingWhitespaceStartScreenColumn % @tabLength) is 0
+                  invisibleCharacter: @invisibles.space?,
+                  atomic: atSoftTabBoundary,
+                  showIndentGuide: (tokensScreenExtent % @tabLength) is 0
                 }
-              )
-              leadingWhitespaceStartScreenColumn = screenColumn
+              })
+              tokensScreenExtent = screenColumn
 
-          if screenColumn > trailingWhitespaceStartScreenColumn
-            spaceCount = screenColumn - trailingWhitespaceStartScreenColumn
-            if @invisibles.space?
-              text = @invisibles.space.repeat(spaceCount)
-            else
-              text = ' '.repeat(spaceCount)
+          if inTrailingWhitespace && screenColumn > tokensScreenExtent
+            if trailingWhitespaceStartScreenColumn > tokensScreenExtent
+              behindCount = trailingWhitespaceStartScreenColumn - tokensScreenExtent
+              tokens.push({
+                screenExtent: behindCount,
+                bufferExtent: Point(0, behindCount)
+              })
+              tokensScreenExtent = trailingWhitespaceStartScreenColumn
 
-            @patch.spliceWithText(
-              Point(screenRow, trailingWhitespaceStartScreenColumn),
-              Point(0, spaceCount),
-              text,
-              metadata: {
-                trailingWhitespace: true,
-                invisibleCharacter: @invisibles.space?,
-                atomic: atSoftTabBoundary
-                showIndentGuide: isBlankLine and (trailingWhitespaceStartScreenColumn % @tabLength) is 0
-              }
-            )
-            trailingWhitespaceStartScreenColumn = screenColumn
+            if screenColumn > tokensScreenExtent
+              spaceCount = screenColumn - tokensScreenExtent
+              tokens.push({
+                screenExtent: spaceCount,
+                bufferExtent: Point(0, spaceCount),
+                metadata: {
+                  trailingWhitespace: true,
+                  invisibleCharacter: @invisibles.space?,
+                  atomic: atSoftTabBoundary,
+                  showIndentGuide: isBlankLine and (tokensScreenExtent % @tabLength) is 0
+                }
+              })
+              tokensScreenExtent = screenColumn
 
         if foldEndBufferPosition?
+          if screenColumn > tokensScreenExtent
+            behindCount = screenColumn - tokensScreenExtent
+            tokens.push({
+              screenExtent: behindCount,
+              bufferExtent: Point(0, behindCount)
+            })
+            tokensScreenExtent = screenColumn
+
           previousPositionWasFold = true
           foldStartBufferPosition = Point(bufferRow, bufferColumn)
-          foldBufferExtent = traversal(foldEndBufferPosition, foldStartBufferPosition)
-          @patch.spliceWithText(Point(screenRow, screenColumn), foldBufferExtent, '⋯', {metadata: {fold: true}})
+          tokens.push({
+            screenExtent: 1,
+            bufferExtent: traversal(foldEndBufferPosition, foldStartBufferPosition),
+            metadata: {fold: true}
+          })
+
           bufferRow = foldEndBufferPosition.row
           bufferColumn = foldEndBufferPosition.column
           bufferLine = @buffer.lineForRow(bufferRow)
           bufferLineLength = bufferLine.length
           screenColumn += 1
+          tokensScreenExtent = screenColumn
           inLeadingWhitespace = true
           for column in [0...bufferColumn] by 1
             character = bufferLine[column]
             unless character is ' ' or character is '\t'
               inLeadingWhitespace = false
               break
-          leadingWhitespaceStartScreenColumn = screenColumn if inLeadingWhitespace
           trailingWhitespaceStartBufferColumn = @findTrailingWhitespaceStartColumn(bufferLine)
           if bufferColumn >= trailingWhitespaceStartBufferColumn
             trailingWhitespaceStartBufferColumn = bufferColumn
-            trailingWhitespaceStartScreenColumn = screenColumn
-          else
-            trailingWhitespaceStartScreenColumn = Infinity
         else
           if character is '\t'
-            distanceToNextTabStop = @tabLength - (screenColumn % @tabLength)
-            if @invisibles.tab?
-              tabText = @invisibles.tab + ' '.repeat(distanceToNextTabStop - 1)
-            else
-              tabText = ' '.repeat(distanceToNextTabStop)
+            if screenColumn > tokensScreenExtent
+              behindCount = screenColumn - tokensScreenExtent
+              tokens.push({
+                screenExtent: behindCount,
+                bufferExtent: Point(0, behindCount)
+              })
+              tokensScreenExtent = screenColumn
 
-            @patch.spliceWithText(
-              Point(screenRow, screenColumn),
-              Point(0, 1),
-              tabText,
+            distanceToNextTabStop = @tabLength - (screenColumn % @tabLength)
+            tokens.push({
+              screenExtent: distanceToNextTabStop,
+              bufferExtent: Point(0, 1),
               metadata: {
                 hardTab: true
                 atomic: true
@@ -283,46 +287,66 @@ class DisplayLayer
                 invisibleCharacter: @invisibles.tab?
                 showIndentGuide: (inLeadingWhitespace or isBlankLine and inTrailingWhitespace) and distanceToNextTabStop is @tabLength
               }
-            )
+            })
             bufferColumn += 1
-            screenColumn += tabText.length
-            leadingWhitespaceStartScreenColumn = screenColumn if inLeadingWhitespace
-            trailingWhitespaceStartScreenColumn = screenColumn if inTrailingWhitespace
+            screenColumn += distanceToNextTabStop
+            tokensScreenExtent = screenColumn
           else
             bufferColumn += 1
-            screenColumn += 1
+            screenColumn += 1 if character?
 
-      indentGuidesStartColumn = 0
+      if screenColumn > tokensScreenExtent
+        behindCount = screenColumn - tokensScreenExtent
+        tokens.push({
+          screenExtent: behindCount,
+          bufferExtent: Point(0, behindCount)
+        })
+        tokensScreenExtent = screenColumn
+
       indentGuidesCount = @emptyLineIndentationForBufferRow(bufferRow)
 
       if eolInvisibleReplacement = @eolInvisibles[@buffer.lineEndingForRow(bufferRow)]
-        showIndentGuide = isEmptyLine and @showIndentGuides and indentGuidesCount > 0
-        @patch.splice(
-          Point(screenRow, screenColumn - 1),
-          Point(0, 0),
-          Point(0, eolInvisibleReplacement.length),
-          {text: eolInvisibleReplacement, metadata: {eol: true, invisibleCharacter: true, showIndentGuide}}
-        )
-        indentGuidesStartColumn += 1
+        tokens.push({
+          screenExtent: eolInvisibleReplacement.length,
+          bufferExtent: Point(0, 0),
+          metadata: {
+            eol: eolInvisibleReplacement,
+            invisibleCharacter: true,
+            showIndentGuide: isEmptyLine and @showIndentGuides and indentGuidesCount > 0,
+            void: true
+          }
+        })
+        screenColumn += eolInvisibleReplacement.length
+        tokensScreenExtent = screenColumn
 
       while @showIndentGuides and indentGuidesCount > 0 and not previousPositionWasFold
-        distanceToNextTabStop = @tabLength - (indentGuidesStartColumn % @tabLength)
-        @patch.splice(
-          Point(screenRow, indentGuidesStartColumn),
-          Point(0, 0),
-          Point(0, distanceToNextTabStop),
-          {text: " ".repeat(distanceToNextTabStop), metadata: {showIndentGuide: (indentGuidesStartColumn % @tabLength is 0)}}
-        )
+        distanceToNextTabStop = @tabLength - (tokensScreenExtent % @tabLength)
+        tokens.push({
+          screenExtent: distanceToNextTabStop,
+          bufferExtent: Point(0, 0),
+          metadata: {
+            showIndentGuide: (tokensScreenExtent % @tabLength is 0),
+            void: true
+          }
+        })
+        screenColumn += distanceToNextTabStop
+        tokensScreenExtent = screenColumn
         indentGuidesCount--
-        indentGuidesStartColumn += distanceToNextTabStop
 
-      screenLineLengths.push(screenColumn - 1)
+      if tokens.length is 0
+        tokens.push({screenExtent: 0, bufferExtent: Point(0, 0)})
+
       bufferRow += 1
       bufferColumn = 0
-      screenRow += 1
       screenColumn = 0
+      screenLines.push({
+        screenExtent: tokensScreenExtent,
+        bufferExtent: traversal(Point(bufferRow, bufferColumn), screenLineBufferStart),
+        tokens
+      })
+      tokens = []
 
-    {screenNewEnd: Point(screenRow, screenColumn), screenLineLengths}
+    screenLines
 
   # Given a buffer row range, compute an index of all folds that appear on
   # screen lines containing this range. This may expand the initial buffer range
@@ -418,34 +442,88 @@ class DisplayLayer
     0
 
   buildTokenIterator: ->
-    new TokenIterator(this, @buffer, @patch.buildIterator(), @textDecorationLayer?.buildIterator())
+    new TokenIterator(this, @buffer, @screenLineIndex.buildTokenIterator(), @textDecorationLayer?.buildIterator())
 
   getText: ->
-    text = ''
+    lines = []
+    for screenLine in @getScreenLines()
+      line = ''
+      for token in screenLine.tokens
+        line += token.text
+      lines.push(line)
+    lines.join('\n')
 
-    {iterator} = @patch
-    iterator.rewind()
+  getScreenLines: (startRow=0, endRow=@getScreenLineCount()) ->
+    screenLines = []
 
-    loop
-      if iterator.inChange()
-        text += iterator.getNewText()
-      else
-        text += @buffer.getTextInRange(Range(iterator.getInputStart(), iterator.getInputEnd()))
-      break unless iterator.moveToSuccessor()
+    @screenLineIterator.seekToScreenRow(startRow)
 
-    text
+    while @screenLineIterator.getScreenRow() < endRow
+      bufferStart = @screenLineIterator.getBufferStart()
+      tokens = []
+      nextTokenCloseTags = []
+      for {screenExtent, bufferExtent, metadata} in @screenLineIterator.getTokens()
+        bufferEnd = traverse(bufferStart, bufferExtent)
+        token = {closeTags: nextTokenCloseTags, openTags: []}
+        nextTokenCloseTags = []
+
+        if metadata?.hardTab
+          if @invisibles.tab?
+            token.text = @invisibles.tab + ' '.repeat(screenExtent - 1)
+          else
+            token.text = ' '.repeat(screenExtent)
+        else if (metadata?.leadingWhitespace or metadata?.trailingWhitespace) and @invisibles.space?
+          token.text = @invisibles.space.repeat(screenExtent)
+        else if metadata?.fold
+          token.text = '⋯'
+        else if metadata?.void
+          if metadata?.eol?
+            token.text = metadata.eol
+          else
+            token.text = ' '.repeat(screenExtent)
+        else
+          token.text = @buffer.getTextInRange(Range(bufferStart, bufferEnd))
+
+        if spatialDecoration = @getSpatialTokenTextDecoration(metadata)
+          token.openTags.push(spatialDecoration)
+          nextTokenCloseTags.push(spatialDecoration)
+
+        tokens.push(token)
+        bufferStart = bufferEnd
+
+      if nextTokenCloseTags.length > 0
+        tokens.push({text: '', closeTags: nextTokenCloseTags, openTags: []})
+
+      screenLines.push({id: @screenLineIterator.getId(), tokens})
+      break unless @screenLineIterator.moveToSuccessor()
+
+    screenLines
+
+  getSpatialTokenTextDecoration: (metadata) ->
+    if metadata
+      decoration = ''
+      decoration += 'invisible-character ' if metadata.invisibleCharacter
+      decoration += 'hard-tab ' if metadata.hardTab
+      decoration += 'leading-whitespace ' if metadata.leadingWhitespace
+      decoration += 'trailing-whitespace ' if metadata.trailingWhitespace
+      decoration += 'eol ' if metadata.eol
+      decoration += 'indent-guide ' if metadata.showIndentGuide and @showIndentGuides
+      if decoration.length > 0
+        decoration.trim()
 
   translateBufferPosition: (bufferPosition, options) ->
     bufferPosition = @buffer.clipPosition(bufferPosition, options)
 
-    @patchIterator.seekToInputPosition(bufferPosition)
-    if @patchIterator.inChange() and @patchIterator.getMetadata()?.atomic
-      if options?.clipDirection is 'forward'
-        screenPosition = @patchIterator.getOutputEnd()
+    @spatialTokenIterator.seekToBufferPosition(bufferPosition)
+    if @spatialTokenIterator.getMetadata()?.atomic
+      if comparePoints(bufferPosition, @spatialTokenIterator.getBufferStart()) is 0
+        screenPosition = @spatialTokenIterator.getScreenStart()
+      else if comparePoints(bufferPosition, @spatialTokenIterator.getBufferEnd()) is 0 or options?.clipDirection is 'forward'
+        screenPosition = @spatialTokenIterator.getScreenEnd()
       else
-        screenPosition = @patchIterator.getOutputStart()
+        screenPosition = @spatialTokenIterator.getBufferStart()
     else
-      screenPosition = @patchIterator.translateInputPosition(bufferPosition)
+      screenPosition = @spatialTokenIterator.translateBufferPosition(bufferPosition)
 
     Point.fromObject(screenPosition)
 
@@ -459,17 +537,19 @@ class DisplayLayer
     screenPosition = Point.fromObject(screenPosition)
     screenPosition = clipNegativePoint(screenPosition)
 
-    @patchIterator.seekToOutputPosition(screenPosition)
-    if @patchIterator.inChange()
-      if @patchIterator.getMetadata()?.atomic
-        if options?.clipDirection is 'forward' and comparePoints(screenPosition, @patchIterator.getOutputStart()) > 0
-          bufferPosition = @patchIterator.getInputEnd()
-        else
-          bufferPosition = @patchIterator.getInputStart()
+    @spatialTokenIterator.seekToScreenPosition(screenPosition)
+    if @spatialTokenIterator.getMetadata()?.atomic
+      if comparePoints(screenPosition, @spatialTokenIterator.getScreenStart()) is 0
+        bufferPosition = @spatialTokenIterator.getBufferStart()
+      else if comparePoints(screenPosition, @spatialTokenIterator.getScreenEnd()) is 0 or options?.clipDirection is 'forward'
+        bufferPosition = @spatialTokenIterator.getBufferEnd()
       else
-        bufferPosition = @patchIterator.translateOutputPosition(screenPosition)
+        bufferPosition = @spatialTokenIterator.getBufferStart()
     else
-      bufferPosition = @buffer.clipPosition(@patchIterator.translateOutputPosition(screenPosition), options)
+      bufferPosition = @spatialTokenIterator.translateScreenPosition(screenPosition)
+
+    if comparePoints(screenPosition, @spatialTokenIterator.getScreenEnd()) > 0
+      bufferPosition = @buffer.clipPosition(bufferPosition, options)
 
     Point.fromObject(bufferPosition)
 
@@ -483,28 +563,34 @@ class DisplayLayer
     screenPosition = Point.fromObject(screenPosition)
     screenPosition = clipNegativePoint(screenPosition)
 
-    @patchIterator.seekToOutputPosition(screenPosition)
-    if @patchIterator.inChange()
-      if @patchIterator.getMetadata()?.atomic
-        if options?.clipDirection is 'forward' and comparePoints(screenPosition, @patchIterator.getOutputStart()) > 0
-          screenPosition = @patchIterator.getOutputEnd()
+    @spatialTokenIterator.seekToScreenPosition(screenPosition)
+
+    metadata = @spatialTokenIterator.getMetadata()
+    if metadata?.void
+      # TODO: Support void tokens followed by valid screen positions,
+      # such as soft wrap indents.
+      screenPosition = Point(@spatialTokenIterator.getScreenStart().row, 0)
+    else if comparePoints(screenPosition, @spatialTokenIterator.getScreenEnd()) <= 0
+      if (metadata?.atomic and
+          comparePoints(screenPosition, @spatialTokenIterator.getScreenStart()) > 0 and
+          comparePoints(screenPosition, @spatialTokenIterator.getScreenEnd()) < 0)
+        if options?.clipDirection is 'forward'
+          screenPosition = @spatialTokenIterator.getScreenEnd()
         else
-          screenPosition = @patchIterator.getOutputStart()
-
-      bufferPosition = @patchIterator.translateOutputPosition(screenPosition)
+          screenPosition = @spatialTokenIterator.getScreenStart()
     else
-      bufferPosition = @buffer.clipPosition(@patchIterator.translateOutputPosition(screenPosition), options)
+      if options?.clipDirection is 'forward' and @spatialTokenIterator.moveToSuccessor()
+        screenPosition = @spatialTokenIterator.getScreenStart()
+      else
+        screenPosition = @spatialTokenIterator.getScreenEnd()
 
-    @patchIterator.seekToInputPosition(bufferPosition)
-    clippedScreenPosition = @patchIterator.translateInputPosition(bufferPosition)
-
-    Point.fromObject(clippedScreenPosition)
+    Point.fromObject(screenPosition)
 
   getScreenLineCount: ->
-    @clipScreenPosition(Point(Infinity, Infinity)).row + 1
+    @screenLineIndex.getScreenLineCount()
 
   getRightmostScreenPosition: ->
-    @lineLengthIndex.getPointWithMaxLineLength()
+    @screenLineIndex.getScreenPositionWithMaxLineLength()
 
   lineLengthForScreenRow: (screenRow) ->
-    @lineLengthIndex.lineLengthForRow(screenRow)
+    @screenLineIndex.lineLengthForScreenRow(screenRow)

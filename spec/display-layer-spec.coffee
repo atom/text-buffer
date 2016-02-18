@@ -16,6 +16,20 @@ describe "DisplayLayer", ->
       displayLayer = buffer.addDisplayLayer(tabLength: 4)
 
       expect(displayLayer.getText()).toBe('    a   bc  def g\n    h')
+
+      expectTokens(displayLayer, [
+        {text: '    ', close: [], open: ["hard-tab leading-whitespace"]},
+        {text: 'a', close: ["hard-tab leading-whitespace"], open: []},
+        {text: '   ', close: [], open: ["hard-tab"]},
+        {text: 'bc', close: ["hard-tab"], open: []},
+        {text: '  ', close: [], open: ["hard-tab"]},
+        {text: 'def', close: ["hard-tab"], open: []},
+        {text: ' ', close: [], open: ["hard-tab"]},
+        {text: 'g', close: ["hard-tab"], open: []},
+        {text: '    ', close: [], open: ["hard-tab leading-whitespace"]},
+        {text: 'h', close: ["hard-tab leading-whitespace"], open: []},
+      ])
+
       expectPositionTranslations(displayLayer, [
         [Point(0, 0), Point(0, 0)],
         [Point(0, 1), [Point(0, 0), Point(0, 1)]],
@@ -35,7 +49,7 @@ describe "DisplayLayer", ->
         [Point(0, 15), Point(0, 9)],
         [Point(0, 16), Point(0, 10)],
         [Point(0, 17), Point(0, 11)],
-        [Point(0, 18), [Point(0, 11), Point(1, 0)]],
+        [Point(0, 18), [Point(0, 11), Point(1, 0)]], # off end of first line
         [Point(1, 0), Point(1, 0)]
         [Point(1, 1), [Point(1, 0), Point(1, 1)]]
         [Point(1, 2), [Point(1, 0), Point(1, 1)]]
@@ -45,14 +59,28 @@ describe "DisplayLayer", ->
         [Point(1, 6), [Point(1, 2), Point(1, 2)]]
       ])
 
-      verifyTokenIterator(displayLayer)
-
   describe "soft tabs", ->
     it "breaks leading whitespace into atomic units corresponding to the tab length", ->
       buffer = new TextBuffer(text: '          a\n     \n  \t    \t  ')
       displayLayer = buffer.addDisplayLayer(tabLength: 4, invisibles: {space: '•'})
 
       expect(displayLayer.getText()).toBe('••••••••••a\n•••••\n••  ••••    ••')
+
+      expectTokens(displayLayer, [
+        {text: '••••', close: [], open: ["invisible-character leading-whitespace"]},
+        {text: '••••', close: ["invisible-character leading-whitespace"], open: ["invisible-character leading-whitespace"]},
+        {text: '••', close: ["invisible-character leading-whitespace"], open: ["invisible-character leading-whitespace"]},
+        {text: 'a', close: ["invisible-character leading-whitespace"], open: []},
+        {text: '••••', close: [], open: ["invisible-character trailing-whitespace"]},
+        {text: '•', close: ["invisible-character trailing-whitespace"], open: ["invisible-character trailing-whitespace"]},
+        {text: '', close: ["invisible-character trailing-whitespace"], open: []},
+        {text: '••', close: [], open: ["invisible-character trailing-whitespace"]},
+        {text: '  ', close: ["invisible-character trailing-whitespace"], open: ["hard-tab trailing-whitespace"]},
+        {text: '••••', close: ["hard-tab trailing-whitespace"], open: ["invisible-character trailing-whitespace"]},
+        {text: '    ', close: ["invisible-character trailing-whitespace"], open: ["hard-tab trailing-whitespace"]},
+        {text: '••', close: ["hard-tab trailing-whitespace"], open: ["invisible-character trailing-whitespace"]},
+        {text: '', close: ["invisible-character trailing-whitespace"], open: []},
+      ])
 
       expect(displayLayer.clipScreenPosition([0, 2])).toEqual [0, 0]
       expect(displayLayer.clipScreenPosition([0, 6])).toEqual [0, 4]
@@ -211,82 +239,72 @@ describe "DisplayLayer", ->
   describe "invisibles", ->
     it "replaces leading whitespaces with the corresponding invisible character, appropriately decorated", ->
       buffer = new TextBuffer(text: """
-      az
-        b c
-         d
-       \t e
+        az
+          b c
+           d
+         \t e
       """)
 
       displayLayer = buffer.addDisplayLayer({tabLength: 4, invisibles: {space: '•'}})
 
       expect(displayLayer.getText()).toBe("""
-      az
-      ••b c
-      •••d
-      •   •e
+        az
+        ••b c
+        •••d
+        •   •e
       """)
 
       expectTokens(displayLayer, [
-        {start: [0, 0], end: [0, 2], close: [], open: []}
-        {start: [1, 0], end: [1, 2], close: [], open: ['invisible-character leading-whitespace']}
-        {start: [1, 2], end: [1, 5], close: ['invisible-character leading-whitespace'], open: []}
-        {start: [2, 0], end: [2, 3], close: [], open: ['invisible-character leading-whitespace']}
-        {start: [2, 3], end: [2, 4], close: ['invisible-character leading-whitespace'], open: []}
-        {start: [3, 0], end: [3, 1], close: [], open: ['invisible-character leading-whitespace']}
-        {start: [3, 1], end: [3, 4], close: ['invisible-character leading-whitespace'], open: ['hard-tab leading-whitespace']}
-        {start: [3, 4], end: [3, 5], close: ['hard-tab leading-whitespace'], open: ['invisible-character leading-whitespace']}
-        {start: [3, 5], end: [3, 6], close: ['invisible-character leading-whitespace'], open: []}
+        {text: 'az', close: [], open: []},
+        {text: '••', close: [], open: ["invisible-character leading-whitespace"]},
+        {text: 'b c', close: ["invisible-character leading-whitespace"], open: []},
+        {text: '•••', close: [], open: ["invisible-character leading-whitespace"]},
+        {text: 'd', close: ["invisible-character leading-whitespace"], open: []},
+        {text: '•', close: [], open: ["invisible-character leading-whitespace"]},
+        {text: '   ', close: ["invisible-character leading-whitespace"], open: ["hard-tab leading-whitespace"]},
+        {text: '•', close: ["hard-tab leading-whitespace"], open: ["invisible-character leading-whitespace"]},
+        {text: 'e', close: ["invisible-character leading-whitespace"], open: []},
       ])
-
-      tokenIterator = displayLayer.buildTokenIterator()
-      tokenIterator.seekToScreenRow(1)
-      expect(tokenIterator.getCloseTags()).toEqual []
-      expect(tokenIterator.getOpenTags()).toEqual ['invisible-character leading-whitespace']
-      tokenIterator.seekToScreenRow(2)
-      expect(tokenIterator.getCloseTags()).toEqual []
-      expect(tokenIterator.getOpenTags()).toEqual ['invisible-character leading-whitespace']
-      tokenIterator.seekToScreenRow(3)
-      expect(tokenIterator.getCloseTags()).toEqual []
-      expect(tokenIterator.getOpenTags()).toEqual ['invisible-character leading-whitespace']
 
     it "replaces trailing whitespaces with the corresponding invisible character, appropriately decorated", ->
       buffer = new TextBuffer("abcd\n       \nefgh   jkl\nmno  pqr   \nst  uvw  \t  ")
       displayLayer = buffer.addDisplayLayer({tabLength: 4, invisibles: {space: '•'}})
-      expect(displayLayer.getText()).toEqual("abcd\n•••••••\nefgh   jkl\nmno  pqr•••\nst  uvw••   ••")
 
+      expect(displayLayer.getText()).toEqual("abcd\n•••••••\nefgh   jkl\nmno  pqr•••\nst  uvw••   ••")
       expectTokens(displayLayer, [
-        {start: [0, 0], end: [0, 4], close: [], open: []}
-        {start: [1, 0], end: [1, 4], close: [], open: ['invisible-character trailing-whitespace']}
-        {start: [1, 4], end: [1, 7], close: ['invisible-character trailing-whitespace'], open: ['invisible-character trailing-whitespace']}
-        {start: [1, 7], end: [1, 7], close: ['invisible-character trailing-whitespace'], open: []}
-        {start: [2, 0], end: [2, 10], close: [], open: []}
-        {start: [3, 0], end: [3, 8], close: [], open: []}
-        {start: [3, 8], end: [3, 11], close: [], open: ['invisible-character trailing-whitespace']}
-        {start: [3, 11], end: [3, 11], close: ['invisible-character trailing-whitespace'], open: []}
-        {start: [4, 0], end: [4, 7], close: [], open: []}
-        {start: [4, 7], end: [4, 9], close: [], open: ['invisible-character trailing-whitespace']}
-        {start: [4, 9], end: [4, 12], close: ['invisible-character trailing-whitespace'], open: ['hard-tab trailing-whitespace']}
-        {start: [4, 12], end: [4, 14], close: ['hard-tab trailing-whitespace'], open: ['invisible-character trailing-whitespace']}
-        {start: [4, 14], end: [4, 14], close: ['invisible-character trailing-whitespace'], open: []}
+        {text: 'abcd', close: [], open: []},
+        {text: '••••', close: [], open: ["invisible-character trailing-whitespace"]},
+        {text: '•••', close: ["invisible-character trailing-whitespace"], open: ["invisible-character trailing-whitespace"]},
+        {text: '', close: ["invisible-character trailing-whitespace"], open: []},
+        {text: 'efgh   jkl', close: [], open: []},
+        {text: 'mno  pqr', close: [], open: []},
+        {text: '•••', close: [], open: ["invisible-character trailing-whitespace"]},
+        {text: '', close: ["invisible-character trailing-whitespace"], open: []},
+        {text: 'st  uvw', close: [], open: []},
+        {text: '••', close: [], open: ["invisible-character trailing-whitespace"]},
+        {text: '   ', close: ["invisible-character trailing-whitespace"], open: ["hard-tab trailing-whitespace"]},
+        {text: '••', close: ["hard-tab trailing-whitespace"], open: ["invisible-character trailing-whitespace"]},
+        {text: '', close: ["invisible-character trailing-whitespace"], open: []},
       ])
 
     it "decorates hard tabs, leading whitespace, and trailing whitespace, even when no invisible characters are specified", ->
       buffer = new TextBuffer(" \t a\tb \t \n  ")
       displayLayer = buffer.addDisplayLayer({tabLength: 4})
+
       expect(displayLayer.getText()).toEqual("     a  b    \n  ")
       expectTokens(displayLayer, [
-        {start: [0, 0], end: [0, 1], close: [], open: ['leading-whitespace']}
-        {start: [0, 1], end: [0, 4], close: ['leading-whitespace'], open: ['hard-tab leading-whitespace']}
-        {start: [0, 4], end: [0, 5], close: ['hard-tab leading-whitespace'], open: ['leading-whitespace']}
-        {start: [0, 5], end: [0, 6], close: ['leading-whitespace'], open: []}
-        {start: [0, 6], end: [0, 8], close: [], open: ['hard-tab']}
-        {start: [0, 8], end: [0, 9], close: ['hard-tab'], open: []}
-        {start: [0, 9], end: [0, 10], close: [], open: ['trailing-whitespace']}
-        {start: [0, 10], end: [0, 12], close: ['trailing-whitespace'], open: ['hard-tab trailing-whitespace']}
-        {start: [0, 12], end: [0, 13], close: ['hard-tab trailing-whitespace'], open: ['trailing-whitespace']}
-        {start: [0, 13], end: [0, 13], close: ['trailing-whitespace'], open: []}
-        {start: [1, 0], end: [1, 2], close: [], open: ['trailing-whitespace']}
-        {start: [1, 2], end: [1, 2], close: ['trailing-whitespace'], open: []}
+        {text: ' ', close: [], open: ["leading-whitespace"]},
+        {text: '   ', close: ["leading-whitespace"], open: ["hard-tab leading-whitespace"]},
+        {text: ' ', close: ["hard-tab leading-whitespace"], open: ["leading-whitespace"]},
+        {text: 'a', close: ["leading-whitespace"], open: []},
+        {text: '  ', close: [], open: ["hard-tab"]},
+        {text: 'b', close: ["hard-tab"], open: []},
+        {text: ' ', close: [], open: ["trailing-whitespace"]},
+        {text: '  ', close: ["trailing-whitespace"], open: ["hard-tab trailing-whitespace"]},
+        {text: ' ', close: ["hard-tab trailing-whitespace"], open: ["trailing-whitespace"]},
+        {text: '', close: ["trailing-whitespace"], open: []},
+        {text: '  ', close: [], open: ["trailing-whitespace"]},
+        {text: '', close: ["trailing-whitespace"], open: []},
       ])
 
     it "renders invisibles correctly when leading or trailing whitespace intersects folds", ->
@@ -297,53 +315,65 @@ describe "DisplayLayer", ->
       displayLayer.foldBufferRange([[2, 4], [3, 0]])
       expect(displayLayer.getText()).toBe("••⋯••\n••⋯••⋯d")
 
+      expectTokens(displayLayer, [
+        {text: '••', close: [], open: ["invisible-character leading-whitespace"]},
+        {text: '⋯', close: ["invisible-character leading-whitespace"], open: []},
+        {text: '••', close: [], open: ["invisible-character trailing-whitespace"]},
+        {text: '', close: ["invisible-character trailing-whitespace"], open: []},
+        {text: '••', close: [], open: ["invisible-character leading-whitespace"]},
+        {text: '⋯', close: ["invisible-character leading-whitespace"], open: []},
+        {text: '••', close: [], open: ["invisible-character trailing-whitespace"]},
+        {text: '⋯', close: ["invisible-character trailing-whitespace"], open: []},
+        {text: 'd', close: [], open: []},
+      ])
+
     it "renders tab invisibles, appropriately decorated", ->
       buffer = new TextBuffer(text: "a\tb\t\n \t d  \t  ")
       displayLayer = buffer.addDisplayLayer({tabLength: 4, invisibles: {tab: '»', space: '•'}})
-      expect(displayLayer.getText()).toBe("a»  b»  \n•»  •d••»   ••")
 
+      expect(displayLayer.getText()).toBe("a»  b»  \n•»  •d••»   ••")
       expectTokens(displayLayer, [
-        {start: [0, 0], end: [0, 1], close: [], open: []}
-        {start: [0, 1], end: [0, 4], close: [], open: ['invisible-character hard-tab']}
-        {start: [0, 4], end: [0, 5], close: ['invisible-character hard-tab'], open: []}
-        {start: [0, 5], end: [0, 8], close: [], open: ['invisible-character hard-tab trailing-whitespace']}
-        {start: [0, 8], end: [0, 8], close: ['invisible-character hard-tab trailing-whitespace'], open: []}
-        {start: [1, 0], end: [1, 1], close: [], open: ['invisible-character leading-whitespace']}
-        {start: [1, 1], end: [1, 4], close: ['invisible-character leading-whitespace'], open: ['invisible-character hard-tab leading-whitespace']}
-        {start: [1, 4], end: [1, 5], close: ['invisible-character hard-tab leading-whitespace'], open: ['invisible-character leading-whitespace']}
-        {start: [1, 5], end: [1, 6], close: ['invisible-character leading-whitespace'], open: []}
-        {start: [1, 6], end: [1, 8], close: [], open: ['invisible-character trailing-whitespace']}
-        {start: [1, 8], end: [1, 12], close: ['invisible-character trailing-whitespace'], open: ['invisible-character hard-tab trailing-whitespace']}
-        {start: [1, 12], end: [1, 14], close: ['invisible-character hard-tab trailing-whitespace'], open: ['invisible-character trailing-whitespace']}
-        {start: [1, 14], end: [1, 14], close: ['invisible-character trailing-whitespace'], open: []}
+        {text: 'a', close: [], open: []},
+        {text: '»  ', close: [], open: ["invisible-character hard-tab"]},
+        {text: 'b', close: ["invisible-character hard-tab"], open: []},
+        {text: '»  ', close: [], open: ["invisible-character hard-tab trailing-whitespace"]},
+        {text: '', close: ["invisible-character hard-tab trailing-whitespace"], open: []},
+        {text: '•', close: [], open: ["invisible-character leading-whitespace"]},
+        {text: '»  ', close: ["invisible-character leading-whitespace"], open: ["invisible-character hard-tab leading-whitespace"]},
+        {text: '•', close: ["invisible-character hard-tab leading-whitespace"], open: ["invisible-character leading-whitespace"]},
+        {text: 'd', close: ["invisible-character leading-whitespace"], open: []},
+        {text: '••', close: [], open: ["invisible-character trailing-whitespace"]},
+        {text: '»   ', close: ["invisible-character trailing-whitespace"], open: ["invisible-character hard-tab trailing-whitespace"]},
+        {text: '••', close: ["invisible-character hard-tab trailing-whitespace"], open: ["invisible-character trailing-whitespace"]},
+        {text: '', close: ["invisible-character trailing-whitespace"], open: []},
       ])
 
     it "renders end of line invisibles, appropriately decorated", ->
       buffer = new TextBuffer(text: "a\nb\n\nd e f\r\ngh\rij\n\r\n")
       displayLayer = buffer.addDisplayLayer({tabLength: 4, invisibles: {cr: '¤', eol: '¬'}})
-      expect(displayLayer.getText()).toBe("a¬\nb¬\n¬\nd e f¤¬\r\ngh¤\rij¬\n¤¬\r\n")
 
+      expect(displayLayer.getText()).toBe("a¬\nb¬\n¬\nd e f¤¬\ngh¤\nij¬\n¤¬\n")
       expectTokens(displayLayer, [
-        {start: [0, 0], end: [0, 1], close: [], open: []}
-        {start: [0, 1], end: [0, 2], close: [], open: ['invisible-character eol']}
-        {start: [0, 2], end: [0, 2], close: ['invisible-character eol'], open: []}
-        {start: [1, 0], end: [1, 1], close: [], open: []}
-        {start: [1, 1], end: [1, 2], close: [], open: ['invisible-character eol']}
-        {start: [1, 2], end: [1, 2], close: ['invisible-character eol'], open: []}
-        {start: [2, 0], end: [2, 1], close: [], open: ['invisible-character eol']}
-        {start: [2, 1], end: [2, 1], close: ['invisible-character eol'], open: []}
-        {start: [3, 0], end: [3, 5], close: [], open: []}
-        {start: [3, 5], end: [3, 7], close: [], open: ['invisible-character eol']}
-        {start: [3, 7], end: [3, 7], close: ['invisible-character eol'], open: []}
-        {start: [4, 0], end: [4, 2], close: [], open: []}
-        {start: [4, 2], end: [4, 3], close: [], open: ['invisible-character eol']}
-        {start: [4, 3], end: [4, 3], close: ['invisible-character eol'], open: []}
-        {start: [5, 0], end: [5, 2], close: [], open: []}
-        {start: [5, 2], end: [5, 3], close: [], open: ['invisible-character eol']}
-        {start: [5, 3], end: [5, 3], close: ['invisible-character eol'], open: []}
-        {start: [6, 0], end: [6, 2], close: [], open: ['invisible-character eol']}
-        {start: [6, 2], end: [6, 2], close: ['invisible-character eol'], open: []}
-        {start: [7, 0], end: [7, 0], close: [], open: []}
+        {text: 'a', close: [], open: []},
+        {text: '¬', close: [], open: ["invisible-character eol"]},
+        {text: '', close: ["invisible-character eol"], open: []},
+        {text: 'b', close: [], open: []},
+        {text: '¬', close: [], open: ["invisible-character eol"]},
+        {text: '', close: ["invisible-character eol"], open: []},
+        {text: '¬', close: [], open: ["invisible-character eol"]},
+        {text: '', close: ["invisible-character eol"], open: []},
+        {text: 'd e f', close: [], open: []},
+        {text: '¤¬', close: [], open: ["invisible-character eol"]},
+        {text: '', close: ["invisible-character eol"], open: []},
+        {text: 'gh', close: [], open: []},
+        {text: '¤', close: [], open: ["invisible-character eol"]},
+        {text: '', close: ["invisible-character eol"], open: []},
+        {text: 'ij', close: [], open: []},
+        {text: '¬', close: [], open: ["invisible-character eol"]},
+        {text: '', close: ["invisible-character eol"], open: []},
+        {text: '¤¬', close: [], open: ["invisible-character eol"]},
+        {text: '', close: ["invisible-character eol"], open: []},
+        {text: '', close: [], open: []},
       ])
 
     it "does not clip positions within runs of invisible characters", ->
@@ -355,89 +385,64 @@ describe "DisplayLayer", ->
     it "decorates tab-stop-aligned regions of leading whitespace with indent guides", ->
       buffer = new TextBuffer(text: "         a      \t  \n  \t\t b\n  \t\t")
       displayLayer = buffer.addDisplayLayer({showIndentGuides: true, tabLength: 4})
+
+      expect(displayLayer.getText()).toBe("         a            \n         b\n        ")
       expectTokens(displayLayer, [
-        {start: [0, 0], end: [0, 4], close: [], open: ['leading-whitespace indent-guide']}
-        {start: [0, 4], end: [0, 8], close: ['leading-whitespace indent-guide'], open: ['leading-whitespace indent-guide']}
-        {start: [0, 8], end: [0, 9], close: ['leading-whitespace indent-guide'], open: ['leading-whitespace indent-guide']}
-        {start: [0, 9], end: [0, 10], close: ['leading-whitespace indent-guide'], open: []}
-        {start: [0, 10], end: [0, 16], close: [], open: ['trailing-whitespace']}
-        {start: [0, 16], end: [0, 20], close: ['trailing-whitespace'], open: ['hard-tab trailing-whitespace']}
-        {start: [0, 20], end: [0, 22], close: ['hard-tab trailing-whitespace'], open: ['trailing-whitespace']}
-        {start: [0, 22], end: [0, 22], close: ['trailing-whitespace'], open: []}
-        {start: [1, 0], end: [1, 2], close: [], open: ['leading-whitespace indent-guide']}
-        {start: [1, 2], end: [1, 4], close: ['leading-whitespace indent-guide'], open: ['hard-tab leading-whitespace']}
-        {start: [1, 4], end: [1, 8], close: ['hard-tab leading-whitespace'], open: ['hard-tab leading-whitespace indent-guide']}
-        {start: [1, 8], end: [1, 9], close: ['hard-tab leading-whitespace indent-guide'], open: ['leading-whitespace indent-guide']}
-        {start: [1, 9], end: [1, 10], close: ['leading-whitespace indent-guide'], open: []}
-        {start: [2, 0], end: [2, 2], close: [], open: ['trailing-whitespace indent-guide']}
-        {start: [2, 2], end: [2, 4], close: ['trailing-whitespace indent-guide'], open: ['hard-tab trailing-whitespace']}
-        {start: [2, 4], end: [2, 8], close: ['hard-tab trailing-whitespace'], open: ['hard-tab trailing-whitespace indent-guide']}
-        {start: [2, 8], end: [2, 8], close: ['hard-tab trailing-whitespace indent-guide'], open: []}
+        {text: '    ', close: [], open: ["leading-whitespace indent-guide"]},
+        {text: '    ', close: ["leading-whitespace indent-guide"], open: ["leading-whitespace indent-guide"]},
+        {text: ' ', close: ["leading-whitespace indent-guide"], open: ["leading-whitespace indent-guide"]},
+        {text: 'a', close: ["leading-whitespace indent-guide"], open: []},
+        {text: '      ', close: [], open: ["trailing-whitespace"]},
+        {text: '    ', close: ["trailing-whitespace"], open: ["hard-tab trailing-whitespace"]},
+        {text: '  ', close: ["hard-tab trailing-whitespace"], open: ["trailing-whitespace"]},
+        {text: '', close: ["trailing-whitespace"], open: []},
+        {text: '  ', close: [], open: ["leading-whitespace indent-guide"]},
+        {text: '  ', close: ["leading-whitespace indent-guide"], open: ["hard-tab leading-whitespace"]},
+        {text: '    ', close: ["hard-tab leading-whitespace"], open: ["hard-tab leading-whitespace indent-guide"]},
+        {text: ' ', close: ["hard-tab leading-whitespace indent-guide"], open: ["leading-whitespace indent-guide"]},
+        {text: 'b', close: ["leading-whitespace indent-guide"], open: []},
+        {text: '  ', close: [], open: ["trailing-whitespace indent-guide"]},
+        {text: '  ', close: ["trailing-whitespace indent-guide"], open: ["hard-tab trailing-whitespace"]},
+        {text: '    ', close: ["hard-tab trailing-whitespace"], open: ["hard-tab trailing-whitespace indent-guide"]},
+        {text: '', close: ["hard-tab trailing-whitespace indent-guide"], open: []},
       ])
 
-    ffit "decorates empty lines with the appropriate number of indent guides", ->
+    it "decorates empty lines with the appropriate number of indent guides", ->
       buffer = new TextBuffer(text: "\n\n          a\n\n     b\n\n\n")
       displayLayer = buffer.addDisplayLayer({showIndentGuides: true, tabLength: 4, invisibles: {eol: '¬'}})
 
       expect(displayLayer.getText()).toBe("¬       \n¬       \n          a¬\n¬       \n     b¬\n¬   \n¬   \n    ")
       expectTokens(displayLayer, [
-        {start: [0, 0], end: [0, 1], close: [], open: ['invisible-character eol indent-guide']}
-        {start: [0, 1], end: [0, 4], close: ['invisible-character eol indent-guide'], open: []}
-        {start: [0, 4], end: [0, 8], close: [], open: ['indent-guide']}
-        {start: [0, 8], end: [0, 8], close: ['indent-guide'], open: []}
-        {start: [1, 0], end: [1, 1], close: [], open: ['invisible-character eol indent-guide']}
-        {start: [1, 1], end: [1, 4], close: ['invisible-character eol indent-guide'], open: []}
-        {start: [1, 4], end: [1, 8], close: [], open: ['indent-guide']}
-        {start: [1, 8], end: [1, 8], close: ['indent-guide'], open: []}
-        {start: [2, 0], end: [2, 4], close: [], open: ['leading-whitespace indent-guide']}
-        {start: [2, 4], end: [2, 8], close: ['leading-whitespace indent-guide'], open: ['leading-whitespace indent-guide']}
-        {start: [2, 8], end: [2, 10], close: ['leading-whitespace indent-guide'], open: ['leading-whitespace indent-guide']}
-        {start: [2, 10], end: [2, 11], close: ['leading-whitespace indent-guide'], open: []}
-        {start: [2, 11], end: [2, 12], close: [], open: ['invisible-character eol']}
-        {start: [2, 12], end: [2, 12], close: ['invisible-character eol'], open: []}
-        {start: [3, 0], end: [3, 1], close: [], open: ['invisible-character eol indent-guide']}
-        {start: [3, 1], end: [3, 4], close: ['invisible-character eol indent-guide'], open: []}
-        {start: [3, 4], end: [3, 8], close: [], open: ['indent-guide']}
-        {start: [3, 8], end: [3, 8], close: ['indent-guide'], open: []}
-        {start: [4, 0], end: [4, 4], close: [], open: ['leading-whitespace indent-guide']}
-        {start: [4, 4], end: [4, 5], close: ['leading-whitespace indent-guide'], open: ['leading-whitespace indent-guide']}
-        {start: [4, 5], end: [4, 6], close: ['leading-whitespace indent-guide'], open: []}
-        {start: [4, 6], end: [4, 7], close: [], open: ['invisible-character eol']}
-        {start: [4, 7], end: [4, 7], close: ['invisible-character eol'], open: []}
-        {start: [5, 0], end: [5, 1], close: [], open: ['invisible-character eol indent-guide']}
-        {start: [5, 1], end: [5, 4], close: ['invisible-character eol indent-guide'], open: []}
-        {start: [6, 0], end: [6, 1], close: [], open: ['invisible-character eol indent-guide']}
-        {start: [6, 1], end: [6, 4], close: ['invisible-character eol indent-guide'], open: []}
-        {start: [7, 0], end: [7, 4], close: [], open: ['indent-guide']}
-        {start: [7, 4], end: [7, 4], close: ['indent-guide'], open: []}
+        {text: '¬', close: [], open: ["invisible-character eol indent-guide"]},
+        {text: '   ', close: ["invisible-character eol indent-guide"], open: []},
+        {text: '    ', close: [], open: ["indent-guide"]},
+        {text: '', close: ["indent-guide"], open: []},
+        {text: '¬', close: [], open: ["invisible-character eol indent-guide"]},
+        {text: '   ', close: ["invisible-character eol indent-guide"], open: []},
+        {text: '    ', close: [], open: ["indent-guide"]},
+        {text: '', close: ["indent-guide"], open: []},
+        {text: '    ', close: [], open: ["leading-whitespace indent-guide"]},
+        {text: '    ', close: ["leading-whitespace indent-guide"], open: ["leading-whitespace indent-guide"]},
+        {text: '  ', close: ["leading-whitespace indent-guide"], open: ["leading-whitespace indent-guide"]},
+        {text: 'a', close: ["leading-whitespace indent-guide"], open: []},
+        {text: '¬', close: [], open: ["invisible-character eol"]},
+        {text: '', close: ["invisible-character eol"], open: []},
+        {text: '¬', close: [], open: ["invisible-character eol indent-guide"]},
+        {text: '   ', close: ["invisible-character eol indent-guide"], open: []},
+        {text: '    ', close: [], open: ["indent-guide"]},
+        {text: '', close: ["indent-guide"], open: []},
+        {text: '    ', close: [], open: ["leading-whitespace indent-guide"]},
+        {text: ' ', close: ["leading-whitespace indent-guide"], open: ["leading-whitespace indent-guide"]},
+        {text: 'b', close: ["leading-whitespace indent-guide"], open: []},
+        {text: '¬', close: [], open: ["invisible-character eol"]},
+        {text: '', close: ["invisible-character eol"], open: []},
+        {text: '¬', close: [], open: ["invisible-character eol indent-guide"]},
+        {text: '   ', close: ["invisible-character eol indent-guide"], open: []},
+        {text: '¬', close: [], open: ["invisible-character eol indent-guide"]},
+        {text: '   ', close: ["invisible-character eol indent-guide"], open: []},
+        {text: '    ', close: [], open: ["indent-guide"]},
+        {text: '', close: ["indent-guide"], open: []},
       ])
-
-      tokenIterator = displayLayer.buildTokenIterator()
-
-      tokenIterator.seekToScreenRow(0)
-      expect(tokenIterator.getStartScreenPosition()).toEqual([0, 0])
-      expect(tokenIterator.getStartBufferPosition()).toEqual([0, 0])
-      expect(tokenIterator.getEndScreenPosition()).toEqual([0, 1])
-      expect(tokenIterator.getEndBufferPosition()).toEqual([0, 0])
-
-      tokenIterator.moveToSuccessor()
-      expect(tokenIterator.getStartScreenPosition()).toEqual([0, 1])
-      expect(tokenIterator.getStartBufferPosition()).toEqual([0, 0])
-      expect(tokenIterator.getEndScreenPosition()).toEqual([0, 4])
-      expect(tokenIterator.getEndBufferPosition()).toEqual([0, 0])
-
-      tokenIterator.moveToSuccessor()
-      expect(tokenIterator.getStartScreenPosition()).toEqual([0, 4])
-      expect(tokenIterator.getStartBufferPosition()).toEqual([0, 0])
-      expect(tokenIterator.getEndScreenPosition()).toEqual([0, 8])
-      expect(tokenIterator.getEndBufferPosition()).toEqual([0, 0])
-
-      tokenIterator.moveToSuccessor()
-      expect(tokenIterator.getStartScreenPosition()).toEqual([0, 8])
-      expect(tokenIterator.getStartBufferPosition()).toEqual([0, 0])
-      expect(tokenIterator.getEndScreenPosition()).toEqual([0, 8])
-      expect(tokenIterator.getEndBufferPosition()).toEqual([0, 0])
-
       # does not translate buffer positions to the end of inserted indent guides
       for i in [0..20]
         expect(displayLayer.translateBufferPosition([0, i])).toEqual([0, 0])
@@ -565,21 +570,11 @@ describe "DisplayLayer", ->
 
       expect(e.message).toMatch(/Invalid text decoration iterator position/)
 
-  fffit "updates empty lines after the fold when a change occur inside it", ->
-    buffer = new TextBuffer(text: "a\n\n      x\ny\n        z\n\n")
-    options = {showIndentGuides: true, tabLength: 4, invisibles: {eol: '¬'}}
-    displayLayer = buffer.addDisplayLayer(options)
-    displayLayer.foldBufferRange([[2, 1], [4, 8]])
-    buffer.insert([3, 1], 'p')
-
-    console.log JSON.stringify(displayLayer.getText())
-    console.log JSON.stringify("a¬\n¬   \n ⋯z¬\n¬       \n        ")
-    expect(displayLayer.getText()).toEqual("a¬\n¬   \n ⋯z¬\n¬       \n        ")
-
-  fffit "updates the displayed text correctly when the underlying buffer changes", ->
+  it "updates the displayed text correctly when the underlying buffer changes", ->
     for i in [0...1] by 1
       seed = Date.now()
-      # seed = 1455200743303
+      console.log seed
+      seed = 1455817945083
       seedFailureMessage = "Seed: #{seed}"
       random = new Random(seed)
       buffer = new TextBuffer(text: buildRandomLines(random, 10))
@@ -594,7 +589,8 @@ describe "DisplayLayer", ->
 
       foldIds = []
 
-      for j in [0...3] by 1
+      for j in [0...1] by 1
+        global.debug = true
         k = random(10)
         if k < 2
           createRandomFold(random, displayLayer, foldIds, seedFailureMessage)
@@ -615,6 +611,8 @@ describe "DisplayLayer", ->
         return if currentSpecFailed()
 
         # token iterator matches contents of display layer
+        console.log getTokenLines(displayLayer)
+
         verifyTokenIterator(displayLayer, textDecorationLayer, seedFailureMessage)
         return if currentSpecFailed()
 
@@ -689,13 +687,12 @@ verifyTokenIterator = (displayLayer, textDecorationLayer, failureMessage) ->
     startBufferPosition = tokenIterator.getStartBufferPosition()
     endBufferPosition = tokenIterator.getEndBufferPosition()
 
-    unless tokenIterator.patchIterator.inChange() and tokenIterator.patchIterator.getMetadata()?.atomic
-      expect(displayLayer.translateScreenPosition(startScreenPosition)).toEqual(startBufferPosition, failureMessage)
-      expect(displayLayer.translateScreenPosition(endScreenPosition)).toEqual(endBufferPosition, failureMessage)
+    expect(displayLayer.translateScreenPosition(startScreenPosition)).toEqual(startBufferPosition, failureMessage)
+    expect(displayLayer.translateScreenPosition(endScreenPosition)).toEqual(endBufferPosition, failureMessage)
 
-      if endBufferPosition.traversalFrom(startBufferPosition).isPositive()
-        expect(displayLayer.translateBufferPosition(startBufferPosition)).toEqual(startScreenPosition, failureMessage)
-        expect(displayLayer.translateBufferPosition(endBufferPosition)).toEqual(endScreenPosition, failureMessage)
+    if endBufferPosition.traversalFrom(startBufferPosition).isPositive()
+      expect(displayLayer.translateBufferPosition(startBufferPosition)).toEqual(startScreenPosition, failureMessage)
+      expect(displayLayer.translateBufferPosition(endBufferPosition)).toEqual(endScreenPosition, failureMessage)
 
     if startScreenPosition.row > lastTextRow
       expect(startScreenPosition.row).toBe(lastTextRow + 1, failureMessage) # don't skip lines
@@ -826,47 +823,31 @@ expectPositionTranslations = (displayLayer, tranlations) ->
       expect(displayLayer.translateBufferPosition(bufferPosition)).toEqual(screenPosition)
 
 expectTokens = (displayLayer, expectedTokens) ->
-  tokenIterator = displayLayer.buildTokenIterator()
-  tokenIterator.seekToScreenRow(0)
-  loop
-    throw new Error("The actual tokens are more than the expected ones.") if expectedTokens.length is 0
-    {start, end, text, open, close, containing} = expectedTokens.shift()
-    expect(tokenIterator.getStartScreenPosition()).toEqual(start)
-    expect(tokenIterator.getEndScreenPosition()).toEqual(end)
-    expect(tokenIterator.getOpenTags()).toEqual(open, "Open tags of token with start position: #{start}, end position: #{end}")
-    expect(tokenIterator.getCloseTags()).toEqual(close, "Close tags of token with start position #{start}, end position #{end}")
-    break unless tokenIterator.moveToSuccessor()
+  tokenLines = getTokenLines(displayLayer)
+  for tokens, screenRow in tokenLines
+    screenColumn = 0
+    for token in tokens
+      throw new Error("There are more tokens than expected.") if expectedTokens.length is 0
+      {text, open, close} = expectedTokens.shift()
+      expect(token.text).toEqual(text)
+      expect(token.closeTags).toEqual(close, "Close tags of token with start position #{Point(screenRow, screenColumn)}")
+      expect(token.openTags).toEqual(open, "Open tags of token with start position: #{Point(screenRow, screenColumn)}")
+      screenColumn += token.text.length
 
 getTokenLines = (displayLayer, startRow=0, endRow=displayLayer.getScreenLineCount()) ->
-  lines = displayLayer.getText().split('\n')
-  tokenIterator = displayLayer.buildTokenIterator()
-  tokenIterator.seekToScreenRow(startRow)
   tokenLines = []
-  tokenLine = []
-  currentRow = startRow
-
-  loop
-    openTags = tokenIterator.getOpenTags()
-    closeTags = tokenIterator.getCloseTags()
-    startColumn = tokenIterator.getStartScreenPosition().column
-    endColumn = tokenIterator.getEndScreenPosition().column
-    text = lines[currentRow].substring(startColumn, endColumn)
-    tokenLine.push({openTags, closeTags, text})
-
-    unless tokenIterator.moveToSuccessor()
-      tokenLines.push(tokenLine)
-      break
-
-    if tokenIterator.getStartScreenPosition().row > currentRow
-      tokenLines.push(tokenLine)
-      currentRow++
-      if currentRow is endRow
-        break
-      else
-        tokenLine = []
-
+  for screenLine in displayLayer.getScreenLines(startRow, endRow)
+    tokenLines.push(screenLine.tokens)
   tokenLines
 
 updateTokenLines = (tokenLines, displayLayer, changes) ->
   for {start, oldExtent, newExtent} in changes
     tokenLines.splice(start.row, oldExtent.row, getTokenLines(displayLayer, start.row, start.row + newExtent.row)...)
+
+logTokens = (displayLayer) ->
+  s = 'expectTokens(displayLayer, [\n'
+  for tokens in getTokenLines(displayLayer)
+    for {text, closeTags, openTags} in tokens
+      s += "  {text: '#{text}', close: #{JSON.stringify(closeTags)}, open: #{JSON.stringify(openTags)}},\n"
+  s += '])'
+  console.log s

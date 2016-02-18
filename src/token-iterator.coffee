@@ -1,12 +1,12 @@
 Point = require './point'
 Range = require './range'
-{traverse, traversal, compare: comparePoints, isEqual: isEqualPoint, characterIndexForPoint} = require './point-helpers'
+{traverse, traversal, compare: comparePoints, isEqual: isEqualPoint, isZero: isZeroPoint, characterIndexForPoint} = require './point-helpers'
 EMPTY_ARRAY = Object.freeze([])
 EmptyDecorationIterator = require './empty-decoration-iterator'
 
 module.exports =
 class TokenIterator
-  constructor: (@displayLayer, @buffer, @patchIterator, @decorationIterator=new EmptyDecorationIterator) ->
+  constructor: (@displayLayer, @buffer, @spatialTokenIterator, @decorationIterator=new EmptyDecorationIterator) ->
     @reset()
 
   getStartBufferPosition: -> Point.fromObject(@startBufferPosition)
@@ -20,10 +20,9 @@ class TokenIterator
   getText: -> @text
 
   isFold: ->
-    @patchIterator.inChange() and @patchIterator.getMetadata()?.fold
+    @spatialTokenIterator.getMetadata()?.fold
 
   reset: ->
-    @patchIterator.reset()
     @startBufferPosition = null
     @startScreenPosition = null
     @endBufferPosition = null
@@ -33,11 +32,12 @@ class TokenIterator
     @closeTags = EMPTY_ARRAY
     @containingTags = null
     @tagsToReopenAfterFold = null
+    @baseTokenText = null
 
   seekToScreenRow: (screenRow) ->
     @startScreenPosition = Point(screenRow, 0)
-    @patchIterator.seekToOutputPosition(@startScreenPosition)
-    @startBufferPosition = @patchIterator.translateOutputPosition(@startScreenPosition)
+    @spatialTokenIterator.seekToScreenPosition(@startScreenPosition)
+    @startBufferPosition = @spatialTokenIterator.getBufferStart()
     @containingTags = []
     @closeTags = EMPTY_ARRAY
     @openTags = @decorationIterator.seek(@startBufferPosition) ? []
@@ -46,16 +46,24 @@ class TokenIterator
       for tag in @decorationIterator.getCloseTags()
         @openTags.splice(@openTags.lastIndexOf(tag), 1)
       @openTags.push(@decorationIterator.getOpenTags()...)
+      @decorationIterator.moveToSuccessor()
 
-    if textDecoration = @getPatchDecoration()
+    if textDecoration = @getSpatialTokenTextDecoration()
       @openTags.push(textDecoration)
 
     @assignEndPositionsAndText()
 
+  debugCount: 0
+  targetDebugCount: Infinity
+
   moveToSuccessor: ->
+    @debugCount++
+    debugger if @debugCount >= @targetDebugCount
+
     for tag in @closeTags
       index = @containingTags.lastIndexOf(tag)
       if index is -1
+        debugger
         throw new Error("Close tag not found in containing tags stack.")
       @containingTags.splice(index, 1)
     @containingTags.push(@openTags...)
@@ -66,24 +74,20 @@ class TokenIterator
     @openTags = EMPTY_ARRAY
     tagsToClose = null
     tagsToOpen = null
-    atLineEnd = true
 
-    if isEqualPoint(@startScreenPosition, @patchIterator.getOutputEnd())
-      if textDecoration = @getPatchDecoration()
+    if isEqualPoint(@startScreenPosition, @spatialTokenIterator.getScreenEnd())
+      if textDecoration = @getSpatialTokenTextDecoration()
         tagsToClose = [textDecoration]
-      @patchIterator.moveToSuccessor()
-      if textDecoration = @getPatchDecoration()
+      @spatialTokenIterator.moveToSuccessor()
+      @baseTokenText = null
+      if textDecoration = @getSpatialTokenTextDecoration()
         tagsToOpen = [textDecoration]
-      if @patchIterator.inChange()
-        atLineEnd = false
-      else
-        atLineEnd = not tagsToClose? and @startBufferPosition.column is @buffer.lineLengthForRow(@startBufferPosition.row)
 
     if isEqualPoint(@startBufferPosition, @decorationIterator.getPosition())
-      atLineEnd = false
       tagsToClose ?= []
       tagsToClose.push(@decorationIterator.getCloseTags()...)
       tagsToOpen = (@decorationIterator.getOpenTags() ? []).concat(tagsToOpen ? [])
+      @decorationIterator.moveToSuccessor()
 
     if tagsToClose?
       @closeTags = []
@@ -115,10 +119,12 @@ class TokenIterator
 
     return false unless @closeTags.length > 0 or @openTags.length > 0 or comparePoints(@startBufferPosition, @buffer.getEndPosition()) < 0
 
-    if atLineEnd
+    debugger if @debugCount >= @targetDebugCount
+
+    if @spatialTokenIterator.getScreenStart().row > @startScreenPosition.row
       if @containingTags.length is 0 or @tagsToReopenAfterNewline?
-        @startScreenPosition = Point(@startScreenPosition.row + 1, 0)
-        @startBufferPosition = @patchIterator.translateOutputPosition(@startScreenPosition)
+        @startScreenPosition = @spatialTokenIterator.getScreenStart()
+        @startBufferPosition = @spatialTokenIterator.getBufferStart()
         @closeTags = EMPTY_ARRAY
         @openTags = @tagsToReopenAfterNewline ? []
         @tagsToReopenAfterNewline = null
@@ -127,19 +133,19 @@ class TokenIterator
           for tag in @decorationIterator.getCloseTags()
             @openTags.splice(@openTags.lastIndexOf(tag), 1)
           @openTags.push(@decorationIterator.getOpenTags()...)
+          @decorationIterator.moveToSuccessor()
 
-        if isEqualPoint(@startScreenPosition, @patchIterator.getOutputEnd())
-          if textDecoration = @getPatchDecoration()
-            index = @openTags.lastIndexOf(textDecoration)
-            @openTags.splice(index, 1) if index isnt -1
-
-          @patchIterator.moveToSuccessor()
-          if textDecoration = @getPatchDecoration()
-            @openTags.push(textDecoration)
+        if textDecoration = @getSpatialTokenTextDecoration()
+          @openTags.push(textDecoration)
 
       else
         @tagsToReopenAfterNewline = @containingTags.slice()
-        @closeTags = @containingTags.slice().reverse()
+        for tag in @closeTags
+          index = @tagsToReopenAfterNewline.lastIndexOf(tag)
+          if index is -1
+            throw new Error("Close tag not found in containing tags stack.")
+          @tagsToReopenAfterNewline.splice(index, 1)
+        @closeTags = @closeTags.concat(@tagsToReopenAfterNewline.slice().reverse())
         @openTags = EMPTY_ARRAY
         @endBufferPosition = @startBufferPosition
         @endScreenPosition = @startScreenPosition
@@ -161,25 +167,11 @@ class TokenIterator
   getCloseTags: -> @closeTags
 
   assignEndPositionsAndText: ->
-    if @patchIterator.getOutputEnd().row is @startScreenPosition.row
-      @endScreenPosition = @patchIterator.getOutputEnd()
-      @endBufferPosition = @patchIterator.getInputEnd()
-      if @patchIterator.inChange()
-        characterIndexInChangeText = characterIndexForPoint(@patchIterator.getNewText(), traversal(@startScreenPosition, @patchIterator.getOutputStart()))
-        @text = @patchIterator.getNewText().substring(characterIndexInChangeText)
-      else
-        @text = @buffer.getTextInRange(Range(@startBufferPosition, @endBufferPosition))
-    else
-      if @patchIterator.inChange()
-        characterIndexInChangeText = characterIndexForPoint(@patchIterator.getNewText(), traversal(@startScreenPosition, @patchIterator.getOutputStart()))
-        nextNewlineIndex = @patchIterator.getNewText().indexOf('\n', characterIndexInChangeText)
-        @text = @patchIterator.getNewText().substring(characterIndexInChangeText, nextNewlineIndex)
-        @endScreenPosition = traverse(@startScreenPosition, Point(0, @text.length))
-        @endBufferPosition = @patchIterator.translateOutputPosition(@endScreenPosition)
-      else
-        @text = @buffer.lineForRow(@startBufferPosition.row).substring(@startBufferPosition.column)
-        @endBufferPosition = traverse(@startBufferPosition, Point(0, @text.length))
-        @endScreenPosition = @patchIterator.translateInputPosition(@endBufferPosition)
+    debugger if @debugCount >= @targetDebugCount
+
+    @endScreenPosition = @spatialTokenIterator.getScreenEnd()
+    @endBufferPosition = @spatialTokenIterator.getBufferEnd()
+    @text = @getBaseTokenText().substring(@startScreenPosition.column - @spatialTokenIterator.getScreenStart().column)
 
     if @isFold()
       @closeTags = @containingTags.slice().reverse()
@@ -190,22 +182,24 @@ class TokenIterator
 
       comparison = comparePoints(decorationIteratorPosition, @startBufferPosition)
       if comparison < 0
+        console.log '!!!', @debugCount
+        # debugger
         bufferRow = decorationIteratorPosition.row
         throw new Error("""
           Invalid text decoration iterator position: #{decorationIteratorPosition}.
           Buffer row #{bufferRow} has length #{@buffer.lineLengthForRow(bufferRow)}.
         """)
       else if comparison is 0
-        @decorationIterator.moveToSuccessor()
+        # @decorationIterator.moveToSuccessor()
         decorationIteratorPosition = @decorationIterator.getPosition()
 
       if comparePoints(decorationIteratorPosition, @endBufferPosition) < 0
         @endBufferPosition = decorationIteratorPosition
-        @endScreenPosition = @patchIterator.translateInputPosition(@endBufferPosition)
+        @endScreenPosition = @spatialTokenIterator.translateBufferPosition(@endBufferPosition)
         @text = @text.substring(0, @endScreenPosition.column - @startScreenPosition.column)
 
-  getPatchDecoration: ->
-    if metadata = @patchIterator.getMetadata()
+  getSpatialTokenTextDecoration: ->
+    if metadata = @spatialTokenIterator.getMetadata()
       decoration = ''
       decoration += 'invisible-character ' if metadata.invisibleCharacter
       decoration += 'hard-tab ' if metadata.hardTab
@@ -215,3 +209,30 @@ class TokenIterator
       decoration += 'indent-guide ' if metadata.showIndentGuide and @displayLayer.showIndentGuides
       if decoration.length > 0
         decoration.trim()
+
+  getBaseTokenText: ->
+    @baseTokenText ?= @computeBaseTokenText()
+
+  computeBaseTokenText: ->
+    {invisibles} = @displayLayer
+
+    if metadata = @spatialTokenIterator.getMetadata()
+      tokenLength = @spatialTokenIterator.getScreenExtent()
+
+      if metadata.hardTab
+        if invisibles.tab?
+          return invisibles.tab + ' '.repeat(tokenLength - 1)
+        else
+          return ' '.repeat(tokenLength)
+      else if (metadata.leadingWhitespace or metadata.trailingWhitespace) and invisibles.space?
+        return invisibles.space.repeat(tokenLength)
+      else if metadata.eol
+        return metadata.eol
+      else if metadata.void
+        return ' '.repeat(tokenLength)
+      else if metadata.fold
+        return '⋯'
+
+    bufferStart = @spatialTokenIterator.getBufferStart()
+    bufferEnd = @spatialTokenIterator.getBufferEnd()
+    return @buffer.lineForRow(bufferStart.row).substring(bufferStart.column, bufferEnd.column)

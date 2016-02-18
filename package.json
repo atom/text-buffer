@@ -2,7 +2,7 @@
   "name": "text-buffer",
   "version": "8.1.4",
   "description": "A container for large mutable strings with annotated regions",
-  "main": "./lib/text-buffer",
+  "main": "./src/text-buffer",
   "scripts": {
     "prepublish": "grunt clean lint coffee shell:update-atomdoc atomdoc",
     "compile": "coffee --no-header --output lib --compile src",
