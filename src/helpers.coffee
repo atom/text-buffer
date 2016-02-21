@@ -18,7 +18,7 @@ module.exports =
 
   normalizePatchChanges: (changes) ->
     changes.map (change) -> {
-      start: Point.fromObject(change.start)
+      start: Point.fromObject(change.newStart)
       oldExtent: Point.fromObject(change.oldExtent)
       newExtent: Point.fromObject(change.newExtent)
       newText: change.newText

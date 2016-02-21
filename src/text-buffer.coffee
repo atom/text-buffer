@@ -95,8 +95,8 @@ class TextBuffer
     text = params if typeof params is 'string'
 
     @emitter = new Emitter
-    @stoppedChangingPatch = new Patch(combineChanges: true, batchMode: true)
-    @didChangeTextPatch = new Patch(combineChanges: true, batchMode: true)
+    @changesSinceLastStoppedChangingEvent = []
+    @didChangeTextPatch = new Patch
     @id = params?.id ? crypto.randomBytes(16).toString('hex')
     @lines = ['']
     @lineEndings = ['']
@@ -741,7 +741,6 @@ class TextBuffer
     @scheduleModifiedEvents()
 
     @changeCount++
-    @stoppedChangingPatch.splice(oldRange.start, oldRange.getExtent(), newRange.getExtent(), text: newText)
     @didChangeTextPatch.splice(oldRange.start, oldRange.getExtent(), newRange.getExtent(), text: newText)
     @emitter.emit 'did-change', changeEvent
 
@@ -927,8 +926,7 @@ class TextBuffer
       @applyChange(change, true) for change in pop.changes
       @restoreFromMarkerSnapshot(pop.snapshot)
       @emitMarkerChangeEvents(pop.snapshot)
-      @emitChangeTextEvent()
-      @stoppedChangingPatch.rebalance()
+      @handleChangedText()
       true
     else
       false
@@ -939,8 +937,7 @@ class TextBuffer
       @applyChange(change, true) for change in pop.changes
       @restoreFromMarkerSnapshot(pop.snapshot)
       @emitMarkerChangeEvents(pop.snapshot)
-      @emitChangeTextEvent()
-      @stoppedChangingPatch.rebalance()
+      @handleChangedText()
       true
     else
       false
@@ -979,9 +976,7 @@ class TextBuffer
     @history.groupChangesSinceCheckpoint(checkpointBefore, endMarkerSnapshot, true)
     @history.applyGroupingInterval(groupingInterval)
     @emitMarkerChangeEvents(endMarkerSnapshot)
-    if @transactCallDepth is 0
-      @emitChangeTextEvent()
-      @stoppedChangingPatch.rebalance()
+    @handleChangedText() if @transactCallDepth is 0
     result
 
   abortTransaction: ->
@@ -1472,9 +1467,11 @@ class TextBuffer
     for markerLayerId, markerLayer of @markerLayers
       markerLayer.emitChangeEvents(snapshot?[markerLayerId])
 
-  emitChangeTextEvent: ->
-    @emitter.emit 'did-change-text', {changes: Object.freeze(normalizePatchChanges(@didChangeTextPatch.getChanges()))}
-    @didChangeTextPatch = new Patch(combineChanges: true, batchMode: true)
+  handleChangedText: ->
+    changes = @didChangeTextPatch.getChanges()
+    @emitter.emit 'did-change-text', {changes: Object.freeze(normalizePatchChanges(changes))}
+    @changesSinceLastStoppedChangingEvent.push(changes)
+    @didChangeTextPatch = new Patch
 
   # Identifies if the buffer belongs to multiple editors.
   #
@@ -1491,8 +1488,8 @@ class TextBuffer
     stoppedChangingCallback = =>
       @stoppedChangingTimeout = null
       modifiedStatus = @isModified()
-      @emitter.emit 'did-stop-changing', {changes: Object.freeze(normalizePatchChanges(@stoppedChangingPatch.getChanges()))}
-      @stoppedChangingPatch = new Patch(combineChanges: true, batchMode: true)
+      @emitter.emit 'did-stop-changing', {changes: Object.freeze(normalizePatchChanges(Patch.composeChanges(@changesSinceLastStoppedChangingEvent)))}
+      @changesSinceLastStoppedChangingEvent = []
       @emitModifiedStatusChanged(modifiedStatus)
     @stoppedChangingTimeout = setTimeout(stoppedChangingCallback, @stoppedChangingDelay)
 
