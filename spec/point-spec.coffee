@@ -1,6 +1,9 @@
 Point = require '../src/point'
 
 describe "Point", ->
+  beforeEach ->
+    jasmine.addCustomEqualityTester(require("underscore-plus").isEqual)
+
   describe "::negate()", ->
     it "should negate the row and column", ->
       expect(new Point( 0,  0).negate().toString()).toBe "(0, 0)"

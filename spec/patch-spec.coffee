@@ -1,12 +1,12 @@
 Random = require "random-seed"
 Point = require "../src/point"
 Patch = require "../src/patch"
-{currentSpecFailed} = require "./spec-helper"
 
 describe "Patch", ->
   patch = null
 
   beforeEach ->
+    jasmine.addCustomEqualityTester(require("underscore-plus").isEqual)
     patch = new Patch
 
   describe "::regions()", ->
@@ -15,7 +15,6 @@ describe "Patch", ->
         expect(iterator.next()).toEqual {value, done: false}
         expect(iterator.getInputPosition()).toEqual inputPosition, "input position for hunk #{i}"
         expect(iterator.getOutputPosition()).toEqual outputPosition, "output position for hunk #{i}"
-        return if currentSpecFailed()
 
       expect(iterator.next()).toEqual {value: null, done: true}
       expect(iterator.getOutputPosition()).toEqual Point.INFINITY
@@ -496,9 +495,3 @@ describe "Patch", ->
           expectValidIterator(patch, iterator, position.traverse(newExtent))
           expectCorrectHunkMerging(patch)
           expectCorrectInternalNodes(patch.rootNode)
-
-          if currentSpecFailed()
-            console.log ""
-            console.log "Seed: #{seed}"
-            console.log patch.rootNode.toString()
-            return
