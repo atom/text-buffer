@@ -139,7 +139,7 @@ class TextBuffer
   serializeParams: ->
     markerLayers = {}
     for id, layer of @markerLayers
-      markerLayers[id] = layer.serialize()
+      markerLayers[id] = layer.serialize() if layer.maintainHistory
 
     id: @getId()
     text: @getText()
