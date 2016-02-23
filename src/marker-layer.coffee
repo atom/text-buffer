@@ -19,13 +19,7 @@ class MarkerLayer
     store
 
   @serializeSnapshot: (snapshot) ->
-    result = {}
-    for layerId, markerSnapshots of snapshot
-      result[layerId] = {}
-      for markerId, markerSnapshot of markerSnapshots
-        result[layerId][markerId] = clone(markerSnapshot)
-        result[layerId][markerId].range = markerSnapshot.range.serialize()
-    result
+    snapshot
 
   @deserializeSnapshot: (snapshot) ->
     result = {}
@@ -33,7 +27,7 @@ class MarkerLayer
       result[layerId] = {}
       for markerId, markerSnapshot of markerSnapshots
         result[layerId][markerId] = clone(markerSnapshot)
-        result[layerId][markerId].range = Range.deserialize(markerSnapshot.range)
+        result[layerId][markerId].range = Range.fromObject(markerSnapshot.range)
     result
 
   ###
