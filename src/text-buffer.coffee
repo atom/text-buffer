@@ -95,7 +95,7 @@ class TextBuffer
     text = params if typeof params is 'string'
 
     @emitter = new Emitter
-    @changesSinceLastStoppedChangingEvent = []
+    @patchesSinceLastStoppedChangingEvent = []
     @didChangeTextPatch = new Patch
     @id = params?.id ? crypto.randomBytes(16).toString('hex')
     @lines = ['']
@@ -1468,9 +1468,8 @@ class TextBuffer
       markerLayer.emitChangeEvents(snapshot?[markerLayerId])
 
   handleChangedText: ->
-    changes = @didChangeTextPatch.getChanges()
-    @emitter.emit 'did-change-text', {changes: Object.freeze(normalizePatchChanges(changes))}
-    @changesSinceLastStoppedChangingEvent.push(changes)
+    @emitter.emit 'did-change-text', {changes: Object.freeze(normalizePatchChanges(@didChangeTextPatch.getChanges()))}
+    @patchesSinceLastStoppedChangingEvent.push(@didChangeTextPatch)
     @didChangeTextPatch = new Patch
 
   # Identifies if the buffer belongs to multiple editors.
@@ -1488,8 +1487,8 @@ class TextBuffer
     stoppedChangingCallback = =>
       @stoppedChangingTimeout = null
       modifiedStatus = @isModified()
-      @emitter.emit 'did-stop-changing', {changes: Object.freeze(normalizePatchChanges(Patch.composeChanges(@changesSinceLastStoppedChangingEvent)))}
-      @changesSinceLastStoppedChangingEvent = []
+      @emitter.emit 'did-stop-changing', {changes: Object.freeze(normalizePatchChanges(Patch.compose(@patchesSinceLastStoppedChangingEvent)))}
+      @patchesSinceLastStoppedChangingEvent = []
       @emitModifiedStatusChanged(modifiedStatus)
     @stoppedChangingTimeout = setTimeout(stoppedChangingCallback, @stoppedChangingDelay)
 
