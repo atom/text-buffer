@@ -641,7 +641,9 @@ class TextBuffer
     oldRange = @clipRange(range)
     oldText = @getTextInRange(oldRange)
     newRange = Range.fromText(oldRange.start, newText)
-    @applyChange({oldRange, newRange, oldText, newText, normalizeLineEndings}, (undo is 'skip'))
+    change = {newStart: oldRange.start, oldExtent: oldRange.getExtent(), newExtent: newRange.getExtent(), oldText, newText, normalizeLineEndings}
+    @history?.pushChange(change) if undo isnt 'skip'
+    @applyChange(change)
     newRange
 
   # Public: Insert text at the given position.
@@ -669,8 +671,11 @@ class TextBuffer
     @insert(@getEndPosition(), text, options)
 
   # Applies a change to the buffer based on its old range and new text.
-  applyChange: (change, skipUndo) ->
-    {oldRange, newRange, oldText, newText, normalizeLineEndings} = change
+  applyChange: (change) ->
+    {newStart, oldExtent, newExtent, oldText, newText, normalizeLineEndings} = change
+    start = Point.fromObject(newStart)
+    oldRange = Range(start, start.traverse(oldExtent))
+    newRange = Range(start, start.traverse(newExtent))
     oldRange.freeze()
     newRange.freeze()
     @cachedText = null
@@ -735,13 +740,10 @@ class TextBuffer
       for id, markerLayer of @markerLayers
         markerLayer.splice(oldRange.start, oldExtent, newExtent)
 
-    @history?.pushChange(change) unless skipUndo
-
     @conflict = false if @conflict and !@isModified()
     @scheduleModifiedEvents()
 
     @changeCount++
-    @didChangeTextPatch.splice(oldRange.start, oldRange.getExtent(), newRange.getExtent(), text: newText)
     @emitter.emit 'did-change', changeEvent
 
   # Public: Delete the text in the given range.
@@ -923,10 +925,10 @@ class TextBuffer
   # Public: Undo the last operation. If a transaction is in progress, aborts it.
   undo: ->
     if pop = @history.popUndoStack()
-      @applyChange(change, true) for change in pop.changes
+      @applyChange(change) for change in pop.patch.getChanges()
       @restoreFromMarkerSnapshot(pop.snapshot)
       @emitMarkerChangeEvents(pop.snapshot)
-      @handleChangedText()
+      @handleChangedText(pop.patch) if @transactCallDepth is 0
       true
     else
       false
@@ -934,10 +936,10 @@ class TextBuffer
   # Public: Redo the last operation
   redo: ->
     if pop = @history.popRedoStack()
-      @applyChange(change, true) for change in pop.changes
+      @applyChange(change) for change in pop.patch.getChanges()
       @restoreFromMarkerSnapshot(pop.snapshot)
       @emitMarkerChangeEvents(pop.snapshot)
-      @handleChangedText()
+      @handleChangedText(pop.patch) if @transactCallDepth is 0
       true
     else
       false
@@ -973,10 +975,10 @@ class TextBuffer
       @transactCallDepth--
 
     endMarkerSnapshot = @createMarkerSnapshot()
-    @history.groupChangesSinceCheckpoint(checkpointBefore, endMarkerSnapshot, true)
+    compactedChanges = @history.groupChangesSinceCheckpoint(checkpointBefore, endMarkerSnapshot, true, @transactCallDepth is 0)
     @history.applyGroupingInterval(groupingInterval)
     @emitMarkerChangeEvents(endMarkerSnapshot)
-    @handleChangedText() if @transactCallDepth is 0
+    @handleChangedText(compactedChanges) if @transactCallDepth is 0
     result
 
   abortTransaction: ->
@@ -1003,9 +1005,10 @@ class TextBuffer
   # Returns a {Boolean} indicating whether the operation succeeded.
   revertToCheckpoint: (checkpoint) ->
     if truncated = @history.truncateUndoStack(checkpoint)
-      @applyChange(change, true) for change in truncated.changes
+      @applyChange(change) for change in truncated.patch.getChanges()
       @restoreFromMarkerSnapshot(truncated.snapshot)
       @emitter.emit 'did-update-markers'
+      @handleChangedText(truncated.patch) if @transactCallDepth is 0
       true
     else
       false
@@ -1467,10 +1470,9 @@ class TextBuffer
     for markerLayerId, markerLayer of @markerLayers
       markerLayer.emitChangeEvents(snapshot?[markerLayerId])
 
-  handleChangedText: ->
-    @emitter.emit 'did-change-text', {changes: Object.freeze(normalizePatchChanges(@didChangeTextPatch.getChanges()))}
-    @patchesSinceLastStoppedChangingEvent.push(@didChangeTextPatch)
-    @didChangeTextPatch = new Patch
+  handleChangedText: (didChangeTextPatch) ->
+    @emitter.emit 'did-change-text', {changes: Object.freeze(normalizePatchChanges(didChangeTextPatch.getChanges()))}
+    @patchesSinceLastStoppedChangingEvent.push(didChangeTextPatch)
 
   # Identifies if the buffer belongs to multiple editors.
   #
@@ -1487,7 +1489,7 @@ class TextBuffer
     stoppedChangingCallback = =>
       @stoppedChangingTimeout = null
       modifiedStatus = @isModified()
-      @emitter.emit 'did-stop-changing', {changes: Object.freeze(normalizePatchChanges(Patch.compose(@patchesSinceLastStoppedChangingEvent)))}
+      @emitter.emit 'did-stop-changing', {changes: Object.freeze(normalizePatchChanges(Patch.compose(@patchesSinceLastStoppedChangingEvent).getChanges()))}
       @patchesSinceLastStoppedChangingEvent = []
       @emitModifiedStatusChanged(modifiedStatus)
     @stoppedChangingTimeout = setTimeout(stoppedChangingCallback, @stoppedChangingDelay)

@@ -1,3 +1,5 @@
+Patch = require 'atom-patch'
+
 SerializationVersion = 3
 
 class Checkpoint
@@ -32,7 +34,7 @@ class History
     @undoStack.push(checkpoint)
     checkpoint.id
 
-  groupChangesSinceCheckpoint: (checkpointId, endSnapshot, deleteCheckpoint=false) ->
+  groupChangesSinceCheckpoint: (checkpointId, endSnapshot, deleteCheckpoint=false, compactChanges=false) ->
     withinGroup = false
     checkpointIndex = null
     startSnapshot = null
@@ -59,14 +61,20 @@ class History
           changesSinceCheckpoint.unshift(entry)
 
     if checkpointIndex?
+      changes = new Patch
       if changesSinceCheckpoint.length > 0
         @undoStack.splice(checkpointIndex + 1)
         @undoStack.push(new GroupStart(startSnapshot))
-        @undoStack.push(changesSinceCheckpoint...)
+        if compactChanges
+          for {newStart, oldExtent, newExtent, oldText, newText} in changesSinceCheckpoint
+            changes.splice(newStart, oldExtent, newExtent, {newText, oldText})
+          @undoStack.push(changes)
+        else
+          @undoStack.push(changesSinceCheckpoint...)
         @undoStack.push(new GroupEnd(endSnapshot))
       if deleteCheckpoint
         @undoStack.splice(checkpointIndex, 1)
-      true
+      changes
     else
       false
 
@@ -84,7 +92,9 @@ class History
         previousEntry = @undoStack[i - 1]
         if previousEntry instanceof GroupEnd
           if (topEntry.timestamp - previousEntry.timestamp < Math.min(previousEntry.groupingInterval, groupingInterval))
-            @undoStack.splice(i - 1, 2)
+            previousPatch = @undoStack[i - 2]
+            currentPatch = @undoStack[i + 1]
+            @undoStack.splice(i - 2, 4, Patch.compose([previousPatch, currentPatch]))
         return
 
     throw new Error("Didn't find matching group-start entry")
@@ -115,7 +125,7 @@ class History
     snapshotBelow = null
     spliceIndex = null
     withinGroup = false
-    invertedChanges = []
+    patch = new Patch
 
     for entry, i in @undoStack by -1
       break if spliceIndex?
@@ -135,8 +145,14 @@ class History
         when Checkpoint
           if entry.isBoundary
             return false
+        when Patch
+          for {oldStart, oldExtent, newExtent, oldText, newText} in entry.getChanges()
+            patch.splice(oldStart, newExtent, oldExtent, {oldText: newText, newText: oldText})
+          unless withinGroup
+            spliceIndex = i
         else
-          invertedChanges.push(@delegate.invertChange(entry))
+          {newStart, oldExtent, newExtent, oldText, newText} = entry
+          patch.splice(newStart, newExtent, oldExtent, {oldText: newText, newText: oldText})
           unless withinGroup
             spliceIndex = i
 
@@ -144,7 +160,7 @@ class History
       @redoStack.push(@undoStack.splice(spliceIndex).reverse()...)
       {
         snapshot: snapshotBelow
-        changes: invertedChanges
+        patch: patch
       }
     else
       false
@@ -153,7 +169,7 @@ class History
     snapshotBelow = null
     spliceIndex = null
     withinGroup = false
-    changes = []
+    patch = new Patch
 
     for entry, i in @redoStack by -1
       break if spliceIndex?
@@ -173,8 +189,14 @@ class History
         when Checkpoint
           if entry.isBoundary
             throw new Error("Invalid redo stack state")
+        when Patch
+          for {newStart, oldExtent, newExtent, oldText, newText} in entry.getChanges()
+            patch.splice(newStart, oldExtent, newExtent, {oldText, newText})
+          unless withinGroup
+            spliceIndex = i
         else
-          changes.push(entry)
+          {newStart, oldExtent, newExtent, oldText, newText} = entry
+          patch.splice(newStart, oldExtent, newExtent, {newText, oldText})
           unless withinGroup
             spliceIndex = i
 
@@ -185,7 +207,7 @@ class History
       @undoStack.push(@redoStack.splice(spliceIndex).reverse()...)
       {
         snapshot: snapshotBelow
-        changes: changes
+        patch: patch
       }
     else
       false
@@ -194,7 +216,7 @@ class History
     snapshotBelow = null
     spliceIndex = null
     withinGroup = false
-    invertedChanges = []
+    patch = new Patch
 
     for entry, i in @undoStack by -1
       break if spliceIndex?
@@ -216,14 +238,18 @@ class History
             snapshotBelow = entry.snapshot
           else if entry.isBoundary
             return false
+        when Patch
+          for {oldStart, oldExtent, newExtent, oldText, newText} in entry.getChanges()
+            patch.splice(oldStart, newExtent, oldExtent, {oldText: newText, newText: oldText})
         else
-          invertedChanges.push(@delegate.invertChange(entry))
+          {newStart, oldExtent, newExtent, oldText, newText} = entry
+          patch.splice(newStart, newExtent, oldExtent, {oldText: newText, newText: oldText})
 
     if spliceIndex?
       @undoStack.splice(spliceIndex)
       {
         snapshot: snapshotBelow
-        changes: invertedChanges
+        patch: patch
       }
     else
       false
@@ -277,6 +303,11 @@ class History
             type: 'group-end'
             snapshot: @delegate.serializeSnapshot(entry.snapshot)
           }
+        when Patch
+          {
+            type: 'patch'
+            content: entry.serialize()
+          }
         else
           {
             type: 'change'
@@ -300,5 +331,7 @@ class History
           new GroupEnd(
             @delegate.deserializeSnapshot(entry.snapshot)
           )
+        when 'patch'
+          Patch.deserialize(entry.content)
         when 'change'
           @delegate.deserializeChange(entry.content)

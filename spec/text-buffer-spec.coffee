@@ -148,15 +148,21 @@ describe "TextBuffer", ->
       buffer.setTextInRange([[1, 1], [1, 3]], 'i')
       expect(buffer.lineEndingForRow(1)).toBe '\r\n'
 
-    it "freezes the passed-in range, since it is stored in the history", ->
-      range = Range(Point(0, 2), Point(0, 4))
-      buffer.setTextInRange(range, "y y")
+    it "freezes change event ranges, since they're stored in the history", ->
+      changedOldRange = null
+      changedNewRange = null
+      buffer.onDidChange ({oldRange, newRange}) ->
+        oldRange.start = Point(0, 3)
+        oldRange.start.row = 1
+        newRange.start = Point(4, 4)
+        newRange.end.row = 2
+        changedOldRange = oldRange
+        changedNewRange = newRange
 
-      range.start = Point(0, 3)
-      expect(range.start).toEqual [0, 2]
+      buffer.setTextInRange(Range(Point(0, 2), Point(0, 4)), "y y")
 
-      range.start.row = 5
-      expect(range.start).toEqual [0, 2]
+      expect(changedOldRange).toEqual([[0, 2], [0, 4]])
+      expect(changedNewRange).toEqual([[0, 2], [0, 5]])
 
     describe "when the undo option is 'skip'", ->
       it "replaces the contents of the buffer with the given text", ->
@@ -356,7 +362,7 @@ describe "TextBuffer", ->
       expect(undoCount).toBe 4
       expect(buffer.getLineCount()).toBe 6
 
-      # A transaction with 2 changes uses 4 undo entries, so we can undo 3 of
+      # A transaction with 2 changes uses 3 undo entries, so we can undo 4 of
       # these transactions.
       buffer.setText("")
       buffer.clearUndoStack()
@@ -368,8 +374,8 @@ describe "TextBuffer", ->
 
       undoCount = 0
       undoCount++ while buffer.undo()
-      expect(undoCount).toBe 3
-      expect(buffer.getLineCount()).toBe 7
+      expect(undoCount).toBe 4
+      expect(buffer.getLineCount()).toBe 6
 
   describe "transactions", ->
     now = null
@@ -622,7 +628,7 @@ describe "TextBuffer", ->
         historyLayer.markRange([[0, 1], [2, 3]], a: 'b')
         result = buffer.groupChangesSinceCheckpoint(checkpoint)
 
-        expect(result).toBe true
+        expect(result).toBeTruthy()
         expect(buffer.getText()).toBe """
           one
           two
@@ -675,7 +681,7 @@ describe "TextBuffer", ->
         buffer.append("one\n")
         checkpoint = buffer.createCheckpoint()
         result = buffer.groupChangesSinceCheckpoint(checkpoint)
-        expect(result).toBe true
+        expect(result).toBeTruthy()
         buffer.undo()
         expect(buffer.getText()).toBe ""
 
@@ -685,7 +691,7 @@ describe "TextBuffer", ->
         buffer.undo()
         buffer.append("world")
         result = buffer.groupChangesSinceCheckpoint(checkpoint)
-        expect(result).toBe(false)
+        expect(result).toBeFalsy()
         buffer.undo()
         expect(buffer.getText()).toBe ""
 
@@ -743,7 +749,7 @@ describe "TextBuffer", ->
 
         buffer.append("b")
 
-        expect(buffer.groupChangesSinceCheckpoint(checkpoint)).toBe false
+        expect(buffer.groupChangesSinceCheckpoint(checkpoint)).toBeFalsy()
 
       buffer.undo()
       expect(buffer.getText()).toBe "a"
