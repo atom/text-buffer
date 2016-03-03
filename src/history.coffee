@@ -173,7 +173,7 @@ class History
     snapshotBelow = null
     spliceIndex = null
     withinGroup = false
-    patch = new Patch
+    patch = null
 
     for entry, i in @redoStack by -1
       break if spliceIndex?
@@ -194,8 +194,7 @@ class History
           if entry.isBoundary
             throw new Error("Invalid redo stack state")
         else
-          for {newStart, oldExtent, newExtent, oldText, newText} in entry.getChanges()
-            patch.splice(newStart, oldExtent, newExtent, {oldText, newText})
+          patch = entry
           unless withinGroup
             spliceIndex = i
 
