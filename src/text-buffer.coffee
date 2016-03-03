@@ -1470,9 +1470,9 @@ class TextBuffer
     for markerLayerId, markerLayer of @markerLayers
       markerLayer.emitChangeEvents(snapshot?[markerLayerId])
 
-  handleChangedText: (didChangeTextPatch) ->
-    @emitter.emit 'did-change-text', {changes: Object.freeze(normalizePatchChanges(didChangeTextPatch.getChanges()))}
-    @patchesSinceLastStoppedChangingEvent.push(didChangeTextPatch)
+  handleChangedText: (patch) ->
+    @emitter.emit 'did-change-text', {changes: Object.freeze(normalizePatchChanges(patch.getChanges()))}
+    @patchesSinceLastStoppedChangingEvent.push(patch)
 
   # Identifies if the buffer belongs to multiple editors.
   #
