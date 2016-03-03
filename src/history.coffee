@@ -51,8 +51,7 @@ class History
     withinGroup = false
     checkpointIndex = null
     startSnapshot = null
-    changesSinceCheckpoint = new Patch
-    hasChanges = false
+    patchesSinceCheckpoint = []
 
     for entry, i in @undoStack by -1
       break if checkpointIndex?
@@ -72,18 +71,18 @@ class History
           else if entry.isBoundary
             return false
         else
-          hasChanges = true
-          changesSinceCheckpoint = Patch.compose([entry, changesSinceCheckpoint])
+          patchesSinceCheckpoint.unshift(entry)
 
     if checkpointIndex?
-      if hasChanges
+      composedPatches = Patch.compose(patchesSinceCheckpoint)
+      if patchesSinceCheckpoint.length > 0
         @undoStack.splice(checkpointIndex + 1)
         @undoStack.push(new GroupStart(startSnapshot))
-        @undoStack.push(changesSinceCheckpoint)
+        @undoStack.push(composedPatches)
         @undoStack.push(new GroupEnd(endSnapshot))
       if deleteCheckpoint
         @undoStack.splice(checkpointIndex, 1)
-      changesSinceCheckpoint
+      composedPatches
     else
       false
 
