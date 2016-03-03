@@ -95,7 +95,7 @@ class History
     throw new Error("Didn't find matching group-start entry")
 
   pushChange: (change) ->
-    @undoStack.push(Patch.withSingleChange(change))
+    @undoStack.push(Patch.hunk(change))
     @clearRedoStack()
 
     if @undoStack.length - @maxUndoEntries > 0
