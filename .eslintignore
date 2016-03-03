@@ -1,1 +1,2 @@
 **/fixtures/*.js
+src/serialization-schema_generated.js
