@@ -2,6 +2,19 @@ Patch = require 'atom-patch'
 
 SerializationVersion = 3
 
+buildPatchFromChange = (change) ->
+  {
+    getChanges: ->
+      [{
+        oldStart: change.newStart,
+        newStart: change.newStart,
+        oldExtent: change.oldExtent,
+        newExtent: change.newExtent,
+        oldText: change.oldText,
+        newText: change.newText
+      }]
+  }
+
 class Checkpoint
   constructor: (@id, @snapshot, @isBoundary) ->
     unless @snapshot?
@@ -34,11 +47,12 @@ class History
     @undoStack.push(checkpoint)
     checkpoint.id
 
-  groupChangesSinceCheckpoint: (checkpointId, endSnapshot, deleteCheckpoint=false, compactChanges=false) ->
+  groupChangesSinceCheckpoint: (checkpointId, endSnapshot, deleteCheckpoint=false) ->
     withinGroup = false
     checkpointIndex = null
     startSnapshot = null
-    changesSinceCheckpoint = []
+    changesSinceCheckpoint = new Patch
+    hasChanges = false
 
     for entry, i in @undoStack by -1
       break if checkpointIndex?
@@ -58,23 +72,18 @@ class History
           else if entry.isBoundary
             return false
         else
-          changesSinceCheckpoint.unshift(entry)
+          hasChanges = true
+          changesSinceCheckpoint = Patch.compose([entry, changesSinceCheckpoint])
 
     if checkpointIndex?
-      changes = new Patch
-      if changesSinceCheckpoint.length > 0
+      if hasChanges
         @undoStack.splice(checkpointIndex + 1)
         @undoStack.push(new GroupStart(startSnapshot))
-        if compactChanges
-          for {newStart, oldExtent, newExtent, oldText, newText} in changesSinceCheckpoint
-            changes.splice(newStart, oldExtent, newExtent, {newText, oldText})
-          @undoStack.push(changes)
-        else
-          @undoStack.push(changesSinceCheckpoint...)
+        @undoStack.push(changesSinceCheckpoint)
         @undoStack.push(new GroupEnd(endSnapshot))
       if deleteCheckpoint
         @undoStack.splice(checkpointIndex, 1)
-      changes
+      changesSinceCheckpoint
     else
       false
 
@@ -100,7 +109,7 @@ class History
     throw new Error("Didn't find matching group-start entry")
 
   pushChange: (change) ->
-    @undoStack.push(change)
+    @undoStack.push(buildPatchFromChange(change))
     @clearRedoStack()
 
     if @undoStack.length - @maxUndoEntries > 0
@@ -145,14 +154,9 @@ class History
         when Checkpoint
           if entry.isBoundary
             return false
-        when Patch
+        else
           for {oldStart, oldExtent, newExtent, oldText, newText} in entry.getChanges()
             patch.splice(oldStart, newExtent, oldExtent, {oldText: newText, newText: oldText})
-          unless withinGroup
-            spliceIndex = i
-        else
-          {newStart, oldExtent, newExtent, oldText, newText} = entry
-          patch.splice(newStart, newExtent, oldExtent, {oldText: newText, newText: oldText})
           unless withinGroup
             spliceIndex = i
 
@@ -189,14 +193,9 @@ class History
         when Checkpoint
           if entry.isBoundary
             throw new Error("Invalid redo stack state")
-        when Patch
+        else
           for {newStart, oldExtent, newExtent, oldText, newText} in entry.getChanges()
             patch.splice(newStart, oldExtent, newExtent, {oldText, newText})
-          unless withinGroup
-            spliceIndex = i
-        else
-          {newStart, oldExtent, newExtent, oldText, newText} = entry
-          patch.splice(newStart, oldExtent, newExtent, {newText, oldText})
           unless withinGroup
             spliceIndex = i
 
@@ -238,12 +237,9 @@ class History
             snapshotBelow = entry.snapshot
           else if entry.isBoundary
             return false
-        when Patch
+        else
           for {oldStart, oldExtent, newExtent, oldText, newText} in entry.getChanges()
             patch.splice(oldStart, newExtent, oldExtent, {oldText: newText, newText: oldText})
-        else
-          {newStart, oldExtent, newExtent, oldText, newText} = entry
-          patch.splice(newStart, newExtent, oldExtent, {oldText: newText, newText: oldText})
 
     if spliceIndex?
       @undoStack.splice(spliceIndex)

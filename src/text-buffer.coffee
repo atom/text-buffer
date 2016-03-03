@@ -975,7 +975,7 @@ class TextBuffer
       @transactCallDepth--
 
     endMarkerSnapshot = @createMarkerSnapshot()
-    compactedChanges = @history.groupChangesSinceCheckpoint(checkpointBefore, endMarkerSnapshot, true, @transactCallDepth is 0)
+    compactedChanges = @history.groupChangesSinceCheckpoint(checkpointBefore, endMarkerSnapshot, true)
     @history.applyGroupingInterval(groupingInterval)
     @emitMarkerChangeEvents(endMarkerSnapshot)
     @handleChangedText(compactedChanges) if @transactCallDepth is 0
