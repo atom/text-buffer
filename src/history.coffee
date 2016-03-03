@@ -1,6 +1,6 @@
 Patch = require 'atom-patch'
 
-SerializationVersion = 3
+SerializationVersion = 4
 
 class Checkpoint
   constructor: (@id, @snapshot, @isBoundary) ->
@@ -282,15 +282,10 @@ class History
             type: 'group-end'
             snapshot: @delegate.serializeSnapshot(entry.snapshot)
           }
-        when Patch
+        else
           {
             type: 'patch'
             content: entry.serialize()
-          }
-        else
-          {
-            type: 'change'
-            content: @delegate.serializeChange(entry)
           }
 
   deserializeStack: (stack) ->
@@ -312,5 +307,3 @@ class History
           )
         when 'patch'
           Patch.deserialize(entry.content)
-        when 'change'
-          @delegate.deserializeChange(entry.content)
