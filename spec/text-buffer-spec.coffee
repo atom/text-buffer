@@ -362,7 +362,7 @@ describe "TextBuffer", ->
       expect(undoCount).toBe 4
       expect(buffer.getLineCount()).toBe 6
 
-      # A transaction with 2 changes uses 3 undo entries, so we can undo 4 of
+      # A transaction with 2 changes uses 4 undo entries, so we can undo 3 of
       # these transactions.
       buffer.setText("")
       buffer.clearUndoStack()
@@ -374,8 +374,8 @@ describe "TextBuffer", ->
 
       undoCount = 0
       undoCount++ while buffer.undo()
-      expect(undoCount).toBe 4
-      expect(buffer.getLineCount()).toBe 6
+      expect(undoCount).toBe 3
+      expect(buffer.getLineCount()).toBe 7
 
   describe "transactions", ->
     now = null

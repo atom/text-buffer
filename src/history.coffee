@@ -26,12 +26,14 @@ class History
 
   constructor: (@delegate, @maxUndoEntries) ->
     @nextCheckpointId = 0
+    @undoStackSize = 0
     @undoStack = []
     @redoStack = []
 
   createCheckpoint: (snapshot, isBoundary) ->
     checkpoint = new Checkpoint(@nextCheckpointId++, snapshot, isBoundary)
     @undoStack.push(checkpoint)
+    @undoStackSize += 1
     checkpoint.id
 
   groupChangesSinceCheckpoint: (checkpointId, endSnapshot, deleteCheckpoint=false) ->
@@ -39,6 +41,7 @@ class History
     checkpointIndex = null
     startSnapshot = null
     patchesSinceCheckpoint = []
+    previousStackSize = @undoStack
 
     for entry, i in @undoStack by -1
       break if checkpointIndex?
@@ -46,18 +49,23 @@ class History
       switch entry.constructor
         when GroupEnd
           withinGroup = true
+          @undoStackSize -= 1
         when GroupStart
           if withinGroup
             withinGroup = false
+            @undoStackSize -= 1
           else
+            @undoStackSize = previousStackSize
             return false
         when Checkpoint
           if entry.id is checkpointId
             checkpointIndex = i
             startSnapshot = entry.snapshot
           else if entry.isBoundary
+            @undoStackSize = previousStackSize
             return false
         else
+          @undoStackSize -= entry.getChanges().length
           patchesSinceCheckpoint.unshift(entry)
 
     if checkpointIndex?
@@ -67,8 +75,10 @@ class History
         @undoStack.push(new GroupStart(startSnapshot))
         @undoStack.push(composedPatches)
         @undoStack.push(new GroupEnd(endSnapshot))
+        @undoStackSize += composedPatches.getChanges().length + 2
       if deleteCheckpoint
         @undoStack.splice(checkpointIndex, 1)
+        @undoStackSize -= 1
       composedPatches
     else
       false
@@ -97,8 +107,9 @@ class History
   pushChange: (change) ->
     @undoStack.push(Patch.hunk(change))
     @clearRedoStack()
+    @undoStackSize += 1
 
-    if @undoStack.length - @maxUndoEntries > 0
+    if @undoStackSize > @maxUndoEntries
       spliceIndex = null
       withinGroup = false
       for entry, i in @undoStack
@@ -109,11 +120,18 @@ class History
               throw new Error("Invalid undo stack state")
             else
               withinGroup = true
+              @undoStackSize -= 1
           when GroupEnd
             if withinGroup
               spliceIndex = i
+              @undoStackSize -= 1
             else
               throw new Error("Invalid undo stack state")
+          when Patch
+            @undoStackSize -= entry.getChanges().length
+            unless withinGroup
+              spliceIndex = i
+
       @undoStack.splice(0, spliceIndex + 1) if spliceIndex?
 
   popUndoStack: ->
@@ -121,6 +139,7 @@ class History
     spliceIndex = null
     withinGroup = false
     patch = null
+    previousStackSize = @undoStackSize
 
     for entry, i in @undoStack by -1
       break if spliceIndex?
@@ -130,18 +149,25 @@ class History
           if withinGroup
             snapshotBelow = entry.snapshot
             spliceIndex = i
+            @undoStackSize -= 1
           else
+            @undoStackSize = previousStackSize
             return false
         when GroupEnd
           if withinGroup
             throw new Error("Invalid undo stack state")
           else
             withinGroup = true
+            @undoStackSize -= 1
         when Checkpoint
           if entry.isBoundary
+            @undoStackSize = previousStackSize
             return false
+          else
+            @undoStackSize -= 1
         else
           patch = Patch.invert(entry)
+          @undoStackSize -= patch.getChanges().length
           unless withinGroup
             spliceIndex = i
 
@@ -159,6 +185,7 @@ class History
     spliceIndex = null
     withinGroup = false
     patch = null
+    previousStackSize = @undoStackSize
 
     for entry, i in @redoStack by -1
       break if spliceIndex?
@@ -168,18 +195,24 @@ class History
           if withinGroup
             snapshotBelow = entry.snapshot
             spliceIndex = i
+            @undoStackSize += 1
           else
+            @undoStackSize = previousStackSize
             return false
         when GroupStart
           if withinGroup
             throw new Error("Invalid redo stack state")
           else
+            @undoStackSize += 1
             withinGroup = true
         when Checkpoint
           if entry.isBoundary
             throw new Error("Invalid redo stack state")
+          else
+            @undoStackSize += 1
         else
           patch = entry
+          @undoStackSize += patch.getChanges().length
           unless withinGroup
             spliceIndex = i
 
@@ -200,6 +233,7 @@ class History
     spliceIndex = null
     withinGroup = false
     patchesSinceCheckpoint = []
+    previousStackSize = @undoStackSize
 
     for entry, i in @undoStack by -1
       break if spliceIndex?
@@ -208,21 +242,28 @@ class History
         when GroupStart
           if withinGroup
             withinGroup = false
+            @undoStackSize -= 1
           else
+            @undoStackSize = previousStackSize
             return false
         when GroupEnd
           if withinGroup
             throw new Error("Invalid undo stack state")
           else
             withinGroup = true
+            @undoStackSize -= 1
         when Checkpoint
           if entry.id is checkpointId
             spliceIndex = i
             snapshotBelow = entry.snapshot
+            @undoStackSize -= 1
           else if entry.isBoundary
+            @undoStackSize = previousStackSize
             return false
         else
-          patchesSinceCheckpoint.push(Patch.invert(entry))
+          patch = Patch.invert(entry)
+          patchesSinceCheckpoint.push(patch)
+          @undoStackSize -= patch.getChanges().length
 
     if spliceIndex?
       @undoStack.splice(spliceIndex)
