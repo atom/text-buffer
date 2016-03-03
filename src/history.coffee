@@ -2,19 +2,6 @@ Patch = require 'atom-patch'
 
 SerializationVersion = 3
 
-buildPatchFromChange = (change) ->
-  {
-    getChanges: ->
-      [{
-        oldStart: change.newStart,
-        newStart: change.newStart,
-        oldExtent: change.oldExtent,
-        newExtent: change.newExtent,
-        oldText: change.oldText,
-        newText: change.newText
-      }]
-  }
-
 class Checkpoint
   constructor: (@id, @snapshot, @isBoundary) ->
     unless @snapshot?
@@ -108,7 +95,7 @@ class History
     throw new Error("Didn't find matching group-start entry")
 
   pushChange: (change) ->
-    @undoStack.push(buildPatchFromChange(change))
+    @undoStack.push(Patch.withSingleChange(change))
     @clearRedoStack()
 
     if @undoStack.length - @maxUndoEntries > 0
@@ -133,7 +120,7 @@ class History
     snapshotBelow = null
     spliceIndex = null
     withinGroup = false
-    patch = new Patch
+    patch = null
 
     for entry, i in @undoStack by -1
       break if spliceIndex?
@@ -154,8 +141,7 @@ class History
           if entry.isBoundary
             return false
         else
-          for {oldStart, oldExtent, newExtent, oldText, newText} in entry.getChanges()
-            patch.splice(oldStart, newExtent, oldExtent, {oldText: newText, newText: oldText})
+          patch = Patch.invert(entry)
           unless withinGroup
             spliceIndex = i
 
@@ -213,7 +199,7 @@ class History
     snapshotBelow = null
     spliceIndex = null
     withinGroup = false
-    patch = new Patch
+    patchesSinceCheckpoint = []
 
     for entry, i in @undoStack by -1
       break if spliceIndex?
@@ -236,14 +222,13 @@ class History
           else if entry.isBoundary
             return false
         else
-          for {oldStart, oldExtent, newExtent, oldText, newText} in entry.getChanges()
-            patch.splice(oldStart, newExtent, oldExtent, {oldText: newText, newText: oldText})
+          patchesSinceCheckpoint.push(Patch.invert(entry))
 
     if spliceIndex?
       @undoStack.splice(spliceIndex)
       {
         snapshot: snapshotBelow
-        patch: patch
+        patch: Patch.compose(patchesSinceCheckpoint)
       }
     else
       false
