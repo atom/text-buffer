@@ -2383,7 +2383,14 @@ describe "TextBuffer", ->
         buffer.transact ->
           buffer.insert([0, 0], "j")
 
+      # we emit an event at the end of each transaction
       expect(textChanges).toEqual([
+        {
+          start: {row: 0, column: 0},
+          oldExtent: {row: 0, column: 0},
+          newExtent: {row: 0, column: 1},
+          newText: "j"
+        },
         {
           start: {row: 0, column: 0},
           oldExtent: {row: 0, column: 0},

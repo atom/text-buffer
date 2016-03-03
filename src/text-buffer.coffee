@@ -928,7 +928,7 @@ class TextBuffer
       @applyChange(change) for change in pop.patch.getChanges()
       @restoreFromMarkerSnapshot(pop.snapshot)
       @emitMarkerChangeEvents(pop.snapshot)
-      @handleChangedText(pop.patch) if @transactCallDepth is 0
+      @handleChangedText(pop.patch)
       true
     else
       false
@@ -939,7 +939,7 @@ class TextBuffer
       @applyChange(change) for change in pop.patch.getChanges()
       @restoreFromMarkerSnapshot(pop.snapshot)
       @emitMarkerChangeEvents(pop.snapshot)
-      @handleChangedText(pop.patch) if @transactCallDepth is 0
+      @handleChangedText(pop.patch)
       true
     else
       false
@@ -978,7 +978,7 @@ class TextBuffer
     compactedChanges = @history.groupChangesSinceCheckpoint(checkpointBefore, endMarkerSnapshot, true)
     @history.applyGroupingInterval(groupingInterval)
     @emitMarkerChangeEvents(endMarkerSnapshot)
-    @handleChangedText(compactedChanges) if @transactCallDepth is 0
+    @handleChangedText(compactedChanges)
     result
 
   abortTransaction: ->
@@ -1008,7 +1008,7 @@ class TextBuffer
       @applyChange(change) for change in truncated.patch.getChanges()
       @restoreFromMarkerSnapshot(truncated.snapshot)
       @emitter.emit 'did-update-markers'
-      @handleChangedText(truncated.patch) if @transactCallDepth is 0
+      @handleChangedText(truncated.patch)
       true
     else
       false
