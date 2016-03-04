@@ -936,6 +936,31 @@ describe "TextBuffer", ->
       expect(markerLayerA.id).not.toBe(markerLayerB.id)
       expect(bufferB.getMarker(marker1A.id)).toBeUndefined()
 
+    it "doesn't remember marker layers when calling serialize with {markerLayers: false}", ->
+      bufferA = new TextBuffer(text: "world")
+      layerA = bufferA.addMarkerLayer(maintainHistory: true)
+      markerA = layerA.markPosition([0, 3])
+      markerB = null
+      bufferA.transact ->
+        bufferA.insert([0, 0], 'hello ')
+        markerB = layerA.markPosition([0, 5])
+      bufferA.undo()
+
+      bufferB = TextBuffer.deserialize(bufferA.serialize({markerLayers: false}))
+      expect(bufferB.getText()).toBe("world")
+      expect(bufferB.getMarkerLayer(layerA.id)?.getMarker(markerA.id)).toBeUndefined()
+      expect(bufferB.getMarkerLayer(layerA.id)?.getMarker(markerB.id)).toBeUndefined()
+
+      bufferB.redo()
+      expect(bufferB.getText()).toBe("hello world")
+      expect(bufferB.getMarkerLayer(layerA.id)?.getMarker(markerA.id)).toBeUndefined()
+      expect(bufferB.getMarkerLayer(layerA.id)?.getMarker(markerB.id)).toBeUndefined()
+
+      bufferB.undo()
+      expect(bufferB.getText()).toBe("world")
+      expect(bufferB.getMarkerLayer(layerA.id)?.getMarker(markerA.id)).toBeUndefined()
+      expect(bufferB.getMarkerLayer(layerA.id)?.getMarker(markerB.id)).toBeUndefined()
+
     it "serializes / deserializes the buffer's unique identifier", ->
       bufferA = new TextBuffer()
       bufferB = TextBuffer.deserialize(JSON.parse(JSON.stringify(bufferA.serialize())))

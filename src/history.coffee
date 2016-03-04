@@ -280,11 +280,11 @@ class History
   clearRedoStack: ->
     @redoStack.length = 0
 
-  serialize: ->
+  serialize: (options) ->
     version: SerializationVersion
     nextCheckpointId: @nextCheckpointId
-    undoStack: @serializeStack(@undoStack)
-    redoStack: @serializeStack(@redoStack)
+    undoStack: @serializeStack(@undoStack, options)
+    redoStack: @serializeStack(@redoStack, options)
 
   deserialize: (state) ->
     return unless state.version is SerializationVersion
@@ -303,25 +303,25 @@ class History
         return i
     return null
 
-  serializeStack: (stack) ->
+  serializeStack: (stack, options) ->
     for entry in stack
       switch entry.constructor
         when Checkpoint
           {
             type: 'checkpoint'
             id: entry.id
-            snapshot: @delegate.serializeSnapshot(entry.snapshot)
+            snapshot: @delegate.serializeSnapshot(entry.snapshot, options)
             isBoundary: entry.isBoundary
           }
         when GroupStart
           {
             type: 'group-start'
-            snapshot: @delegate.serializeSnapshot(entry.snapshot)
+            snapshot: @delegate.serializeSnapshot(entry.snapshot, options)
           }
         when GroupEnd
           {
             type: 'group-end'
-            snapshot: @delegate.serializeSnapshot(entry.snapshot)
+            snapshot: @delegate.serializeSnapshot(entry.snapshot, options)
           }
         else
           {

@@ -136,17 +136,21 @@ class TextBuffer
   getId: ->
     @id
 
-  serialize: ->
+  serialize: (options) ->
+    options ?= {}
+    options.markerLayers ?= true
+
     markerLayers = {}
-    for id, layer of @markerLayers
-      markerLayers[id] = layer.serialize() if layer.maintainHistory
+    if options.markerLayers
+      for id, layer of @markerLayers
+        markerLayers[id] = layer.serialize() if layer.maintainHistory
 
     id: @getId()
     text: @getText()
     defaultMarkerLayerId: @defaultMarkerLayer.id
     markerLayers: markerLayers
     nextMarkerLayerId: @nextMarkerLayerId
-    history: @history.serialize()
+    history: @history.serialize(options)
     encoding: @getEncoding()
     filePath: @getPath()
     digestWhenLastPersisted: @file?.getDigestSync()
@@ -1533,7 +1537,9 @@ class TextBuffer
       newText: change.newText
     }
 
-  serializeSnapshot: (snapshot) ->
+  serializeSnapshot: (snapshot, options) ->
+    return unless options.markerLayers
+
     MarkerLayer.serializeSnapshot(snapshot)
 
   deserializeSnapshot: (snapshot) ->
