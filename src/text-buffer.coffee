@@ -1,4 +1,3 @@
-Serializable = require 'serializable'
 {Emitter, CompositeDisposable} = require 'event-kit'
 {File} = require 'pathwatcher'
 SpanSkipList = require 'span-skip-list'
@@ -65,8 +64,6 @@ class TextBuffer
   @Patch: require('./patch')
   @newlineRegex: newlineRegex
 
-  Serializable.includeInto(this)
-
   cachedText: null
   encoding: null
   stoppedChangingDelay: 300
@@ -91,7 +88,10 @@ class TextBuffer
   #   * `load` A {Boolean}, `true` to asynchronously load the buffer from disk
   #     after initialization.
   #   * `text` The initial {String} text of the buffer.
-  constructor: (params) ->
+  constructor: (params, skipInitialization) ->
+    @initialize(params) unless skipInitialization
+
+  initialize: (params) ->
     text = params if typeof params is 'string'
 
     @emitter = new Emitter
@@ -120,23 +120,23 @@ class TextBuffer
     @setPath(params.filePath) if params?.filePath
     @load() if params?.load
 
+  @deserialize: (params) ->
+    buffer = new TextBuffer(null, true)
+    markerLayers = {}
+    for layerId, layerState of params.markerLayers
+      markerLayers[layerId] = MarkerLayer.deserialize(buffer, layerState)
+    params.markerLayers = markerLayers
+    params.defaultMarkerLayer = params.markerLayers[params.defaultMarkerLayerId]
+    params.history = History.deserialize(buffer, params.history)
+    params.load = true if params.filePath
+    buffer.initialize(params)
+    buffer
+
   # Returns a {String} representing a unique identifier for this {TextBuffer}.
   getId: ->
     @id
 
-  # Called by {Serializable} mixin during deserialization.
-  deserializeParams: (params) ->
-    markerLayers = {}
-    for layerId, layerState of params.markerLayers
-      markerLayers[layerId] = MarkerLayer.deserialize(this, layerState)
-    params.markerLayers = markerLayers
-    params.defaultMarkerLayer = params.markerLayers[params.defaultMarkerLayerId]
-    params.history = History.deserialize(this, params.history)
-    params.load = true if params.filePath
-    params
-
-  # Called by {Serializable} mixin during serialization.
-  serializeParams: ->
+  serialize: ->
     markerLayers = {}
     for id, layer of @markerLayers
       markerLayers[id] = layer.serialize() if layer.maintainHistory

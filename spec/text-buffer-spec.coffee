@@ -961,7 +961,9 @@ describe "TextBuffer", ->
           buffer.append("!")
           buffer.save()
           expect(buffer.isModified()).toBeFalsy()
-          buffer2 = buffer.testSerialization({load: false})
+          params = buffer.serialize()
+          params.load = false
+          buffer2 = TextBuffer.deserialize(params)
           buffer2ModifiedEvents = []
           buffer2.onDidChangeModified (value) -> buffer2ModifiedEvents.push(value)
           buffer2.load().then ->
@@ -987,7 +989,9 @@ describe "TextBuffer", ->
             buffer.setText("BUFFER CHANGE")
             fs.writeFileSync(filePath, "DISK CHANGE")
 
-            buffer2 = buffer.testSerialization({load: false})
+            params = buffer.serialize()
+            params.load = false
+            buffer2 = TextBuffer.deserialize(params)
             buffer2.load().then ->
               expect(buffer2.getPath()).toBe(buffer.getPath())
               expect(buffer2.getText()).toBe("DISK CHANGE")
@@ -1001,7 +1005,7 @@ describe "TextBuffer", ->
             buffer.setText("abc")
             buffer.append("d")
 
-            buffer2 = buffer.testSerialization()
+            buffer2 = TextBuffer.deserialize(buffer.serialize())
             buffer2.load().then ->
               done()
 
@@ -1024,7 +1028,7 @@ describe "TextBuffer", ->
           buffer = new TextBuffer()
           buffer.setText("abc")
 
-          buffer2 = buffer.testSerialization()
+          buffer2 = TextBuffer.deserialize(buffer.serialize())
           expect(buffer2.getPath()).toBeUndefined()
           expect(buffer2.getText()).toBe("abc")
 
