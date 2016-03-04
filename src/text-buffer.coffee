@@ -741,7 +741,6 @@ class TextBuffer
         markerLayer.splice(oldRange.start, oldExtent, newExtent)
 
     @conflict = false if @conflict and !@isModified()
-    @scheduleModifiedEvents()
 
     @changeCount++
     @emitter.emit 'did-change', changeEvent
@@ -928,7 +927,7 @@ class TextBuffer
       @applyChange(change) for change in pop.patch.getChanges()
       @restoreFromMarkerSnapshot(pop.snapshot)
       @emitMarkerChangeEvents(pop.snapshot)
-      @handleChangedText(pop.patch)
+      @emitDidChangeTextEvent(pop.patch)
       true
     else
       false
@@ -939,7 +938,7 @@ class TextBuffer
       @applyChange(change) for change in pop.patch.getChanges()
       @restoreFromMarkerSnapshot(pop.snapshot)
       @emitMarkerChangeEvents(pop.snapshot)
-      @handleChangedText(pop.patch)
+      @emitDidChangeTextEvent(pop.patch)
       true
     else
       false
@@ -978,7 +977,7 @@ class TextBuffer
     compactedChanges = @history.groupChangesSinceCheckpoint(checkpointBefore, endMarkerSnapshot, true)
     @history.applyGroupingInterval(groupingInterval)
     @emitMarkerChangeEvents(endMarkerSnapshot)
-    @handleChangedText(compactedChanges)
+    @emitDidChangeTextEvent(compactedChanges)
     result
 
   abortTransaction: ->
@@ -1008,7 +1007,7 @@ class TextBuffer
       @applyChange(change) for change in truncated.patch.getChanges()
       @restoreFromMarkerSnapshot(truncated.snapshot)
       @emitter.emit 'did-update-markers'
-      @handleChangedText(truncated.patch)
+      @emitDidChangeTextEvent(truncated.patch)
       true
     else
       false
@@ -1470,9 +1469,10 @@ class TextBuffer
     for markerLayerId, markerLayer of @markerLayers
       markerLayer.emitChangeEvents(snapshot?[markerLayerId])
 
-  handleChangedText: (patch) ->
+  emitDidChangeTextEvent: (patch) ->
     @emitter.emit 'did-change-text', {changes: Object.freeze(normalizePatchChanges(patch.getChanges()))}
     @patchesSinceLastStoppedChangingEvent.push(patch)
+    @scheduleDidStopChangingEvent()
 
   # Identifies if the buffer belongs to multiple editors.
   #
@@ -1484,7 +1484,7 @@ class TextBuffer
   cancelStoppedChangingTimeout: ->
     clearTimeout(@stoppedChangingTimeout) if @stoppedChangingTimeout
 
-  scheduleModifiedEvents: ->
+  scheduleDidStopChangingEvent: ->
     @cancelStoppedChangingTimeout()
     stoppedChangingCallback = =>
       @stoppedChangingTimeout = null
