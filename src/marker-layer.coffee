@@ -5,8 +5,6 @@ Range = require "./range"
 Marker = require "./marker"
 MarkerIndex = require "marker-index"
 {intersectSet} = require "./set-helpers"
-FlatBuffers = require '../vendor/flatbuffers'
-Serialization = require './serialization-schema_generated'
 
 SerializationVersion = 2
 
@@ -21,55 +19,15 @@ class MarkerLayer
     store
 
   @serializeSnapshot: (snapshot) ->
-    builder = new FlatBuffers.Builder
-    layers = []
-    for layerId, markerSnapshots of snapshot
-      markers = []
-      for markerId, markerSnapshot of markerSnapshots
-        invalidateString = builder.createString(markerSnapshot.invalidate)
-        propertiesString = builder.createString(JSON.stringify(markerSnapshot.properties))
-        Serialization.Marker.startMarker(builder)
-        Serialization.Marker.addId(builder, parseInt(markerId))
-        Serialization.Marker.addInvalidate(builder, invalidateString)
-        Serialization.Marker.addProperties(builder, propertiesString)
-        Serialization.Marker.addRange(builder, markerSnapshot.range.serializeBinary(builder)) if markerSnapshot.range?
-        Serialization.Marker.addReversed(builder, markerSnapshot.reversed)
-        Serialization.Marker.addValid(builder, markerSnapshot.valid)
-        Serialization.Marker.addTailed(builder, markerSnapshot.tailed)
-        markers.push(Serialization.Marker.endMarker(builder))
-      markersVector = Serialization.MarkerLayer.createMarkersVector(builder, markers)
-      Serialization.MarkerLayer.startMarkerLayer(builder)
-      Serialization.MarkerLayer.addId(builder, parseInt(layerId))
-      Serialization.MarkerLayer.addMarkers(builder, markersVector)
-      layers.push(Serialization.MarkerLayer.endMarkerLayer(builder))
-    layersVector = Serialization.MarkersSnapshot.createMarkerLayersVector(builder, layers)
-    Serialization.MarkersSnapshot.startMarkersSnapshot(builder)
-    Serialization.MarkersSnapshot.addMarkerLayers(builder, layersVector)
-    builder.finish(Serialization.MarkersSnapshot.endMarkersSnapshot(builder))
+    snapshot
 
-    buffer = builder.dataBuffer()
-    {position: buffer.position(), bytes: buffer.bytes()}
-
-  @deserializeSnapshot: (serializedSnapshot) ->
-    {position, bytes} = serializedSnapshot
-    buffer = new FlatBuffers.ByteBuffer(bytes)
-    buffer.setPosition(position)
-    snapshot = Serialization.MarkersSnapshot.getRootAsMarkersSnapshot(buffer)
+  @deserializeSnapshot: (snapshot) ->
     result = {}
-    for i in [0...snapshot.markerLayersLength()] by 1
-      markerLayer = snapshot.markerLayers(i)
-      layerId = markerLayer.id()
+    for layerId, markerSnapshots of snapshot
       result[layerId] = {}
-      for j in [0...markerLayer.markersLength()] by 1
-        marker = markerLayer.markers(j)
-        markerId = marker.id()
-        result[layerId][markerId] = {}
-        result[layerId][markerId].range = Range.fromBinaryObject(marker.range()) if marker.range()?
-        result[layerId][markerId].properties = JSON.parse(marker.properties())
-        result[layerId][markerId].valid = marker.valid()
-        result[layerId][markerId].invalidate = marker.invalidate()
-        result[layerId][markerId].reversed = marker.reversed()
-        result[layerId][markerId].tailed = marker.tailed()
+      for markerId, markerSnapshot of markerSnapshots
+        result[layerId][markerId] = clone(markerSnapshot)
+        result[layerId][markerId].range = Range.fromObject(markerSnapshot.range)
     result
 
   ###

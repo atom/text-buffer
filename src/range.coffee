@@ -1,6 +1,5 @@
 Point = require './point'
 {newlineRegex} = require './helpers'
-Serialization = require './serialization-schema_generated'
 
 # Public: Represents a region in a buffer in row/column coordinates.
 #
@@ -47,11 +46,6 @@ class Range
       if copy then object.copy() else object
     else
       new this(object.start, object.end)
-
-  @fromBinaryObject: (binaryRange) ->
-    start = binaryRange.start()
-    end = binaryRange.end()
-    new Range(new Point(start.row(), start.column()), new Point(end.row(), end.column()))
 
   # Returns a range based on an optional starting point and the given text. If
   # no starting point is given it will be assumed to be [0, 0].
@@ -141,9 +135,6 @@ class Range
   # Public: Returns a plain javascript object representation of the range.
   serialize: ->
     [@start.serialize(), @end.serialize()]
-
-  serializeBinary: (builder) ->
-    Serialization.Range.createRange(builder, @start.row, @start.column, @end.row, @end.column)
 
   ###
   Section: Range Details
