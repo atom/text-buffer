@@ -458,8 +458,8 @@ class DisplayLayer
 
   getScreenLines: (startRow=0, endRow=@getScreenLineCount()) ->
     screenLines = []
-    containingTags = []
     @screenLineIterator.seekToScreenRow(startRow)
+    containingTags = @decorationIterator.seek(@screenLineIterator.getBufferStart())
 
     while @screenLineIterator.getScreenRow() < endRow
       bufferStart = @screenLineIterator.getBufferStart()
@@ -467,6 +467,7 @@ class DisplayLayer
       spatialDecoration = null
       closeTags = []
       openTags = containingTags.slice()
+      atLineStart = true
 
       for {screenExtent, bufferExtent, metadata} in @screenLineIterator.getTokens()
         spatialTokenBufferEnd = traverse(bufferStart, bufferExtent)
@@ -474,8 +475,11 @@ class DisplayLayer
         if spatialDecoration?
           @updateTags(closeTags, openTags, containingTags, [spatialDecoration], [])
 
-        while comparePoints(@decorationIterator.getPosition(), bufferStart) is 0
-          @updateTags(closeTags, openTags, containingTags, @decorationIterator.getOpenTags(), @decorationIterator.getCloseTags())
+        if metadata?.fold
+          @updateTags(closeTags, openTags, containingTags, containingTags.slice().reverse(), [], atLineStart)
+          tagsToReopenAfterFold = @decorationIterator.seek(spatialTokenBufferEnd)
+        else if comparePoints(@decorationIterator.getPosition(), bufferStart) is 0
+          @updateTags(closeTags, openTags, containingTags, @decorationIterator.getCloseTags(), @decorationIterator.getOpenTags(), atLineStart)
           @decorationIterator.moveToSuccessor()
 
         if spatialDecoration = @getSpatialTokenTextDecoration(metadata)
@@ -487,15 +491,20 @@ class DisplayLayer
           bufferStart = @decorationIterator.getPosition()
           closeTags = []
           openTags = []
-          @updateTags(closeTags, openTags, containingTags, @decorationIterator.getOpenTags(), @decorationIterator.getCloseTags())
-          @spatialTokenIterator.moveToSuccessor()
+          @updateTags(closeTags, openTags, containingTags, @decorationIterator.getCloseTags(), @decorationIterator.getOpenTags())
+          @decorationIterator.moveToSuccessor()
 
         text = @buildTokenText(metadata, screenExtent, bufferStart, spatialTokenBufferEnd)
         tokens.push({closeTags, openTags, text})
+
         closeTags = []
         openTags = []
+        if metadata?.fold
+          @updateTags(closeTags, openTags, containingTags, [], tagsToReopenAfterFold)
+          tagsToReopenAfterFold = null
 
         bufferStart = spatialTokenBufferEnd
+        atLineStart = false
 
       if containingTags.length > 0
         tokens.push({closeTags: containingTags.slice().reverse(), openTags: [], text: ''})
@@ -525,26 +534,31 @@ class DisplayLayer
     else
       @buffer.getTextInRange(Range(bufferStart, bufferEnd))
 
-  updateTags: (closeTags, openTags, containingTags, tagsToClose, tagsToOpen) ->
-    tagsToCloseCounts = {}
-    for tag in tagsToClose
-      tagsToCloseCounts[tag] ?= 0
-      tagsToCloseCounts[tag]++
+  updateTags: (closeTags, openTags, containingTags, tagsToClose, tagsToOpen, atLineStart) ->
+    if atLineStart
+      for closeTag in tagsToClose
+        openTags.splice(openTags.lastIndexOf(closeTag), 1)
+        containingTags.splice(containingTags.lastIndexOf(closeTag), 1)
+    else
+      tagsToCloseCounts = {}
+      for tag in tagsToClose
+        tagsToCloseCounts[tag] ?= 0
+        tagsToCloseCounts[tag]++
 
-    containingTagsIndex = containingTags.length
-    for closeTag in tagsToClose when tagsToCloseCounts[closeTag] > 0
-      while mostRecentOpenTag = containingTags[--containingTagsIndex]
-        if mostRecentOpenTag is closeTag
-          containingTags.splice(containingTagsIndex, 1)
-          break
+      containingTagsIndex = containingTags.length
+      for closeTag in tagsToClose when tagsToCloseCounts[closeTag] > 0
+        while mostRecentOpenTag = containingTags[--containingTagsIndex]
+          if mostRecentOpenTag is closeTag
+            containingTags.splice(containingTagsIndex, 1)
+            break
 
-        closeTags.push(mostRecentOpenTag)
-        if tagsToCloseCounts[mostRecentOpenTag] > 0
-          containingTags.splice(containingTagsIndex, 1)
-          tagsToCloseCounts[mostRecentOpenTag]--
-        else
-          openTags.unshift(mostRecentOpenTag)
-      closeTags.push(closeTag)
+          closeTags.push(mostRecentOpenTag)
+          if tagsToCloseCounts[mostRecentOpenTag] > 0
+            containingTags.splice(containingTagsIndex, 1)
+            tagsToCloseCounts[mostRecentOpenTag]--
+          else
+            openTags.unshift(mostRecentOpenTag)
+        closeTags.push(closeTag)
 
     openTags.push(tagsToOpen...)
     containingTags.push(tagsToOpen...)

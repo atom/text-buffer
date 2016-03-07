@@ -467,40 +467,20 @@ describe "DisplayLayer", ->
 
       verifyTokenIterator(displayLayer)
       expectTokens(displayLayer, [
-        {start: [0, 0], end: [0, 1], close: [], open: []},
-        {start: [0, 1], end: [0, 2], close: [], open: ['aa']},
-        {start: [0, 2], end: [0, 3], close: [], open: ['ab']},
-        {start: [0, 3], end: [0, 4], close: [], open: ['ac']},
-        {start: [0, 4], end: [0, 5], close: ['ac', 'ab', 'aa'], open: ['ab', 'ac']},
-        {start: [0, 5], end: [0, 5], close: ['ac', 'ab'], open: []},
-        {start: [1, 0], end: [1, 2], close: [], open: ['ab', 'ac']},
-        {start: [1, 2], end: [1, 3], close: ['ac', 'ab'], open: []},
-        {start: [1, 3], end: [1, 5], close: [], open: ['ad']},
-        {start: [1, 5], end: [1, 5], close: ['ad'], open: []},
-        {start: [2, 0], end: [2, 3], close: [], open: []},
-        {start: [2, 3], end: [2, 5], close: [], open: ['ae']},
-        {start: [2, 5], end: [2, 5], close: ['ae'], open: []}
+        {text: 'a', close: [], open: []},
+        {text: 'b', close: [], open: ['aa']},
+        {text: 'c', close: [], open: ['ab']},
+        {text: 'd', close: [], open: ['ac']},
+        {text: 'e', close: ['ac', 'ab', 'aa'], open: ['ab', 'ac']},
+        {text: '', close: ['ac', 'ab'], open: []},
+        {text: 'fg', close: [], open: ['ab', 'ac']},
+        {text: 'h', close: ['ac', 'ab'], open: []},
+        {text: 'ij', close: [], open: ['ad']},
+        {text: '', close: ['ad'], open: []},
+        {text: 'klm', close: [], open: []},
+        {text: 'no', close: [], open: ['ae']},
+        {text: '', close: ['ae'], open: []}
       ])
-
-      tokenIterator = displayLayer.buildTokenIterator()
-
-      tokenIterator.seekToScreenRow(0)
-      expect(tokenIterator.getStartScreenPosition()).toEqual [0, 0]
-      expect(tokenIterator.getEndScreenPosition()).toEqual [0, 1]
-      expect(tokenIterator.getCloseTags()).toEqual []
-      expect(tokenIterator.getOpenTags()).toEqual []
-
-      tokenIterator.seekToScreenRow(1)
-      expect(tokenIterator.getStartScreenPosition()).toEqual [1, 0]
-      expect(tokenIterator.getEndScreenPosition()).toEqual [1, 2]
-      expect(tokenIterator.getCloseTags()).toEqual []
-      expect(tokenIterator.getOpenTags()).toEqual ['ab', 'ac']
-
-      tokenIterator.seekToScreenRow(2)
-      expect(tokenIterator.getStartScreenPosition()).toEqual [2, 0]
-      expect(tokenIterator.getEndScreenPosition()).toEqual [2, 3]
-      expect(tokenIterator.getCloseTags()).toEqual []
-      expect(tokenIterator.getOpenTags()).toEqual []
 
     it "truncates decoration tags at fold boundaries", ->
       buffer = new TextBuffer(text: """
@@ -523,13 +503,13 @@ describe "DisplayLayer", ->
       ]))
 
       expectTokens(displayLayer, [
-        {start: [0, 0], end: [0, 1], close: [], open: []},
-        {start: [0, 1], end: [0, 2], close: [], open: ['preceding-fold', 'ending-at-fold-start', 'overlapping-fold-start', 'surrounding-fold']},
-        {start: [0, 2], end: [0, 3], close: ['surrounding-fold', 'overlapping-fold-start', 'ending-at-fold-start', 'preceding-fold'], open: ['ending-at-fold-start', 'overlapping-fold-start', 'surrounding-fold']},
-        {start: [0, 3], end: [0, 4], close: ['surrounding-fold', 'overlapping-fold-start', 'ending-at-fold-start'], open: []},
-        {start: [0, 4], end: [0, 6], close: [], open: ['surrounding-fold', 'overlapping-fold-end', 'starting-at-fold-end']},
-        {start: [0, 6], end: [0, 7], close: ['starting-at-fold-end', 'overlapping-fold-end'], open: ['following-fold']},
-        {start: [0, 7], end: [0, 7], close: ['following-fold', 'surrounding-fold'], open: []}
+        {text: 'a', close: [], open: []},
+        {text: 'b', close: [], open: ['preceding-fold', 'ending-at-fold-start', 'overlapping-fold-start', 'surrounding-fold']},
+        {text: 'c', close: ['surrounding-fold', 'overlapping-fold-start', 'ending-at-fold-start', 'preceding-fold'], open: ['ending-at-fold-start', 'overlapping-fold-start', 'surrounding-fold']},
+        {text: '⋯', close: ['surrounding-fold', 'overlapping-fold-start', 'ending-at-fold-start'], open: []},
+        {text: 'mn', close: [], open: ['surrounding-fold', 'overlapping-fold-end', 'starting-at-fold-end']},
+        {text: 'o', close: ['starting-at-fold-end', 'overlapping-fold-end'], open: ['following-fold']},
+        {text: '', close: ['following-fold', 'surrounding-fold'], open: []}
       ])
 
     it "emits update events from the display layer when text decoration ranges are invalidated", ->
