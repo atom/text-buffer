@@ -1,4 +1,7 @@
-SerializationVersion = 3
+Patch = require 'atom-patch'
+MarkerLayer = require './marker-layer'
+
+SerializationVersion = 4
 
 class Checkpoint
   constructor: (@id, @snapshot, @isBoundary) ->
@@ -17,26 +20,29 @@ class GroupEnd
 # Manages undo/redo for {TextBuffer}
 module.exports =
 class History
-  @deserialize: (delegate, state) ->
-    history = new History(delegate)
+  @deserialize: (state) ->
+    history = new History
     history.deserialize(state)
     history
 
-  constructor: (@delegate, @maxUndoEntries) ->
+  constructor: (@maxUndoEntries) ->
     @nextCheckpointId = 0
+    @undoStackSize = 0
     @undoStack = []
     @redoStack = []
 
   createCheckpoint: (snapshot, isBoundary) ->
     checkpoint = new Checkpoint(@nextCheckpointId++, snapshot, isBoundary)
     @undoStack.push(checkpoint)
+    @undoStackSize += 1
     checkpoint.id
 
   groupChangesSinceCheckpoint: (checkpointId, endSnapshot, deleteCheckpoint=false) ->
     withinGroup = false
     checkpointIndex = null
     startSnapshot = null
-    changesSinceCheckpoint = []
+    patchesSinceCheckpoint = []
+    previousStackSize = @undoStack
 
     for entry, i in @undoStack by -1
       break if checkpointIndex?
@@ -44,29 +50,37 @@ class History
       switch entry.constructor
         when GroupEnd
           withinGroup = true
+          @undoStackSize -= 1
         when GroupStart
           if withinGroup
             withinGroup = false
+            @undoStackSize -= 1
           else
+            @undoStackSize = previousStackSize
             return false
         when Checkpoint
           if entry.id is checkpointId
             checkpointIndex = i
             startSnapshot = entry.snapshot
           else if entry.isBoundary
+            @undoStackSize = previousStackSize
             return false
         else
-          changesSinceCheckpoint.unshift(entry)
+          @undoStackSize -= entry.getChanges().length
+          patchesSinceCheckpoint.unshift(entry)
 
     if checkpointIndex?
-      if changesSinceCheckpoint.length > 0
+      composedPatches = Patch.compose(patchesSinceCheckpoint)
+      if patchesSinceCheckpoint.length > 0
         @undoStack.splice(checkpointIndex + 1)
         @undoStack.push(new GroupStart(startSnapshot))
-        @undoStack.push(changesSinceCheckpoint...)
+        @undoStack.push(composedPatches)
         @undoStack.push(new GroupEnd(endSnapshot))
+        @undoStackSize += composedPatches.getChanges().length + 2
       if deleteCheckpoint
         @undoStack.splice(checkpointIndex, 1)
-      true
+        @undoStackSize -= 1
+      composedPatches
     else
       false
 
@@ -84,16 +98,19 @@ class History
         previousEntry = @undoStack[i - 1]
         if previousEntry instanceof GroupEnd
           if (topEntry.timestamp - previousEntry.timestamp < Math.min(previousEntry.groupingInterval, groupingInterval))
-            @undoStack.splice(i - 1, 2)
+            previousPatch = @undoStack[i - 2]
+            currentPatch = @undoStack[i + 1]
+            @undoStack.splice(i - 2, 4, Patch.compose([previousPatch, currentPatch]))
         return
 
     throw new Error("Didn't find matching group-start entry")
 
   pushChange: (change) ->
-    @undoStack.push(change)
+    @undoStack.push(Patch.hunk(change))
     @clearRedoStack()
+    @undoStackSize += 1
 
-    if @undoStack.length - @maxUndoEntries > 0
+    if @undoStackSize > @maxUndoEntries
       spliceIndex = null
       withinGroup = false
       for entry, i in @undoStack
@@ -104,18 +121,26 @@ class History
               throw new Error("Invalid undo stack state")
             else
               withinGroup = true
+              @undoStackSize -= 1
           when GroupEnd
             if withinGroup
               spliceIndex = i
+              @undoStackSize -= 1
             else
               throw new Error("Invalid undo stack state")
+          when Patch
+            @undoStackSize -= entry.getChanges().length
+            unless withinGroup
+              spliceIndex = i
+
       @undoStack.splice(0, spliceIndex + 1) if spliceIndex?
 
   popUndoStack: ->
     snapshotBelow = null
     spliceIndex = null
     withinGroup = false
-    invertedChanges = []
+    patch = null
+    previousStackSize = @undoStackSize
 
     for entry, i in @undoStack by -1
       break if spliceIndex?
@@ -125,18 +150,25 @@ class History
           if withinGroup
             snapshotBelow = entry.snapshot
             spliceIndex = i
+            @undoStackSize -= 1
           else
+            @undoStackSize = previousStackSize
             return false
         when GroupEnd
           if withinGroup
             throw new Error("Invalid undo stack state")
           else
             withinGroup = true
+            @undoStackSize -= 1
         when Checkpoint
           if entry.isBoundary
+            @undoStackSize = previousStackSize
             return false
+          else
+            @undoStackSize -= 1
         else
-          invertedChanges.push(@delegate.invertChange(entry))
+          patch = Patch.invert(entry)
+          @undoStackSize -= patch.getChanges().length
           unless withinGroup
             spliceIndex = i
 
@@ -144,7 +176,7 @@ class History
       @redoStack.push(@undoStack.splice(spliceIndex).reverse()...)
       {
         snapshot: snapshotBelow
-        changes: invertedChanges
+        patch: patch
       }
     else
       false
@@ -153,7 +185,8 @@ class History
     snapshotBelow = null
     spliceIndex = null
     withinGroup = false
-    changes = []
+    patch = null
+    previousStackSize = @undoStackSize
 
     for entry, i in @redoStack by -1
       break if spliceIndex?
@@ -163,18 +196,24 @@ class History
           if withinGroup
             snapshotBelow = entry.snapshot
             spliceIndex = i
+            @undoStackSize += 1
           else
+            @undoStackSize = previousStackSize
             return false
         when GroupStart
           if withinGroup
             throw new Error("Invalid redo stack state")
           else
+            @undoStackSize += 1
             withinGroup = true
         when Checkpoint
           if entry.isBoundary
             throw new Error("Invalid redo stack state")
+          else
+            @undoStackSize += 1
         else
-          changes.push(entry)
+          patch = entry
+          @undoStackSize += patch.getChanges().length
           unless withinGroup
             spliceIndex = i
 
@@ -185,7 +224,7 @@ class History
       @undoStack.push(@redoStack.splice(spliceIndex).reverse()...)
       {
         snapshot: snapshotBelow
-        changes: changes
+        patch: patch
       }
     else
       false
@@ -194,7 +233,8 @@ class History
     snapshotBelow = null
     spliceIndex = null
     withinGroup = false
-    invertedChanges = []
+    patchesSinceCheckpoint = []
+    previousStackSize = @undoStackSize
 
     for entry, i in @undoStack by -1
       break if spliceIndex?
@@ -203,27 +243,34 @@ class History
         when GroupStart
           if withinGroup
             withinGroup = false
+            @undoStackSize -= 1
           else
+            @undoStackSize = previousStackSize
             return false
         when GroupEnd
           if withinGroup
             throw new Error("Invalid undo stack state")
           else
             withinGroup = true
+            @undoStackSize -= 1
         when Checkpoint
           if entry.id is checkpointId
             spliceIndex = i
             snapshotBelow = entry.snapshot
+            @undoStackSize -= 1
           else if entry.isBoundary
+            @undoStackSize = previousStackSize
             return false
         else
-          invertedChanges.push(@delegate.invertChange(entry))
+          patch = Patch.invert(entry)
+          patchesSinceCheckpoint.push(patch)
+          @undoStackSize -= patch.getChanges().length
 
     if spliceIndex?
       @undoStack.splice(spliceIndex)
       {
         snapshot: snapshotBelow
-        changes: invertedChanges
+        patch: Patch.compose(patchesSinceCheckpoint)
       }
     else
       false
@@ -234,11 +281,11 @@ class History
   clearRedoStack: ->
     @redoStack.length = 0
 
-  serialize: ->
+  serialize: (options) ->
     version: SerializationVersion
     nextCheckpointId: @nextCheckpointId
-    undoStack: @serializeStack(@undoStack)
-    redoStack: @serializeStack(@redoStack)
+    undoStack: @serializeStack(@undoStack, options)
+    redoStack: @serializeStack(@redoStack, options)
 
   deserialize: (state) ->
     return unless state.version is SerializationVersion
@@ -257,30 +304,30 @@ class History
         return i
     return null
 
-  serializeStack: (stack) ->
+  serializeStack: (stack, options) ->
     for entry in stack
       switch entry.constructor
         when Checkpoint
           {
             type: 'checkpoint'
             id: entry.id
-            snapshot: @delegate.serializeSnapshot(entry.snapshot)
+            snapshot: @serializeSnapshot(entry.snapshot, options)
             isBoundary: entry.isBoundary
           }
         when GroupStart
           {
             type: 'group-start'
-            snapshot: @delegate.serializeSnapshot(entry.snapshot)
+            snapshot: @serializeSnapshot(entry.snapshot, options)
           }
         when GroupEnd
           {
             type: 'group-end'
-            snapshot: @delegate.serializeSnapshot(entry.snapshot)
+            snapshot: @serializeSnapshot(entry.snapshot, options)
           }
         else
           {
-            type: 'change'
-            content: @delegate.serializeChange(entry)
+            type: 'patch'
+            content: entry.serialize()
           }
 
   deserializeStack: (stack) ->
@@ -289,16 +336,21 @@ class History
         when 'checkpoint'
           new Checkpoint(
             entry.id
-            @delegate.deserializeSnapshot(entry.snapshot)
+            MarkerLayer.deserializeSnapshot(entry.snapshot)
             entry.isBoundary
           )
         when 'group-start'
           new GroupStart(
-            @delegate.deserializeSnapshot(entry.snapshot)
+            MarkerLayer.deserializeSnapshot(entry.snapshot)
           )
         when 'group-end'
           new GroupEnd(
-            @delegate.deserializeSnapshot(entry.snapshot)
+            MarkerLayer.deserializeSnapshot(entry.snapshot)
           )
-        when 'change'
-          @delegate.deserializeChange(entry.content)
+        when 'patch'
+          Patch.deserialize(entry.content)
+
+  serializeSnapshot: (snapshot, options) ->
+    return unless options.markerLayers
+
+    MarkerLayer.serializeSnapshot(snapshot)

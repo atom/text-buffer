@@ -148,15 +148,21 @@ describe "TextBuffer", ->
       buffer.setTextInRange([[1, 1], [1, 3]], 'i')
       expect(buffer.lineEndingForRow(1)).toBe '\r\n'
 
-    it "freezes the passed-in range, since it is stored in the history", ->
-      range = Range(Point(0, 2), Point(0, 4))
-      buffer.setTextInRange(range, "y y")
+    it "freezes change event ranges", ->
+      changedOldRange = null
+      changedNewRange = null
+      buffer.onDidChange ({oldRange, newRange}) ->
+        oldRange.start = Point(0, 3)
+        oldRange.start.row = 1
+        newRange.start = Point(4, 4)
+        newRange.end.row = 2
+        changedOldRange = oldRange
+        changedNewRange = newRange
 
-      range.start = Point(0, 3)
-      expect(range.start).toEqual [0, 2]
+      buffer.setTextInRange(Range(Point(0, 2), Point(0, 4)), "y y")
 
-      range.start.row = 5
-      expect(range.start).toEqual [0, 2]
+      expect(changedOldRange).toEqual([[0, 2], [0, 4]])
+      expect(changedNewRange).toEqual([[0, 2], [0, 5]])
 
     describe "when the undo option is 'skip'", ->
       it "replaces the contents of the buffer with the given text", ->
@@ -622,7 +628,7 @@ describe "TextBuffer", ->
         historyLayer.markRange([[0, 1], [2, 3]], a: 'b')
         result = buffer.groupChangesSinceCheckpoint(checkpoint)
 
-        expect(result).toBe true
+        expect(result).toBeTruthy()
         expect(buffer.getText()).toBe """
           one
           two
@@ -675,7 +681,7 @@ describe "TextBuffer", ->
         buffer.append("one\n")
         checkpoint = buffer.createCheckpoint()
         result = buffer.groupChangesSinceCheckpoint(checkpoint)
-        expect(result).toBe true
+        expect(result).toBeTruthy()
         buffer.undo()
         expect(buffer.getText()).toBe ""
 
@@ -685,7 +691,7 @@ describe "TextBuffer", ->
         buffer.undo()
         buffer.append("world")
         result = buffer.groupChangesSinceCheckpoint(checkpoint)
-        expect(result).toBe(false)
+        expect(result).toBeFalsy()
         buffer.undo()
         expect(buffer.getText()).toBe ""
 
@@ -743,7 +749,7 @@ describe "TextBuffer", ->
 
         buffer.append("b")
 
-        expect(buffer.groupChangesSinceCheckpoint(checkpoint)).toBe false
+        expect(buffer.groupChangesSinceCheckpoint(checkpoint)).toBeFalsy()
 
       buffer.undo()
       expect(buffer.getText()).toBe "a"
@@ -930,11 +936,43 @@ describe "TextBuffer", ->
       expect(markerLayerA.id).not.toBe(markerLayerB.id)
       expect(bufferB.getMarker(marker1A.id)).toBeUndefined()
 
+    it "doesn't remember marker layers when calling serialize with {markerLayers: false}", ->
+      bufferA = new TextBuffer(text: "world")
+      layerA = bufferA.addMarkerLayer(maintainHistory: true)
+      markerA = layerA.markPosition([0, 3])
+      markerB = null
+      bufferA.transact ->
+        bufferA.insert([0, 0], 'hello ')
+        markerB = layerA.markPosition([0, 5])
+      bufferA.undo()
+
+      bufferB = TextBuffer.deserialize(bufferA.serialize({markerLayers: false}))
+      expect(bufferB.getText()).toBe("world")
+      expect(bufferB.getMarkerLayer(layerA.id)?.getMarker(markerA.id)).toBeUndefined()
+      expect(bufferB.getMarkerLayer(layerA.id)?.getMarker(markerB.id)).toBeUndefined()
+
+      bufferB.redo()
+      expect(bufferB.getText()).toBe("hello world")
+      expect(bufferB.getMarkerLayer(layerA.id)?.getMarker(markerA.id)).toBeUndefined()
+      expect(bufferB.getMarkerLayer(layerA.id)?.getMarker(markerB.id)).toBeUndefined()
+
+      bufferB.undo()
+      expect(bufferB.getText()).toBe("world")
+      expect(bufferB.getMarkerLayer(layerA.id)?.getMarker(markerA.id)).toBeUndefined()
+      expect(bufferB.getMarkerLayer(layerA.id)?.getMarker(markerB.id)).toBeUndefined()
+
     it "serializes / deserializes the buffer's unique identifier", ->
       bufferA = new TextBuffer()
       bufferB = TextBuffer.deserialize(JSON.parse(JSON.stringify(bufferA.serialize())))
 
       expect(bufferB.getId()).toEqual(bufferA.getId())
+
+    it "doesn't deserialize a state that was serialized with a different buffer version", ->
+      bufferA = new TextBuffer()
+      serializedBuffer = JSON.parse(JSON.stringify(bufferA.serialize()))
+      serializedBuffer.version = 123456789
+
+      expect(TextBuffer.deserialize(serializedBuffer)).toBeUndefined()
 
     describe "when the buffer has a path", ->
       [filePath, buffer2] = []
@@ -955,7 +993,9 @@ describe "TextBuffer", ->
           buffer.append("!")
           buffer.save()
           expect(buffer.isModified()).toBeFalsy()
-          buffer2 = buffer.testSerialization({load: false})
+          params = buffer.serialize()
+          params.load = false
+          buffer2 = TextBuffer.deserialize(params)
           buffer2ModifiedEvents = []
           buffer2.onDidChangeModified (value) -> buffer2ModifiedEvents.push(value)
           buffer2.load().then ->
@@ -981,7 +1021,9 @@ describe "TextBuffer", ->
             buffer.setText("BUFFER CHANGE")
             fs.writeFileSync(filePath, "DISK CHANGE")
 
-            buffer2 = buffer.testSerialization({load: false})
+            params = buffer.serialize()
+            params.load = false
+            buffer2 = TextBuffer.deserialize(params)
             buffer2.load().then ->
               expect(buffer2.getPath()).toBe(buffer.getPath())
               expect(buffer2.getText()).toBe("DISK CHANGE")
@@ -995,7 +1037,7 @@ describe "TextBuffer", ->
             buffer.setText("abc")
             buffer.append("d")
 
-            buffer2 = buffer.testSerialization()
+            buffer2 = TextBuffer.deserialize(buffer.serialize())
             buffer2.load().then ->
               done()
 
@@ -1018,7 +1060,7 @@ describe "TextBuffer", ->
           buffer = new TextBuffer()
           buffer.setText("abc")
 
-          buffer2 = buffer.testSerialization()
+          buffer2 = TextBuffer.deserialize(buffer.serialize())
           expect(buffer2.getPath()).toBeUndefined()
           expect(buffer2.getText()).toBe("abc")
 
@@ -2377,7 +2419,14 @@ describe "TextBuffer", ->
         buffer.transact ->
           buffer.insert([0, 0], "j")
 
+      # we emit an event at the end of each transaction
       expect(textChanges).toEqual([
+        {
+          start: {row: 0, column: 0},
+          oldExtent: {row: 0, column: 0},
+          newExtent: {row: 0, column: 1},
+          newText: "j"
+        },
         {
           start: {row: 0, column: 0},
           oldExtent: {row: 0, column: 0},

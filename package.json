@@ -21,7 +21,7 @@
   },
   "license": "MIT",
   "devDependencies": {
-    "eslint": "^2.0.0-rc.0",
+    "eslint": "2.2.0",
     "babel-cli": "^6.5.1",
     "babel-eslint": "^5.0.0-beta10",
     "babel-preset-es2015": "^6.5.0",
@@ -49,7 +49,7 @@
   "dependencies": {
     "delegato": "^1.0.0",
     "atom-diff": "^2",
-    "atom-patch": "0.1.0",
+    "atom-patch": "0.2.0",
     "emissary": "^1.0.0",
     "event-kit": "^1.0.2",
     "fs-plus": "^2.0.0",
