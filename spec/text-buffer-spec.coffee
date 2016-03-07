@@ -967,6 +967,13 @@ describe "TextBuffer", ->
 
       expect(bufferB.getId()).toEqual(bufferA.getId())
 
+    it "doesn't deserialize a state that was serialized with a different buffer version", ->
+      bufferA = new TextBuffer()
+      serializedBuffer = JSON.parse(JSON.stringify(bufferA.serialize()))
+      serializedBuffer.version = 123456789
+
+      expect(TextBuffer.deserialize(serializedBuffer)).toBeUndefined()
+
     describe "when the buffer has a path", ->
       [filePath, buffer2] = []
 

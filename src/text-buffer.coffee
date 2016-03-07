@@ -118,6 +118,8 @@ class TextBuffer
     @load() if params?.load
 
   @deserialize: (params) ->
+    return if params.version isnt TextBuffer.prototype.version
+
     buffer = Object.create(TextBuffer.prototype)
     markerLayers = {}
     for layerId, layerState of params.markerLayers
