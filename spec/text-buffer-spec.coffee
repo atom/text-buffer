@@ -148,7 +148,7 @@ describe "TextBuffer", ->
       buffer.setTextInRange([[1, 1], [1, 3]], 'i')
       expect(buffer.lineEndingForRow(1)).toBe '\r\n'
 
-    it "freezes change event ranges, since they're stored in the history", ->
+    it "freezes change event ranges", ->
       changedOldRange = null
       changedNewRange = null
       buffer.onDidChange ({oldRange, newRange}) ->
