@@ -100,7 +100,7 @@ class TextBuffer
     @offsetIndex = new SpanSkipList('rows', 'characters')
     @setTextInRange([[0, 0], [0, 0]], text ? params?.text ? '', normalizeLineEndings: false)
     maxUndoEntries = params?.maxUndoEntries ? @defaultMaxUndoEntries
-    @history = params?.history ? new History(this, maxUndoEntries)
+    @history = params?.history ? new History(maxUndoEntries)
     @nextMarkerLayerId = params?.nextMarkerLayerId ? 0
     @defaultMarkerLayer = params?.defaultMarkerLayer ? new MarkerLayer(this, String(@nextMarkerLayerId++))
     @markerLayers = params?.markerLayers ? {}
@@ -124,7 +124,7 @@ class TextBuffer
       markerLayers[layerId] = MarkerLayer.deserialize(buffer, layerState)
     params.markerLayers = markerLayers
     params.defaultMarkerLayer = params.markerLayers[params.defaultMarkerLayerId]
-    params.history = History.deserialize(buffer, params.history)
+    params.history = History.deserialize(params.history)
     params.load = true if params.filePath
     TextBuffer.call(buffer, params)
     buffer

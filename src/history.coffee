@@ -1,4 +1,5 @@
 Patch = require 'atom-patch'
+MarkerLayer = require './marker-layer'
 
 SerializationVersion = 4
 
@@ -19,12 +20,12 @@ class GroupEnd
 # Manages undo/redo for {TextBuffer}
 module.exports =
 class History
-  @deserialize: (delegate, state) ->
-    history = new History(delegate)
+  @deserialize: (state) ->
+    history = new History
     history.deserialize(state)
     history
 
-  constructor: (@delegate, @maxUndoEntries) ->
+  constructor: (@maxUndoEntries) ->
     @nextCheckpointId = 0
     @undoStackSize = 0
     @undoStack = []
@@ -310,18 +311,18 @@ class History
           {
             type: 'checkpoint'
             id: entry.id
-            snapshot: @delegate.serializeSnapshot(entry.snapshot, options)
+            snapshot: @serializeSnapshot(entry.snapshot, options)
             isBoundary: entry.isBoundary
           }
         when GroupStart
           {
             type: 'group-start'
-            snapshot: @delegate.serializeSnapshot(entry.snapshot, options)
+            snapshot: @serializeSnapshot(entry.snapshot, options)
           }
         when GroupEnd
           {
             type: 'group-end'
-            snapshot: @delegate.serializeSnapshot(entry.snapshot, options)
+            snapshot: @serializeSnapshot(entry.snapshot, options)
           }
         else
           {
@@ -335,16 +336,21 @@ class History
         when 'checkpoint'
           new Checkpoint(
             entry.id
-            @delegate.deserializeSnapshot(entry.snapshot)
+            MarkerLayer.deserializeSnapshot(entry.snapshot)
             entry.isBoundary
           )
         when 'group-start'
           new GroupStart(
-            @delegate.deserializeSnapshot(entry.snapshot)
+            MarkerLayer.deserializeSnapshot(entry.snapshot)
           )
         when 'group-end'
           new GroupEnd(
-            @delegate.deserializeSnapshot(entry.snapshot)
+            MarkerLayer.deserializeSnapshot(entry.snapshot)
           )
         when 'patch'
           Patch.deserialize(entry.content)
+
+  serializeSnapshot: (snapshot, options) ->
+    return unless options.markerLayers
+
+    MarkerLayer.serializeSnapshot(snapshot)
