@@ -5,6 +5,7 @@ Point = require './point'
 Range = require './range'
 DisplayMarkerLayer = require './display-marker-layer'
 TokenIterator = require './token-iterator'
+EmptyDecorationIterator = require './empty-decoration-iterator'
 {traverse, traversal, clipNegativePoint} = pointHelpers = require './point-helpers'
 comparePoints = pointHelpers.compare
 maxPoint = pointHelpers.max
@@ -27,6 +28,7 @@ class DisplayLayer
     @spatialTokenIterator = @screenLineIndex.buildTokenIterator()
     @screenLineIterator = @screenLineIndex.buildScreenLineIterator()
     @screenLineIndex.splice(0, 0, @buildScreenLines(0, @buffer.getLineCount()))
+    @decorationIterator = new EmptyDecorationIterator
     @emitter = new Emitter
 
   destroy: ->
@@ -46,6 +48,7 @@ class DisplayLayer
     @decorationLayerDisposable?.dispose()
     @textDecorationLayer = layer
     @decorationLayerDisposable = layer.onDidInvalidateRange?(@decorationLayerDidInvalidateRange.bind(this))
+    @decorationIterator = @textDecorationLayer.buildIterator()
 
   foldBufferRange: (bufferRange) ->
     bufferRange = @buffer.clipRange(bufferRange)
@@ -455,49 +458,96 @@ class DisplayLayer
 
   getScreenLines: (startRow=0, endRow=@getScreenLineCount()) ->
     screenLines = []
-
+    containingTags = []
     @screenLineIterator.seekToScreenRow(startRow)
 
     while @screenLineIterator.getScreenRow() < endRow
       bufferStart = @screenLineIterator.getBufferStart()
       tokens = []
-      nextTokenCloseTags = []
-      for {screenExtent, bufferExtent, metadata} in @screenLineIterator.getTokens()
-        bufferEnd = traverse(bufferStart, bufferExtent)
-        token = {closeTags: nextTokenCloseTags, openTags: []}
-        nextTokenCloseTags = []
+      spatialDecoration = null
+      closeTags = []
+      openTags = containingTags.slice()
 
-        if metadata?.hardTab
-          if @invisibles.tab?
-            token.text = @invisibles.tab + ' '.repeat(screenExtent - 1)
-          else
-            token.text = ' '.repeat(screenExtent)
-        else if (metadata?.leadingWhitespace or metadata?.trailingWhitespace) and @invisibles.space?
-          token.text = @invisibles.space.repeat(screenExtent)
-        else if metadata?.fold
-          token.text = '⋯'
-        else if metadata?.void
-          if metadata?.eol?
-            token.text = metadata.eol
-          else
-            token.text = ' '.repeat(screenExtent)
-        else
-          token.text = @buffer.getTextInRange(Range(bufferStart, bufferEnd))
+      for {screenExtent, bufferExtent, metadata} in @screenLineIterator.getTokens()
+        spatialTokenBufferEnd = traverse(bufferStart, bufferExtent)
+
+        if spatialDecoration?
+          @updateTags(closeTags, openTags, containingTags, [spatialDecoration], [])
+
+        while comparePoints(@decorationIterator.getPosition(), bufferStart) is 0
+          @updateTags(closeTags, openTags, containingTags, @decorationIterator.getOpenTags(), @decorationIterator.getCloseTags())
+          @decorationIterator.moveToSuccessor()
 
         if spatialDecoration = @getSpatialTokenTextDecoration(metadata)
-          token.openTags.push(spatialDecoration)
-          nextTokenCloseTags.push(spatialDecoration)
+          @updateTags(closeTags, openTags, containingTags, [], [spatialDecoration])
 
-        tokens.push(token)
-        bufferStart = bufferEnd
+        while comparePoints(@decorationIterator.getPosition(), spatialTokenBufferEnd) < 0
+          text = @buildTokenText(metadata, screenExtent, bufferStart, @decorationIterator.getPosition())
+          tokens.push({closeTags, openTags, text})
+          bufferStart = @decorationIterator.getPosition()
+          closeTags = []
+          openTags = []
+          @updateTags(closeTags, openTags, containingTags, @decorationIterator.getOpenTags(), @decorationIterator.getCloseTags())
+          @spatialTokenIterator.moveToSuccessor()
 
-      if nextTokenCloseTags.length > 0
-        tokens.push({text: '', closeTags: nextTokenCloseTags, openTags: []})
+        text = @buildTokenText(metadata, screenExtent, bufferStart, spatialTokenBufferEnd)
+        tokens.push({closeTags, openTags, text})
+        closeTags = []
+        openTags = []
+
+        bufferStart = spatialTokenBufferEnd
+
+      if containingTags.length > 0
+        tokens.push({closeTags: containingTags.slice().reverse(), openTags: [], text: ''})
+
+      if spatialDecoration?
+        containingTags.splice(containingTags.indexOf(spatialDecoration), 1)
 
       screenLines.push({id: @screenLineIterator.getId(), tokens})
       break unless @screenLineIterator.moveToSuccessor()
-
     screenLines
+
+  buildTokenText: (metadata, screenExtent, bufferStart, bufferEnd) ->
+    if metadata?.hardTab
+      if @invisibles.tab?
+        @invisibles.tab + ' '.repeat(screenExtent - 1)
+      else
+        ' '.repeat(screenExtent)
+    else if (metadata?.leadingWhitespace or metadata?.trailingWhitespace) and @invisibles.space?
+      @invisibles.space.repeat(screenExtent)
+    else if metadata?.fold
+      '⋯'
+    else if metadata?.void
+      if metadata?.eol?
+        metadata.eol
+      else
+        ' '.repeat(screenExtent)
+    else
+      @buffer.getTextInRange(Range(bufferStart, bufferEnd))
+
+  updateTags: (closeTags, openTags, containingTags, tagsToClose, tagsToOpen) ->
+    tagsToCloseCounts = {}
+    for tag in tagsToClose
+      tagsToCloseCounts[tag] ?= 0
+      tagsToCloseCounts[tag]++
+
+    containingTagsIndex = containingTags.length
+    for closeTag in tagsToClose when tagsToCloseCounts[closeTag] > 0
+      while mostRecentOpenTag = containingTags[--containingTagsIndex]
+        if mostRecentOpenTag is closeTag
+          containingTags.splice(containingTagsIndex, 1)
+          break
+
+        closeTags.push(mostRecentOpenTag)
+        if tagsToCloseCounts[mostRecentOpenTag] > 0
+          containingTags.splice(containingTagsIndex, 1)
+          tagsToCloseCounts[mostRecentOpenTag]--
+        else
+          openTags.unshift(mostRecentOpenTag)
+      closeTags.push(closeTag)
+
+    openTags.push(tagsToOpen...)
+    containingTags.push(tagsToOpen...)
 
   getSpatialTokenTextDecoration: (metadata) ->
     if metadata
