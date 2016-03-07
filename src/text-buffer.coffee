@@ -88,10 +88,7 @@ class TextBuffer
   #   * `load` A {Boolean}, `true` to asynchronously load the buffer from disk
   #     after initialization.
   #   * `text` The initial {String} text of the buffer.
-  constructor: (params, skipInitialization) ->
-    @initialize(params) unless skipInitialization
-
-  initialize: (params) ->
+  constructor: (params) ->
     text = params if typeof params is 'string'
 
     @emitter = new Emitter
@@ -121,7 +118,7 @@ class TextBuffer
     @load() if params?.load
 
   @deserialize: (params) ->
-    buffer = new TextBuffer(null, true)
+    buffer = Object.create(TextBuffer.prototype)
     markerLayers = {}
     for layerId, layerState of params.markerLayers
       markerLayers[layerId] = MarkerLayer.deserialize(buffer, layerState)
@@ -129,7 +126,7 @@ class TextBuffer
     params.defaultMarkerLayer = params.markerLayers[params.defaultMarkerLayerId]
     params.history = History.deserialize(buffer, params.history)
     params.load = true if params.filePath
-    buffer.initialize(params)
+    TextBuffer.call(buffer, params)
     buffer
 
   # Returns a {String} representing a unique identifier for this {TextBuffer}.
