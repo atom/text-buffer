@@ -2,15 +2,12 @@ Point = require './point'
 
 module.exports =
 class EmptyDecorationIterator
-  seek: (position) ->
+  seek: (position) -> []
 
-  moveToSuccessor: ->
+  moveToSuccessor: -> false
 
-  getPosition: ->
-    Point.INFINITY
+  getPosition: -> Point.INFINITY
 
-  getCloseTags: ->
-    []
+  getCloseTags: -> []
 
-  getOpenTags: ->
-    []
+  getOpenTags: -> []
