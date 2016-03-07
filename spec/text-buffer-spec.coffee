@@ -2419,14 +2419,8 @@ describe "TextBuffer", ->
         buffer.transact ->
           buffer.insert([0, 0], "j")
 
-      # we emit an event at the end of each transaction
+      # we emit only one event for nested transactions
       expect(textChanges).toEqual([
-        {
-          start: {row: 0, column: 0},
-          oldExtent: {row: 0, column: 0},
-          newExtent: {row: 0, column: 1},
-          newText: "j"
-        },
         {
           start: {row: 0, column: 0},
           oldExtent: {row: 0, column: 0},
@@ -2460,8 +2454,10 @@ describe "TextBuffer", ->
       , delay / 2)
 
     beforeEach (done) ->
-      buffer.insert([0, 0], 'b')
-      buffer.insert([1, 0], 'c')
+      buffer.transact ->
+        buffer.transact ->
+          buffer.insert([0, 0], 'b')
+          buffer.insert([1, 0], 'c')
       expect(didStopChangingCallback).not.toHaveBeenCalled()
       setTimeout(->
         done()

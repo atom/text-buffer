@@ -1473,6 +1473,8 @@ class TextBuffer
       markerLayer.emitChangeEvents(snapshot?[markerLayerId])
 
   emitDidChangeTextEvent: (patch) ->
+    return if @transactCallDepth isnt 0
+
     @emitter.emit 'did-change-text', {changes: Object.freeze(normalizePatchChanges(patch.getChanges()))}
     @patchesSinceLastStoppedChangingEvent.push(patch)
     @scheduleDidStopChangingEvent()
