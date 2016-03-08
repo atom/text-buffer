@@ -523,6 +523,10 @@ class DisplayLayer
       if spatialDecoration?
         containingTags.splice(containingTags.indexOf(spatialDecoration), 1)
 
+      while comparePoints(decorationIterator.getPosition(), spatialTokenBufferEnd) is 0
+        @updateTags(closeTags, openTags, containingTags, decorationIterator.getCloseTags(), decorationIterator.getOpenTags())
+        decorationIterator.moveToSuccessor()
+
       screenLines.push({id: @screenLineIterator.getId(), tokens})
       break unless @screenLineIterator.moveToSuccessor()
     screenLines
