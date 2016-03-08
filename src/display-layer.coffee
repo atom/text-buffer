@@ -310,7 +310,7 @@ class DisplayLayer
 
       if eolInvisibleReplacement = @eolInvisibles[@buffer.lineEndingForRow(bufferRow)]
         tokens.push({
-          screenExtent: eolInvisibleReplacement.length,
+          screenExtent: 0,
           bufferExtent: Point(0, 0),
           metadata: {
             eol: eolInvisibleReplacement,
@@ -319,21 +319,17 @@ class DisplayLayer
             void: true
           }
         })
-        screenColumn += eolInvisibleReplacement.length
-        tokensScreenExtent = screenColumn
 
       while @showIndentGuides and indentGuidesCount > 0 and not previousPositionWasFold
         distanceToNextTabStop = @tabLength - (tokensScreenExtent % @tabLength)
         tokens.push({
-          screenExtent: distanceToNextTabStop,
+          screenExtent: 0,
           bufferExtent: Point(0, 0),
           metadata: {
             showIndentGuide: (tokensScreenExtent % @tabLength is 0),
             void: true
           }
         })
-        screenColumn += distanceToNextTabStop
-        tokensScreenExtent = screenColumn
         indentGuidesCount--
 
       if tokens.length is 0
@@ -640,10 +636,7 @@ class DisplayLayer
 
     metadata = @spatialTokenIterator.getMetadata()
     if metadata?.void
-      if options?.clipDirection is 'forward'
-        throw new Error('TODO: Not implemented. Support void tokens followed by valid screen positions, such as soft wrap indents.')
-      else
-        screenPosition = @spatialTokenIterator.getScreenStart()
+      throw new Error('TODO: Not implemented. Support void tokens followed by valid screen positions, such as soft wrap indents.')
     else if comparePoints(screenPosition, @spatialTokenIterator.getScreenEnd()) <= 0
       if (metadata?.atomic and
           comparePoints(screenPosition, @spatialTokenIterator.getScreenStart()) > 0 and
@@ -664,15 +657,7 @@ class DisplayLayer
     @screenLineIndex.getScreenLineCount()
 
   getRightmostScreenPosition: ->
-    position = @screenLineIndex.getScreenPositionWithMaxLineLength()
-    if position?
-      @clipScreenPosition(position)
-    else
-      {row: 0, column: 0}
+    @screenLineIndex.getScreenPositionWithMaxLineLength() or {row: 0, column: 0}
 
   lineLengthForScreenRow: (screenRow) ->
-    length = @screenLineIndex.lineLengthForScreenRow(screenRow)
-    if length?
-      @clipScreenPosition({row: screenRow, column: length}).column
-    else
-      0
+    @screenLineIndex.lineLengthForScreenRow(screenRow) or 0
