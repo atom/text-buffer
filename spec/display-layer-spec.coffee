@@ -465,7 +465,6 @@ describe "DisplayLayer", ->
         ['ae', [[2, 3], [2, 5]]]
       ]))
 
-      verifyTokenIterator(displayLayer)
       expectTokens(displayLayer, [
         {text: 'a', close: [], open: []},
         {text: 'b', close: [], open: ['aa']},
