@@ -5,7 +5,7 @@ Point = require './point'
 Range = require './range'
 DisplayMarkerLayer = require './display-marker-layer'
 TokenIterator = require './token-iterator'
-EmptyDecorationIterator = require './empty-decoration-iterator'
+EmptyDecorationLayer = require './empty-decoration-layer'
 {traverse, traversal, clipNegativePoint} = pointHelpers = require './point-helpers'
 comparePoints = pointHelpers.compare
 maxPoint = pointHelpers.max
@@ -28,7 +28,7 @@ class DisplayLayer
     @spatialTokenIterator = @screenLineIndex.buildTokenIterator()
     @screenLineIterator = @screenLineIndex.buildScreenLineIterator()
     @screenLineIndex.splice(0, 0, @buildScreenLines(0, @buffer.getLineCount()))
-    @decorationIterator = new EmptyDecorationIterator
+    @textDecorationLayer = new EmptyDecorationLayer
     @emitter = new Emitter
 
   destroy: ->
@@ -48,7 +48,6 @@ class DisplayLayer
     @decorationLayerDisposable?.dispose()
     @textDecorationLayer = layer
     @decorationLayerDisposable = layer.onDidInvalidateRange?(@decorationLayerDidInvalidateRange.bind(this))
-    @decorationIterator = @textDecorationLayer.buildIterator()
 
   foldBufferRange: (bufferRange) ->
     bufferRange = @buffer.clipRange(bufferRange)
@@ -455,11 +454,12 @@ class DisplayLayer
     lines.join('\n')
 
   getScreenLines: (startRow=0, endRow=@getScreenLineCount()) ->
+    decorationIterator = @textDecorationLayer.buildIterator()
     startRow = Math.max(startRow, 0)
     endRow = Math.min(endRow, @getScreenLineCount())
     screenLines = []
     @screenLineIterator.seekToScreenRow(startRow)
-    containingTags = @decorationIterator.seek(@screenLineIterator.getBufferStart())
+    containingTags = decorationIterator.seek(@screenLineIterator.getBufferStart())
 
     while @screenLineIterator.getScreenRow() < endRow
       bufferStart = @screenLineIterator.getBufferStart()
@@ -469,10 +469,10 @@ class DisplayLayer
       openTags = containingTags.slice()
       atLineStart = true
 
-      if comparePoints(@decorationIterator.getPosition(), bufferStart) < 0
-        bufferRow = @decorationIterator.getPosition().row
+      if comparePoints(decorationIterator.getPosition(), bufferStart) < 0
+        bufferRow = decorationIterator.getPosition().row
         throw new Error("""
-          Invalid text decoration iterator position: #{@decorationIterator.getPosition()}.
+          Invalid text decoration iterator position: #{decorationIterator.getPosition()}.
           Buffer row #{bufferRow} has length #{@buffer.lineLengthForRow(bufferRow)}.
         """)
 
@@ -484,22 +484,22 @@ class DisplayLayer
 
         if metadata?.fold
           @updateTags(closeTags, openTags, containingTags, containingTags.slice().reverse(), [], atLineStart)
-          tagsToReopenAfterFold = @decorationIterator.seek(spatialTokenBufferEnd)
-        else if comparePoints(@decorationIterator.getPosition(), bufferStart) is 0
-          @updateTags(closeTags, openTags, containingTags, @decorationIterator.getCloseTags(), @decorationIterator.getOpenTags(), atLineStart)
-          @decorationIterator.moveToSuccessor()
+          tagsToReopenAfterFold = decorationIterator.seek(spatialTokenBufferEnd)
+        else if comparePoints(decorationIterator.getPosition(), bufferStart) is 0
+          @updateTags(closeTags, openTags, containingTags, decorationIterator.getCloseTags(), decorationIterator.getOpenTags(), atLineStart)
+          decorationIterator.moveToSuccessor()
 
         if spatialDecoration = @getSpatialTokenTextDecoration(metadata)
           @updateTags(closeTags, openTags, containingTags, [], [spatialDecoration])
 
-        while comparePoints(@decorationIterator.getPosition(), spatialTokenBufferEnd) < 0
-          text = @buildTokenText(metadata, screenExtent, bufferStart, @decorationIterator.getPosition())
+        while comparePoints(decorationIterator.getPosition(), spatialTokenBufferEnd) < 0
+          text = @buildTokenText(metadata, screenExtent, bufferStart, decorationIterator.getPosition())
           tokens.push({closeTags, openTags, text})
-          bufferStart = @decorationIterator.getPosition()
+          bufferStart = decorationIterator.getPosition()
           closeTags = []
           openTags = []
-          @updateTags(closeTags, openTags, containingTags, @decorationIterator.getCloseTags(), @decorationIterator.getOpenTags())
-          @decorationIterator.moveToSuccessor()
+          @updateTags(closeTags, openTags, containingTags, decorationIterator.getCloseTags(), decorationIterator.getOpenTags())
+          decorationIterator.moveToSuccessor()
 
         text = @buildTokenText(metadata, screenExtent, bufferStart, spatialTokenBufferEnd)
         tokens.push({closeTags, openTags, text})

@@ -2,11 +2,12 @@ Point = require './point'
 Range = require './range'
 {traverse, traversal, compare: comparePoints, isEqual: isEqualPoint, isZero: isZeroPoint, characterIndexForPoint} = require './point-helpers'
 EMPTY_ARRAY = Object.freeze([])
-EmptyDecorationIterator = require './empty-decoration-iterator'
+EmptyDecorationLayer = require './empty-decoration-layer'
 
 module.exports =
 class TokenIterator
-  constructor: (@displayLayer, @buffer, @spatialTokenIterator, @decorationIterator=new EmptyDecorationIterator) ->
+  constructor: (@displayLayer, @buffer, @spatialTokenIterator, @decorationIterator) ->
+    @decorationIterator ?= new EmptyDecorationLayer().buildIterator()
     @reset()
 
   getStartBufferPosition: -> Point.fromObject(@startBufferPosition)
