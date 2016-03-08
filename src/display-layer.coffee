@@ -162,7 +162,7 @@ class DisplayLayer
 
     @screenLineIterator.seekToBufferPosition(range.end)
     endScreenRow = @screenLineIterator.getScreenRow() + 1
-    endBufferRow = @screenLineIterator.getBufferEnd().row
+    endBufferRow = @buffer.clipPosition(@screenLineIterator.getBufferEnd()).row + 1
 
     {startScreenRow, endScreenRow, startBufferRow, endBufferRow}
 
@@ -457,6 +457,8 @@ class DisplayLayer
     lines.join('\n')
 
   getScreenLines: (startRow=0, endRow=@getScreenLineCount()) ->
+    startRow = Math.max(startRow, 0)
+    endRow = Math.min(endRow, @getScreenLineCount())
     screenLines = []
     @screenLineIterator.seekToScreenRow(startRow)
     containingTags = @decorationIterator.seek(@screenLineIterator.getBufferStart())
@@ -631,9 +633,10 @@ class DisplayLayer
 
     metadata = @spatialTokenIterator.getMetadata()
     if metadata?.void
-      # TODO: Support void tokens followed by valid screen positions,
-      # such as soft wrap indents.
-      screenPosition = Point(@spatialTokenIterator.getScreenStart().row, 0)
+      if options?.clipDirection is 'forward'
+        throw new Error('TODO: Not implemented. Support void tokens followed by valid screen positions, such as soft wrap indents.')
+      else
+        screenPosition = @spatialTokenIterator.getScreenStart()
     else if comparePoints(screenPosition, @spatialTokenIterator.getScreenEnd()) <= 0
       if (metadata?.atomic and
           comparePoints(screenPosition, @spatialTokenIterator.getScreenStart()) > 0 and
@@ -654,7 +657,15 @@ class DisplayLayer
     @screenLineIndex.getScreenLineCount()
 
   getRightmostScreenPosition: ->
-    @screenLineIndex.getScreenPositionWithMaxLineLength()
+    position = @screenLineIndex.getScreenPositionWithMaxLineLength()
+    if position?
+      @clipScreenPosition(position)
+    else
+      {row: 0, column: 0}
 
   lineLengthForScreenRow: (screenRow) ->
-    @screenLineIndex.lineLengthForScreenRow(screenRow)
+    length = @screenLineIndex.lineLengthForScreenRow(screenRow)
+    if length?
+      @clipScreenPosition({row: screenRow, column: length}).column
+    else
+      0
