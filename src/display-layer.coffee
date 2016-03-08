@@ -104,7 +104,7 @@ class DisplayLayer
 
   bufferDidChange: (change) ->
     {oldRange, newRange} = @expandChangeRegionToSurroundingEmptyLines(change.oldRange, change.newRange)
-    {startScreenRow, endScreenRow, startBufferRow, endBufferRow} = @expandBufferRangeToScreenLineBoundaries(oldRange)
+    {startScreenRow, endScreenRow, startBufferRow} = @expandBufferRangeToScreenLineBoundaries(oldRange)
 
     oldRowExtent = endScreenRow - startScreenRow
     newScreenLines = @buildScreenLines(startBufferRow, newRange.end.row + 1)
@@ -310,7 +310,7 @@ class DisplayLayer
 
       if eolInvisibleReplacement = @eolInvisibles[@buffer.lineEndingForRow(bufferRow)]
         tokens.push({
-          screenExtent: 0,
+          screenExtent: eolInvisibleReplacement.length,
           bufferExtent: Point(0, 0),
           metadata: {
             eol: eolInvisibleReplacement,
@@ -319,17 +319,19 @@ class DisplayLayer
             void: true
           }
         })
+        screenColumn += eolInvisibleReplacement.length
 
       while @showIndentGuides and indentGuidesCount > 0 and not previousPositionWasFold
-        distanceToNextTabStop = @tabLength - (tokensScreenExtent % @tabLength)
+        distanceToNextTabStop = @tabLength - (screenColumn % @tabLength)
         tokens.push({
-          screenExtent: 0,
+          screenExtent: distanceToNextTabStop,
           bufferExtent: Point(0, 0),
           metadata: {
-            showIndentGuide: (tokensScreenExtent % @tabLength is 0),
+            showIndentGuide: (screenColumn % @tabLength is 0),
             void: true
           }
         })
+        screenColumn += distanceToNextTabStop
         indentGuidesCount--
 
       if tokens.length is 0
@@ -636,7 +638,11 @@ class DisplayLayer
 
     metadata = @spatialTokenIterator.getMetadata()
     if metadata?.void
-      throw new Error('TODO: Not implemented. Support void tokens followed by valid screen positions, such as soft wrap indents.')
+      if options?.clipDirection is 'forward'
+        throw new Error('TODO: Not implemented. Support void tokens followed by valid screen positions, such as soft wrap indents.')
+      else
+        # TODO: here I believe we should actually move to predecessor, until a non-void token is found.
+        screenPosition = Point(@spatialTokenIterator.getScreenStart().row, 0)
     else if comparePoints(screenPosition, @spatialTokenIterator.getScreenEnd()) <= 0
       if (metadata?.atomic and
           comparePoints(screenPosition, @spatialTokenIterator.getScreenStart()) > 0 and
