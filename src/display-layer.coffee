@@ -492,16 +492,19 @@ class DisplayLayer
         if spatialDecoration = @getSpatialTokenTextDecoration(metadata)
           @updateTags(closeTags, openTags, containingTags, [], [spatialDecoration])
 
+        lastSplitColumn = 0
         while comparePoints(decorationIterator.getPosition(), spatialTokenBufferEnd) < 0
-          text = @buildTokenText(metadata, screenExtent, bufferStart, decorationIterator.getPosition())
+          extent = decorationIterator.getPosition().column - bufferStart.column
+          text = @buildTokenText(metadata, extent, bufferStart, decorationIterator.getPosition())
           tokens.push({closeTags, openTags, text})
           bufferStart = decorationIterator.getPosition()
+          lastSplitColumn += extent
           closeTags = []
           openTags = []
           @updateTags(closeTags, openTags, containingTags, decorationIterator.getCloseTags(), decorationIterator.getOpenTags())
           decorationIterator.moveToSuccessor()
 
-        text = @buildTokenText(metadata, screenExtent, bufferStart, spatialTokenBufferEnd)
+        text = @buildTokenText(metadata, screenExtent - lastSplitColumn, bufferStart, spatialTokenBufferEnd)
         tokens.push({closeTags, openTags, text})
 
         closeTags = []
