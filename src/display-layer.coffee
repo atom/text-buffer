@@ -319,6 +319,7 @@ class DisplayLayer
           }
         })
         screenColumn += eolInvisibleReplacement.length
+        tokensScreenExtent = screenColumn
 
       while @showIndentGuides and indentGuidesCount > 0 and not previousPositionWasFold
         distanceToNextTabStop = @tabLength - (screenColumn % @tabLength)
@@ -331,6 +332,7 @@ class DisplayLayer
           }
         })
         screenColumn += distanceToNextTabStop
+        tokensScreenExtent = screenColumn
         indentGuidesCount--
 
       if tokens.length is 0
