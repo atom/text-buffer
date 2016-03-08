@@ -471,6 +471,13 @@ class DisplayLayer
       openTags = containingTags.slice()
       atLineStart = true
 
+      if comparePoints(@decorationIterator.getPosition(), bufferStart) < 0
+        bufferRow = @decorationIterator.getPosition().row
+        throw new Error("""
+          Invalid text decoration iterator position: #{@decorationIterator.getPosition()}.
+          Buffer row #{bufferRow} has length #{@buffer.lineLengthForRow(bufferRow)}.
+        """)
+
       for {screenExtent, bufferExtent, metadata} in @screenLineIterator.getTokens()
         spatialTokenBufferEnd = traverse(bufferStart, bufferExtent)
 
