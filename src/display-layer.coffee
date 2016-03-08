@@ -107,7 +107,7 @@ class DisplayLayer
     {startScreenRow, endScreenRow, startBufferRow, endBufferRow} = @expandBufferRangeToScreenLineBoundaries(oldRange)
 
     oldRowExtent = endScreenRow - startScreenRow
-    newScreenLines = @buildScreenLines(startBufferRow, endBufferRow)
+    newScreenLines = @buildScreenLines(startBufferRow, newRange.end.row + 1)
     newRowExtent = newScreenLines.length
     @screenLineIndex.splice(startScreenRow, oldRowExtent, newScreenLines)
 
@@ -162,7 +162,7 @@ class DisplayLayer
 
     @screenLineIterator.seekToBufferPosition(range.end)
     endScreenRow = @screenLineIterator.getScreenRow() + 1
-    endBufferRow = @buffer.clipPosition(@screenLineIterator.getBufferEnd()).row + 1
+    endBufferRow = @screenLineIterator.getBufferEnd().row
 
     {startScreenRow, endScreenRow, startBufferRow, endBufferRow}
 
