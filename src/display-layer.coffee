@@ -4,7 +4,6 @@ ScreenLineIndex = require 'atom-screen-line-index'
 Point = require './point'
 Range = require './range'
 DisplayMarkerLayer = require './display-marker-layer'
-TokenIterator = require './token-iterator'
 EmptyDecorationLayer = require './empty-decoration-layer'
 {traverse, traversal, clipNegativePoint} = pointHelpers = require './point-helpers'
 comparePoints = pointHelpers.compare
@@ -420,9 +419,6 @@ class DisplayLayer
       unless character is ' ' or character is '\t'
         return column + 1
     0
-
-  buildTokenIterator: ->
-    new TokenIterator(this, @buffer, @screenLineIndex.buildTokenIterator(), @textDecorationLayer?.buildIterator())
 
   getText: ->
     lines = []
