@@ -5,7 +5,6 @@ Range = require '../src/range'
 {characterIndexForPoint, isEqual: isEqualPoint} = require '../src/point-helpers'
 WORDS = require './helpers/words'
 SAMPLE_TEXT = require './helpers/sample-text'
-OMITTED_DECORATIONS_REGEX = /\b(leading-whitespace|trailing-whitespace|invisible-character|hard-tab|eol|indent-guide)\b/
 {currentSpecFailed} = require "./spec-helper"
 TestDecorationLayer = require './helpers/test-decoration-layer'
 
@@ -567,7 +566,6 @@ describe "DisplayLayer", ->
       foldIds = []
 
       for j in [0...10] by 1
-        global.debug = true
         k = random(10)
         if k < 2
           createRandomFold(random, displayLayer, foldIds, seedFailureMessage)
@@ -576,25 +574,16 @@ describe "DisplayLayer", ->
         else
           performRandomChange(random, buffer, displayLayer, seedFailureMessage)
 
-        return if currentSpecFailed()
-
         # incrementally-updated text matches freshly computed text
         expectedDisplayLayer = buffer.addDisplayLayer({foldsMarkerLayer: displayLayer.foldsMarkerLayer.copy(), patchSeed: seed, tabLength: 4, invisibles, showIndentGuides})
         expect(JSON.stringify(displayLayer.getText())).toBe(JSON.stringify(expectedDisplayLayer.getText()), seedFailureMessage)
-        return if currentSpecFailed()
 
-        # positions all translate correctly
         verifyPositionTranslations(displayLayer, expectedDisplayLayer, seedFailureMessage)
-        return if currentSpecFailed()
-
-        # token iterator matches contents of display layer
-        # verifyTokenIterator(displayLayer, textDecorationLayer, seedFailureMessage)
-        return if currentSpecFailed()
-
+        verifyTokens(displayLayer, seedFailureMessage)
         verifyRightmostScreenPosition(displayLayer, seedFailureMessage)
-        return if currentSpecFailed()
 
         expectedDisplayLayer.destroy()
+        return if currentSpecFailed()
 
 performRandomChange = (random, buffer, displayLayer, failureMessage) ->
   tries = 10
@@ -628,80 +617,34 @@ verifyChangeEvent = (displayLayer, failureMessage, fn) ->
   disposable = displayLayer.onDidChangeSync (changes) -> lastChanges = changes
 
   fn()
-
   disposable.dispose()
   if lastChanges?
     expectedTokenLines = getTokenLines(displayLayer)
     updateTokenLines(previousTokenLines, displayLayer, lastChanges)
 
-    # npm install json-diff locally if you need to uncomment this code
     # {diffString} = require 'json-diff'
     # diff = diffString(expectedTokenLines, previousTokenLines, color: false)
     # console.log diff
     # console.log previousTokenLines
     # console.log expectedTokenLines
-
     expect(previousTokenLines).toEqual(expectedTokenLines, failureMessage)
   else
     expect(getTokenLines(displayLayer)).toEqual(previousTokenLines, failureMessage)
 
-verifyTokenIterator = (displayLayer, textDecorationLayer, failureMessage) ->
-  {buffer} = displayLayer
-  tokenIterator = displayLayer.buildTokenIterator()
-  tokenIterator.seekToScreenRow(0)
-
-  text = ''
-  lastTextRow = 0
-  pendingOpenTags = []
-  pendingCloseTags = []
-  previousTokenWasFold = false
+verifyTokens = (displayLayer, failureMessage) ->
   containingTags = []
-  loop
-    startScreenPosition = tokenIterator.getStartScreenPosition()
-    endScreenPosition = tokenIterator.getEndScreenPosition()
-    startBufferPosition = tokenIterator.getStartBufferPosition()
-    endBufferPosition = tokenIterator.getEndBufferPosition()
 
-    expect(displayLayer.translateScreenPosition(startScreenPosition)).toEqual(startBufferPosition, failureMessage)
-    expect(displayLayer.translateScreenPosition(endScreenPosition)).toEqual(endBufferPosition, failureMessage)
+  tokenLines = getTokenLines(displayLayer)
+  for tokens in tokenLines
+    for {closeTags, openTags, text} in tokens
+      for tag in closeTags
+        mostRecentOpenTag = containingTags.pop()
+        expect(mostRecentOpenTag).toBe(tag, failureMessage)
+      containingTags.push(openTags...)
 
-    if endBufferPosition.traversalFrom(startBufferPosition).isPositive()
-      expect(displayLayer.translateBufferPosition(startBufferPosition)).toEqual(startScreenPosition, failureMessage)
-      expect(displayLayer.translateBufferPosition(endBufferPosition)).toEqual(endScreenPosition, failureMessage)
-
-    if startScreenPosition.row > lastTextRow
-      expect(startScreenPosition.row).toBe(lastTextRow + 1, failureMessage) # don't skip lines
-      text += '\n'
-      lastTextRow = startScreenPosition.row
-
-    tokenText = tokenIterator.getText()
-    expect(tokenText.indexOf('\n') is -1).toBe(true, failureMessage) # never include newlines in token text
-    text += tokenText
-
-    if textDecorationLayer?
-      for tag in tokenIterator.getCloseTags()
-        expect(containingTags.pop()).toBe(tag, "At screen position: #{tokenIterator.getStartScreenPosition()} " + failureMessage)
-        return if currentSpecFailed()
-      containingTags.push(tokenIterator.getOpenTags()...)
-
-      if tokenIterator.isFold()
-        expect(tokenIterator.getOpenTags()).toEqual([], failureMessage)
-        expect(containingTags).toEqual([], failureMessage)
-        previousTokenWasFold = true
-      else
-        if previousTokenWasFold
-          expect(tokenIterator.getCloseTags()).toEqual([])
-          previousTokenWasFold = false
-
-        if tokenText.length > 0 and not endBufferPosition.traversalFrom(startBufferPosition).isZero()
-          actualContainingTags = containingTags.filter((tag) -> not (tag.match(OMITTED_DECORATIONS_REGEX))).sort()
-          expectedContainingTags = textDecorationLayer.containingTagsForPosition(startBufferPosition).sort()
-          expect(actualContainingTags).toEqual(expectedContainingTags, failureMessage)
-
-    break unless tokenIterator.moveToSuccessor()
+    expect(containingTags).toEqual([], failureMessage)
 
   expect(containingTags).toEqual([], failureMessage)
-  expect(text).toBe(displayLayer.getText(), failureMessage)
 
 verifyPositionTranslations = (actualDisplayLayer, expectedDisplayLayer, failureMessage) ->
   {buffer} = actualDisplayLayer

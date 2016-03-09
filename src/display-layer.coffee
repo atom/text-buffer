@@ -457,8 +457,6 @@ class DisplayLayer
 
   getScreenLines: (startRow=0, endRow=@getScreenLineCount()) ->
     decorationIterator = @textDecorationLayer.buildIterator()
-    startRow = Math.max(startRow, 0)
-    endRow = Math.min(endRow, @getScreenLineCount())
     screenLines = []
     @screenLineIterator.seekToScreenRow(startRow)
     containingTags = decorationIterator.seek(@screenLineIterator.getBufferStart())
@@ -480,19 +478,34 @@ class DisplayLayer
 
       for {screenExtent, bufferExtent, metadata} in @screenLineIterator.getTokens()
         spatialTokenBufferEnd = traverse(bufferStart, bufferExtent)
-
-        if spatialDecoration?
-          @updateTags(closeTags, openTags, containingTags, [spatialDecoration], [])
+        tagsToClose = []
+        tagsToOpen = []
 
         if metadata?.fold
           @updateTags(closeTags, openTags, containingTags, containingTags.slice().reverse(), [], atLineStart)
           tagsToReopenAfterFold = decorationIterator.seek(spatialTokenBufferEnd)
-        else if comparePoints(decorationIterator.getPosition(), bufferStart) is 0
-          @updateTags(closeTags, openTags, containingTags, decorationIterator.getCloseTags(), decorationIterator.getOpenTags(), atLineStart)
-          decorationIterator.moveToSuccessor()
+          while comparePoints(decorationIterator.getPosition(), spatialTokenBufferEnd) is 0
+            for closeTag in decorationIterator.getCloseTags()
+              tagsToReopenAfterFold.splice(tagsToReopenAfterFold.lastIndexOf(closeTag), 1)
+            tagsToReopenAfterFold.push(decorationIterator.getOpenTags()...)
+            decorationIterator.moveToSuccessor()
+        else
+          if spatialDecoration?
+            tagsToClose.push(spatialDecoration)
+
+          if tagsToReopenAfterFold?
+            tagsToOpen.push(tagsToReopenAfterFold...)
+            tagsToReopenAfterFold = null
+
+          if comparePoints(decorationIterator.getPosition(), bufferStart) is 0
+            tagsToClose.push(decorationIterator.getCloseTags()...)
+            tagsToOpen.push(decorationIterator.getOpenTags()...)
+            decorationIterator.moveToSuccessor()
 
         if spatialDecoration = @getSpatialTokenTextDecoration(metadata)
-          @updateTags(closeTags, openTags, containingTags, [], [spatialDecoration])
+          tagsToOpen.push(spatialDecoration)
+
+        @updateTags(closeTags, openTags, containingTags, tagsToClose, tagsToOpen, atLineStart)
 
         text = @buildTokenText(metadata, screenExtent, bufferStart, spatialTokenBufferEnd)
         startIndex = 0
@@ -510,17 +523,16 @@ class DisplayLayer
 
         closeTags = []
         openTags = []
-        if metadata?.fold
-          @updateTags(closeTags, openTags, containingTags, [], tagsToReopenAfterFold)
-          tagsToReopenAfterFold = null
-
         bufferStart = spatialTokenBufferEnd
         atLineStart = false
 
       if containingTags.length > 0
         tokens.push({closeTags: containingTags.slice().reverse(), openTags: [], text: ''})
 
-      if spatialDecoration?
+      if tagsToReopenAfterFold?
+        containingTags = tagsToReopenAfterFold
+        tagsToReopenAfterFold = null
+      else if spatialDecoration?
         containingTags.splice(containingTags.indexOf(spatialDecoration), 1)
 
       while comparePoints(decorationIterator.getPosition(), spatialTokenBufferEnd) is 0
