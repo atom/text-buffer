@@ -27,7 +27,7 @@ class DisplayLayer
     @screenLineIndex = new ScreenLineIndex
     @spatialTokenIterator = @screenLineIndex.buildTokenIterator()
     @screenLineIterator = @screenLineIndex.buildScreenLineIterator()
-    @screenLineIndex.splice(0, 0, @buildScreenLines(0, @buffer.getLineCount()))
+    @screenLineIndex.splice(0, 0, @buildSpatialTokenLines(0, @buffer.getLineCount()))
     @textDecorationLayer = new EmptyDecorationLayer
     @emitter = new Emitter
 
@@ -55,7 +55,7 @@ class DisplayLayer
     if @foldsMarkerLayer.findMarkers(containsRange: bufferRange).length is 1
       {startScreenRow, endScreenRow, startBufferRow, endBufferRow} = @expandBufferRangeToScreenLineBoundaries(bufferRange)
       oldRowExtent = endScreenRow - startScreenRow
-      newScreenLines = @buildScreenLines(startBufferRow, endBufferRow)
+      newScreenLines = @buildSpatialTokenLines(startBufferRow, endBufferRow)
       newRowExtent = newScreenLines.length
       @screenLineIndex.splice(startScreenRow, endScreenRow - startScreenRow, newScreenLines)
       @emitter.emit 'did-change-sync', [{
@@ -89,7 +89,7 @@ class DisplayLayer
       combinedRange = Range(combinedRangeStart, combinedRangeEnd)
       {startScreenRow, endScreenRow, startBufferRow, endBufferRow} = @expandBufferRangeToScreenLineBoundaries(combinedRange)
       oldRowExtent = endScreenRow - startScreenRow
-      newScreenLines = @buildScreenLines(startBufferRow, endBufferRow)
+      newScreenLines = @buildSpatialTokenLines(startBufferRow, endBufferRow)
       newRowExtent = newScreenLines.length
       @screenLineIndex.splice(startScreenRow, endScreenRow - startScreenRow, newScreenLines)
       @emitter.emit 'did-change-sync', [{
@@ -106,7 +106,7 @@ class DisplayLayer
     {startScreenRow, endScreenRow, startBufferRow} = @expandBufferRangeToScreenLineBoundaries(oldRange)
 
     oldRowExtent = endScreenRow - startScreenRow
-    newScreenLines = @buildScreenLines(startBufferRow, newRange.end.row + 1)
+    newScreenLines = @buildSpatialTokenLines(startBufferRow, newRange.end.row + 1)
     newRowExtent = newScreenLines.length
     @screenLineIndex.splice(startScreenRow, oldRowExtent, newScreenLines)
 
@@ -165,7 +165,7 @@ class DisplayLayer
 
     {startScreenRow, endScreenRow, startBufferRow, endBufferRow}
 
-  buildScreenLines: (startBufferRow, endBufferRow) ->
+  buildSpatialTokenLines: (startBufferRow, endBufferRow) ->
     {startBufferRow, endBufferRow, folds} = @computeFoldsInBufferRowRange(startBufferRow, endBufferRow)
 
     screenLines = []
