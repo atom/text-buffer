@@ -566,6 +566,7 @@ describe "DisplayLayer", ->
       displayLayer.setTextDecorationLayer(textDecorationLayer)
 
       foldIds = []
+      screenLinesById = new Map
 
       for j in [0...5] by 1
         k = random(10)
@@ -583,6 +584,7 @@ describe "DisplayLayer", ->
         verifyPositionTranslations(displayLayer, expectedDisplayLayer)
         verifyTokens(displayLayer)
         verifyRightmostScreenPosition(displayLayer)
+        verifyScreenLineIds(displayLayer, screenLinesById)
 
         expectedDisplayLayer.destroy()
 
@@ -683,6 +685,13 @@ verifyRightmostScreenPosition = (displayLayer) ->
   rightmostScreenPosition = displayLayer.getRightmostScreenPosition()
   expect(rightmostScreenPosition.column).toBe(maxLineLength)
   expect(longestScreenRows.has(rightmostScreenPosition.row)).toBe(true)
+
+verifyScreenLineIds = (displayLayer, screenLinesById) ->
+  for screenLine in displayLayer.getScreenLines()
+    if screenLinesById.has(screenLine.id)
+      expect(screenLinesById.get(screenLine.id)).toEqual(screenLine)
+    else
+      screenLinesById.set(screenLine.id, screenLine)
 
 buildRandomLines = (random, maxLines) ->
   lines = []

@@ -30,6 +30,7 @@ class DisplayLayer
     @screenLineIndex.splice(0, 0, @buildSpatialTokenLines(0, @buffer.getLineCount()))
     @textDecorationLayer = new EmptyDecorationLayer
     @emitter = new Emitter
+    @invalidationCountsByScreenLineId = new Map
 
   destroy: ->
     @disposables.dispose()
@@ -57,7 +58,7 @@ class DisplayLayer
       oldRowExtent = endScreenRow - startScreenRow
       newScreenLines = @buildSpatialTokenLines(startBufferRow, endBufferRow)
       newRowExtent = newScreenLines.length
-      @screenLineIndex.splice(startScreenRow, endScreenRow - startScreenRow, newScreenLines)
+      @spliceScreenLineIndex(startScreenRow, endScreenRow - startScreenRow, newScreenLines)
       @emitter.emit 'did-change-sync', Object.freeze([{
         start: Point(startScreenRow, 0),
         oldExtent: Point(oldRowExtent, 0),
@@ -91,7 +92,7 @@ class DisplayLayer
       oldRowExtent = endScreenRow - startScreenRow
       newScreenLines = @buildSpatialTokenLines(startBufferRow, endBufferRow)
       newRowExtent = newScreenLines.length
-      @screenLineIndex.splice(startScreenRow, endScreenRow - startScreenRow, newScreenLines)
+      @spliceScreenLineIndex(startScreenRow, endScreenRow - startScreenRow, newScreenLines)
       @emitter.emit 'did-change-sync', Object.freeze([{
         start: Point(startScreenRow, 0),
         oldExtent: Point(oldRowExtent, 0),
@@ -108,7 +109,7 @@ class DisplayLayer
     oldRowExtent = endScreenRow - startScreenRow
     newScreenLines = @buildSpatialTokenLines(startBufferRow, newRange.end.row + 1)
     newRowExtent = newScreenLines.length
-    @screenLineIndex.splice(startScreenRow, oldRowExtent, newScreenLines)
+    @spliceScreenLineIndex(startScreenRow, oldRowExtent, newScreenLines)
 
     start = Point(startScreenRow, 0)
     oldExtent = Point(oldRowExtent, 0)
@@ -121,6 +122,7 @@ class DisplayLayer
       invalidatedRanges = @textDecorationLayer.getInvalidatedRanges()
       for range in invalidatedRanges
         range = @translateBufferRange(range)
+        @invalidateScreenLines(range)
         range.start.column = 0
         range.end.row++
         range.end.column = 0
@@ -129,14 +131,35 @@ class DisplayLayer
 
     @emitter.emit 'did-change-sync', Object.freeze(normalizePatchChanges(combinedChanges.getChanges()))
 
+  spliceScreenLineIndex: (startScreenRow, oldRowExtent, newScreenLines) ->
+    deletedScreenLineIds = @screenLineIndex.splice(startScreenRow, oldRowExtent, newScreenLines)
+    for screenLineId in deletedScreenLineIds
+      @invalidationCountsByScreenLineId.delete(screenLineId)
+    return
+
+  invalidateScreenLines: (screenRange) ->
+    for screenLineId in @screenLineIdsForScreenRange(screenRange)
+      count = @invalidationCountsByScreenLineId.get(screenLineId) ? 0
+      @invalidationCountsByScreenLineId.set(screenLineId, count + 1)
+    return
+
   decorationLayerDidInvalidateRange: (bufferRange) ->
     screenRange = @translateBufferRange(bufferRange)
+    @invalidateScreenLines(screenRange)
     extent = screenRange.getExtent()
     @emitter.emit 'did-change-sync', [{
       start: screenRange.start,
       oldExtent: extent,
       newExtent: extent
     }]
+
+  screenLineIdsForScreenRange: (screenRange) ->
+    @screenLineIterator.seekToScreenRow(screenRange.start.row)
+    ids = []
+    while @screenLineIterator.getScreenRow() <= screenRange.end.row
+      ids.push(@screenLineIterator.getId())
+      break unless @screenLineIterator.moveToSuccessor()
+    ids
 
   expandChangeRegionToSurroundingEmptyLines: (oldRange, newRange) ->
     oldRange = oldRange.copy()
@@ -514,7 +537,9 @@ class DisplayLayer
         @updateTags(closeTags, openTags, containingTags, decorationIterator.getCloseTags(), decorationIterator.getOpenTags())
         decorationIterator.moveToSuccessor()
 
-      screenLines.push({id: @screenLineIterator.getId(), tokens})
+      screenLineId = @screenLineIterator.getId()
+      invalidationCount = @invalidationCountsByScreenLineId.get(screenLineId) ? 0
+      screenLines.push({id: "#{screenLineId}-#{invalidationCount}", tokens})
       break unless @screenLineIterator.moveToSuccessor()
     screenLines
 
