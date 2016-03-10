@@ -1183,15 +1183,15 @@ describe "TextBuffer", ->
         expect(calls).toBe(0)
 
       it "changes the in-memory contents of the buffer to match the new disk contents and notifies ::onDidChange observers", ->
-        expect(event1.oldRange).toEqual [[0, 0], [0, 0]]
-        expect(event1.newRange).toEqual [[0, 0], [0, 6]]
-        expect(event1.oldText).toBe ""
-        expect(event1.newText).toBe "second"
+        expect(event1.oldRange).toEqual [[0, 0], [0, 5]]
+        expect(event1.newRange).toEqual [[0, 0], [0, 0]]
+        expect(event1.oldText).toBe "first"
+        expect(event1.newText).toBe ""
 
-        expect(event2.oldRange).toEqual [[0, 6], [0, 11]]
-        expect(event2.newRange).toEqual [[0, 6], [0, 6]]
-        expect(event2.oldText).toBe "first"
-        expect(event2.newText).toBe ""
+        expect(event2.oldRange).toEqual [[0, 0], [0, 0]]
+        expect(event2.newRange).toEqual [[0, 0], [0, 6]]
+        expect(event2.oldText).toBe ""
+        expect(event2.newText).toBe "second"
 
         expect(buffer.isModified()).toBeFalsy()
 
@@ -1685,10 +1685,16 @@ describe "TextBuffer", ->
 
     describe "when the buffer contains carriage returns for newlines", ->
       it "can replace the contents of the buffer", ->
-        buffer = new TextBuffer("first\rsecond\rlast")
-        newText = "new first\rnew last"
+        originalText = "beginning\rmiddle\rlast"
+        newText = "new beginning\rnew last"
+        buffer = new TextBuffer(originalText)
+        expect(buffer.getText()).toBe originalText
+
         buffer.setTextViaDiff(newText)
         expect(buffer.getText()).toBe newText
+
+        buffer.setTextViaDiff(originalText)
+        expect(buffer.getText()).toBe originalText
 
   describe "::save()", ->
     saveBuffer = null
