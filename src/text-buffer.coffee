@@ -1,7 +1,7 @@
 {Emitter, CompositeDisposable} = require 'event-kit'
 {File} = require 'pathwatcher'
 SpanSkipList = require 'span-skip-list'
-diff = require 'atom-diff'
+diff = require 'diff'
 _ = require 'underscore-plus'
 fs = require 'fs-plus'
 path = require 'path'
