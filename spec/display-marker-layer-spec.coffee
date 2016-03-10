@@ -4,6 +4,9 @@ Range = require '../src/range'
 SampleText = require './helpers/sample-text'
 
 describe "DisplayMarkerLayer", ->
+  beforeEach ->
+    jasmine.addCustomEqualityTester(require("underscore-plus").isEqual)
+
   it "allows DisplayMarkers to be created and manipulated in screen coordinates", ->
     buffer = new TextBuffer(text: '\ta\tbc\tdef\tg\n\th')
     displayLayer = buffer.addDisplayLayer(tabLength: 4)
@@ -71,36 +74,24 @@ describe "DisplayMarkerLayer", ->
     marker.destroy()
     expect(destroyEventCount).toBe 1
 
-  it "emits update events when markers are created, updated directly, updated indirectly, or destroyed", ->
+  it "emits update events when markers are created, updated directly, updated indirectly, or destroyed", (done) ->
     buffer = new TextBuffer(text: 'hello world')
     displayLayer = buffer.addDisplayLayer(tabLength: 4)
     markerLayer = displayLayer.addMarkerLayer()
 
     updateEventCount = 0
-    markerLayer.onDidUpdate -> updateEventCount++
+    markerLayer.onDidUpdate ->
+      updateEventCount++
+      if updateEventCount is 1
+        marker.setScreenRange([[0, 5], [1, 0]])
+      else if updateEventCount is 2
+        buffer.insert([0, 0], '\t')
+      else if updateEventCount is 3
+        marker.destroy()
+      else if updateEventCount is 4
+        done()
 
     marker = markerLayer.markScreenRange([[0, 4], [1, 4]])
-
-    waitsFor 'update event', ->
-      updateEventCount is 1
-
-    runs ->
-      marker.setScreenRange([[0, 5], [1, 0]])
-
-    waitsFor 'update event', ->
-      updateEventCount is 2
-
-    runs ->
-      buffer.insert([0, 0], '\t')
-
-    waitsFor 'update event', ->
-      updateEventCount is 3
-
-    runs ->
-      marker.destroy()
-
-    waitsFor 'update event', ->
-      updateEventCount is 4
 
   describe "findMarkers(params)", ->
     [markerLayer, displayLayer] = []

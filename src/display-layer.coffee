@@ -8,13 +8,14 @@ EmptyDecorationLayer = require './empty-decoration-layer'
 {traverse, traversal, clipNegativePoint} = pointHelpers = require './point-helpers'
 comparePoints = pointHelpers.compare
 maxPoint = pointHelpers.max
+{normalizePatchChanges} = require './helpers'
 
 module.exports =
 class DisplayLayer
-  constructor: (@buffer, {@tabLength, @foldsMarkerLayer, @invisibles, @showIndentGuides, patchSeed}={}) ->
+  constructor: (@buffer, {@tabLength, @foldsMarkerLayer, @invisibles, @showIndentGuides}={}) ->
     @displayMarkerLayersById = {}
     @textDecorationLayer = null
-    @foldsMarkerLayer ?= @buffer.addMarkerLayer()
+    @foldsMarkerLayer ?= @buffer.addMarkerLayer({maintainHistory: true})
     @invisibles ?= {}
     @eolInvisibles = {
       "\r": @invisibles.cr
@@ -57,11 +58,11 @@ class DisplayLayer
       newScreenLines = @buildSpatialTokenLines(startBufferRow, endBufferRow)
       newRowExtent = newScreenLines.length
       @screenLineIndex.splice(startScreenRow, endScreenRow - startScreenRow, newScreenLines)
-      @emitter.emit 'did-change-sync', [{
+      @emitter.emit 'did-change-sync', Object.freeze([{
         start: Point(startScreenRow, 0),
         oldExtent: Point(oldRowExtent, 0),
         newExtent: Point(newRowExtent, 0)
-      }]
+      }])
 
     foldId
 
@@ -91,11 +92,11 @@ class DisplayLayer
       newScreenLines = @buildSpatialTokenLines(startBufferRow, endBufferRow)
       newRowExtent = newScreenLines.length
       @screenLineIndex.splice(startScreenRow, endScreenRow - startScreenRow, newScreenLines)
-      @emitter.emit 'did-change-sync', [{
+      @emitter.emit 'did-change-sync', Object.freeze([{
         start: Point(startScreenRow, 0),
         oldExtent: Point(oldRowExtent, 0),
         newExtent: Point(newRowExtent, 0)
-      }]
+      }])
 
   onDidChangeSync: (callback) ->
     @emitter.on 'did-change-sync', callback
@@ -126,7 +127,7 @@ class DisplayLayer
         extent = range.getExtent()
         combinedChanges.splice(range.start, extent, extent)
 
-    @emitter.emit 'did-change-sync', combinedChanges.getChanges()
+    @emitter.emit 'did-change-sync', Object.freeze(normalizePatchChanges(combinedChanges.getChanges()))
 
   decorationLayerDidInvalidateRange: (bufferRange) ->
     screenRange = @translateBufferRange(bufferRange)
