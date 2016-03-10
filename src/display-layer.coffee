@@ -43,7 +43,8 @@ class DisplayLayer
     @displayMarkerLayersById[markerLayer.id] = markerLayer
 
   getMarkerLayer: (id) ->
-    @displayMarkerLayersById[id] ?= new DisplayMarkerLayer(this, @buffer.getMarkerLayer(id))
+    if bufferMarkerLayer = @buffer.getMarkerLayer(id)
+      @displayMarkerLayersById[id] ?= new DisplayMarkerLayer(this, bufferMarkerLayer)
 
   setTextDecorationLayer: (layer) ->
     @decorationLayerDisposable?.dispose()
