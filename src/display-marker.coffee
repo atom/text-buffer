@@ -14,6 +14,9 @@ class DisplayMarker
     @destroyed = true
     @emitter.emit('did-destroy')
 
+  compare: (otherMarker) ->
+    @bufferMarker.compare(otherMarker.bufferMarker)
+
   onDidDestroy: (callback) ->
     @emitter.on('did-destroy', callback)
 
@@ -56,6 +59,12 @@ class DisplayMarker
   setTailScreenPosition: (screenPosition, options) ->
     bufferPosition = @layer.translateScreenPosition(screenPosition, options)
     @bufferMarker.setTailPosition(bufferPosition, options)
+
+  getStartBufferPosition: ->
+    @bufferMarker.getStartPosition()
+
+  getEndBufferPosition: ->
+    @bufferMarker.getEndPosition()
 
   isValid: ->
     @bufferMarker.isValid()
