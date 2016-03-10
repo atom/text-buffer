@@ -10,9 +10,13 @@ class DisplayMarkerLayer
     @markersById = {}
     @emitter = new Emitter
     @bufferMarkerLayer.onDidUpdate(@emitDidUpdate.bind(this))
+    @bufferMarkerLayer.onDidDestroy(@emitDidDestroy.bind(this))
 
   destroy: ->
     @bufferMarkerLayer.destroy()
+
+  onDidDestroy: (callback) ->
+    @emitter.on('did-destroy', callback)
 
   onDidUpdate: (callback) ->
     @emitter.on('did-update', callback)
@@ -74,6 +78,9 @@ class DisplayMarkerLayer
 
   emitDidUpdate: ->
     @emitter.emit('did-update')
+
+  emitDidDestroy: ->
+    @emitter.emit('did-destroy')
 
   translateToBufferMarkerLayerFindParams: (params) ->
     bufferMarkerLayerFindParams = {}
