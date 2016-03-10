@@ -1,6 +1,9 @@
 Range = require '../src/range'
 
 describe "Range", ->
+  beforeEach ->
+    jasmine.addCustomEqualityTester(require("underscore-plus").isEqual)
+
   describe "::intersectsWith(other, [exclusive])", ->
     intersectsWith = (range1, range2, exclusive) ->
       range1 = Range.fromObject(range1)

@@ -1,4 +1,3 @@
-Serializable = require 'serializable'
 {Emitter, CompositeDisposable} = require 'event-kit'
 {File} = require 'pathwatcher'
 SpanSkipList = require 'span-skip-list'
@@ -7,15 +6,14 @@ _ = require 'underscore-plus'
 fs = require 'fs-plus'
 path = require 'path'
 crypto = require 'crypto'
-
+Patch = require 'atom-patch'
 Point = require './point'
 Range = require './range'
 History = require './history'
 MarkerLayer = require './marker-layer'
-Patch = require './patch'
 MatchIterator = require './match-iterator'
 DisplayLayer = require './display-layer'
-{spliceArray, newlineRegex} = require './helpers'
+{spliceArray, newlineRegex, normalizePatchChanges} = require './helpers'
 
 class SearchCallbackArgument
   Object.defineProperty @::, "range",
@@ -63,10 +61,8 @@ class TextBuffer
   @version: 5
   @Point: Point
   @Range: Range
-  @Patch: Patch
+  @Patch: require('./patch')
   @newlineRegex: newlineRegex
-
-  Serializable.includeInto(this)
 
   cachedText: null
   encoding: null
@@ -96,13 +92,15 @@ class TextBuffer
     text = params if typeof params is 'string'
 
     @emitter = new Emitter
+    @patchesSinceLastStoppedChangingEvent = []
+    @didChangeTextPatch = new Patch
     @id = params?.id ? crypto.randomBytes(16).toString('hex')
     @lines = ['']
     @lineEndings = ['']
     @offsetIndex = new SpanSkipList('rows', 'characters')
     @setTextInRange([[0, 0], [0, 0]], text ? params?.text ? '', normalizeLineEndings: false)
     maxUndoEntries = params?.maxUndoEntries ? @defaultMaxUndoEntries
-    @history = params?.history ? new History(this, maxUndoEntries)
+    @history = params?.history ? new History(maxUndoEntries)
     @nextMarkerLayerId = params?.nextMarkerLayerId ? 0
     @defaultMarkerLayer = params?.defaultMarkerLayer ? new MarkerLayer(this, String(@nextMarkerLayerId++))
     @markerLayers = params?.markerLayers ? {}
@@ -119,33 +117,39 @@ class TextBuffer
     @setPath(params.filePath) if params?.filePath
     @load() if params?.load
 
+  @deserialize: (params) ->
+    return if params.version isnt TextBuffer.prototype.version
+
+    buffer = Object.create(TextBuffer.prototype)
+    markerLayers = {}
+    for layerId, layerState of params.markerLayers
+      markerLayers[layerId] = MarkerLayer.deserialize(buffer, layerState)
+    params.markerLayers = markerLayers
+    params.defaultMarkerLayer = params.markerLayers[params.defaultMarkerLayerId]
+    params.history = History.deserialize(params.history)
+    params.load = true if params.filePath
+    TextBuffer.call(buffer, params)
+    buffer
+
   # Returns a {String} representing a unique identifier for this {TextBuffer}.
   getId: ->
     @id
 
-  # Called by {Serializable} mixin during deserialization.
-  deserializeParams: (params) ->
-    markerLayers = {}
-    for layerId, layerState of params.markerLayers
-      markerLayers[layerId] = MarkerLayer.deserialize(this, layerState)
-    params.markerLayers = markerLayers
-    params.defaultMarkerLayer = params.markerLayers[params.defaultMarkerLayerId]
-    params.history = History.deserialize(this, params.history)
-    params.load = true if params.filePath
-    params
+  serialize: (options) ->
+    options ?= {}
+    options.markerLayers ?= true
 
-  # Called by {Serializable} mixin during serialization.
-  serializeParams: ->
     markerLayers = {}
-    for id, layer of @markerLayers
-      markerLayers[id] = layer.serialize()
+    if options.markerLayers
+      for id, layer of @markerLayers
+        markerLayers[id] = layer.serialize() if layer.maintainHistory
 
     id: @getId()
     text: @getText()
     defaultMarkerLayerId: @defaultMarkerLayer.id
     markerLayers: markerLayers
     nextMarkerLayerId: @nextMarkerLayerId
-    history: @history.serialize()
+    history: @history.serialize(options)
     encoding: @getEncoding()
     filePath: @getPath()
     digestWhenLastPersisted: @file?.getDigestSync()
@@ -190,6 +194,9 @@ class TextBuffer
   # Returns a {Disposable} on which `.dispose()` can be called to unsubscribe.
   onDidChange: (callback) ->
     @emitter.on 'did-change', callback
+
+  onDidChangeText: (callback) ->
+    @emitter.on 'did-change-text', callback
 
   preemptDidChange: (callback) ->
     @emitter.preempt 'did-change', callback
@@ -637,7 +644,9 @@ class TextBuffer
     oldRange = @clipRange(range)
     oldText = @getTextInRange(oldRange)
     newRange = Range.fromText(oldRange.start, newText)
-    @applyChange({oldRange, newRange, oldText, newText, normalizeLineEndings}, (undo is 'skip'))
+    change = {newStart: oldRange.start, oldExtent: oldRange.getExtent(), newExtent: newRange.getExtent(), oldText, newText, normalizeLineEndings}
+    @history?.pushChange(change) if undo isnt 'skip'
+    @applyChange(change)
     newRange
 
   # Public: Insert text at the given position.
@@ -665,8 +674,11 @@ class TextBuffer
     @insert(@getEndPosition(), text, options)
 
   # Applies a change to the buffer based on its old range and new text.
-  applyChange: (change, skipUndo) ->
-    {oldRange, newRange, oldText, newText, normalizeLineEndings} = change
+  applyChange: (change) ->
+    {newStart, oldExtent, newExtent, oldText, newText, normalizeLineEndings} = change
+    start = Point.fromObject(newStart)
+    oldRange = Range(start, start.traverse(oldExtent))
+    newRange = Range(start, start.traverse(newExtent))
     oldRange.freeze()
     newRange.freeze()
     @cachedText = null
@@ -731,10 +743,7 @@ class TextBuffer
       for id, markerLayer of @markerLayers
         markerLayer.splice(oldRange.start, oldExtent, newExtent)
 
-    @history?.pushChange(change) unless skipUndo
-
     @conflict = false if @conflict and !@isModified()
-    @scheduleModifiedEvents()
 
     @changeCount++
     @emitter.emit 'did-change', changeEvent
@@ -918,9 +927,10 @@ class TextBuffer
   # Public: Undo the last operation. If a transaction is in progress, aborts it.
   undo: ->
     if pop = @history.popUndoStack()
-      @applyChange(change, true) for change in pop.changes
+      @applyChange(change) for change in pop.patch.getChanges()
       @restoreFromMarkerSnapshot(pop.snapshot)
       @emitMarkerChangeEvents(pop.snapshot)
+      @emitDidChangeTextEvent(pop.patch)
       true
     else
       false
@@ -928,9 +938,10 @@ class TextBuffer
   # Public: Redo the last operation
   redo: ->
     if pop = @history.popRedoStack()
-      @applyChange(change, true) for change in pop.changes
+      @applyChange(change) for change in pop.patch.getChanges()
       @restoreFromMarkerSnapshot(pop.snapshot)
       @emitMarkerChangeEvents(pop.snapshot)
+      @emitDidChangeTextEvent(pop.patch)
       true
     else
       false
@@ -966,10 +977,10 @@ class TextBuffer
       @transactCallDepth--
 
     endMarkerSnapshot = @createMarkerSnapshot()
-    @history.groupChangesSinceCheckpoint(checkpointBefore, endMarkerSnapshot, true)
+    compactedChanges = @history.groupChangesSinceCheckpoint(checkpointBefore, endMarkerSnapshot, true)
     @history.applyGroupingInterval(groupingInterval)
     @emitMarkerChangeEvents(endMarkerSnapshot)
-
+    @emitDidChangeTextEvent(compactedChanges)
     result
 
   abortTransaction: ->
@@ -996,9 +1007,10 @@ class TextBuffer
   # Returns a {Boolean} indicating whether the operation succeeded.
   revertToCheckpoint: (checkpoint) ->
     if truncated = @history.truncateUndoStack(checkpoint)
-      @applyChange(change, true) for change in truncated.changes
+      @applyChange(change) for change in truncated.patch.getChanges()
       @restoreFromMarkerSnapshot(truncated.snapshot)
       @emitter.emit 'did-update-markers'
+      @emitDidChangeTextEvent(truncated.patch)
       true
     else
       false
@@ -1429,7 +1441,7 @@ class TextBuffer
       previousContents = @cachedDiskContents
 
       # Synchrounously update the disk contents because the {File} has already cached them. If the
-      # contents updated asynchrounously multiple `conlict` events could trigger for the same disk
+      # contents updated asynchrounously multiple `conflict` events could trigger for the same disk
       # contents.
       @updateCachedDiskContentsSync()
       return if previousContents == @cachedDiskContents
@@ -1469,6 +1481,13 @@ class TextBuffer
     for markerLayerId, markerLayer of @markerLayers
       markerLayer.emitChangeEvents(snapshot?[markerLayerId])
 
+  emitDidChangeTextEvent: (patch) ->
+    return if @transactCallDepth isnt 0
+
+    @emitter.emit 'did-change-text', {changes: Object.freeze(normalizePatchChanges(patch.getChanges()))}
+    @patchesSinceLastStoppedChangingEvent.push(patch)
+    @scheduleDidStopChangingEvent()
+
   # Identifies if the buffer belongs to multiple editors.
   #
   # For example, if the {EditorView} was split.
@@ -1479,12 +1498,13 @@ class TextBuffer
   cancelStoppedChangingTimeout: ->
     clearTimeout(@stoppedChangingTimeout) if @stoppedChangingTimeout
 
-  scheduleModifiedEvents: ->
+  scheduleDidStopChangingEvent: ->
     @cancelStoppedChangingTimeout()
     stoppedChangingCallback = =>
       @stoppedChangingTimeout = null
       modifiedStatus = @isModified()
-      @emitter.emit 'did-stop-changing'
+      @emitter.emit 'did-stop-changing', {changes: Object.freeze(normalizePatchChanges(Patch.compose(@patchesSinceLastStoppedChangingEvent).getChanges()))}
+      @patchesSinceLastStoppedChangingEvent = []
       @emitModifiedStatusChanged(modifiedStatus)
     @stoppedChangingTimeout = setTimeout(stoppedChangingCallback, @stoppedChangingDelay)
 
@@ -1527,7 +1547,9 @@ class TextBuffer
       newText: change.newText
     }
 
-  serializeSnapshot: (snapshot) ->
+  serializeSnapshot: (snapshot, options) ->
+    return unless options.markerLayers
+
     MarkerLayer.serializeSnapshot(snapshot)
 
   deserializeSnapshot: (snapshot) ->
