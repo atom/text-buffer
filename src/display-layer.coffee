@@ -12,11 +12,12 @@ maxPoint = pointHelpers.max
 
 module.exports =
 class DisplayLayer
-  constructor: (@buffer, {@tabLength, @foldsMarkerLayer, @invisibles, @showIndentGuides}={}) ->
+  constructor: (@buffer, {@tabLength, @foldsMarkerLayer, @invisibles, @showIndentGuides, @softWrapColumn}={}) ->
     @displayMarkerLayersById = {}
     @textDecorationLayer = null
     @foldsMarkerLayer ?= @buffer.addMarkerLayer({maintainHistory: true})
     @invisibles ?= {}
+    @softWrapColumn ?= Infinity
     @eolInvisibles = {
       "\r": @invisibles.cr
       "\n": @invisibles.eol
@@ -196,6 +197,7 @@ class DisplayLayer
     bufferRow = startBufferRow
     bufferColumn = 0
     screenColumn = 0
+    screenLineWidth = 0
 
     while bufferRow < endBufferRow
       tokens = []
@@ -208,6 +210,9 @@ class DisplayLayer
       isBlankLine = trailingWhitespaceStartBufferColumn is 0
       isEmptyLine = bufferLineLength is 0
       inLeadingWhitespace = not isBlankLine
+      lastWhitespaceScreenColumn = -1
+      lastWhitespaceBufferColumn = -1
+      lastWhitespaceWidth = -1
 
       while bufferColumn <= bufferLineLength
         character = bufferLine[bufferColumn]
@@ -218,6 +223,11 @@ class DisplayLayer
         atSoftTabBoundary =
           (inLeadingWhitespace or isBlankLine and inTrailingWhitespace) and
             (screenColumn % @tabLength) is 0 and (screenColumn - tokensScreenExtent) is @tabLength
+
+        if character is ' ' or character is '\t'
+          lastWhitespaceScreenColumn = screenColumn
+          lastWhitespaceBufferColumn = bufferColumn
+          lastWhitespaceWidth = screenLineWidth
 
         if character isnt ' ' or foldEndBufferPosition? or atSoftTabBoundary
           if inLeadingWhitespace and bufferColumn < bufferLineLength
@@ -259,6 +269,36 @@ class DisplayLayer
               })
               tokensScreenExtent = screenColumn
 
+        if (character isnt ' ' or foldEndBufferPosition?) and screenLineWidth >= @softWrapColumn
+          if lastWhitespaceScreenColumn > -1
+            wrapScreenColumn = lastWhitespaceScreenColumn + 1
+            wrapBufferColumn = lastWhitespaceBufferColumn + 1
+            wrapWidth = lastWhitespaceWidth + 1
+          else
+            wrapScreenColumn = screenColumn
+            wrapBufferColumn = bufferColumn
+            wrapWidth = screenLineWidth
+
+          if wrapScreenColumn > tokensScreenExtent
+            behindCount = wrapScreenColumn - tokensScreenExtent
+            tokens.push({
+              screenExtent: behindCount,
+              bufferExtent: Point(0, behindCount)
+            })
+            tokensScreenExtent = wrapScreenColumn
+
+          screenLineBufferEnd = Point(bufferRow, wrapBufferColumn)
+          screenLines.push({
+            screenExtent: tokensScreenExtent,
+            bufferExtent: traversal(screenLineBufferEnd, screenLineBufferStart),
+            tokens
+          })
+          tokens = []
+          tokensScreenExtent = 0
+          screenLineBufferStart = screenLineBufferEnd
+          screenColumn = screenColumn - wrapScreenColumn
+          screenLineWidth = screenLineWidth - wrapWidth
+
         if foldEndBufferPosition?
           if screenColumn > tokensScreenExtent
             behindCount = screenColumn - tokensScreenExtent
@@ -281,6 +321,7 @@ class DisplayLayer
           bufferLine = @buffer.lineForRow(bufferRow)
           bufferLineLength = bufferLine.length
           screenColumn += 1
+          screenLineWidth += 1
           tokensScreenExtent = screenColumn
           inLeadingWhitespace = true
           for column in [0...bufferColumn] by 1
@@ -316,10 +357,13 @@ class DisplayLayer
             })
             bufferColumn += 1
             screenColumn += distanceToNextTabStop
+            screenLineWidth += distanceToNextTabStop
             tokensScreenExtent = screenColumn
           else
             bufferColumn += 1
-            screenColumn += 1 if character?
+            if character?
+              screenColumn += 1
+              screenLineWidth += 1
 
       if screenColumn > tokensScreenExtent
         behindCount = screenColumn - tokensScreenExtent

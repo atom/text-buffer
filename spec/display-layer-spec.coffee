@@ -237,6 +237,24 @@ describe "DisplayLayer", ->
 
       expect(displayLayer.getText()).toBe 'abc\ndef\nghi\nj'
 
+  describe "soft wraps", ->
+    describe "when there is a word boundary at the softWrapColumn", ->
+      it "soft wraps the line at the softWrapColumn", ->
+        buffer = new TextBuffer(text: 'abc def ghi jkl mno')
+        displayLayer = buffer.addDisplayLayer(softWrapColumn: 7)
+        expect(displayLayer.getText()).toBe 'abc def \nghi jkl \nmno'
+
+    describe "when there is a word character at the softWrapColumn", ->
+      it "soft wraps the line at the word boundary preceding the softWrapColumn", ->
+        buffer = new TextBuffer(text: 'abc defg hijkl mno')
+        displayLayer = buffer.addDisplayLayer(softWrapColumn: 7)
+        expect(displayLayer.getText()).toBe 'abc \ndefg \nhijkl \nmno'
+
+      it "soft wraps the line at the softWrapColumn if no word boundary precedes it", ->
+        buffer = new TextBuffer(text: 'abcdefghijklmno')
+        displayLayer = buffer.addDisplayLayer(softWrapColumn: 7)
+        expect(displayLayer.getText()).toBe 'abcdefg\nhijklmn\no'
+
   describe "invisibles", ->
     it "replaces leading whitespaces with the corresponding invisible character, appropriately decorated", ->
       buffer = new TextBuffer(text: """
