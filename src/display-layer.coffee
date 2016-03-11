@@ -210,6 +210,7 @@ class DisplayLayer
       isBlankLine = trailingWhitespaceStartBufferColumn is 0
       isEmptyLine = bufferLineLength is 0
       inLeadingWhitespace = not isBlankLine
+      firstNonWhitespaceScreenColumn = null
       lastWhitespaceScreenColumn = -1
       lastWhitespaceBufferColumn = -1
       lastWhitespaceWidth = -1
@@ -231,7 +232,9 @@ class DisplayLayer
 
         if character isnt ' ' or foldEndBufferPosition? or atSoftTabBoundary
           if inLeadingWhitespace and bufferColumn < bufferLineLength
-            inLeadingWhitespace = false unless character is ' ' or character is '\t'
+            unless character is ' ' or character is '\t'
+              inLeadingWhitespace = false
+              firstNonWhitespaceScreenColumn = screenColumn
             if screenColumn > tokensScreenExtent
               spaceCount = screenColumn - tokensScreenExtent
               tokens.push({
@@ -298,6 +301,16 @@ class DisplayLayer
           screenLineBufferStart = screenLineBufferEnd
           screenColumn = screenColumn - wrapScreenColumn
           screenLineWidth = screenLineWidth - wrapWidth
+
+          if firstNonWhitespaceScreenColumn > 0
+            tokens.push({
+              screenExtent: firstNonWhitespaceScreenColumn,
+              bufferExtent: Point.ZERO
+              metadata: {void: true}
+            })
+            tokensScreenExtent += firstNonWhitespaceScreenColumn
+            screenColumn += firstNonWhitespaceScreenColumn
+            screenLineWidth += firstNonWhitespaceScreenColumn
 
         if foldEndBufferPosition?
           if screenColumn > tokensScreenExtent

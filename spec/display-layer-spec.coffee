@@ -255,6 +255,12 @@ describe "DisplayLayer", ->
         displayLayer = buffer.addDisplayLayer(softWrapColumn: 7)
         expect(displayLayer.getText()).toBe 'abcdefg\nhijklmn\no'
 
+    describe "when a soft-wrapped line is indented", ->
+      it "preserves the indent on wrapped segments of the line", ->
+        buffer = new TextBuffer(text: '   abc de fghi jkl')
+        displayLayer = buffer.addDisplayLayer(softWrapColumn: 7)
+        expect(displayLayer.getText()).toBe '   abc \n   de \n   fghi \n   jkl'
+
   describe "invisibles", ->
     it "replaces leading whitespaces with the corresponding invisible character, appropriately decorated", ->
       buffer = new TextBuffer(text: """
