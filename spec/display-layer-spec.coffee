@@ -257,14 +257,23 @@ describe "DisplayLayer", ->
       displayLayer = buffer.addDisplayLayer(softWrapColumn: 7)
       expect(displayLayer.getText()).toBe '   abc \n   de \n   fghi \n   jkl'
 
+    it "ignores indents that are greater than or equal to the softWrapColumn", ->
+      buffer = new TextBuffer(text: '       abcde fghijk')
+      displayLayer = buffer.addDisplayLayer(softWrapColumn: 7)
+      expect(displayLayer.getText()).toBe '       \nabcde \nfghijk'
+
     it "honors the softWrapHangingIndent setting", ->
+      buffer = new TextBuffer(text: 'abcdef ghi')
+      displayLayer = buffer.addDisplayLayer(softWrapColumn: 7, softWrapHangingIndent: 2)
+      expect(displayLayer.getText()).toBe 'abcdef \n  ghi'
+
       buffer = new TextBuffer(text: '   abc de fghi jk')
       displayLayer = buffer.addDisplayLayer(softWrapColumn: 7, softWrapHangingIndent: 2)
       expect(displayLayer.getText()).toBe '   abc \n     de \n     fg\n     hi \n     jk'
 
-      buffer = new TextBuffer(text: 'abcdef ghi')
+      buffer = new TextBuffer(text: '       abcde fghijk')
       displayLayer = buffer.addDisplayLayer(softWrapColumn: 7, softWrapHangingIndent: 2)
-      expect(displayLayer.getText()).toBe 'abcdef \n  ghi'
+      expect(displayLayer.getText()).toBe '       \n  abcde \n  fghij\n  k'
 
   describe "invisibles", ->
     it "replaces leading whitespaces with the corresponding invisible character, appropriately decorated", ->

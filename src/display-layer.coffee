@@ -305,18 +305,24 @@ class DisplayLayer
           screenLineWidth = screenLineWidth - wrapWidth
           lastWrapBufferColumn = wrapBufferColumn
 
-          if (softWrapIndent + @softWrapHangingIndent) < @softWrapColumn
-            softWrapIndent += @softWrapHangingIndent
 
-          if softWrapIndent > 0
+          if softWrapIndent < @softWrapColumn
+            indentLength = softWrapIndent
+          else
+            indentLength = 0
+
+          if (indentLength + @softWrapHangingIndent) < @softWrapColumn
+            indentLength += @softWrapHangingIndent
+
+          if indentLength > 0
             tokens.push({
-              screenExtent: softWrapIndent,
+              screenExtent: indentLength,
               bufferExtent: Point.ZERO
               metadata: {void: true}
             })
-            tokensScreenExtent += softWrapIndent
-            screenColumn += softWrapIndent
-            screenLineWidth += softWrapIndent
+            tokensScreenExtent += indentLength
+            screenColumn += indentLength
+            screenLineWidth += indentLength
 
         if foldEndBufferPosition?
           if screenColumn > tokensScreenExtent
