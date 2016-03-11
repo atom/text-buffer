@@ -552,41 +552,42 @@ describe "DisplayLayer", ->
 
   now = Date.now()
   for i in [0...100] by 1
-    seed = now + i
-    it "updates the displayed text correctly when the underlying buffer changes: #{seed}", ->
-      random = new Random(seed)
-      buffer = new TextBuffer(text: buildRandomLines(random, 10))
-      invisibles = {}
-      invisibles.space = '•' if random(2) > 0
-      invisibles.eol = '¬' if random(2) > 0
-      invisibles.cr = '¤' if random(2) > 0
-      showIndentGuides = Boolean(random(2))
-      displayLayer = buffer.addDisplayLayer({tabLength: 4, invisibles, showIndentGuides})
-      textDecorationLayer = new TestDecorationLayer([], buffer, random)
-      displayLayer.setTextDecorationLayer(textDecorationLayer)
+    do ->
+      seed = now + i
+      it "updates the displayed text correctly when the underlying buffer changes: #{seed}", ->
+        random = new Random(seed)
+        buffer = new TextBuffer(text: buildRandomLines(random, 10))
+        invisibles = {}
+        invisibles.space = '•' if random(2) > 0
+        invisibles.eol = '¬' if random(2) > 0
+        invisibles.cr = '¤' if random(2) > 0
+        showIndentGuides = Boolean(random(2))
+        displayLayer = buffer.addDisplayLayer({tabLength: 4, invisibles, showIndentGuides})
+        textDecorationLayer = new TestDecorationLayer([], buffer, random)
+        displayLayer.setTextDecorationLayer(textDecorationLayer)
 
-      foldIds = []
-      screenLinesById = new Map
+        foldIds = []
+        screenLinesById = new Map
 
-      for j in [0...5] by 1
-        k = random(10)
-        if k < 2
-          createRandomFold(random, displayLayer, foldIds)
-        else if k < 4 and foldIds.length > 0
-          destroyRandomFold(random, displayLayer, foldIds)
-        else
-          performRandomChange(random, buffer, displayLayer)
+        for j in [0...5] by 1
+          k = random(10)
+          if k < 2
+            createRandomFold(random, displayLayer, foldIds)
+          else if k < 4 and foldIds.length > 0
+            destroyRandomFold(random, displayLayer, foldIds)
+          else
+            performRandomChange(random, buffer, displayLayer)
 
-        # incrementally-updated text matches freshly computed text
-        expectedDisplayLayer = buffer.addDisplayLayer({foldsMarkerLayer: displayLayer.foldsMarkerLayer.copy(), tabLength: 4, invisibles, showIndentGuides})
-        expect(JSON.stringify(displayLayer.getText())).toBe(JSON.stringify(expectedDisplayLayer.getText()))
+          # incrementally-updated text matches freshly computed text
+          expectedDisplayLayer = buffer.addDisplayLayer({foldsMarkerLayer: displayLayer.foldsMarkerLayer.copy(), tabLength: 4, invisibles, showIndentGuides})
+          expect(JSON.stringify(displayLayer.getText())).toBe(JSON.stringify(expectedDisplayLayer.getText()))
 
-        verifyPositionTranslations(displayLayer, expectedDisplayLayer)
-        verifyTokens(displayLayer)
-        verifyRightmostScreenPosition(displayLayer)
-        verifyScreenLineIds(displayLayer, screenLinesById)
+          verifyPositionTranslations(displayLayer, expectedDisplayLayer)
+          verifyTokens(displayLayer)
+          verifyRightmostScreenPosition(displayLayer)
+          verifyScreenLineIds(displayLayer, screenLinesById)
 
-        expectedDisplayLayer.destroy()
+          expectedDisplayLayer.destroy()
 
 performRandomChange = (random, buffer, displayLayer) ->
   tries = 10
@@ -633,8 +634,7 @@ verifyChangeEvent = (displayLayer, fn) ->
 verifyTokens = (displayLayer) ->
   containingTags = []
 
-  tokenLines = getTokenLines(displayLayer)
-  for tokens in tokenLines
+  for tokens in getTokenLines(displayLayer)
     for {closeTags, openTags, text} in tokens
       for tag in closeTags
         mostRecentOpenTag = containingTags.pop()
