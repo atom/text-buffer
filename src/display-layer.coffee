@@ -600,6 +600,7 @@ class DisplayLayer
       decoration += 'trailing-whitespace ' if metadata.trailingWhitespace
       decoration += 'eol ' if metadata.eol
       decoration += 'indent-guide ' if metadata.showIndentGuide and @showIndentGuides
+      decoration += 'fold-marker ' if metadata.fold
       if decoration.length > 0
         decoration.trim()
 

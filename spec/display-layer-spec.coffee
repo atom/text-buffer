@@ -318,14 +318,14 @@ describe "DisplayLayer", ->
 
       expectTokens(displayLayer, [
         {text: '••', close: [], open: ["invisible-character leading-whitespace"]},
-        {text: '⋯', close: ["invisible-character leading-whitespace"], open: []},
-        {text: '••', close: [], open: ["invisible-character trailing-whitespace"]},
+        {text: '⋯', close: ["invisible-character leading-whitespace"], open: ["fold-marker"]},
+        {text: '••', close: ["fold-marker"], open: ["invisible-character trailing-whitespace"]},
         {text: '', close: ["invisible-character trailing-whitespace"], open: []},
         {text: '••', close: [], open: ["invisible-character leading-whitespace"]},
-        {text: '⋯', close: ["invisible-character leading-whitespace"], open: []},
-        {text: '••', close: [], open: ["invisible-character trailing-whitespace"]},
-        {text: '⋯', close: ["invisible-character trailing-whitespace"], open: []},
-        {text: 'd', close: [], open: []},
+        {text: '⋯', close: ["invisible-character leading-whitespace"], open: ["fold-marker"]},
+        {text: '••', close: ["fold-marker"], open: ["invisible-character trailing-whitespace"]},
+        {text: '⋯', close: ["invisible-character trailing-whitespace"], open: ["fold-marker"]},
+        {text: 'd', close: ["fold-marker"], open: []},
       ])
 
     it "renders tab invisibles, appropriately decorated", ->
@@ -506,8 +506,8 @@ describe "DisplayLayer", ->
         {text: 'a', close: [], open: []},
         {text: 'b', close: [], open: ['preceding-fold', 'ending-at-fold-start', 'overlapping-fold-start', 'surrounding-fold']},
         {text: 'c', close: ['surrounding-fold', 'overlapping-fold-start', 'ending-at-fold-start', 'preceding-fold'], open: ['ending-at-fold-start', 'overlapping-fold-start', 'surrounding-fold']},
-        {text: '⋯', close: ['surrounding-fold', 'overlapping-fold-start', 'ending-at-fold-start'], open: []},
-        {text: 'mn', close: [], open: ['surrounding-fold', 'overlapping-fold-end', 'starting-at-fold-end']},
+        {text: '⋯', close: ['surrounding-fold', 'overlapping-fold-start', 'ending-at-fold-start'], open: ['fold-marker']},
+        {text: 'mn', close: ['fold-marker'], open: ['surrounding-fold', 'overlapping-fold-end', 'starting-at-fold-end']},
         {text: 'o', close: ['starting-at-fold-end', 'overlapping-fold-end'], open: ['following-fold']},
         {text: '', close: ['following-fold', 'surrounding-fold'], open: []}
       ])
