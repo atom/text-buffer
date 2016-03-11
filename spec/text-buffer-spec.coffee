@@ -1,5 +1,6 @@
 fs = require 'fs-plus'
 {join} = require 'path'
+os = require 'os'
 temp = require 'temp'
 {File} = require 'pathwatcher'
 Random = require 'random-seed'
@@ -1435,8 +1436,8 @@ describe "TextBuffer", ->
       fileContents = fs.readFileSync(filePath, 'utf8')
       buffer = new TextBuffer({filePath, load: false})
       buffer.load().then ->
-        expect(buffer.getLines().length).toBe fileContents.split("\n").length
-        expect(buffer.getLines().join('\n')).toBe fileContents
+        expect(buffer.getLines().length).toBe fileContents.split(os.EOL).length
+        expect(buffer.getLines().join(os.EOL)).toBe fileContents
         done()
 
   describe "::change(range, string)", ->
@@ -1472,7 +1473,7 @@ describe "TextBuffer", ->
         it "inserts the lines at the location of the given range", ->
           range = [[3, 4], [3, 4]]
 
-          buffer.setTextInRange range, "foo\n\nbar\nbaz"
+          buffer.setTextInRange range, "foo#{os.EOL}#{os.EOL}bar#{os.EOL}baz"
 
           expect(buffer.lineForRow(2)).toBe "    if (items.length <= 1) return items;"
           expect(buffer.lineForRow(3)).toBe "    foo"
@@ -1486,7 +1487,7 @@ describe "TextBuffer", ->
           expect(event.oldRange).toEqual range
           expect(event.newRange).toEqual [[3, 4], [6, 3]]
           expect(event.oldText).toBe ""
-          expect(event.newText).toBe "foo\n\nbar\nbaz"
+          expect(event.newText).toBe "foo#{os.EOL}#{os.EOL}bar#{os.EOL}baz"
 
     describe "when used to remove (called with a non-empty range and an empty string)", ->
       describe "when the range is contained within a single line", ->
@@ -1518,7 +1519,7 @@ describe "TextBuffer", ->
           [event] = changeHandler.calls.allArgs()[0]
           expect(event.oldRange).toEqual range
           expect(event.newRange).toEqual [[3, 16], [3, 16]]
-          expect(event.oldText).toBe "items.shift(), current, left = [], right = [];\n    "
+          expect(event.oldText).toBe "items.shift(), current, left = [], right = [];#{os.EOL}    "
           expect(event.newText).toBe ""
 
       describe "when the range spans more than 2 lines", ->
@@ -1534,7 +1535,7 @@ describe "TextBuffer", ->
         range = [[3, 16], [11, 9]]
         oldText = buffer.getTextInRange(range)
 
-        buffer.setTextInRange range, "foo\nbar"
+        buffer.setTextInRange range, "foo#{os.EOL}bar"
 
         expect(buffer.lineForRow(2)).toBe "    if (items.length <= 1) return items;"
         expect(buffer.lineForRow(3)).toBe "    var pivot = foo"
@@ -1546,7 +1547,7 @@ describe "TextBuffer", ->
         expect(event.oldRange).toEqual range
         expect(event.newRange).toEqual [[3, 16], [4, 3]]
         expect(event.oldText).toBe oldText
-        expect(event.newText).toBe "foo\nbar"
+        expect(event.newText).toBe "foo#{os.EOL}bar"
 
     it "allows a change to be undone safely from an ::onDidChange callback", ->
       buffer.onDidChange -> buffer.undo()
@@ -1918,11 +1919,11 @@ describe "TextBuffer", ->
       it "returns characters in range (including newlines)", ->
         lineLength = buffer.lineForRow(2).length
         range = [[2,0], [3,0]]
-        expect(buffer.getTextInRange(range)).toBe "    if (items.length <= 1) return items;\n"
+        expect(buffer.getTextInRange(range)).toBe "    if (items.length <= 1) return items;#{os.EOL}"
 
         lineLength = buffer.lineForRow(2).length
         range = [[2,10], [4,10]]
-        expect(buffer.getTextInRange(range)).toBe "ems.length <= 1) return items;\n    var pivot = items.shift(), current, left = [], right = [];\n    while("
+        expect(buffer.getTextInRange(range)).toBe "ems.length <= 1) return items;#{os.EOL}    var pivot = items.shift(), current, left = [], right = [];#{os.EOL}    while("
 
     describe "when the range starts before the start of the buffer", ->
       it "clips the range to the start of the buffer", ->
@@ -2277,10 +2278,16 @@ describe "TextBuffer", ->
       expect(buffer.characterIndexForPosition([0, 0])).toBe 0
       expect(buffer.characterIndexForPosition([0, 1])).toBe 1
       expect(buffer.characterIndexForPosition([0, 29])).toBe 29
-      expect(buffer.characterIndexForPosition([1, 0])).toBe 30
-      expect(buffer.characterIndexForPosition([2, 0])).toBe 61
-      expect(buffer.characterIndexForPosition([12, 2])).toBe 408
-      expect(buffer.characterIndexForPosition([Infinity])).toBe 408
+      if os.EOL isnt '\r\n'
+        expect(buffer.characterIndexForPosition([1, 0])).toBe 30
+        expect(buffer.characterIndexForPosition([2, 0])).toBe 61
+        expect(buffer.characterIndexForPosition([12, 2])).toBe 408
+        expect(buffer.characterIndexForPosition([Infinity])).toBe 408
+      else
+        expect(buffer.characterIndexForPosition([1, 0])).toBe 30 + 1
+        expect(buffer.characterIndexForPosition([2, 0])).toBe 61 + 2
+        expect(buffer.characterIndexForPosition([12, 2])).toBe 408 + 12
+        expect(buffer.characterIndexForPosition([Infinity])).toBe 408 + 12
 
     describe "when the buffer contains crlf line endings", ->
       it "returns the total number of characters that precede the given position", ->
@@ -2300,9 +2307,14 @@ describe "TextBuffer", ->
       expect(buffer.positionForCharacterIndex(0)).toEqual [0, 0]
       expect(buffer.positionForCharacterIndex(1)).toEqual [0, 1]
       expect(buffer.positionForCharacterIndex(29)).toEqual [0, 29]
-      expect(buffer.positionForCharacterIndex(30)).toEqual [1, 0]
-      expect(buffer.positionForCharacterIndex(61)).toEqual [2, 0]
-      expect(buffer.positionForCharacterIndex(408)).toEqual [12, 2]
+      if os.EOL isnt '\r\n'
+        expect(buffer.positionForCharacterIndex(30)).toEqual [1, 0]
+        expect(buffer.positionForCharacterIndex(61)).toEqual [2, 0]
+        expect(buffer.positionForCharacterIndex(408)).toEqual [12, 2]
+      else
+        expect(buffer.positionForCharacterIndex(30)).toEqual [0, 30]
+        expect(buffer.positionForCharacterIndex(61)).toEqual [1, 30]
+        expect(buffer.positionForCharacterIndex(408)).toEqual [11, 36]
 
     describe "when the buffer contains crlf line endings", ->
       it "returns the position based on character index", ->
