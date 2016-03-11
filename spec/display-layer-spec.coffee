@@ -238,28 +238,33 @@ describe "DisplayLayer", ->
       expect(displayLayer.getText()).toBe 'abc\ndef\nghi\nj'
 
   describe "soft wraps", ->
-    describe "when there is a word boundary at the softWrapColumn", ->
-      it "soft wraps the line at the softWrapColumn", ->
-        buffer = new TextBuffer(text: 'abc def ghi jkl mno')
-        displayLayer = buffer.addDisplayLayer(softWrapColumn: 7)
-        expect(displayLayer.getText()).toBe 'abc def \nghi jkl \nmno'
+    it "soft wraps the line at the rightmost word boundary at or preceding the softWrapColumn", ->
+      buffer = new TextBuffer(text: 'abc def ghi jkl mno')
+      displayLayer = buffer.addDisplayLayer(softWrapColumn: 7)
+      expect(displayLayer.getText()).toBe 'abc def \nghi jkl \nmno'
 
-    describe "when there is a word character at the softWrapColumn", ->
-      it "soft wraps the line at the word boundary preceding the softWrapColumn", ->
-        buffer = new TextBuffer(text: 'abc defg hijkl mno')
-        displayLayer = buffer.addDisplayLayer(softWrapColumn: 7)
-        expect(displayLayer.getText()).toBe 'abc \ndefg \nhijkl \nmno'
+      buffer = new TextBuffer(text: 'abc defg hijkl mno')
+      displayLayer = buffer.addDisplayLayer(softWrapColumn: 7)
+      expect(displayLayer.getText()).toBe 'abc \ndefg \nhijkl \nmno'
 
-      it "soft wraps the line at the softWrapColumn if no word boundary precedes it", ->
-        buffer = new TextBuffer(text: 'abcdefghijklmno')
-        displayLayer = buffer.addDisplayLayer(softWrapColumn: 7)
-        expect(displayLayer.getText()).toBe 'abcdefg\nhijklmn\no'
+    it "soft wraps the line at the softWrapColumn if no word boundary precedes it", ->
+      buffer = new TextBuffer(text: 'abcdefghijklmno')
+      displayLayer = buffer.addDisplayLayer(softWrapColumn: 7)
+      expect(displayLayer.getText()).toBe 'abcdefg\nhijklmn\no'
 
-    describe "when a soft-wrapped line is indented", ->
-      it "preserves the indent on wrapped segments of the line", ->
-        buffer = new TextBuffer(text: '   abc de fghi jkl')
-        displayLayer = buffer.addDisplayLayer(softWrapColumn: 7)
-        expect(displayLayer.getText()).toBe '   abc \n   de \n   fghi \n   jkl'
+    it "preserves the indent on wrapped segments of the line", ->
+      buffer = new TextBuffer(text: '   abc de fghi jkl')
+      displayLayer = buffer.addDisplayLayer(softWrapColumn: 7)
+      expect(displayLayer.getText()).toBe '   abc \n   de \n   fghi \n   jkl'
+
+    it "honors the softWrapHangingIndent setting", ->
+      buffer = new TextBuffer(text: '   abc de fghi jk')
+      displayLayer = buffer.addDisplayLayer(softWrapColumn: 7, softWrapHangingIndent: 2)
+      expect(displayLayer.getText()).toBe '   abc \n     de \n     fg\n     hi \n     jk'
+
+      buffer = new TextBuffer(text: 'abcdef ghi')
+      displayLayer = buffer.addDisplayLayer(softWrapColumn: 7, softWrapHangingIndent: 2)
+      expect(displayLayer.getText()).toBe 'abcdef \n  ghi'
 
   describe "invisibles", ->
     it "replaces leading whitespaces with the corresponding invisible character, appropriately decorated", ->

@@ -12,12 +12,13 @@ maxPoint = pointHelpers.max
 
 module.exports =
 class DisplayLayer
-  constructor: (@buffer, {@tabLength, @foldsMarkerLayer, @invisibles, @showIndentGuides, @softWrapColumn}={}) ->
+  constructor: (@buffer, {@tabLength, @foldsMarkerLayer, @invisibles, @showIndentGuides, @softWrapColumn, @softWrapHangingIndent}={}) ->
     @displayMarkerLayersById = {}
     @textDecorationLayer = null
     @foldsMarkerLayer ?= @buffer.addMarkerLayer({maintainHistory: true})
     @invisibles ?= {}
     @softWrapColumn ?= Infinity
+    @softWrapHangingIndent ?= 0
     @eolInvisibles = {
       "\r": @invisibles.cr
       "\n": @invisibles.eol
@@ -210,10 +211,11 @@ class DisplayLayer
       isBlankLine = trailingWhitespaceStartBufferColumn is 0
       isEmptyLine = bufferLineLength is 0
       inLeadingWhitespace = not isBlankLine
-      firstNonWhitespaceScreenColumn = null
+      softWrapIndent = null
       lastWhitespaceScreenColumn = -1
       lastWhitespaceBufferColumn = -1
       lastWhitespaceWidth = -1
+      lastWrapBufferColumn = 0
 
       while bufferColumn <= bufferLineLength
         character = bufferLine[bufferColumn]
@@ -234,7 +236,7 @@ class DisplayLayer
           if inLeadingWhitespace and bufferColumn < bufferLineLength
             unless character is ' ' or character is '\t'
               inLeadingWhitespace = false
-              firstNonWhitespaceScreenColumn = screenColumn
+              softWrapIndent = screenColumn
             if screenColumn > tokensScreenExtent
               spaceCount = screenColumn - tokensScreenExtent
               tokens.push({
@@ -272,12 +274,12 @@ class DisplayLayer
               })
               tokensScreenExtent = screenColumn
 
-        if (character isnt ' ' or foldEndBufferPosition?) and screenLineWidth >= @softWrapColumn
-          if lastWhitespaceScreenColumn > -1
-            wrapScreenColumn = lastWhitespaceScreenColumn + 1
-            wrapBufferColumn = lastWhitespaceBufferColumn + 1
-            wrapWidth = lastWhitespaceWidth + 1
-          else
+        if screenLineWidth >= @softWrapColumn and ((character? and character isnt ' ' and character isnt '\t') or foldEndBufferPosition?)
+          wrapScreenColumn = lastWhitespaceScreenColumn + 1
+          wrapBufferColumn = lastWhitespaceBufferColumn + 1
+          wrapWidth = lastWhitespaceWidth + 1
+
+          if wrapBufferColumn <= lastWrapBufferColumn
             wrapScreenColumn = screenColumn
             wrapBufferColumn = bufferColumn
             wrapWidth = screenLineWidth
@@ -301,16 +303,20 @@ class DisplayLayer
           screenLineBufferStart = screenLineBufferEnd
           screenColumn = screenColumn - wrapScreenColumn
           screenLineWidth = screenLineWidth - wrapWidth
+          lastWrapBufferColumn = wrapBufferColumn
 
-          if firstNonWhitespaceScreenColumn > 0
+          if (softWrapIndent + @softWrapHangingIndent) < @softWrapColumn
+            softWrapIndent += @softWrapHangingIndent
+
+          if softWrapIndent > 0
             tokens.push({
-              screenExtent: firstNonWhitespaceScreenColumn,
+              screenExtent: softWrapIndent,
               bufferExtent: Point.ZERO
               metadata: {void: true}
             })
-            tokensScreenExtent += firstNonWhitespaceScreenColumn
-            screenColumn += firstNonWhitespaceScreenColumn
-            screenLineWidth += firstNonWhitespaceScreenColumn
+            tokensScreenExtent += softWrapIndent
+            screenColumn += softWrapIndent
+            screenLineWidth += softWrapIndent
 
         if foldEndBufferPosition?
           if screenColumn > tokensScreenExtent
