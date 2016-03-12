@@ -215,6 +215,8 @@ class DisplayLayer
       lastWhitespaceScreenColumn = -1
       lastWhitespaceBufferColumn = -1
       lastWhitespaceWidth = -1
+      lastNonWhitespaceScreenColumn = -1
+      lastNonWhitespaceBufferColumn = -1
       lastWrapBufferColumn = 0
 
       while bufferColumn <= bufferLineLength
@@ -226,11 +228,6 @@ class DisplayLayer
         atSoftTabBoundary =
           (inLeadingWhitespace or isBlankLine and inTrailingWhitespace) and
             (screenColumn % @tabLength) is 0 and (screenColumn - tokensScreenExtent) is @tabLength
-
-        if character is ' ' or character is '\t'
-          lastWhitespaceScreenColumn = screenColumn
-          lastWhitespaceBufferColumn = bufferColumn
-          lastWhitespaceWidth = screenLineWidth
 
         if character isnt ' ' or foldEndBufferPosition? or atSoftTabBoundary
           if inLeadingWhitespace and bufferColumn < bufferLineLength
@@ -278,19 +275,27 @@ class DisplayLayer
           wrapScreenColumn = lastWhitespaceScreenColumn + 1
           wrapBufferColumn = lastWhitespaceBufferColumn + 1
           wrapWidth = lastWhitespaceWidth + 1
+          trimmedWhitespaceStartScreenColumn = lastNonWhitespaceScreenColumn + 1
+          trimmedWhitespaceStartBufferColumn = lastNonWhitespaceBufferColumn + 1
 
           if wrapBufferColumn <= lastWrapBufferColumn
             wrapScreenColumn = screenColumn
             wrapBufferColumn = bufferColumn
             wrapWidth = screenLineWidth
 
-          if wrapScreenColumn > tokensScreenExtent
-            behindCount = wrapScreenColumn - tokensScreenExtent
+          if trimmedWhitespaceStartScreenColumn > tokensScreenExtent
+            behindCount = trimmedWhitespaceStartScreenColumn - tokensScreenExtent
             tokens.push({
               screenExtent: behindCount,
               bufferExtent: Point(0, behindCount)
             })
-            tokensScreenExtent = wrapScreenColumn
+            tokensScreenExtent = trimmedWhitespaceStartScreenColumn
+
+          tokens.push({
+            screenExtent: 0
+            bufferExtent: Point(0, wrapBufferColumn - trimmedWhitespaceStartBufferColumn)
+            metadata: {void: true, clipForwardAtEnd: wrapBufferColumn is trimmedWhitespaceStartBufferColumn}
+          })
 
           screenLineBufferEnd = Point(bufferRow, wrapBufferColumn)
           screenLines.push({
@@ -305,7 +310,6 @@ class DisplayLayer
           screenLineWidth = screenLineWidth - wrapWidth
           lastWrapBufferColumn = wrapBufferColumn
 
-
           if softWrapIndent < @softWrapColumn
             indentLength = softWrapIndent
           else
@@ -318,11 +322,19 @@ class DisplayLayer
             tokens.push({
               screenExtent: indentLength,
               bufferExtent: Point.ZERO
-              metadata: {void: true}
+              metadata: {void: true, excludeStart: true, clipForwardAtEnd: true}
             })
             tokensScreenExtent += indentLength
             screenColumn += indentLength
             screenLineWidth += indentLength
+
+        if character is ' ' or character is '\t'
+          lastWhitespaceScreenColumn = screenColumn
+          lastWhitespaceBufferColumn = bufferColumn
+          lastWhitespaceWidth = screenLineWidth
+        else
+          lastNonWhitespaceScreenColumn = screenColumn
+          lastNonWhitespaceBufferColumn = bufferColumn
 
         if foldEndBufferPosition?
           if screenColumn > tokensScreenExtent
@@ -675,8 +687,25 @@ class DisplayLayer
 
   translateBufferPosition: (bufferPosition, options) ->
     bufferPosition = @buffer.clipPosition(bufferPosition, options)
+    clipDirection = options?.clipDirection
 
     @spatialTokenIterator.seekToBufferPosition(bufferPosition)
+
+    while @spatialTokenIterator.getMetadata()?.void
+      {excludeStart, clipForwardAtEnd} = @spatialTokenIterator.getMetadata()
+
+      if clipForwardAtEnd and comparePoints(bufferPosition, @spatialTokenIterator.getBufferEnd()) >= 0
+        clipDirection = 'forward'
+      else if not excludeStart and comparePoints(bufferPosition, @spatialTokenIterator.getBufferStart()) is 0
+        break
+
+      if clipDirection is 'forward'
+        @spatialTokenIterator.moveToSuccessor()
+        bufferPosition = @spatialTokenIterator.getBufferStart()
+      else
+        @spatialTokenIterator.moveToPredecessor()
+        bufferPosition = @spatialTokenIterator.getBufferEnd()
+
     if @spatialTokenIterator.getMetadata()?.atomic
       if comparePoints(bufferPosition, @spatialTokenIterator.getBufferStart()) is 0
         screenPosition = @spatialTokenIterator.getScreenStart()
@@ -698,8 +727,25 @@ class DisplayLayer
   translateScreenPosition: (screenPosition, options) ->
     screenPosition = Point.fromObject(screenPosition)
     screenPosition = clipNegativePoint(screenPosition)
+    clipDirection = options?.clipDirection
 
     @spatialTokenIterator.seekToScreenPosition(screenPosition)
+
+    while @spatialTokenIterator.getMetadata()?.void
+      {excludeStart, clipForwardAtEnd} = @spatialTokenIterator.getMetadata()
+
+      if clipForwardAtEnd and comparePoints(screenPosition, @spatialTokenIterator.getScreenEnd()) >= 0
+        clipDirection = 'forward'
+      else if not excludeStart and comparePoints(screenPosition, @spatialTokenIterator.getScreenStart()) is 0
+        break
+
+      if clipDirection is 'forward'
+        @spatialTokenIterator.moveToSuccessor()
+        screenPosition = @spatialTokenIterator.getScreenStart()
+      else
+        @spatialTokenIterator.moveToPredecessor()
+        screenPosition = @spatialTokenIterator.getScreenEnd()
+
     if @spatialTokenIterator.getMetadata()?.atomic
       if comparePoints(screenPosition, @spatialTokenIterator.getScreenStart()) is 0
         bufferPosition = @spatialTokenIterator.getBufferStart()
@@ -724,18 +770,27 @@ class DisplayLayer
   clipScreenPosition: (screenPosition, options) ->
     screenPosition = Point.fromObject(screenPosition)
     screenPosition = clipNegativePoint(screenPosition)
+    clipDirection = options?.clipDirection
 
     @spatialTokenIterator.seekToScreenPosition(screenPosition)
 
-    metadata = @spatialTokenIterator.getMetadata()
-    if metadata?.void
-      if options?.clipDirection is 'forward'
-        throw new Error('TODO: Not implemented. Support void tokens followed by valid screen positions, such as soft wrap indents.')
+    while @spatialTokenIterator.getMetadata()?.void
+      {excludeStart, clipForwardAtEnd} = @spatialTokenIterator.getMetadata()
+
+      if clipForwardAtEnd and comparePoints(screenPosition, @spatialTokenIterator.getScreenEnd()) >= 0
+        clipDirection = 'forward'
+      else if not excludeStart and comparePoints(screenPosition, @spatialTokenIterator.getScreenStart()) is 0
+        break
+
+      if clipDirection is 'forward'
+        @spatialTokenIterator.moveToSuccessor()
+        screenPosition = @spatialTokenIterator.getScreenStart()
       else
-        # TODO: here I believe we should actually move to predecessor, until a non-void token is found.
-        screenPosition = Point(@spatialTokenIterator.getScreenStart().row, 0)
-    else if comparePoints(screenPosition, @spatialTokenIterator.getScreenEnd()) <= 0
-      if (metadata?.atomic and
+        @spatialTokenIterator.moveToPredecessor()
+        screenPosition = @spatialTokenIterator.getScreenEnd()
+
+    if comparePoints(screenPosition, @spatialTokenIterator.getScreenEnd()) <= 0
+      if (@spatialTokenIterator.getMetadata()?.atomic and
           comparePoints(screenPosition, @spatialTokenIterator.getScreenStart()) > 0 and
           comparePoints(screenPosition, @spatialTokenIterator.getScreenEnd()) < 0)
         if options?.clipDirection is 'forward'

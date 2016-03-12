@@ -275,6 +275,50 @@ describe "DisplayLayer", ->
       displayLayer = buffer.addDisplayLayer(softWrapColumn: 7, softWrapHangingIndent: 2)
       expect(displayLayer.getText()).toBe '       \n  abcde \n  fghij\n  k'
 
+    ffit "translates points correctly on soft-wrapped lines", ->
+      buffer = new TextBuffer(text: '   abc de fghi')
+      displayLayer = buffer.addDisplayLayer(softWrapColumn: 7, softWrapHangingIndent: 2)
+      expect(displayLayer.getText()).toBe '   abc\n     de\n     fg\n     hi'
+
+      expectPositionTranslations(displayLayer, [
+        [Point(0, 0), Point(0, 0)],
+        [Point(0, 1), Point(0, 1)],
+        [Point(0, 2), Point(0, 2)],
+        [Point(0, 3), Point(0, 3)],
+        [Point(0, 4), Point(0, 4)],
+        [Point(0, 5), Point(0, 5)],
+        [Point(0, 6), Point(0, 6)],
+        [Point(0, 7), [Point(0, 6), Point(0, 7)]],
+        [Point(0, 8), [Point(0, 6), Point(0, 7)]],
+        [Point(1, 0), [Point(0, 6), Point(0, 7)]],
+        [Point(1, 1), [Point(0, 6), Point(0, 7)]],
+        [Point(1, 2), [Point(0, 6), Point(0, 7)]],
+        [Point(1, 3), [Point(0, 6), Point(0, 7)]],
+        [Point(1, 4), [Point(0, 6), Point(0, 7)]],
+        [Point(1, 5), Point(0, 7)],
+        [Point(1, 6), Point(0, 8)],
+        [Point(1, 7), Point(0, 9)],
+        [Point(1, 8), [Point(0, 9), Point(0, 10)]],
+        [Point(1, 9), [Point(0, 9), Point(0, 10)]],
+        [Point(2, 0), [Point(0, 9), Point(0, 10)]],
+        [Point(2, 1), [Point(0, 9), Point(0, 10)]],
+        [Point(2, 2), [Point(0, 9), Point(0, 10)]],
+        [Point(2, 3), [Point(0, 9), Point(0, 10)]],
+        [Point(2, 4), [Point(0, 9), Point(0, 10)]],
+        [Point(2, 5), Point(0, 10)],
+        [Point(2, 6), Point(0, 11)],
+        [Point(2, 7), [Point(0, 12), Point(0, 12)]],
+        [Point(2, 8), [Point(0, 12), Point(0, 12)]],
+        [Point(3, 0), [Point(0, 12), Point(0, 12)]],
+        [Point(3, 1), [Point(0, 12), Point(0, 12)]],
+        [Point(3, 2), [Point(0, 12), Point(0, 12)]],
+        [Point(3, 3), [Point(0, 12), Point(0, 12)]],
+        [Point(3, 4), [Point(0, 12), Point(0, 12)]],
+        [Point(3, 5), Point(0, 12)],
+        [Point(3, 6), Point(0, 13)],
+        [Point(3, 7), Point(0, 14)]
+      ])
+
   describe "invisibles", ->
     it "replaces leading whitespaces with the corresponding invisible character, appropriately decorated", ->
       buffer = new TextBuffer(text: """
@@ -769,8 +813,8 @@ expectPositionTranslations = (displayLayer, tranlations) ->
       [backwardBufferPosition, forwardBufferPosition] = bufferPositions
       expect(displayLayer.translateScreenPosition(screenPosition, clipDirection: 'backward')).toEqual(backwardBufferPosition)
       expect(displayLayer.translateScreenPosition(screenPosition, clipDirection: 'forward')).toEqual(forwardBufferPosition)
-      expect(displayLayer.clipScreenPosition(screenPosition, clipDirection: 'backward')).toEqual(displayLayer.translateBufferPosition(backwardBufferPosition))
-      expect(displayLayer.clipScreenPosition(screenPosition, clipDirection: 'forward')).toEqual(displayLayer.translateBufferPosition(forwardBufferPosition))
+      expect(displayLayer.clipScreenPosition(screenPosition, clipDirection: 'backward')).toEqual(displayLayer.translateBufferPosition(backwardBufferPosition, clipDirection: 'backward'))
+      expect(displayLayer.clipScreenPosition(screenPosition, clipDirection: 'forward')).toEqual(displayLayer.translateBufferPosition(forwardBufferPosition, clipDirection: 'forward'))
     else
       bufferPosition = bufferPositions
       expect(displayLayer.translateScreenPosition(screenPosition)).toEqual(bufferPosition)
