@@ -1,0 +1,6 @@
+# Specs depend on character counts, if we don't specify the line endings the
+# fixtures will vary depending on platform
+spec/fixtures/**/*.js text eol=lf
+
+# Git 1.7 does not support **/* patterns
+spec/fixtures/sample.js text eol=lf
