@@ -212,16 +212,15 @@ class DisplayLayer
       isBlankLine = trailingWhitespaceStartBufferColumn is 0
       isEmptyLine = bufferLineLength is 0
       inLeadingWhitespace = not isBlankLine
-      softWrapIndent = null
-      lastWhitespaceScreenColumn = -1
-      lastWhitespaceBufferColumn = -1
-      lastWhitespaceWidth = -1
-      lastWordEndScreenColumn = -1
-      lastWordEndBufferColumn = -1
       lastWrapBufferColumn = 0
+      lastWordStartScreenColumn = 0
+      lastWordStartBufferColumn = 0
+      screenLineWidthAtLastWordStart = 0
+      softWrapIndent = null
 
       while bufferColumn <= bufferLineLength
         character = bufferLine[bufferColumn]
+        previousCharacter = bufferLine[bufferColumn - 1]
         foldEndBufferPosition = folds[bufferRow]?[bufferColumn]
         inTrailingWhitespace = bufferColumn >= trailingWhitespaceStartBufferColumn
         trailingWhitespaceStartScreenColumn = screenColumn if bufferColumn is trailingWhitespaceStartBufferColumn
@@ -272,32 +271,34 @@ class DisplayLayer
               })
               tokensScreenExtent = screenColumn
 
-        if screenLineWidth + @ratioForCharacter(character) > @softWrapColumn and ((character? and character isnt ' ' and character isnt '\t') or foldEndBufferPosition?)
-          wrapScreenColumn = lastWhitespaceScreenColumn + 1
-          wrapBufferColumn = lastWhitespaceBufferColumn + 1
-          wrapWidth = lastWhitespaceWidth + @ratioForCharacter(' ')
-          trimmedWhitespaceStartScreenColumn = lastWordEndScreenColumn + 1
-          trimmedWhitespaceStartBufferColumn = lastWordEndBufferColumn + 1
+        if ((previousCharacter is ' ' or previousCharacter is '\t') and
+            character isnt ' '  and character isnt '\t')
+          lastWordStartScreenColumn = screenColumn
+          lastWordStartBufferColumn = bufferColumn
+          screenLineWidthAtLastWordStart = screenLineWidth
 
-          if wrapBufferColumn <= lastWrapBufferColumn
+        if character? and ((screenLineWidth + @ratioForCharacter(character)) > @softWrapColumn)
+          if lastWordStartBufferColumn > lastWrapBufferColumn
+            wrapScreenColumn = lastWordStartScreenColumn
+            wrapBufferColumn = lastWordStartBufferColumn
+            screenLineWidthAtWrapColumn = screenLineWidthAtLastWordStart
+          else
             wrapScreenColumn = screenColumn
             wrapBufferColumn = bufferColumn
-            wrapWidth = screenLineWidth
-            trimmedWhitespaceStartScreenColumn = wrapScreenColumn
-            trimmedWhitespaceStartBufferColumn = wrapBufferColumn
+            screenLineWidthAtWrapColumn = screenLineWidth
 
-          if trimmedWhitespaceStartScreenColumn > tokensScreenExtent
-            behindCount = trimmedWhitespaceStartScreenColumn - tokensScreenExtent
+          if wrapScreenColumn > tokensScreenExtent
+            behindCount = wrapScreenColumn - tokensScreenExtent
             tokens.push({
               screenExtent: behindCount,
               bufferExtent: Point(0, behindCount)
             })
-            tokensScreenExtent = trimmedWhitespaceStartScreenColumn
+            tokensScreenExtent = wrapScreenColumn
 
           tokens.push({
-            screenExtent: 0
-            bufferExtent: Point(0, wrapBufferColumn - trimmedWhitespaceStartBufferColumn)
-            metadata: {void: true, clipForwardAtEnd: wrapBufferColumn is trimmedWhitespaceStartBufferColumn}
+            screenExtent: 0,
+            bufferExtent: Point(0, 0),
+            metadata: {void: true}
           })
 
           screenLineBufferEnd = Point(bufferRow, wrapBufferColumn)
@@ -310,7 +311,7 @@ class DisplayLayer
           tokensScreenExtent = 0
           screenLineBufferStart = screenLineBufferEnd
           screenColumn = screenColumn - wrapScreenColumn
-          screenLineWidth = screenLineWidth - wrapWidth
+          screenLineWidth = screenLineWidth - screenLineWidthAtWrapColumn
           lastWrapBufferColumn = wrapBufferColumn
 
           if softWrapIndent < @softWrapColumn
@@ -319,27 +320,17 @@ class DisplayLayer
             indentLength = 0
 
           if (indentLength + @softWrapHangingIndent) < @softWrapColumn
-            indentLength += @softWrapHangingIndent
+            indentLength += + @softWrapHangingIndent
 
           if indentLength > 0
             tokens.push({
               screenExtent: indentLength,
               bufferExtent: Point.ZERO
-              metadata: {void: true, clipForwardAtEnd: true}
+              metadata: {void: true}
             })
             tokensScreenExtent += indentLength
             screenColumn += indentLength
             screenLineWidth += @ratioForCharacter(' ') * indentLength
-
-        if character is ' ' or character is '\t'
-          previousCharacter = bufferLine[bufferColumn - 1]
-          if previousCharacter isnt ' ' or previousCharacter isnt '\t'
-            lastWordEndScreenColumn = screenColumn - 1
-            lastWordEndBufferColumn = bufferColumn - 1
-
-          lastWhitespaceScreenColumn = screenColumn
-          lastWhitespaceBufferColumn = bufferColumn
-          lastWhitespaceWidth = screenLineWidth
 
         if foldEndBufferPosition?
           if screenColumn > tokensScreenExtent

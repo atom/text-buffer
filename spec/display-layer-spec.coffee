@@ -238,53 +238,61 @@ describe "DisplayLayer", ->
       expect(displayLayer.getText()).toBe 'abc\ndef\nghi\nj'
 
   describe "soft wraps", ->
-    it "soft wraps the line at the rightmost word boundary at or preceding the softWrapColumn", ->
+    it "soft wraps the line at the first word start at or preceding the softWrapColumn", ->
       buffer = new TextBuffer(text: 'abc def ghi jkl mno')
-      displayLayer = buffer.addDisplayLayer(softWrapColumn: 7)
-      expect(JSON.stringify(displayLayer.getText())).toBe JSON.stringify('abc def\nghi jkl\nmno')
+      displayLayer = buffer.addDisplayLayer(softWrapColumn: 8)
+      expect(JSON.stringify(displayLayer.getText())).toBe JSON.stringify('abc def \nghi jkl \nmno')
 
-      buffer = new TextBuffer(text: 'abc defg hijkl mno')
-      displayLayer = buffer.addDisplayLayer(softWrapColumn: 7)
-      expect(JSON.stringify(displayLayer.getText())).toBe JSON.stringify('abc\ndefg\nhijkl\nmno')
+      buffer = new TextBuffer(text: 'abc defg hij klmno')
+      displayLayer = buffer.addDisplayLayer(softWrapColumn: 8)
+      expect(JSON.stringify(displayLayer.getText())).toBe JSON.stringify('abc \ndefg \nhij \nklmno')
 
-    it "soft wraps the line at the softWrapColumn if no word boundary precedes it", ->
-      buffer = new TextBuffer(text: 'abcdefghijklmno')
-      displayLayer = buffer.addDisplayLayer(softWrapColumn: 7)
-      expect(JSON.stringify(displayLayer.getText())).toBe JSON.stringify('abcdefg\nhijklmn\no')
+      buffer = new TextBuffer(text: 'abcdefg hijklmno')
+      displayLayer = buffer.addDisplayLayer(softWrapColumn: 8)
+      expect(JSON.stringify(displayLayer.getText())).toBe JSON.stringify('abcdefg \nhijklmno')
+
+    it "soft wraps the line at the softWrapColumn if no word start boundary precedes it", ->
+      buffer = new TextBuffer(text: 'abcdefghijklmnopq')
+      displayLayer = buffer.addDisplayLayer(softWrapColumn: 8)
+      expect(JSON.stringify(displayLayer.getText())).toBe JSON.stringify('abcdefgh\nijklmnop\nq')
+
+      buffer = new TextBuffer(text: 'abcd        efghijklmno')
+      displayLayer = buffer.addDisplayLayer(softWrapColumn: 8)
+      expect(JSON.stringify(displayLayer.getText())).toBe JSON.stringify('abcd    \n    \nefghijkl\nmno')
 
     it "takes into account character ratios when determining the wrap boundary", ->
       ratiosByCharacter = {'ㅅ': 1.3, 'ㅘ': 1.3, 'ｶ': 0.5, 'ﾕ': 0.5, 'あ': 2.0, '繁': 2.0, '體': 2.0, '字': 2.0, ' ': 4.0}
       buffer = new TextBuffer(text: 'ㅅㅘｶﾕあ繁體字abc def\n 字ｶﾕghi')
       displayLayer = buffer.addDisplayLayer({softWrapColumn: 7, ratioForCharacter: (c) -> ratiosByCharacter[c] ? 1.0})
-      expect(JSON.stringify(displayLayer.getText())).toBe JSON.stringify('ㅅㅘｶﾕあ\n繁體字a\nbc\ndef\n \n 字ｶﾕg\n hi')
+      expect(JSON.stringify(displayLayer.getText())).toBe JSON.stringify('ㅅㅘｶﾕあ\n繁體字a\nbc \ndef\n \n 字ｶﾕg\n hi')
 
     it "preserves the indent on wrapped segments of the line", ->
-      buffer = new TextBuffer(text: '   abc de fghi jkl')
-      displayLayer = buffer.addDisplayLayer(softWrapColumn: 7)
-      expect(JSON.stringify(displayLayer.getText())).toBe JSON.stringify('   abc\n   de\n   fghi\n   jkl')
+      buffer = new TextBuffer(text: '    abc de fgh ijk')
+      displayLayer = buffer.addDisplayLayer(softWrapColumn: 8)
+      expect(JSON.stringify(displayLayer.getText())).toBe JSON.stringify('    abc \n    de \n    fgh \n    ijk')
 
     it "ignores indents that are greater than or equal to the softWrapColumn", ->
-      buffer = new TextBuffer(text: '       abcde fghijk')
-      displayLayer = buffer.addDisplayLayer(softWrapColumn: 7)
-      expect(JSON.stringify(displayLayer.getText())).toBe JSON.stringify('       \nabcde\nfghijk')
+      buffer = new TextBuffer(text: '        abcde fghijk')
+      displayLayer = buffer.addDisplayLayer(softWrapColumn: 8)
+      expect(JSON.stringify(displayLayer.getText())).toBe JSON.stringify('        \nabcde \nfghijk')
 
     it "honors the softWrapHangingIndent setting", ->
       buffer = new TextBuffer(text: 'abcdef ghi')
-      displayLayer = buffer.addDisplayLayer(softWrapColumn: 7, softWrapHangingIndent: 2)
-      expect(JSON.stringify(displayLayer.getText())).toBe JSON.stringify('abcdef\n  ghi')
+      displayLayer = buffer.addDisplayLayer(softWrapColumn: 8, softWrapHangingIndent: 2)
+      expect(JSON.stringify(displayLayer.getText())).toBe JSON.stringify('abcdef \n  ghi')
 
-      buffer = new TextBuffer(text: '   abc de fghi jk')
-      displayLayer = buffer.addDisplayLayer(softWrapColumn: 7, softWrapHangingIndent: 2)
-      expect(JSON.stringify(displayLayer.getText())).toBe JSON.stringify('   abc\n     de\n     fg\n     hi\n     jk')
+      buffer = new TextBuffer(text: '   abc de fgh ijk')
+      displayLayer = buffer.addDisplayLayer(softWrapColumn: 8, softWrapHangingIndent: 2)
+      expect(JSON.stringify(displayLayer.getText())).toBe JSON.stringify('   abc \n     de \n     fgh\n      \n     ijk')
 
-      buffer = new TextBuffer(text: '       abcde fghijk')
-      displayLayer = buffer.addDisplayLayer(softWrapColumn: 7, softWrapHangingIndent: 2)
-      expect(JSON.stringify(displayLayer.getText())).toBe JSON.stringify('       \n  abcde\n  fghij\n  k')
+      buffer = new TextBuffer(text: '        abcde fghijk')
+      displayLayer = buffer.addDisplayLayer(softWrapColumn: 8, softWrapHangingIndent: 2)
+      expect(JSON.stringify(displayLayer.getText())).toBe JSON.stringify('        \n  abcde \n  fghijk')
 
     it "translates points correctly on soft-wrapped lines", ->
-      buffer = new TextBuffer(text: '   abc de fghi')
-      displayLayer = buffer.addDisplayLayer(softWrapColumn: 7, softWrapHangingIndent: 2)
-      expect(JSON.stringify(displayLayer.getText())).toBe JSON.stringify('   abc\n     de\n     fg\n     hi')
+      buffer = new TextBuffer(text: '   abc defgh')
+      displayLayer = buffer.addDisplayLayer(softWrapColumn: 8, softWrapHangingIndent: 2)
+      expect(JSON.stringify(displayLayer.getText())).toBe JSON.stringify('   abc \n     def\n     gh')
 
       expectPositionTranslations(displayLayer, [
         [Point(0, 0), Point(0, 0)],
@@ -294,35 +302,26 @@ describe "DisplayLayer", ->
         [Point(0, 4), Point(0, 4)],
         [Point(0, 5), Point(0, 5)],
         [Point(0, 6), Point(0, 6)],
-        [Point(0, 7), [Point(0, 6), Point(0, 7)]],
-        [Point(0, 8), [Point(0, 6), Point(0, 7)]],
-        [Point(1, 0), [Point(0, 6), Point(0, 7)]],
-        [Point(1, 1), [Point(0, 6), Point(0, 7)]],
-        [Point(1, 2), [Point(0, 6), Point(0, 7)]],
-        [Point(1, 3), [Point(0, 6), Point(0, 7)]],
-        [Point(1, 4), [Point(0, 6), Point(0, 7)]],
-        [Point(1, 5), Point(0, 7)],
+        [Point(0, 7), [Point(0, 7), Point(0, 7)]],
+        [Point(0, 8), [Point(0, 7), Point(0, 7)]],
+        [Point(1, 0), [Point(0, 7), Point(0, 7)]],
+        [Point(1, 1), [Point(0, 7), Point(0, 7)]],
+        [Point(1, 2), [Point(0, 7), Point(0, 7)]],
+        [Point(1, 3), [Point(0, 7), Point(0, 7)]],
+        [Point(1, 4), [Point(0, 7), Point(0, 7)]],
+        [[Point(0, 7), Point(1, 5)], Point(0, 7)],
         [Point(1, 6), Point(0, 8)],
         [Point(1, 7), Point(0, 9)],
-        [Point(1, 8), [Point(0, 9), Point(0, 10)]],
-        [Point(1, 9), [Point(0, 9), Point(0, 10)]],
-        [Point(2, 0), [Point(0, 9), Point(0, 10)]],
-        [Point(2, 1), [Point(0, 9), Point(0, 10)]],
-        [Point(2, 2), [Point(0, 9), Point(0, 10)]],
-        [Point(2, 3), [Point(0, 9), Point(0, 10)]],
-        [Point(2, 4), [Point(0, 9), Point(0, 10)]],
-        [Point(2, 5), Point(0, 10)],
+        [Point(1, 8), [Point(0, 10), Point(0, 10)]],
+        [Point(1, 9), [Point(0, 10), Point(0, 10)]],
+        [Point(2, 0), [Point(0, 10), Point(0, 10)]],
+        [Point(2, 1), [Point(0, 10), Point(0, 10)]],
+        [Point(2, 2), [Point(0, 10), Point(0, 10)]],
+        [Point(2, 3), [Point(0, 10), Point(0, 10)]],
+        [Point(2, 4), [Point(0, 10), Point(0, 10)]],
+        [[Point(1, 8), Point(2, 5)], Point(0, 10)],
         [Point(2, 6), Point(0, 11)],
-        [Point(2, 7), [Point(0, 12), Point(0, 12)]],
-        [Point(2, 8), [Point(0, 12), Point(0, 12)]],
-        [Point(3, 0), [Point(0, 12), Point(0, 12)]],
-        [Point(3, 1), [Point(0, 12), Point(0, 12)]],
-        [Point(3, 2), [Point(0, 12), Point(0, 12)]],
-        [Point(3, 3), [Point(0, 12), Point(0, 12)]],
-        [Point(3, 4), [Point(0, 12), Point(0, 12)]],
-        [Point(3, 5), Point(0, 12)],
-        [Point(3, 6), Point(0, 13)],
-        [Point(3, 7), Point(0, 14)]
+        [Point(2, 7), Point(0, 12)],
       ])
 
   describe "invisibles", ->
@@ -839,14 +838,23 @@ substringForRange = (text, range) ->
   text.substring(startIndex, endIndex)
 
 expectPositionTranslations = (displayLayer, tranlations) ->
-  for [screenPosition, bufferPositions] in tranlations
-    if Array.isArray(bufferPositions)
+  for [screenPositions, bufferPositions] in tranlations
+    if Array.isArray(screenPositions)
+      [backwardScreenPosition, forwardScreenPosition] = screenPositions
+      bufferPosition = bufferPositions
+      expect(displayLayer.translateScreenPosition(backwardScreenPosition)).toEqual(bufferPosition)
+      expect(displayLayer.translateScreenPosition(forwardScreenPosition)).toEqual(bufferPosition)
+      expect(displayLayer.translateBufferPosition(bufferPosition, clipDirection: 'backward')).toEqual(backwardScreenPosition)
+      expect(displayLayer.translateBufferPosition(bufferPosition, clipDirection: 'forward')).toEqual(forwardScreenPosition)
+    else if Array.isArray(bufferPositions)
+      screenPosition = screenPositions
       [backwardBufferPosition, forwardBufferPosition] = bufferPositions
       expect(displayLayer.translateScreenPosition(screenPosition, clipDirection: 'backward')).toEqual(backwardBufferPosition)
       expect(displayLayer.translateScreenPosition(screenPosition, clipDirection: 'forward')).toEqual(forwardBufferPosition)
       expect(displayLayer.clipScreenPosition(screenPosition, clipDirection: 'backward')).toEqual(displayLayer.translateBufferPosition(backwardBufferPosition, clipDirection: 'backward'))
       expect(displayLayer.clipScreenPosition(screenPosition, clipDirection: 'forward')).toEqual(displayLayer.translateBufferPosition(forwardBufferPosition, clipDirection: 'forward'))
     else
+      screenPosition = screenPositions
       bufferPosition = bufferPositions
       expect(displayLayer.translateScreenPosition(screenPosition)).toEqual(bufferPosition)
       expect(displayLayer.translateBufferPosition(bufferPosition)).toEqual(screenPosition)
