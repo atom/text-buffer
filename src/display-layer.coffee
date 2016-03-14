@@ -456,6 +456,7 @@ class DisplayLayer
         tokens
       })
       tokens = []
+      screenLineWidth = 0
 
     screenLines
 
