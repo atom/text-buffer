@@ -282,6 +282,8 @@ class DisplayLayer
             wrapScreenColumn = screenColumn
             wrapBufferColumn = bufferColumn
             wrapWidth = screenLineWidth
+            trimmedWhitespaceStartScreenColumn = wrapScreenColumn
+            trimmedWhitespaceStartBufferColumn = wrapBufferColumn
 
           if trimmedWhitespaceStartScreenColumn > tokensScreenExtent
             behindCount = trimmedWhitespaceStartScreenColumn - tokensScreenExtent
