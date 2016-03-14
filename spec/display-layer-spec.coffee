@@ -237,48 +237,48 @@ describe "DisplayLayer", ->
 
       expect(displayLayer.getText()).toBe 'abc\ndef\nghi\nj'
 
-  describe "soft wraps", ->
+  fdescribe "soft wraps", ->
     it "soft wraps the line at the rightmost word boundary at or preceding the softWrapColumn", ->
       buffer = new TextBuffer(text: 'abc def ghi jkl mno')
       displayLayer = buffer.addDisplayLayer(softWrapColumn: 7)
-      expect(displayLayer.getText()).toBe 'abc def \nghi jkl \nmno'
+      expect(JSON.stringify(displayLayer.getText())).toBe JSON.stringify('abc def\nghi jkl\nmno')
 
       buffer = new TextBuffer(text: 'abc defg hijkl mno')
       displayLayer = buffer.addDisplayLayer(softWrapColumn: 7)
-      expect(displayLayer.getText()).toBe 'abc \ndefg \nhijkl \nmno'
+      expect(JSON.stringify(displayLayer.getText())).toBe JSON.stringify('abc\ndefg\nhijkl\nmno')
 
     it "soft wraps the line at the softWrapColumn if no word boundary precedes it", ->
       buffer = new TextBuffer(text: 'abcdefghijklmno')
       displayLayer = buffer.addDisplayLayer(softWrapColumn: 7)
-      expect(displayLayer.getText()).toBe 'abcdefg\nhijklmn\no'
+      expect(JSON.stringify(displayLayer.getText())).toBe JSON.stringify('abcdefg\nhijklmn\no')
 
     it "preserves the indent on wrapped segments of the line", ->
       buffer = new TextBuffer(text: '   abc de fghi jkl')
       displayLayer = buffer.addDisplayLayer(softWrapColumn: 7)
-      expect(displayLayer.getText()).toBe '   abc \n   de \n   fghi \n   jkl'
+      expect(JSON.stringify(displayLayer.getText())).toBe JSON.stringify('   abc\n   de\n   fghi\n   jkl')
 
     it "ignores indents that are greater than or equal to the softWrapColumn", ->
       buffer = new TextBuffer(text: '       abcde fghijk')
       displayLayer = buffer.addDisplayLayer(softWrapColumn: 7)
-      expect(displayLayer.getText()).toBe '       \nabcde \nfghijk'
+      expect(JSON.stringify(displayLayer.getText())).toBe JSON.stringify('       \nabcde\nfghijk')
 
     it "honors the softWrapHangingIndent setting", ->
       buffer = new TextBuffer(text: 'abcdef ghi')
       displayLayer = buffer.addDisplayLayer(softWrapColumn: 7, softWrapHangingIndent: 2)
-      expect(displayLayer.getText()).toBe 'abcdef \n  ghi'
+      expect(JSON.stringify(displayLayer.getText())).toBe JSON.stringify('abcdef\n  ghi')
 
       buffer = new TextBuffer(text: '   abc de fghi jk')
       displayLayer = buffer.addDisplayLayer(softWrapColumn: 7, softWrapHangingIndent: 2)
-      expect(displayLayer.getText()).toBe '   abc \n     de \n     fg\n     hi \n     jk'
+      expect(JSON.stringify(displayLayer.getText())).toBe JSON.stringify('   abc\n     de\n     fg\n     hi\n     jk')
 
       buffer = new TextBuffer(text: '       abcde fghijk')
       displayLayer = buffer.addDisplayLayer(softWrapColumn: 7, softWrapHangingIndent: 2)
-      expect(displayLayer.getText()).toBe '       \n  abcde \n  fghij\n  k'
+      expect(JSON.stringify(displayLayer.getText())).toBe JSON.stringify('       \n  abcde\n  fghij\n  k')
 
-    ffit "translates points correctly on soft-wrapped lines", ->
+    it "translates points correctly on soft-wrapped lines", ->
       buffer = new TextBuffer(text: '   abc de fghi')
       displayLayer = buffer.addDisplayLayer(softWrapColumn: 7, softWrapHangingIndent: 2)
-      expect(displayLayer.getText()).toBe '   abc\n     de\n     fg\n     hi'
+      expect(JSON.stringify(displayLayer.getText())).toBe JSON.stringify('   abc\n     de\n     fg\n     hi')
 
       expectPositionTranslations(displayLayer, [
         [Point(0, 0), Point(0, 0)],
