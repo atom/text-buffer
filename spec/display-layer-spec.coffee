@@ -673,8 +673,9 @@ describe "DisplayLayer", ->
         invisibles.space = '•' if random(2) > 0
         invisibles.eol = '¬' if random(2) > 0
         invisibles.cr = '¤' if random(2) > 0
+        softWrapColumn = random.intBetween(5, 80) if Boolean(random(2))
         showIndentGuides = Boolean(random(2))
-        displayLayer = buffer.addDisplayLayer({tabLength: 4, invisibles, showIndentGuides})
+        displayLayer = buffer.addDisplayLayer({tabLength: 4, invisibles, showIndentGuides, softWrapColumn})
         textDecorationLayer = new TestDecorationLayer([], buffer, random)
         displayLayer.setTextDecorationLayer(textDecorationLayer)
 
@@ -691,7 +692,7 @@ describe "DisplayLayer", ->
             performRandomChange(random, buffer, displayLayer)
 
           # incrementally-updated text matches freshly computed text
-          expectedDisplayLayer = buffer.addDisplayLayer({foldsMarkerLayer: displayLayer.foldsMarkerLayer.copy(), tabLength: 4, invisibles, showIndentGuides})
+          expectedDisplayLayer = buffer.addDisplayLayer({foldsMarkerLayer: displayLayer.foldsMarkerLayer.copy(), tabLength: 4, invisibles, showIndentGuides, softWrapColumn})
           expect(JSON.stringify(displayLayer.getText())).toBe(JSON.stringify(expectedDisplayLayer.getText()))
 
           verifyPositionTranslations(displayLayer, expectedDisplayLayer)
