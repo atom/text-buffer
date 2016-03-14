@@ -182,11 +182,11 @@ class DisplayLayer
     {oldRange, newRange}
 
   expandBufferRangeToScreenLineBoundaries: (range) ->
-    @screenLineIterator.seekToBufferPosition(range.start)
+    @screenLineIterator.seekToBufferPosition(Point(range.start.row, 0))
     startScreenRow = @screenLineIterator.getScreenRow()
     startBufferRow = @screenLineIterator.getBufferStart().row
 
-    @screenLineIterator.seekToBufferPosition(range.end)
+    @screenLineIterator.seekToBufferPosition(Point(range.end.row, Infinity))
     endScreenRow = @screenLineIterator.getScreenRow() + 1
     endBufferRow = @screenLineIterator.getBufferEnd().row
 
