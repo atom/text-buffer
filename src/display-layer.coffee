@@ -12,13 +12,14 @@ maxPoint = pointHelpers.max
 
 module.exports =
 class DisplayLayer
-  constructor: (@buffer, {@tabLength, @foldsMarkerLayer, @invisibles, @showIndentGuides, @softWrapColumn, @softWrapHangingIndent}={}) ->
+  constructor: (@buffer, {@tabLength, @foldsMarkerLayer, @invisibles, @showIndentGuides, @softWrapColumn, @softWrapHangingIndent, @ratioForCharacter}={}) ->
     @displayMarkerLayersById = {}
     @textDecorationLayer = null
     @foldsMarkerLayer ?= @buffer.addMarkerLayer({maintainHistory: true})
     @invisibles ?= {}
     @softWrapColumn ?= Infinity
     @softWrapHangingIndent ?= 0
+    @ratioForCharacter ?= -> 1.0
     @eolInvisibles = {
       "\r": @invisibles.cr
       "\n": @invisibles.eol
@@ -271,10 +272,10 @@ class DisplayLayer
               })
               tokensScreenExtent = screenColumn
 
-        if screenLineWidth >= @softWrapColumn and ((character? and character isnt ' ' and character isnt '\t') or foldEndBufferPosition?)
+        if screenLineWidth + @ratioForCharacter(character) > @softWrapColumn and ((character? and character isnt ' ' and character isnt '\t') or foldEndBufferPosition?)
           wrapScreenColumn = lastWhitespaceScreenColumn + 1
           wrapBufferColumn = lastWhitespaceBufferColumn + 1
-          wrapWidth = lastWhitespaceWidth + 1
+          wrapWidth = lastWhitespaceWidth + @ratioForCharacter(' ')
           trimmedWhitespaceStartScreenColumn = lastWordEndScreenColumn + 1
           trimmedWhitespaceStartBufferColumn = lastWordEndBufferColumn + 1
 
@@ -328,7 +329,7 @@ class DisplayLayer
             })
             tokensScreenExtent += indentLength
             screenColumn += indentLength
-            screenLineWidth += indentLength
+            screenLineWidth += @ratioForCharacter(' ') * indentLength
 
         if character is ' ' or character is '\t'
           previousCharacter = bufferLine[bufferColumn - 1]
@@ -362,7 +363,7 @@ class DisplayLayer
           bufferLine = @buffer.lineForRow(bufferRow)
           bufferLineLength = bufferLine.length
           screenColumn += 1
-          screenLineWidth += 1
+          screenLineWidth += @ratioForCharacter('⋯')
           tokensScreenExtent = screenColumn
           inLeadingWhitespace = true
           for column in [0...bufferColumn] by 1
@@ -398,13 +399,13 @@ class DisplayLayer
             })
             bufferColumn += 1
             screenColumn += distanceToNextTabStop
-            screenLineWidth += distanceToNextTabStop
+            screenLineWidth += @ratioForCharacter(' ') * distanceToNextTabStop
             tokensScreenExtent = screenColumn
           else
             bufferColumn += 1
             if character?
               screenColumn += 1
-              screenLineWidth += 1
+              screenLineWidth += @ratioForCharacter(character)
 
       if screenColumn > tokensScreenExtent
         behindCount = screenColumn - tokensScreenExtent

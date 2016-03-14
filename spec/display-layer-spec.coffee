@@ -252,6 +252,12 @@ describe "DisplayLayer", ->
       displayLayer = buffer.addDisplayLayer(softWrapColumn: 7)
       expect(JSON.stringify(displayLayer.getText())).toBe JSON.stringify('abcdefg\nhijklmn\no')
 
+    it "takes into account character ratios when determining the wrap boundary", ->
+      ratiosByCharacter = {'ㅅ': 1.3, 'ㅘ': 1.3, 'ｶ': 0.5, 'ﾕ': 0.5, 'あ': 2.0, '繁': 2.0, '體': 2.0, '字': 2.0, ' ': 4.0}
+      buffer = new TextBuffer(text: 'ㅅㅘｶﾕあ繁體字abc def\n 字ｶﾕghi')
+      displayLayer = buffer.addDisplayLayer({softWrapColumn: 7, ratioForCharacter: (c) -> ratiosByCharacter[c] ? 1.0})
+      expect(JSON.stringify(displayLayer.getText())).toBe JSON.stringify('ㅅㅘｶﾕあ\n繁體字a\nbc\ndef\n \n 字ｶﾕg\n hi')
+
     it "preserves the indent on wrapped segments of the line", ->
       buffer = new TextBuffer(text: '   abc de fghi jkl')
       displayLayer = buffer.addDisplayLayer(softWrapColumn: 7)
