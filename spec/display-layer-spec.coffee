@@ -237,7 +237,7 @@ describe "DisplayLayer", ->
 
       expect(displayLayer.getText()).toBe 'abc\ndef\nghi\nj'
 
-  fdescribe "soft wraps", ->
+  describe "soft wraps", ->
     it "soft wraps the line at the rightmost word boundary at or preceding the softWrapColumn", ->
       buffer = new TextBuffer(text: 'abc def ghi jkl mno')
       displayLayer = buffer.addDisplayLayer(softWrapColumn: 7)
@@ -449,6 +449,7 @@ describe "DisplayLayer", ->
         {text: 'b', close: [], open: []},
         {text: '¬', close: [], open: ["invisible-character eol"]},
         {text: '', close: ["invisible-character eol"], open: []},
+        {text: '', close: [], open: []},
         {text: '¬', close: [], open: ["invisible-character eol"]},
         {text: '', close: ["invisible-character eol"], open: []},
         {text: 'd e f', close: [], open: []},
@@ -460,6 +461,7 @@ describe "DisplayLayer", ->
         {text: 'ij', close: [], open: []},
         {text: '¬', close: [], open: ["invisible-character eol"]},
         {text: '', close: ["invisible-character eol"], open: []},
+        {text: '', close: [], open: []},
         {text: '¤¬', close: [], open: ["invisible-character eol"]},
         {text: '', close: ["invisible-character eol"], open: []},
         {text: '', close: [], open: []},
@@ -502,10 +504,12 @@ describe "DisplayLayer", ->
 
       expect(displayLayer.getText()).toBe("¬       \n¬       \n          a¬\n¬       \n     b¬\n¬   \n¬   \n    ")
       expectTokens(displayLayer, [
+        {text: '', close: [], open: []},
         {text: '¬', close: [], open: ["invisible-character eol indent-guide"]},
         {text: '   ', close: ["invisible-character eol indent-guide"], open: []},
         {text: '    ', close: [], open: ["indent-guide"]},
         {text: '', close: ["indent-guide"], open: []},
+        {text: '', close: [], open: []},
         {text: '¬', close: [], open: ["invisible-character eol indent-guide"]},
         {text: '   ', close: ["invisible-character eol indent-guide"], open: []},
         {text: '    ', close: [], open: ["indent-guide"]},
@@ -516,6 +520,7 @@ describe "DisplayLayer", ->
         {text: 'a', close: ["leading-whitespace indent-guide"], open: []},
         {text: '¬', close: [], open: ["invisible-character eol"]},
         {text: '', close: ["invisible-character eol"], open: []},
+        {text: '', close: [], open: []},
         {text: '¬', close: [], open: ["invisible-character eol indent-guide"]},
         {text: '   ', close: ["invisible-character eol indent-guide"], open: []},
         {text: '    ', close: [], open: ["indent-guide"]},
@@ -525,46 +530,36 @@ describe "DisplayLayer", ->
         {text: 'b', close: ["leading-whitespace indent-guide"], open: []},
         {text: '¬', close: [], open: ["invisible-character eol"]},
         {text: '', close: ["invisible-character eol"], open: []},
+        {text: '', close: [], open: []},
         {text: '¬', close: [], open: ["invisible-character eol indent-guide"]},
         {text: '   ', close: ["invisible-character eol indent-guide"], open: []},
+        {text: '', close: [], open: []},
         {text: '¬', close: [], open: ["invisible-character eol indent-guide"]},
         {text: '   ', close: ["invisible-character eol indent-guide"], open: []},
+        {text: '', close: [], open: []},
         {text: '    ', close: [], open: ["indent-guide"]},
         {text: '', close: ["indent-guide"], open: []},
       ])
-      # does not translate buffer positions to the end of inserted indent guides
-      expect(displayLayer.translateBufferPosition([0, 0])).toEqual([0, 0])
-      expect(displayLayer.translateBufferPosition([0, 1])).toEqual([0, 0])
-      expect(displayLayer.translateBufferPosition([0, 2])).toEqual([0, 0])
-      expect(displayLayer.translateBufferPosition([0, 3])).toEqual([0, 0])
-      expect(displayLayer.translateBufferPosition([0, 4])).toEqual([0, 0])
-      expect(displayLayer.translateBufferPosition([0, 5])).toEqual([0, 0])
-      expect(displayLayer.translateBufferPosition([0, 6])).toEqual([0, 0])
-      expect(displayLayer.translateBufferPosition([0, 7])).toEqual([0, 0])
-      expect(displayLayer.translateBufferPosition([0, 8])).toEqual([0, 0])
-      expect(displayLayer.translateBufferPosition([0, 9])).toEqual([0, 0])
 
       # always clips screen positions to the beginning of the line.
-      expect(displayLayer.clipScreenPosition([0, 0])).toEqual([0, 0])
+      expect(displayLayer.clipScreenPosition([0, 0], clipDirection: 'backward')).toEqual([0, 0])
       expect(displayLayer.clipScreenPosition([0, 0], clipDirection: 'forward')).toEqual([0, 0])
-      expect(displayLayer.clipScreenPosition([0, 1])).toEqual([0, 0])
+      expect(displayLayer.clipScreenPosition([0, 1], clipDirection: 'backward')).toEqual([0, 0])
       expect(displayLayer.clipScreenPosition([0, 1], clipDirection: 'forward')).toEqual([1, 0])
-      expect(displayLayer.clipScreenPosition([0, 2])).toEqual([0, 0])
+      expect(displayLayer.clipScreenPosition([0, 2], clipDirection: 'backward')).toEqual([0, 0])
       expect(displayLayer.clipScreenPosition([0, 2], clipDirection: 'forward')).toEqual([1, 0])
-      expect(displayLayer.clipScreenPosition([0, 3])).toEqual([0, 0])
-      expect(displayLayer.clipScreenPosition([0, 3], clipDirection: 'forward')).toEqual([1, 0])
-      expect(displayLayer.clipScreenPosition([0, 4])).toEqual([0, 0])
+      expect(displayLayer.clipScreenPosition([0, 4], clipDirection: 'backward')).toEqual([0, 0])
       expect(displayLayer.clipScreenPosition([0, 4], clipDirection: 'forward')).toEqual([1, 0])
-      expect(displayLayer.clipScreenPosition([0, 5])).toEqual([0, 0])
-      expect(displayLayer.clipScreenPosition([0, 5], clipDirection: 'forward')).toEqual([1, 0])
-      expect(displayLayer.clipScreenPosition([0, 6])).toEqual([0, 0])
+      expect(displayLayer.clipScreenPosition([0, 6], clipDirection: 'backward')).toEqual([0, 0])
       expect(displayLayer.clipScreenPosition([0, 6], clipDirection: 'forward')).toEqual([1, 0])
-      expect(displayLayer.clipScreenPosition([0, 7])).toEqual([0, 0])
-      expect(displayLayer.clipScreenPosition([0, 7], clipDirection: 'forward')).toEqual([1, 0])
-      expect(displayLayer.clipScreenPosition([0, 8])).toEqual([0, 0])
+      expect(displayLayer.clipScreenPosition([0, 8], clipDirection: 'backward')).toEqual([0, 0])
       expect(displayLayer.clipScreenPosition([0, 8], clipDirection: 'forward')).toEqual([1, 0])
-      expect(displayLayer.clipScreenPosition([0, 9])).toEqual([0, 0])
+      expect(displayLayer.clipScreenPosition([0, 9], clipDirection: 'backward')).toEqual([0, 0])
       expect(displayLayer.clipScreenPosition([0, 9], clipDirection: 'forward')).toEqual([1, 0])
+
+      # clips screen positions backwards when no non-void successor token is found.
+      expect(displayLayer.clipScreenPosition([7, 3], clipDirection: 'backward')).toEqual([7, 0])
+      expect(displayLayer.clipScreenPosition([7, 3], clipDirection: 'forward')).toEqual([7, 0])
 
   describe "text decorations", ->
     it "exposes open and close tags from the text decoration layer in the token iterator", ->
