@@ -215,8 +215,8 @@ class DisplayLayer
       lastWhitespaceScreenColumn = -1
       lastWhitespaceBufferColumn = -1
       lastWhitespaceWidth = -1
-      lastNonWhitespaceScreenColumn = -1
-      lastNonWhitespaceBufferColumn = -1
+      lastWordEndScreenColumn = -1
+      lastWordEndBufferColumn = -1
       lastWrapBufferColumn = 0
 
       while bufferColumn <= bufferLineLength
@@ -275,8 +275,8 @@ class DisplayLayer
           wrapScreenColumn = lastWhitespaceScreenColumn + 1
           wrapBufferColumn = lastWhitespaceBufferColumn + 1
           wrapWidth = lastWhitespaceWidth + 1
-          trimmedWhitespaceStartScreenColumn = lastNonWhitespaceScreenColumn + 1
-          trimmedWhitespaceStartBufferColumn = lastNonWhitespaceBufferColumn + 1
+          trimmedWhitespaceStartScreenColumn = lastWordEndScreenColumn + 1
+          trimmedWhitespaceStartBufferColumn = lastWordEndBufferColumn + 1
 
           if wrapBufferColumn <= lastWrapBufferColumn
             wrapScreenColumn = screenColumn
@@ -329,12 +329,14 @@ class DisplayLayer
             screenLineWidth += indentLength
 
         if character is ' ' or character is '\t'
+          previousCharacter = bufferLine[bufferColumn - 1]
+          if previousCharacter isnt ' ' or previousCharacter isnt '\t'
+            lastWordEndScreenColumn = screenColumn - 1
+            lastWordEndBufferColumn = bufferColumn - 1
+
           lastWhitespaceScreenColumn = screenColumn
           lastWhitespaceBufferColumn = bufferColumn
           lastWhitespaceWidth = screenLineWidth
-        else
-          lastNonWhitespaceScreenColumn = screenColumn
-          lastNonWhitespaceBufferColumn = bufferColumn
 
         if foldEndBufferPosition?
           if screenColumn > tokensScreenExtent
