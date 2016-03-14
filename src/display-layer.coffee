@@ -325,7 +325,7 @@ class DisplayLayer
             tokens.push({
               screenExtent: indentLength,
               bufferExtent: Point.ZERO
-              metadata: {void: true, excludeStart: true, clipForwardAtEnd: true}
+              metadata: {void: true, clipForwardAtEnd: true}
             })
             tokensScreenExtent += indentLength
             screenColumn += indentLength
@@ -425,7 +425,7 @@ class DisplayLayer
             eol: eolInvisibleReplacement,
             invisibleCharacter: true,
             showIndentGuide: isEmptyLine and @showIndentGuides and indentGuidesCount > 0,
-            void: true
+            void: true, includeStart: true
           }
         })
         screenColumn += eolInvisibleReplacement.length
@@ -438,7 +438,7 @@ class DisplayLayer
           bufferExtent: Point(0, 0),
           metadata: {
             showIndentGuide: (screenColumn % @tabLength is 0),
-            void: true
+            void: true, includeStart: not eolInvisibleReplacement and screenColumn is 0
           }
         })
         screenColumn += distanceToNextTabStop
@@ -698,19 +698,25 @@ class DisplayLayer
     @spatialTokenIterator.seekToBufferPosition(bufferPosition)
 
     while @spatialTokenIterator.getMetadata()?.void
-      {excludeStart, clipForwardAtEnd} = @spatialTokenIterator.getMetadata()
+      {includeStart, clipForwardAtEnd} = @spatialTokenIterator.getMetadata()
 
       if clipForwardAtEnd and comparePoints(bufferPosition, @spatialTokenIterator.getBufferEnd()) >= 0
         clipDirection = 'forward'
-      else if not excludeStart and comparePoints(bufferPosition, @spatialTokenIterator.getBufferStart()) is 0
+      else if includeStart and comparePoints(bufferPosition, @spatialTokenIterator.getBufferStart()) is 0
         break
 
       if clipDirection is 'forward'
-        break unless @spatialTokenIterator.moveToSuccessor()
-        bufferPosition = @spatialTokenIterator.getBufferStart()
+        if @spatialTokenIterator.moveToSuccessor()
+          bufferPosition = @spatialTokenIterator.getBufferStart()
+        else
+          bufferPosition = @spatialTokenIterator.getBufferEnd()
+          break
       else
-        break unless @spatialTokenIterator.moveToPredecessor()
-        bufferPosition = @spatialTokenIterator.getBufferEnd()
+        if @spatialTokenIterator.moveToPredecessor()
+          bufferPosition = @spatialTokenIterator.getBufferEnd()
+        else
+          bufferPosition = @spatialTokenIterator.getBufferStart()
+          break
 
     if @spatialTokenIterator.getMetadata()?.atomic
       if comparePoints(bufferPosition, @spatialTokenIterator.getBufferStart()) is 0
@@ -738,19 +744,25 @@ class DisplayLayer
     @spatialTokenIterator.seekToScreenPosition(screenPosition)
 
     while @spatialTokenIterator.getMetadata()?.void
-      {excludeStart, clipForwardAtEnd} = @spatialTokenIterator.getMetadata()
+      {includeStart, clipForwardAtEnd} = @spatialTokenIterator.getMetadata()
 
       if clipForwardAtEnd and comparePoints(screenPosition, @spatialTokenIterator.getScreenEnd()) >= 0
         clipDirection = 'forward'
-      else if not excludeStart and comparePoints(screenPosition, @spatialTokenIterator.getScreenStart()) is 0
+      else if includeStart and comparePoints(screenPosition, @spatialTokenIterator.getScreenStart()) is 0
         break
 
       if clipDirection is 'forward'
-        break unless @spatialTokenIterator.moveToSuccessor()
-        screenPosition = @spatialTokenIterator.getScreenStart()
+        if @spatialTokenIterator.moveToSuccessor()
+          screenPosition = @spatialTokenIterator.getScreenStart()
+        else
+          screenPosition = @spatialTokenIterator.getScreenEnd()
+          break
       else
-        break unless @spatialTokenIterator.moveToPredecessor()
-        screenPosition = @spatialTokenIterator.getScreenEnd()
+        if @spatialTokenIterator.moveToPredecessor()
+          screenPosition = @spatialTokenIterator.getScreenEnd()
+        else
+          screenPosition = @spatialTokenIterator.getScreenStart()
+          break
 
     if @spatialTokenIterator.getMetadata()?.atomic
       if comparePoints(screenPosition, @spatialTokenIterator.getScreenStart()) is 0
@@ -781,19 +793,25 @@ class DisplayLayer
     @spatialTokenIterator.seekToScreenPosition(screenPosition)
 
     while @spatialTokenIterator.getMetadata()?.void
-      {excludeStart, clipForwardAtEnd} = @spatialTokenIterator.getMetadata()
+      {includeStart, clipForwardAtEnd} = @spatialTokenIterator.getMetadata()
 
       if clipForwardAtEnd and comparePoints(screenPosition, @spatialTokenIterator.getScreenEnd()) >= 0
         clipDirection = 'forward'
-      else if not excludeStart and comparePoints(screenPosition, @spatialTokenIterator.getScreenStart()) is 0
+      else if includeStart and comparePoints(screenPosition, @spatialTokenIterator.getScreenStart()) is 0
         break
 
       if clipDirection is 'forward'
-        break unless @spatialTokenIterator.moveToSuccessor()
-        screenPosition = @spatialTokenIterator.getScreenStart()
+        if @spatialTokenIterator.moveToSuccessor()
+          screenPosition = @spatialTokenIterator.getScreenStart()
+        else
+          screenPosition = @spatialTokenIterator.getScreenEnd()
+          break
       else
-        break unless @spatialTokenIterator.moveToPredecessor()
-        screenPosition = @spatialTokenIterator.getScreenEnd()
+        if @spatialTokenIterator.moveToPredecessor()
+          screenPosition = @spatialTokenIterator.getScreenEnd()
+        else
+          screenPosition = @spatialTokenIterator.getScreenStart()
+          break
 
     if comparePoints(screenPosition, @spatialTokenIterator.getScreenEnd()) <= 0
       if (@spatialTokenIterator.getMetadata()?.atomic and

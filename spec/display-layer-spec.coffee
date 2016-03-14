@@ -533,9 +533,38 @@ describe "DisplayLayer", ->
         {text: '', close: ["indent-guide"], open: []},
       ])
       # does not translate buffer positions to the end of inserted indent guides
-      for i in [0..20]
-        expect(displayLayer.translateBufferPosition([0, i])).toEqual([0, 0])
-        expect(displayLayer.clipScreenPosition([0, i])).toEqual([0, 0])
+      expect(displayLayer.translateBufferPosition([0, 0])).toEqual([0, 0])
+      expect(displayLayer.translateBufferPosition([0, 1])).toEqual([0, 0])
+      expect(displayLayer.translateBufferPosition([0, 2])).toEqual([0, 0])
+      expect(displayLayer.translateBufferPosition([0, 3])).toEqual([0, 0])
+      expect(displayLayer.translateBufferPosition([0, 4])).toEqual([0, 0])
+      expect(displayLayer.translateBufferPosition([0, 5])).toEqual([0, 0])
+      expect(displayLayer.translateBufferPosition([0, 6])).toEqual([0, 0])
+      expect(displayLayer.translateBufferPosition([0, 7])).toEqual([0, 0])
+      expect(displayLayer.translateBufferPosition([0, 8])).toEqual([0, 0])
+      expect(displayLayer.translateBufferPosition([0, 9])).toEqual([0, 0])
+
+      # always clips screen positions to the beginning of the line.
+      expect(displayLayer.clipScreenPosition([0, 0])).toEqual([0, 0])
+      expect(displayLayer.clipScreenPosition([0, 0], clipDirection: 'forward')).toEqual([0, 0])
+      expect(displayLayer.clipScreenPosition([0, 1])).toEqual([0, 0])
+      expect(displayLayer.clipScreenPosition([0, 1], clipDirection: 'forward')).toEqual([1, 0])
+      expect(displayLayer.clipScreenPosition([0, 2])).toEqual([0, 0])
+      expect(displayLayer.clipScreenPosition([0, 2], clipDirection: 'forward')).toEqual([1, 0])
+      expect(displayLayer.clipScreenPosition([0, 3])).toEqual([0, 0])
+      expect(displayLayer.clipScreenPosition([0, 3], clipDirection: 'forward')).toEqual([1, 0])
+      expect(displayLayer.clipScreenPosition([0, 4])).toEqual([0, 0])
+      expect(displayLayer.clipScreenPosition([0, 4], clipDirection: 'forward')).toEqual([1, 0])
+      expect(displayLayer.clipScreenPosition([0, 5])).toEqual([0, 0])
+      expect(displayLayer.clipScreenPosition([0, 5], clipDirection: 'forward')).toEqual([1, 0])
+      expect(displayLayer.clipScreenPosition([0, 6])).toEqual([0, 0])
+      expect(displayLayer.clipScreenPosition([0, 6], clipDirection: 'forward')).toEqual([1, 0])
+      expect(displayLayer.clipScreenPosition([0, 7])).toEqual([0, 0])
+      expect(displayLayer.clipScreenPosition([0, 7], clipDirection: 'forward')).toEqual([1, 0])
+      expect(displayLayer.clipScreenPosition([0, 8])).toEqual([0, 0])
+      expect(displayLayer.clipScreenPosition([0, 8], clipDirection: 'forward')).toEqual([1, 0])
+      expect(displayLayer.clipScreenPosition([0, 9])).toEqual([0, 0])
+      expect(displayLayer.clipScreenPosition([0, 9], clipDirection: 'forward')).toEqual([1, 0])
 
   describe "text decorations", ->
     it "exposes open and close tags from the text decoration layer in the token iterator", ->
