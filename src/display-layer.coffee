@@ -58,11 +58,11 @@ class DisplayLayer
     bufferRange = @buffer.clipRange(bufferRange)
     foldId = @foldsMarkerLayer.markRange(bufferRange).id
     if @foldsMarkerLayer.findMarkers(containsRange: bufferRange).length is 1
-      {startScreenRow, endScreenRow, startBufferRow, endBufferRow} = @expandBufferRangeToScreenLineBoundaries(bufferRange)
-      oldRowExtent = endScreenRow - startScreenRow
+      {startScreenRow, endScreenRow, startBufferRow, endBufferRow} = @expandBufferRangeToLineBoundaries(bufferRange)
+      oldRowExtent = endScreenRow - startScreenRow + 1
       newScreenLines = @buildSpatialTokenLines(startBufferRow, endBufferRow)
       newRowExtent = newScreenLines.length
-      @spliceScreenLineIndex(startScreenRow, endScreenRow - startScreenRow, newScreenLines)
+      @spliceScreenLineIndex(startScreenRow, oldRowExtent, newScreenLines)
       @emitter.emit 'did-change-sync', Object.freeze([{
         start: Point(startScreenRow, 0),
         oldExtent: Point(oldRowExtent, 0),
@@ -92,11 +92,11 @@ class DisplayLayer
         combinedRangeEnd = maxPoint(combinedRangeEnd, foldMarker.getEndPosition())
         foldMarker.destroy()
       combinedRange = Range(combinedRangeStart, combinedRangeEnd)
-      {startScreenRow, endScreenRow, startBufferRow, endBufferRow} = @expandBufferRangeToScreenLineBoundaries(combinedRange)
-      oldRowExtent = endScreenRow - startScreenRow
+      {startScreenRow, endScreenRow, startBufferRow, endBufferRow} = @expandBufferRangeToLineBoundaries(combinedRange)
+      oldRowExtent = endScreenRow - startScreenRow + 1
       newScreenLines = @buildSpatialTokenLines(startBufferRow, endBufferRow)
       newRowExtent = newScreenLines.length
-      @spliceScreenLineIndex(startScreenRow, endScreenRow - startScreenRow, newScreenLines)
+      @spliceScreenLineIndex(startScreenRow, oldRowExtent, newScreenLines)
       @emitter.emit 'did-change-sync', Object.freeze([{
         start: Point(startScreenRow, 0),
         oldExtent: Point(oldRowExtent, 0),
@@ -108,9 +108,9 @@ class DisplayLayer
 
   bufferDidChange: (change) ->
     {oldRange, newRange} = @expandChangeRegionToSurroundingEmptyLines(change.oldRange, change.newRange)
-    {startScreenRow, endScreenRow, startBufferRow} = @expandBufferRangeToScreenLineBoundaries(oldRange)
+    {startScreenRow, endScreenRow, startBufferRow} = @expandBufferRangeToLineBoundaries(oldRange)
 
-    oldRowExtent = endScreenRow - startScreenRow
+    oldRowExtent = endScreenRow - startScreenRow + 1
     newScreenLines = @buildSpatialTokenLines(startBufferRow, newRange.end.row + 1)
     newRowExtent = newScreenLines.length
     @spliceScreenLineIndex(startScreenRow, oldRowExtent, newScreenLines)
@@ -181,14 +181,23 @@ class DisplayLayer
 
     {oldRange, newRange}
 
-  expandBufferRangeToScreenLineBoundaries: (range) ->
+  expandBufferRangeToLineBoundaries: (range) ->
     @screenLineIterator.seekToBufferPosition(Point(range.start.row, 0))
+    while @screenLineIterator.getBufferStart().column isnt 0
+      break unless @screenLineIterator.moveToPredecessor()
     startScreenRow = @screenLineIterator.getScreenRow()
     startBufferRow = @screenLineIterator.getBufferStart().row
 
-    @screenLineIterator.seekToBufferPosition(Point(range.end.row, Infinity))
-    endScreenRow = @screenLineIterator.getScreenRow() + 1
-    endBufferRow = @screenLineIterator.getBufferEnd().row
+    @screenLineIterator.seekToBufferPosition(Point(range.end.row, 0))
+    while @screenLineIterator.moveToSuccessor()
+      if @screenLineIterator.getBufferStart().column is 0
+        @screenLineIterator.moveToPredecessor()
+        endScreenRow = @screenLineIterator.getScreenRow()
+        endBufferRow = @screenLineIterator.getBufferEnd().row
+        break
+
+    endScreenRow ?= @screenLineIterator.getScreenRow()
+    endBufferRow ?= @screenLineIterator.getBufferEnd().row
 
     {startScreenRow, endScreenRow, startBufferRow, endBufferRow}
 
