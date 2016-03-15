@@ -629,7 +629,7 @@ class DisplayLayer
             tagsToOpen.push(tagsToReopenAfterFold...)
             tagsToReopenAfterFold = null
 
-          if comparePoints(decorationIterator.getPosition(), bufferStart) is 0
+          if not metadata?.softLineBreak and comparePoints(decorationIterator.getPosition(), bufferStart) is 0
             tagsToClose.push(decorationIterator.getCloseTags()...)
             tagsToOpen.push(decorationIterator.getOpenTags()...)
             decorationIterator.moveToSuccessor()
