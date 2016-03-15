@@ -729,6 +729,9 @@ class DisplayLayer
     @spatialTokenIterator.seekToScreenPosition(screenPosition)
 
     while @spatialTokenIterator.getMetadata()?.void
+      if @spatialTokenIterator.getMetadata().eol and comparePoints(screenPosition, @spatialTokenIterator.getScreenStart()) is 0
+        break
+
       if (clipDirection is 'forward' or
           (options?.skipSoftWrapIndentation and @spatialTokenIterator.getMetadata().softWrapIndentation))
         if @spatialTokenIterator.moveToSuccessor()
@@ -770,6 +773,8 @@ class DisplayLayer
     @spatialTokenIterator.seekToScreenPosition(screenPosition)
 
     while @spatialTokenIterator.getMetadata()?.void
+      if @spatialTokenIterator.getMetadata().eol and comparePoints(screenPosition, @spatialTokenIterator.getScreenStart()) is 0
+        break
 
       if (clipDirection is 'forward' or
           (options?.skipSoftWrapIndentation and @spatialTokenIterator.getMetadata().softWrapIndentation))

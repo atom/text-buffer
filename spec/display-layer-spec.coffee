@@ -473,6 +473,9 @@ describe "DisplayLayer", ->
         {text: '', close: [], open: []},
       ])
 
+      expect(displayLayer.translateScreenPosition([0, 1], clipDirection: 'forward')).toEqual [0, 1]
+      expect(displayLayer.clipScreenPosition([0, 1], clipDirection: 'forward')).toEqual [0, 1]
+
     it "does not clip positions within runs of invisible characters", ->
       buffer = new TextBuffer(text: "   a")
       displayLayer = buffer.addDisplayLayer({invisibles: {space: '•'}})
