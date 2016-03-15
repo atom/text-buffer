@@ -216,6 +216,7 @@ class DisplayLayer
       lastWordStartScreenColumn = 0
       lastWordStartBufferColumn = 0
       screenLineWidthAtLastWordStart = 0
+      lastWordEndsLeadingWhitespace = true
       softWrapIndent = null
 
       while bufferColumn <= bufferLineLength
@@ -228,6 +229,13 @@ class DisplayLayer
         atSoftTabBoundary =
           (inLeadingWhitespace or isBlankLine and inTrailingWhitespace) and
             (screenColumn % @tabLength) is 0 and (screenColumn - tokensScreenExtent) is @tabLength
+
+        if ((previousCharacter is ' ' or previousCharacter is '\t') and
+            character isnt ' '  and character isnt '\t')
+          lastWordStartScreenColumn = screenColumn
+          lastWordStartBufferColumn = bufferColumn
+          screenLineWidthAtLastWordStart = screenLineWidth
+          lastWordEndsLeadingWhitespace = inLeadingWhitespace
 
         if character isnt ' ' or foldEndBufferPosition? or atSoftTabBoundary
           if inLeadingWhitespace and bufferColumn < bufferLineLength
@@ -271,14 +279,8 @@ class DisplayLayer
               })
               tokensScreenExtent = screenColumn
 
-        if ((previousCharacter is ' ' or previousCharacter is '\t') and
-            character isnt ' '  and character isnt '\t')
-          lastWordStartScreenColumn = screenColumn
-          lastWordStartBufferColumn = bufferColumn
-          screenLineWidthAtLastWordStart = screenLineWidth
-
         if character? and ((screenLineWidth + @ratioForCharacter(character)) > @softWrapColumn)
-          if lastWordStartBufferColumn > lastWrapBufferColumn
+          if lastWordStartBufferColumn > lastWrapBufferColumn and not lastWordEndsLeadingWhitespace
             wrapScreenColumn = lastWordStartScreenColumn
             wrapBufferColumn = lastWordStartBufferColumn
             screenLineWidthAtWrapColumn = screenLineWidthAtLastWordStart
