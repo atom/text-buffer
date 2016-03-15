@@ -221,6 +221,11 @@ class DisplayLayer
 
       while bufferColumn <= bufferLineLength
         character = bufferLine[bufferColumn]
+        if character is '\t'
+          distanceToNextTabStop = @tabLength - (screenColumn % @tabLength)
+          characterWidth = @ratioForCharacter(' ') * distanceToNextTabStop
+        else
+          characterWidth = @ratioForCharacter(character)
         previousCharacter = bufferLine[bufferColumn - 1]
         foldEndBufferPosition = folds[bufferRow]?[bufferColumn]
         inTrailingWhitespace = bufferColumn >= trailingWhitespaceStartBufferColumn
@@ -279,7 +284,7 @@ class DisplayLayer
               })
               tokensScreenExtent = screenColumn
 
-        if character? and ((screenLineWidth + @ratioForCharacter(character)) > @softWrapColumn)
+        if character? and ((screenLineWidth + characterWidth) > @softWrapColumn)
           if lastWordStartBufferColumn > lastWrapBufferColumn and not lastWordEndsLeadingWhitespace
             wrapScreenColumn = lastWordStartScreenColumn
             wrapBufferColumn = lastWordStartBufferColumn
