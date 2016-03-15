@@ -193,7 +193,7 @@ class DisplayLayer
     {startScreenRow, endScreenRow, startBufferRow, endBufferRow}
 
   buildSpatialTokenLines: (startBufferRow, endBufferRow) ->
-    folds = @computeFoldsInBufferRowRange(startBufferRow, endBufferRow)
+    {startBufferRow, endBufferRow, folds} = @computeFoldsInBufferRowRange(startBufferRow, endBufferRow)
 
     screenLines = []
     bufferRow = startBufferRow
@@ -457,13 +457,25 @@ class DisplayLayer
     screenLines
 
   # Given a buffer row range, compute an index of all folds that appear on
-  # screen lines containing this range. Returns a folds object mapping startRow
-  # to startColumn to endPosition. This object will be referenced when updating
-  # the patch to skip folded regions of the buffer.
+  # screen lines containing this range. This may expand the initial buffer range
+  # if the start row or end row appear on the same screen line as earlier or
+  # later buffer lines due to folds.
+  #
+  # Returns an object containing the new startBufferRow and endBufferRow, along
+  # with a folds object mapping startRow to startColumn to endPosition.
   computeFoldsInBufferRowRange: (startBufferRow, endBufferRow) ->
     folds = {}
     foldMarkers = @foldsMarkerLayer.findMarkers(intersectsRowRange: [startBufferRow, endBufferRow - 1])
     if foldMarkers.length > 0
+      # If the first fold starts before the initial row range, prepend any
+      # fold markers that intersect the first fold's row range.
+      loop
+        foldsStartBufferRow = foldMarkers[0].getStartPosition().row
+        break unless foldsStartBufferRow < startBufferRow
+        precedingFoldMarkers = @foldsMarkerLayer.findMarkers(intersectsRowRange: [foldsStartBufferRow, startBufferRow - 1])
+        foldMarkers.unshift(precedingFoldMarkers...)
+        startBufferRow = foldsStartBufferRow
+
       # Index fold end positions by their start row and start column.
       i = 0
       while i < foldMarkers.length
@@ -472,6 +484,14 @@ class DisplayLayer
 
         # Process subsequent folds that intersect the current fold.
         loop
+          # If the current fold ends after the queried row range, perform an
+          # additional query for any subsequent folds that intersect the portion
+          # of the current fold's row range omitted from previous queries.
+          if foldEnd.row >= endBufferRow
+            followingFoldMarkers = @foldsMarkerLayer.findMarkers(intersectsRowRange: [endBufferRow, foldEnd.row])
+            foldMarkers.push(followingFoldMarkers...)
+            endBufferRow = foldEnd.row + 1
+
           # Skip subsequent fold markers that nest within the current fold, and
           # merge folds that start within the the current fold but end after it.
           if i < (foldMarkers.length - 1) and comparePoints(foldMarkers[i + 1].getStartPosition(), foldEnd) <= 0
@@ -488,7 +508,7 @@ class DisplayLayer
 
         i++
 
-    folds
+    {folds, startBufferRow, endBufferRow}
 
   emptyLineIndentationForBufferRow: (bufferRow) ->
     return 0 if @buffer.lineForRow(bufferRow).length > 0
