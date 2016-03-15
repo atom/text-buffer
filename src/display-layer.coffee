@@ -326,7 +326,7 @@ class DisplayLayer
             tokens.push({
               screenExtent: indentLength,
               bufferExtent: Point.ZERO
-              metadata: {void: true, softWrapIndent: true}
+              metadata: {void: true, softWrapIndentation: true}
             })
             tokensScreenExtent += indentLength
             screenColumn += indentLength
@@ -690,7 +690,7 @@ class DisplayLayer
 
     @spatialTokenIterator.seekToBufferPosition(bufferPosition)
 
-    if @spatialTokenIterator.getMetadata()?.softLineBreak or @spatialTokenIterator.getMetadata()?.softWrapIndent
+    if @spatialTokenIterator.getMetadata()?.softLineBreak or @spatialTokenIterator.getMetadata()?.softWrapIndentation
       clipDirection = 'forward'
 
     while @spatialTokenIterator.getMetadata()?.void
@@ -729,7 +729,8 @@ class DisplayLayer
     @spatialTokenIterator.seekToScreenPosition(screenPosition)
 
     while @spatialTokenIterator.getMetadata()?.void
-      if clipDirection is 'forward'
+      if (clipDirection is 'forward' or
+          (options?.skipSoftWrapIndentation and @spatialTokenIterator.getMetadata().softWrapIndentation))
         if @spatialTokenIterator.moveToSuccessor()
           screenPosition = @spatialTokenIterator.getScreenStart()
         else
@@ -769,11 +770,9 @@ class DisplayLayer
     @spatialTokenIterator.seekToScreenPosition(screenPosition)
 
     while @spatialTokenIterator.getMetadata()?.void
-      if (@spatialTokenIterator.getMetadata()?.clipForwardAtEnd and
-          comparePoints(screenPosition, @spatialTokenIterator.getScreenEnd()) >= 0)
-        clipDirection = 'forward'
 
-      if clipDirection is 'forward'
+      if (clipDirection is 'forward' or
+          (options?.skipSoftWrapIndentation and @spatialTokenIterator.getMetadata().softWrapIndentation))
         if @spatialTokenIterator.moveToSuccessor()
           screenPosition = @spatialTokenIterator.getScreenStart()
         else

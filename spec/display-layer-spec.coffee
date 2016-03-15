@@ -324,6 +324,13 @@ describe "DisplayLayer", ->
         [Point(2, 7), Point(0, 12)],
       ])
 
+    it "prefers the skipSoftWrapIndentation option over clipDirection when translating points", ->
+      buffer = new TextBuffer(text: '   abc defgh')
+      displayLayer = buffer.addDisplayLayer(softWrapColumn: 8, softWrapHangingIndent: 2)
+      expect(JSON.stringify(displayLayer.getText())).toBe JSON.stringify('   abc \n     def\n     gh')
+      expect(displayLayer.clipScreenPosition([1, 0], clipDirection: 'backward', skipSoftWrapIndentation: true)).toEqual [1, 5]
+      expect(displayLayer.translateScreenPosition([1, 0], clipDirection: 'backward', skipSoftWrapIndentation: true)).toEqual [0, 7]
+
   describe "invisibles", ->
     it "replaces leading whitespaces with the corresponding invisible character, appropriately decorated", ->
       buffer = new TextBuffer(text: """
