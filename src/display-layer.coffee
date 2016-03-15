@@ -289,11 +289,21 @@ class DisplayLayer
             wrapBufferColumn = bufferColumn
             screenLineWidthAtWrapColumn = screenLineWidth
 
-          if wrapScreenColumn > tokensScreenExtent
-            behindCount = wrapScreenColumn - tokensScreenExtent
+          if inTrailingWhitespace and trailingWhitespaceStartScreenColumn > tokensScreenExtent
+            behindCount = trailingWhitespaceStartScreenColumn - tokensScreenExtent
             tokens.push({
               screenExtent: behindCount,
               bufferExtent: Point(0, behindCount)
+            })
+            tokensScreenExtent = trailingWhitespaceStartScreenColumn
+
+          if wrapScreenColumn > tokensScreenExtent
+            behindCount = wrapScreenColumn - tokensScreenExtent
+            metadata = if inTrailingWhitespace then {trailingWhitespace: true, invisibleCharacter: @invisibles.space?}
+            tokens.push({
+              screenExtent: behindCount,
+              bufferExtent: Point(0, behindCount)
+              metadata
             })
             tokensScreenExtent = wrapScreenColumn
 
@@ -315,6 +325,7 @@ class DisplayLayer
           screenColumn = screenColumn - wrapScreenColumn
           screenLineWidth = screenLineWidth - screenLineWidthAtWrapColumn
           lastWrapBufferColumn = wrapBufferColumn
+          trailingWhitespaceStartScreenColumn = 0 if inTrailingWhitespace
 
           if softWrapIndent < @softWrapColumn
             indentLength = softWrapIndent

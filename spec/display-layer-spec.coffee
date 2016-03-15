@@ -340,6 +340,23 @@ describe "DisplayLayer", ->
       expect(displayLayer.clipScreenPosition([1, 0], clipDirection: 'backward', skipSoftWrapIndentation: true)).toEqual [1, 5]
       expect(displayLayer.translateScreenPosition([1, 0], clipDirection: 'backward', skipSoftWrapIndentation: true)).toEqual [0, 7]
 
+    it "renders trailing whitespaces correctly, even when they are wrapped", ->
+      buffer = new TextBuffer(text: '  abc                     ')
+      displayLayer = buffer.addDisplayLayer(softWrapColumn: 10)
+      expect(JSON.stringify(displayLayer.getText())).toBe JSON.stringify('  abc     \n          \n          ')
+      expectTokens(displayLayer, [
+        {text: '  ', close: [], open: ['leading-whitespace']},
+        {text: 'abc', close: ['leading-whitespace'], open: []},
+        {text: '     ', close: [], open: ['trailing-whitespace']},
+        {text: '', close: ['trailing-whitespace'], open: []},
+        {text: '  ', close: [], open: []},
+        {text: '        ', close: [], open: ['trailing-whitespace']},
+        {text: '', close: ['trailing-whitespace'], open: []},
+        {text: '  ', close: [], open: []}
+        {text: '        ', close: [], open: ['trailing-whitespace']},
+        {text: '', close: ['trailing-whitespace'], open: []}
+      ])
+
   describe "invisibles", ->
     it "replaces leading whitespaces with the corresponding invisible character, appropriately decorated", ->
       buffer = new TextBuffer(text: """
