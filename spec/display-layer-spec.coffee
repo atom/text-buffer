@@ -302,24 +302,24 @@ describe "DisplayLayer", ->
         [Point(0, 4), Point(0, 4)],
         [Point(0, 5), Point(0, 5)],
         [Point(0, 6), Point(0, 6)],
-        [Point(0, 7), [Point(0, 7), Point(0, 7)]],
-        [Point(0, 8), [Point(0, 7), Point(0, 7)]],
-        [Point(1, 0), [Point(0, 7), Point(0, 7)]],
-        [Point(1, 1), [Point(0, 7), Point(0, 7)]],
-        [Point(1, 2), [Point(0, 7), Point(0, 7)]],
-        [Point(1, 3), [Point(0, 7), Point(0, 7)]],
-        [Point(1, 4), [Point(0, 7), Point(0, 7)]],
-        [[Point(0, 7), Point(1, 5)], Point(0, 7)],
+        [Point(0, 7), [Point(0, 6), Point(0, 7)]],
+        [Point(0, 8), [Point(0, 6), Point(0, 7)]],
+        [Point(1, 0), [Point(0, 6), Point(0, 7)]],
+        [Point(1, 1), [Point(0, 6), Point(0, 7)]],
+        [Point(1, 2), [Point(0, 6), Point(0, 7)]],
+        [Point(1, 3), [Point(0, 6), Point(0, 7)]],
+        [Point(1, 4), [Point(0, 6), Point(0, 7)]],
+        [Point(1, 5), Point(0, 7)],
         [Point(1, 6), Point(0, 8)],
         [Point(1, 7), Point(0, 9)],
-        [Point(1, 8), [Point(0, 10), Point(0, 10)]],
-        [Point(1, 9), [Point(0, 10), Point(0, 10)]],
-        [Point(2, 0), [Point(0, 10), Point(0, 10)]],
-        [Point(2, 1), [Point(0, 10), Point(0, 10)]],
-        [Point(2, 2), [Point(0, 10), Point(0, 10)]],
-        [Point(2, 3), [Point(0, 10), Point(0, 10)]],
-        [Point(2, 4), [Point(0, 10), Point(0, 10)]],
-        [[Point(1, 8), Point(2, 5)], Point(0, 10)],
+        [Point(1, 8), [Point(0, 9), Point(0, 10)]],
+        [Point(1, 9), [Point(0, 9), Point(0, 10)]],
+        [Point(2, 0), [Point(0, 9), Point(0, 10)]],
+        [Point(2, 1), [Point(0, 9), Point(0, 10)]],
+        [Point(2, 2), [Point(0, 9), Point(0, 10)]],
+        [Point(2, 3), [Point(0, 9), Point(0, 10)]],
+        [Point(2, 4), [Point(0, 9), Point(0, 10)]],
+        [Point(2, 5), Point(0, 10)],
         [Point(2, 6), Point(0, 11)],
         [Point(2, 7), Point(0, 12)],
       ])
@@ -838,23 +838,14 @@ substringForRange = (text, range) ->
   text.substring(startIndex, endIndex)
 
 expectPositionTranslations = (displayLayer, tranlations) ->
-  for [screenPositions, bufferPositions] in tranlations
-    if Array.isArray(screenPositions)
-      [backwardScreenPosition, forwardScreenPosition] = screenPositions
-      bufferPosition = bufferPositions
-      expect(displayLayer.translateScreenPosition(backwardScreenPosition)).toEqual(bufferPosition)
-      expect(displayLayer.translateScreenPosition(forwardScreenPosition)).toEqual(bufferPosition)
-      expect(displayLayer.translateBufferPosition(bufferPosition, clipDirection: 'backward')).toEqual(backwardScreenPosition)
-      expect(displayLayer.translateBufferPosition(bufferPosition, clipDirection: 'forward')).toEqual(forwardScreenPosition)
-    else if Array.isArray(bufferPositions)
-      screenPosition = screenPositions
+  for [screenPosition, bufferPositions] in tranlations
+    if Array.isArray(bufferPositions)
       [backwardBufferPosition, forwardBufferPosition] = bufferPositions
       expect(displayLayer.translateScreenPosition(screenPosition, clipDirection: 'backward')).toEqual(backwardBufferPosition)
       expect(displayLayer.translateScreenPosition(screenPosition, clipDirection: 'forward')).toEqual(forwardBufferPosition)
       expect(displayLayer.clipScreenPosition(screenPosition, clipDirection: 'backward')).toEqual(displayLayer.translateBufferPosition(backwardBufferPosition, clipDirection: 'backward'))
       expect(displayLayer.clipScreenPosition(screenPosition, clipDirection: 'forward')).toEqual(displayLayer.translateBufferPosition(forwardBufferPosition, clipDirection: 'forward'))
     else
-      screenPosition = screenPositions
       bufferPosition = bufferPositions
       expect(displayLayer.translateScreenPosition(screenPosition)).toEqual(bufferPosition)
       expect(displayLayer.translateBufferPosition(bufferPosition)).toEqual(screenPosition)
