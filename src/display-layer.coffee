@@ -12,34 +12,56 @@ maxPoint = pointHelpers.max
 
 module.exports =
 class DisplayLayer
-  constructor: (@buffer, {@tabLength, @foldsMarkerLayer, @invisibles, @showIndentGuides, @softWrapColumn, @softWrapHangingIndent, @ratioForCharacter}={}) ->
+  constructor: (@buffer, settings={}) ->
     @displayMarkerLayersById = {}
     @textDecorationLayer = null
-    @foldsMarkerLayer ?= @buffer.addMarkerLayer({maintainHistory: true})
-    @invisibles ?= {}
-    @softWrapColumn ?= Infinity
-    @softWrapHangingIndent ?= 0
-    @ratioForCharacter ?= -> 1.0
-    @eolInvisibles = {
-      "\r": @invisibles.cr
-      "\n": @invisibles.eol
-      "\r\n": @invisibles.cr + @invisibles.eol
-    }
+    @foldsMarkerLayer = settings.foldsMarkerLayer ? @buffer.addMarkerLayer({maintainHistory: true})
     @foldIdCounter = 1
     @disposables = @buffer.onDidChange(@bufferDidChange.bind(this))
     @screenLineIndex = new ScreenLineIndex
     @spatialTokenIterator = @screenLineIndex.buildTokenIterator()
     @screenLineIterator = @screenLineIndex.buildScreenLineIterator()
-    @screenLineIndex.splice(0, 0, @buildSpatialTokenLines(0, @buffer.getLineCount()))
     @textDecorationLayer = new EmptyDecorationLayer
     @emitter = new Emitter
     @invalidationCountsByScreenLineId = new Map
+    @reset({
+      invisibles: settings.invisibles ? {}
+      tabLength: settings.tabLength ? 4
+      softWrapColumn: settings.softWrapColumn ? Infinity
+      softWrapHangingIndent: settings.softWrapHangingIndent ? 0
+      showIndentGuides: settings.showIndentGuides ? false,
+      ratioForCharacter: settings.ratioForCharacter ? -> 1.0,
+    })
 
   destroy: ->
     @disposables.dispose()
     @foldsMarkerLayer.destroy()
     for id, displayMarkerLayer of @displayMarkerLayersById
       displayMarkerLayer.destroy()
+
+  reset: ({tabLength, invisibles, showIndentGuides, softWrapColumn, softWrapHangingIndent, ratioForCharacter}) ->
+    @tabLength = tabLength
+    @showIndentGuides = showIndentGuides
+    @softWrapColumn = softWrapColumn
+    @softWrapHangingIndent = softWrapHangingIndent
+    @ratioForCharacter = ratioForCharacter
+    @invisibles = invisibles
+    @eolInvisibles = {
+      "\r": @invisibles.cr
+      "\n": @invisibles.eol
+      "\r\n": @invisibles.cr + @invisibles.eol
+    }
+
+    {startScreenRow, endScreenRow} = @expandBufferRangeToLineBoundaries(Range(Point.ZERO, Point(@buffer.getLineCount(), 0)))
+    newLines = @buildSpatialTokenLines(0, @buffer.getLineCount())
+    oldRowExtent = endScreenRow - startScreenRow + 1
+    newRowExtent = newLines.length
+    @spliceScreenLineIndex(startScreenRow, oldRowExtent, newLines)
+    @emitter.emit 'did-change-sync', Object.freeze([{
+      start: Point(startScreenRow, 0),
+      oldExtent: Point(oldRowExtent, 0),
+      newExtent: Point(newRowExtent, 0)
+    }])
 
   addMarkerLayer: (options) ->
     markerLayer = new DisplayMarkerLayer(this, @buffer.addMarkerLayer(options))
