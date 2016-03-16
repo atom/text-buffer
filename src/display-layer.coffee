@@ -205,21 +205,16 @@ class DisplayLayer
 
   expandBufferRangeToLineBoundaries: (range) ->
     @screenLineIterator.seekToBufferPosition(Point(range.start.row, 0))
-    while @screenLineIterator.getBufferStart().column isnt 0
-      break unless @screenLineIterator.moveToPredecessor()
+    while @screenLineIterator.isSoftWrappedAtStart()
+      @screenLineIterator.moveToPredecessor()
     startScreenRow = @screenLineIterator.getScreenRow()
     startBufferRow = @screenLineIterator.getBufferStart().row
 
-    @screenLineIterator.seekToBufferPosition(Point(range.end.row, 0))
-    while @screenLineIterator.moveToSuccessor()
-      if @screenLineIterator.getBufferStart().column is 0
-        @screenLineIterator.moveToPredecessor()
-        endScreenRow = @screenLineIterator.getScreenRow()
-        endBufferRow = @screenLineIterator.getBufferEnd().row
-        break
-
-    endScreenRow ?= @screenLineIterator.getScreenRow()
-    endBufferRow ?= @screenLineIterator.getBufferEnd().row
+    @screenLineIterator.seekToBufferPosition(Point(range.end.row, Infinity))
+    while @screenLineIterator.isSoftWrappedAtEnd()
+      @screenLineIterator.moveToSuccessor()
+    endScreenRow = @screenLineIterator.getScreenRow()
+    endBufferRow = @screenLineIterator.getBufferEnd().row
 
     {startScreenRow, endScreenRow, startBufferRow, endBufferRow}
 
@@ -359,7 +354,9 @@ class DisplayLayer
           screenLines.push({
             screenExtent: tokensScreenExtent,
             bufferExtent: traversal(screenLineBufferEnd, screenLineBufferStart),
-            tokens
+            tokens,
+            softWrappedAtStart: lastWrapBufferColumn > 0,
+            softWrappedAtEnd: true
           })
           tokens = []
           tokensScreenExtent = 0
@@ -512,7 +509,9 @@ class DisplayLayer
       screenLines.push({
         screenExtent: tokensScreenExtent,
         bufferExtent: traversal(Point(bufferRow, bufferColumn), screenLineBufferStart),
-        tokens
+        tokens,
+        softWrappedAtStart: lastWrapBufferColumn > 0,
+        softWrappedAtEnd: false
       })
       tokens = []
       screenLineWidth = 0
