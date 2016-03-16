@@ -24,6 +24,11 @@ class DisplayMarkerLayer
   onDidCreateMarker: (callback) ->
     @emitter.on('did-create-marker', callback)
 
+  refreshMarkerScreenPositions: ->
+    for marker in @getMarkers()
+      marker.notifyObservers(textChanged: false)
+    return
+
   markScreenRange: (screenRange, properties) ->
     screenRange = Range.fromObject(screenRange)
     bufferRange = @displayLayer.translateScreenRange(screenRange, properties)
