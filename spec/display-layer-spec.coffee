@@ -808,13 +808,15 @@ verifyTokens = (displayLayer) ->
         screenPosition = traverse(tokenScreenStart, Point(0, i))
         bufferPosition = traverse(tokenBufferStart, Point(0, i))
 
-        if token.metadata?.atomic and not isEqualPoint(screenPosition, tokenScreenStart)
-          expect(displayLayer.clipScreenPosition(screenPosition, clipDirection: 'backward')).toEqual(tokenScreenStart)
-          expect(displayLayer.clipScreenPosition(screenPosition, clipDirection: 'forward')).toEqual(tokenScreenEnd)
-          expect(displayLayer.translateScreenPosition(screenPosition, clipDirection: 'backward')).toEqual(tokenBufferStart)
-          expect(displayLayer.translateScreenPosition(screenPosition, clipDirection: 'forward')).toEqual(tokenBufferEnd)
-          expect(displayLayer.translateBufferPosition(bufferPosition, clipDirection: 'backward')).toEqual(tokenScreenStart)
-          expect(displayLayer.translateBufferPosition(bufferPosition, clipDirection: 'forward')).toEqual(tokenScreenEnd)
+        if token.metadata?.atomic
+          unless isEqualPoint(screenPosition, tokenScreenStart)
+            expect(displayLayer.clipScreenPosition(screenPosition, clipDirection: 'backward')).toEqual(tokenScreenStart)
+            expect(displayLayer.clipScreenPosition(screenPosition, clipDirection: 'forward')).toEqual(tokenScreenEnd)
+            expect(displayLayer.translateScreenPosition(screenPosition, clipDirection: 'backward')).toEqual(tokenBufferStart)
+            expect(displayLayer.translateScreenPosition(screenPosition, clipDirection: 'forward')).toEqual(tokenBufferEnd)
+            # TODO: converting buffer positions fails for some cases. the above assertions are fine.
+            expect(displayLayer.translateBufferPosition(bufferPosition, clipDirection: 'backward')).toEqual(tokenScreenStart)
+            expect(displayLayer.translateBufferPosition(bufferPosition, clipDirection: 'forward')).toEqual(tokenScreenEnd)
         else unless token.metadata?.void
           expect(displayLayer.clipScreenPosition(screenPosition, clipDirection: 'backward')).toEqual(screenPosition)
           expect(displayLayer.clipScreenPosition(screenPosition, clipDirection: 'forward')).toEqual(screenPosition)
