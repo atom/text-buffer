@@ -385,7 +385,7 @@ class DisplayLayer
           tokens.push({
             screenExtent: 1,
             bufferExtent: traversal(foldEndBufferPosition, foldStartBufferPosition),
-            metadata: {fold: true}
+            metadata: {fold: true, atomic: true}
           })
 
           bufferRow = foldEndBufferPosition.row
@@ -794,7 +794,7 @@ class DisplayLayer
       else if comparePoints(bufferPosition, @spatialTokenIterator.getBufferEnd()) is 0 or options?.clipDirection is 'forward'
         screenPosition = @spatialTokenIterator.getScreenEnd()
       else
-        screenPosition = @spatialTokenIterator.getBufferStart()
+        screenPosition = @spatialTokenIterator.getScreenStart()
     else
       screenPosition = @spatialTokenIterator.translateBufferPosition(bufferPosition)
 

@@ -2,7 +2,7 @@ Random = require 'random-seed'
 TextBuffer = require '../src/text-buffer'
 Point = require '../src/point'
 Range = require '../src/range'
-{characterIndexForPoint, isEqual: isEqualPoint} = require '../src/point-helpers'
+{characterIndexForPoint, isEqual: isEqualPoint, traverse} = require '../src/point-helpers'
 WORDS = require './helpers/words'
 SAMPLE_TEXT = require './helpers/sample-text'
 TestDecorationLayer = require './helpers/test-decoration-layer'
@@ -711,7 +711,7 @@ describe "DisplayLayer", ->
   for i in [0...1] by 1
     do ->
       seed = now + i
-      seed = 1458073371239
+      seed = 1458149718164
       fit "updates the displayed text correctly when the underlying buffer changes: #{seed}", ->
         random = new Random(seed)
         buffer = new TextBuffer(text: buildRandomLines(random, 10))
@@ -728,7 +728,7 @@ describe "DisplayLayer", ->
         foldIds = []
         screenLinesById = new Map
 
-        for j in [0...2] by 1
+        for j in [0...5] by 1
           k = random(10)
           if k < 2
             createRandomFold(random, displayLayer, foldIds)
@@ -792,6 +792,42 @@ verifyChangeEvent = (displayLayer, fn) ->
 
 verifyTokens = (displayLayer) ->
   containingTags = []
+
+  lineScreenStart = Point.ZERO
+  lineBufferStart = Point.ZERO
+
+  for screenLine in displayLayer.buildSpatialTokenLines(0, displayLayer.buffer.getLineCount())
+    tokenScreenStart = lineScreenStart
+    tokenBufferStart = lineBufferStart
+
+    for token in screenLine.tokens
+      tokenScreenEnd = traverse(tokenScreenStart, Point(0, token.screenExtent))
+      tokenBufferEnd = traverse(tokenBufferStart, token.bufferExtent)
+
+      for i in [0...token.screenExtent] by 1
+        screenPosition = traverse(tokenScreenStart, Point(0, i))
+        bufferPosition = traverse(tokenBufferStart, Point(0, i))
+
+        if token.metadata?.atomic and not isEqualPoint(screenPosition, tokenScreenStart)
+          expect(displayLayer.clipScreenPosition(screenPosition, clipDirection: 'backward')).toEqual(tokenScreenStart)
+          expect(displayLayer.clipScreenPosition(screenPosition, clipDirection: 'forward')).toEqual(tokenScreenEnd)
+          expect(displayLayer.translateScreenPosition(screenPosition, clipDirection: 'backward')).toEqual(tokenBufferStart)
+          expect(displayLayer.translateScreenPosition(screenPosition, clipDirection: 'forward')).toEqual(tokenBufferEnd)
+          expect(displayLayer.translateBufferPosition(bufferPosition, clipDirection: 'backward')).toEqual(tokenScreenStart)
+          expect(displayLayer.translateBufferPosition(bufferPosition, clipDirection: 'forward')).toEqual(tokenScreenEnd)
+        else unless token.metadata?.void
+          expect(displayLayer.clipScreenPosition(screenPosition, clipDirection: 'backward')).toEqual(screenPosition)
+          expect(displayLayer.clipScreenPosition(screenPosition, clipDirection: 'forward')).toEqual(screenPosition)
+          expect(displayLayer.translateScreenPosition(screenPosition, clipDirection: 'backward')).toEqual(bufferPosition)
+          expect(displayLayer.translateScreenPosition(screenPosition, clipDirection: 'forward')).toEqual(bufferPosition)
+          expect(displayLayer.translateBufferPosition(bufferPosition, clipDirection: 'backward')).toEqual(screenPosition)
+          expect(displayLayer.translateBufferPosition(bufferPosition, clipDirection: 'forward')).toEqual(screenPosition)
+
+      tokenScreenStart = tokenScreenEnd
+      tokenBufferStart = tokenBufferEnd
+
+    lineBufferStart = traverse(lineBufferStart, screenLine.bufferExtent)
+    lineScreenStart = traverse(lineScreenStart, Point(1, 0))
 
   for tokens in getTokenLines(displayLayer)
     for {closeTags, openTags, text} in tokens
