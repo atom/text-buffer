@@ -679,14 +679,15 @@ class DisplayLayer
           if spatialDecoration?
             tagsToClose.push(spatialDecoration)
 
-          if tagsToReopenAfterFold?
-            tagsToOpen.push(tagsToReopenAfterFold...)
-            tagsToReopenAfterFold = null
+          if not metadata?.softLineBreak
+            if tagsToReopenAfterFold?
+              tagsToOpen.push(tagsToReopenAfterFold...)
+              tagsToReopenAfterFold = null
 
-          if not metadata?.softLineBreak and comparePoints(decorationIterator.getPosition(), bufferStart) is 0
-            tagsToClose.push(decorationIterator.getCloseTags()...)
-            tagsToOpen.push(decorationIterator.getOpenTags()...)
-            decorationIterator.moveToSuccessor()
+            if comparePoints(decorationIterator.getPosition(), bufferStart) is 0
+              tagsToClose.push(decorationIterator.getCloseTags()...)
+              tagsToOpen.push(decorationIterator.getOpenTags()...)
+              decorationIterator.moveToSuccessor()
 
         if spatialDecoration = @getSpatialTokenTextDecoration(metadata)
           tagsToOpen.push(spatialDecoration)
