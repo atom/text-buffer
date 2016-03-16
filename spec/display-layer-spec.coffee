@@ -298,6 +298,11 @@ describe "DisplayLayer", ->
       displayLayer = buffer.addDisplayLayer(softWrapColumn: 8, softWrapHangingIndent: 2)
       expect(JSON.stringify(displayLayer.getText())).toBe JSON.stringify('        \n  abcde \n  fghijk')
 
+    it "correctly soft wraps lines with trailing hard tabs", ->
+      buffer = new TextBuffer(text: 'abc def\t\t')
+      displayLayer = buffer.addDisplayLayer(tabLength: 4, softWrapColumn: 8)
+      expect(JSON.stringify(displayLayer.getText())).toBe JSON.stringify('abc \ndef     ')
+
     it "translates points correctly on soft-wrapped lines", ->
       buffer = new TextBuffer(text: '   abc defgh')
       displayLayer = buffer.addDisplayLayer(softWrapColumn: 8, softWrapHangingIndent: 2)
@@ -698,10 +703,11 @@ describe "DisplayLayer", ->
       expect(e.message).toMatch(/Invalid text decoration iterator position/)
 
   now = Date.now()
-  for i in [0...100] by 1
+  for i in [0...1] by 1
     do ->
       seed = now + i
-      it "updates the displayed text correctly when the underlying buffer changes: #{seed}", ->
+      seed = 1458073371239
+      fit "updates the displayed text correctly when the underlying buffer changes: #{seed}", ->
         random = new Random(seed)
         buffer = new TextBuffer(text: buildRandomLines(random, 10))
         invisibles = {}
@@ -717,7 +723,7 @@ describe "DisplayLayer", ->
         foldIds = []
         screenLinesById = new Map
 
-        for j in [0...5] by 1
+        for j in [0...2] by 1
           k = random(10)
           if k < 2
             createRandomFold(random, displayLayer, foldIds)
@@ -821,7 +827,7 @@ verifyRightmostScreenPosition = (displayLayer) ->
     bufferRow = displayLayer.translateScreenPosition({row: row, column: 0}).row
     bufferLine = displayLayer.buffer.lineForRow(bufferRow)
 
-    expect(displayLayer.lineLengthForScreenRow(row)).toBe(screenLine.length)
+    expect(displayLayer.lineLengthForScreenRow(row)).toBe(screenLine.length, "Screen line length differs for row #{row}.")
 
     if screenLine.length > maxLineLength
       longestScreenRows.clear()

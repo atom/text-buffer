@@ -313,15 +313,18 @@ class DisplayLayer
             })
             tokensScreenExtent = trailingWhitespaceStartScreenColumn
 
-          if wrapScreenColumn > tokensScreenExtent
+          if wrapScreenColumn >= tokensScreenExtent
             behindCount = wrapScreenColumn - tokensScreenExtent
-            metadata = if inTrailingWhitespace then {trailingWhitespace: true, invisibleCharacter: @invisibles.space?}
-            tokens.push({
-              screenExtent: behindCount,
-              bufferExtent: Point(0, behindCount)
-              metadata
-            })
-            tokensScreenExtent = wrapScreenColumn
+            if behindCount > 0
+              metadata = if inTrailingWhitespace then {trailingWhitespace: true, invisibleCharacter: @invisibles.space?}
+              tokens.push({
+                screenExtent: behindCount,
+                bufferExtent: Point(0, behindCount)
+                metadata
+              })
+          else
+            excessTokensScreenExtent = tokensScreenExtent - wrapScreenColumn
+            excessTokens = @truncateTokens(tokens, tokensScreenExtent, wrapScreenColumn)
 
           tokens.push({
             screenExtent: 0,
@@ -329,6 +332,7 @@ class DisplayLayer
             metadata: {void: true, softLineBreak: true}
           })
 
+          tokensScreenExtent = wrapScreenColumn
           screenLineBufferEnd = Point(bufferRow, wrapBufferColumn)
           screenLines.push({
             screenExtent: tokensScreenExtent,
@@ -360,6 +364,12 @@ class DisplayLayer
             tokensScreenExtent += indentLength
             screenColumn += indentLength
             screenLineWidth += @ratioForCharacter(' ') * indentLength
+
+          if excessTokens?
+            tokens.push(excessTokens...)
+            tokensScreenExtent += excessTokensScreenExtent
+            excessTokens = null
+            excessTokensScreenExtent = 0
 
         if foldEndBufferPosition?
           if screenColumn > tokensScreenExtent
@@ -577,6 +587,28 @@ class DisplayLayer
       unless character is ' ' or character is '\t'
         return column + 1
     0
+
+  truncateTokens: (tokens, screenExtent, truncationScreenColumn) ->
+    excessTokens = []
+    while token = tokens.pop()
+      tokenStart = screenExtent - token.screenExtent
+      if tokenStart < truncationScreenColumn
+        excess = truncationScreenColumn - tokenStart
+        excessTokens.unshift({
+          bufferExtent: Point(token.bufferExtent.row, token.bufferExtent.column - excess)
+          screenExtent: token.screenExtent - excess
+          metadata: token.metadata
+        })
+
+        token.screenExtent = excess
+        token.bufferExtent.column = excess
+        tokens.push(token)
+      else
+        excessTokens.unshift(token)
+
+      break if tokenStart <= truncationScreenColumn
+      screenExtent = tokenStart
+    excessTokens
 
   getText: ->
     lines = []
