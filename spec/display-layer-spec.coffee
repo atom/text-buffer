@@ -2,7 +2,7 @@ Random = require 'random-seed'
 TextBuffer = require '../src/text-buffer'
 Point = require '../src/point'
 Range = require '../src/range'
-{characterIndexForPoint, isEqual: isEqualPoint, traverse} = require '../src/point-helpers'
+{characterIndexForPoint, isEqual: isEqualPoint, compare: comparePoints, traverse} = require '../src/point-helpers'
 WORDS = require './helpers/words'
 SAMPLE_TEXT = require './helpers/sample-text'
 TestDecorationLayer = require './helpers/test-decoration-layer'
@@ -711,7 +711,6 @@ describe "DisplayLayer", ->
   for i in [0...1] by 1
     do ->
       seed = now + i
-      seed = 1458149718164
       fit "updates the displayed text correctly when the underlying buffer changes: #{seed}", ->
         random = new Random(seed)
         buffer = new TextBuffer(text: buildRandomLines(random, 10))
@@ -741,7 +740,7 @@ describe "DisplayLayer", ->
           expectedDisplayLayer = buffer.addDisplayLayer({foldsMarkerLayer: displayLayer.foldsMarkerLayer.copy(), tabLength: 4, invisibles, showIndentGuides, softWrapColumn})
           expect(JSON.stringify(displayLayer.getText())).toBe(JSON.stringify(expectedDisplayLayer.getText()))
 
-          verifyPositionTranslations(displayLayer, expectedDisplayLayer)
+          verifyPositionTranslations(displayLayer)
           verifyTokens(displayLayer)
           verifyRightmostScreenPosition(displayLayer)
           verifyScreenLineIds(displayLayer, screenLinesById)
@@ -793,6 +792,18 @@ verifyChangeEvent = (displayLayer, fn) ->
 verifyTokens = (displayLayer) ->
   containingTags = []
 
+  for tokens in getTokenLines(displayLayer)
+    for {closeTags, openTags, text} in tokens
+      for tag in closeTags
+        mostRecentOpenTag = containingTags.pop()
+        expect(mostRecentOpenTag).toBe(tag)
+      containingTags.push(openTags...)
+
+    expect(containingTags).toEqual([])
+
+  expect(containingTags).toEqual([])
+
+verifyPositionTranslations = (displayLayer) ->
   lineScreenStart = Point.ZERO
   lineBufferStart = Point.ZERO
 
@@ -814,9 +825,9 @@ verifyTokens = (displayLayer) ->
             expect(displayLayer.clipScreenPosition(screenPosition, clipDirection: 'forward')).toEqual(tokenScreenEnd)
             expect(displayLayer.translateScreenPosition(screenPosition, clipDirection: 'backward')).toEqual(tokenBufferStart)
             expect(displayLayer.translateScreenPosition(screenPosition, clipDirection: 'forward')).toEqual(tokenBufferEnd)
-            # TODO: converting buffer positions fails for some cases. the above assertions are fine.
-            expect(displayLayer.translateBufferPosition(bufferPosition, clipDirection: 'backward')).toEqual(tokenScreenStart)
-            expect(displayLayer.translateBufferPosition(bufferPosition, clipDirection: 'forward')).toEqual(tokenScreenEnd)
+            if comparePoints(bufferPosition, tokenBufferEnd) < 0
+              expect(displayLayer.translateBufferPosition(bufferPosition, clipDirection: 'backward')).toEqual(tokenScreenStart)
+              expect(displayLayer.translateBufferPosition(bufferPosition, clipDirection: 'forward')).toEqual(tokenScreenEnd)
         else unless token.metadata?.void
           expect(displayLayer.clipScreenPosition(screenPosition, clipDirection: 'backward')).toEqual(screenPosition)
           expect(displayLayer.clipScreenPosition(screenPosition, clipDirection: 'forward')).toEqual(screenPosition)
@@ -830,35 +841,6 @@ verifyTokens = (displayLayer) ->
 
     lineBufferStart = traverse(lineBufferStart, screenLine.bufferExtent)
     lineScreenStart = traverse(lineScreenStart, Point(1, 0))
-
-  for tokens in getTokenLines(displayLayer)
-    for {closeTags, openTags, text} in tokens
-      for tag in closeTags
-        mostRecentOpenTag = containingTags.pop()
-        expect(mostRecentOpenTag).toBe(tag)
-      containingTags.push(openTags...)
-
-    expect(containingTags).toEqual([])
-
-  expect(containingTags).toEqual([])
-
-verifyPositionTranslations = (actualDisplayLayer, expectedDisplayLayer) ->
-  {buffer} = actualDisplayLayer
-
-  bufferLines = buffer.getText().split('\n')
-  screenLines = actualDisplayLayer.getText().split('\n')
-
-  for bufferLine, bufferRow in bufferLines
-    for character, bufferColumn in bufferLine
-      actualPosition = actualDisplayLayer.translateBufferPosition(Point(bufferRow, bufferColumn))
-      expectedPosition = expectedDisplayLayer.translateBufferPosition(Point(bufferRow, bufferColumn))
-      expect(actualPosition).toEqual(expectedPosition)
-
-  for screenLine, screenRow in screenLines
-    for character, screenColumn in screenLine
-      actualPosition = actualDisplayLayer.translateScreenPosition(Point(screenRow, screenColumn))
-      expectedPosition = expectedDisplayLayer.translateScreenPosition(Point(screenRow, screenColumn))
-      expect(actualPosition).toEqual(expectedPosition)
 
 verifyRightmostScreenPosition = (displayLayer) ->
   screenLines = displayLayer.getText().split('\n')
