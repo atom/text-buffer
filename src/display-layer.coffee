@@ -411,6 +411,7 @@ class DisplayLayer
           bufferColumn = foldEndBufferPosition.column
           bufferLine = @buffer.lineForRow(bufferRow)
           bufferLineLength = bufferLine.length
+          isEmptyLine &&= (bufferLineLength is 0)
           screenColumn += 1
           screenLineWidth += @ratioForCharacter('⋯')
           tokensScreenExtent = screenColumn
