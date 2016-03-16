@@ -295,7 +295,7 @@ class DisplayLayer
               })
               tokensScreenExtent = screenColumn
 
-        if character? and ((screenLineWidth + characterWidth) > @softWrapColumn)
+        if character? and ((screenLineWidth + characterWidth) > @softWrapColumn) and screenColumn > 0
           if lastWordStartBufferColumn > lastWrapBufferColumn and not lastWordEndsLeadingWhitespace
             wrapScreenColumn = lastWordStartScreenColumn
             wrapBufferColumn = lastWordStartBufferColumn

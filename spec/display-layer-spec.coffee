@@ -303,6 +303,11 @@ describe "DisplayLayer", ->
       displayLayer = buffer.addDisplayLayer(tabLength: 4, softWrapColumn: 8)
       expect(JSON.stringify(displayLayer.getText())).toBe JSON.stringify('abc \ndef     ')
 
+    it "correctly soft wraps lines when hard tabs are wider than the softWrapColumn", ->
+      buffer = new TextBuffer(text: '\they')
+      displayLayer = buffer.addDisplayLayer(tabLength: 10, softWrapColumn: 8)
+      expect(JSON.stringify(displayLayer.getText())).toBe JSON.stringify('          \nhey')
+
     it "translates points correctly on soft-wrapped lines", ->
       buffer = new TextBuffer(text: '   abc defgh')
       displayLayer = buffer.addDisplayLayer(softWrapColumn: 8, softWrapHangingIndent: 2)
