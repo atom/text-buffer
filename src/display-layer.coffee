@@ -1,5 +1,5 @@
 Patch = require 'atom-patch'
-ScreenLineIndex = require 'atom-screen-line-index'
+DisplayIndex = require 'display-index'
 {Emitter} = require 'event-kit'
 Point = require './point'
 Range = require './range'
@@ -18,7 +18,7 @@ class DisplayLayer
     @foldsMarkerLayer = settings.foldsMarkerLayer ? @buffer.addMarkerLayer({maintainHistory: true})
     @foldIdCounter = 1
     @disposables = @buffer.onDidChange(@bufferDidChange.bind(this))
-    @screenLineIndex = new ScreenLineIndex
+    @screenLineIndex = new DisplayIndex
     @spatialTokenIterator = @screenLineIndex.buildTokenIterator()
     @screenLineIterator = @screenLineIndex.buildScreenLineIterator()
     @textDecorationLayer = new EmptyDecorationLayer
@@ -57,7 +57,7 @@ class DisplayLayer
     newLines = @buildSpatialTokenLines(0, @buffer.getLineCount())
     oldRowExtent = endScreenRow - startScreenRow + 1
     newRowExtent = newLines.length
-    @spliceScreenLineIndex(startScreenRow, oldRowExtent, newLines)
+    @spliceDisplayIndex(startScreenRow, oldRowExtent, newLines)
     @emitter.emit 'did-change-sync', Object.freeze([{
       start: Point(startScreenRow, 0),
       oldExtent: Point(oldRowExtent, 0),
@@ -85,7 +85,7 @@ class DisplayLayer
       oldRowExtent = endScreenRow - startScreenRow + 1
       newScreenLines = @buildSpatialTokenLines(startBufferRow, endBufferRow)
       newRowExtent = newScreenLines.length
-      @spliceScreenLineIndex(startScreenRow, oldRowExtent, newScreenLines)
+      @spliceDisplayIndex(startScreenRow, oldRowExtent, newScreenLines)
       @emitter.emit 'did-change-sync', Object.freeze([{
         start: Point(startScreenRow, 0),
         oldExtent: Point(oldRowExtent, 0),
@@ -119,7 +119,7 @@ class DisplayLayer
       oldRowExtent = endScreenRow - startScreenRow + 1
       newScreenLines = @buildSpatialTokenLines(startBufferRow, endBufferRow)
       newRowExtent = newScreenLines.length
-      @spliceScreenLineIndex(startScreenRow, oldRowExtent, newScreenLines)
+      @spliceDisplayIndex(startScreenRow, oldRowExtent, newScreenLines)
       @emitter.emit 'did-change-sync', Object.freeze([{
         start: Point(startScreenRow, 0),
         oldExtent: Point(oldRowExtent, 0),
@@ -136,7 +136,7 @@ class DisplayLayer
     oldRowExtent = endScreenRow - startScreenRow + 1
     newScreenLines = @buildSpatialTokenLines(startBufferRow, newRange.end.row + 1)
     newRowExtent = newScreenLines.length
-    @spliceScreenLineIndex(startScreenRow, oldRowExtent, newScreenLines)
+    @spliceDisplayIndex(startScreenRow, oldRowExtent, newScreenLines)
 
     start = Point(startScreenRow, 0)
     oldExtent = Point(oldRowExtent, 0)
@@ -158,7 +158,7 @@ class DisplayLayer
 
     @emitter.emit 'did-change-sync', Object.freeze(normalizePatchChanges(combinedChanges.getChanges()))
 
-  spliceScreenLineIndex: (startScreenRow, oldRowExtent, newScreenLines) ->
+  spliceDisplayIndex: (startScreenRow, oldRowExtent, newScreenLines) ->
     deletedScreenLineIds = @screenLineIndex.splice(startScreenRow, oldRowExtent, newScreenLines)
     for screenLineId in deletedScreenLineIds
       @invalidationCountsByScreenLineId.delete(screenLineId)
