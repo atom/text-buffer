@@ -708,10 +708,10 @@ describe "DisplayLayer", ->
       expect(e.message).toMatch(/Invalid text decoration iterator position/)
 
   now = Date.now()
-  for i in [0...1] by 1
+  for i in [0...100] by 1
     do ->
       seed = now + i
-      fit "updates the displayed text correctly when the underlying buffer changes: #{seed}", ->
+      it "updates the displayed text correctly when the underlying buffer changes: #{seed}", ->
         random = new Random(seed)
         buffer = new TextBuffer(text: buildRandomLines(random, 10))
         invisibles = {}
