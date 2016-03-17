@@ -725,7 +725,7 @@ class DisplayLayer
       else if spatialDecoration?
         containingTags.splice(containingTags.indexOf(spatialDecoration), 1)
 
-      while comparePoints(decorationIterator.getPosition(), spatialTokenBufferEnd) is 0
+      while not @screenLineIterator.isSoftWrappedAtEnd() and comparePoints(decorationIterator.getPosition(), spatialTokenBufferEnd) is 0
         @updateTags(closeTags, openTags, containingTags, decorationIterator.getCloseTags(), decorationIterator.getOpenTags())
         decorationIterator.moveToSuccessor()
 
