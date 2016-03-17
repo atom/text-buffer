@@ -276,9 +276,35 @@ describe "DisplayLayer", ->
       expect(JSON.stringify(displayLayer.getText())).toBe JSON.stringify('ㅅㅘｶﾕあ\n繁體字a\nbc \ndef\n 字ｶﾕ\n ghi')
 
     it "preserves the indent on wrapped segments of the line", ->
-      buffer = new TextBuffer(text: '    abc de fgh ijk')
-      displayLayer = buffer.addDisplayLayer(softWrapColumn: 8)
-      expect(JSON.stringify(displayLayer.getText())).toBe JSON.stringify('    abc \n    de \n    fgh \n    ijk')
+      buffer = new TextBuffer(text: '     abc de fgh ijk\n  lmnopqrst')
+      displayLayer = buffer.addDisplayLayer(softWrapColumn: 9, showIndentGuides: true, tabLength: 2, invisibles: {space: '•'})
+      expect(JSON.stringify(displayLayer.getText())).toBe JSON.stringify('•••••abc \n     de \n     fgh \n     ijk\n••lmnopqr\n  st')
+      expectTokens(displayLayer, [
+        {close: [], open: ['invisible-character leading-whitespace indent-guide'], text: '••'},
+        {close: ['invisible-character leading-whitespace indent-guide'], open: ['invisible-character leading-whitespace indent-guide'], text: '••'},
+        {close: ['invisible-character leading-whitespace indent-guide'], open: ['invisible-character leading-whitespace indent-guide'], text: '•'},
+        {close: ['invisible-character leading-whitespace indent-guide'], open: [], text: 'abc '},
+        {close: [], open: [], text: ''},
+        {close: [], open: ['indent-guide'], text: '  '},
+        {close: ['indent-guide'], open: ['indent-guide'], text: '  '},
+        {close: ['indent-guide'], open: ['indent-guide'], text: ' '},
+        {close: ['indent-guide'], open: [], text: 'de '},
+        {close: [], open: [], text: ''},
+        {close: [], open: ['indent-guide'], text: '  '},
+        {close: ['indent-guide'], open: ['indent-guide'], text: '  '},
+        {close: ['indent-guide'], open: ['indent-guide'], text: ' '},
+        {close: ['indent-guide'], open: [], text: 'fgh '},
+        {close: [], open: [], text: ''},
+        {close: [], open: ['indent-guide'], text: '  '},
+        {close: ['indent-guide'], open: ['indent-guide'], text: '  '},
+        {close: ['indent-guide'], open: ['indent-guide'], text: ' '},
+        {close: ['indent-guide'], open: [], text: 'ijk'},
+        {close: [], open: ['invisible-character leading-whitespace indent-guide'], text: '••'},
+        {close: ['invisible-character leading-whitespace indent-guide'], open: [], text: 'lmnopqr'},
+        {close: [], open: [], text: ''},
+        {close: [], open: ['indent-guide'], text: '  '},
+        {close: ['indent-guide'], open: [], text: 'st'}
+      ])
 
     it "ignores indents that are greater than or equal to the softWrapColumn", ->
       buffer = new TextBuffer(text: '        abcde fghijk')

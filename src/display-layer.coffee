@@ -377,11 +377,26 @@ class DisplayLayer
             indentLength += + @softWrapHangingIndent
 
           if indentLength > 0
-            tokens.push({
-              screenExtent: indentLength,
-              bufferExtent: Point.ZERO
-              metadata: {void: true, softWrapIndentation: true}
-            })
+            if @showIndentGuides
+              indentGuidesCount = Math.ceil(indentLength / @tabLength)
+              while indentGuidesCount-- > 1
+                tokens.push({
+                  screenExtent: @tabLength,
+                  bufferExtent: Point.ZERO,
+                  metadata: {void: true, softWrapIndentation: true, showIndentGuide: true}
+                })
+
+              tokens.push({
+                screenExtent: (indentLength % @tabLength) or @tabLength,
+                bufferExtent: Point.ZERO,
+                metadata: {void: true, softWrapIndentation: true, showIndentGuide: true}
+              })
+            else
+              tokens.push({
+                screenExtent: indentLength,
+                bufferExtent: Point.ZERO
+                metadata: {void: true, softWrapIndentation: true}
+              })
             tokensScreenExtent += indentLength
             screenColumn += indentLength
             screenLineWidth += @ratioForCharacter(' ') * indentLength
