@@ -657,8 +657,9 @@ class DisplayLayer
 
       if comparePoints(decorationIterator.getPosition(), bufferStart) < 0
         bufferRow = decorationIterator.getPosition().row
+        iteratorPosition = decorationIterator.getPosition()
         throw new Error("""
-          Invalid text decoration iterator position: #{decorationIterator.getPosition()}.
+          Invalid text decoration iterator position: (#{iteratorPosition.row}, #{iteratorPosition.column}).
           Buffer row #{bufferRow} has length #{@buffer.lineLengthForRow(bufferRow)}.
         """)
 
