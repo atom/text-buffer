@@ -238,6 +238,7 @@ class DisplayLayer
       isBlankLine = trailingWhitespaceStartBufferColumn is 0
       isEmptyLine = bufferLineLength is 0
       inLeadingWhitespace = not isBlankLine
+      continuingSoftWrappedLine = false
       lastWrapBufferColumn = 0
       lastWordStartScreenColumn = 0
       lastWordStartBufferColumn = 0
@@ -355,9 +356,10 @@ class DisplayLayer
             screenExtent: tokensScreenExtent,
             bufferExtent: traversal(screenLineBufferEnd, screenLineBufferStart),
             tokens,
-            softWrappedAtStart: lastWrapBufferColumn > 0,
+            softWrappedAtStart: continuingSoftWrappedLine,
             softWrappedAtEnd: true
           })
+          continuingSoftWrappedLine = true
           tokens = []
           tokensScreenExtent = 0
           screenLineBufferStart = screenLineBufferEnd
@@ -511,7 +513,7 @@ class DisplayLayer
         screenExtent: tokensScreenExtent,
         bufferExtent: traversal(Point(bufferRow, bufferColumn), screenLineBufferStart),
         tokens,
-        softWrappedAtStart: lastWrapBufferColumn > 0,
+        softWrappedAtStart: continuingSoftWrappedLine
         softWrappedAtEnd: false
       })
       tokens = []
