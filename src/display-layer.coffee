@@ -24,6 +24,7 @@ class DisplayLayer
     @textDecorationLayer = new EmptyDecorationLayer
     @emitter = new Emitter
     @invalidationCountsByScreenLineId = new Map
+    @screenLinesBySpatialLineId = new Map
     @reset({
       invisibles: settings.invisibles ? {}
       tabLength: settings.tabLength ? 4
@@ -161,12 +162,14 @@ class DisplayLayer
     deletedScreenLineIds = @screenLineIndex.splice(startScreenRow, oldRowExtent, newScreenLines)
     for screenLineId in deletedScreenLineIds
       @invalidationCountsByScreenLineId.delete(screenLineId)
+      @screenLinesBySpatialLineId.delete(screenLineId)
     return
 
   invalidateScreenLines: (screenRange) ->
     for screenLineId in @screenLineIdsForScreenRange(screenRange)
       count = @invalidationCountsByScreenLineId.get(screenLineId) ? 0
       @invalidationCountsByScreenLineId.set(screenLineId, count + 1)
+      @screenLinesBySpatialLineId.delete(screenLineId)
     return
 
   decorationLayerDidInvalidateRange: (bufferRange) ->
@@ -663,90 +666,101 @@ class DisplayLayer
     screenLines = []
     @screenLineIterator.seekToScreenRow(startRow)
     containingTags = decorationIterator.seek(@screenLineIterator.getBufferStart())
+    previousLineWasCached = false
 
     while @screenLineIterator.getScreenRow() < endRow
-      bufferStart = @screenLineIterator.getBufferStart()
-      tokens = []
-      spatialDecoration = null
-      closeTags = []
-      openTags = containingTags.slice()
-      atLineStart = true
+      screenLineId = @screenLineIterator.getId()
+      if @screenLinesBySpatialLineId.has(screenLineId)
+        screenLines.push(@screenLinesBySpatialLineId.get(screenLineId))
+        previousLineWasCached = true
+      else
+        bufferStart = @screenLineIterator.getBufferStart()
+        if previousLineWasCached
+          containingTags = decorationIterator.seek(bufferStart)
+          previousLineWasCached = false
+        tokens = []
+        spatialDecoration = null
+        closeTags = []
+        openTags = containingTags.slice()
+        atLineStart = true
 
-      if comparePoints(decorationIterator.getPosition(), bufferStart) < 0
-        bufferRow = decorationIterator.getPosition().row
-        iteratorPosition = decorationIterator.getPosition()
-        throw new Error("""
-          Invalid text decoration iterator position: (#{iteratorPosition.row}, #{iteratorPosition.column}).
-          Buffer row #{bufferRow} has length #{@buffer.lineLengthForRow(bufferRow)}.
-        """)
+        if comparePoints(decorationIterator.getPosition(), bufferStart) < 0
+          bufferRow = decorationIterator.getPosition().row
+          iteratorPosition = decorationIterator.getPosition()
+          throw new Error("""
+            Invalid text decoration iterator position: (#{iteratorPosition.row}, #{iteratorPosition.column}).
+            Buffer row #{bufferRow} has length #{@buffer.lineLengthForRow(bufferRow)}.
+          """)
 
-      for {screenExtent, bufferExtent, metadata} in @screenLineIterator.getTokens()
-        spatialTokenBufferEnd = traverse(bufferStart, bufferExtent)
-        tagsToClose = []
-        tagsToOpen = []
+        for {screenExtent, bufferExtent, metadata} in @screenLineIterator.getTokens()
+          spatialTokenBufferEnd = traverse(bufferStart, bufferExtent)
+          tagsToClose = []
+          tagsToOpen = []
 
-        if metadata?.fold
-          @updateTags(closeTags, openTags, containingTags, containingTags.slice().reverse(), [], atLineStart)
-          tagsToReopenAfterFold = decorationIterator.seek(spatialTokenBufferEnd)
-          while comparePoints(decorationIterator.getPosition(), spatialTokenBufferEnd) is 0
-            for closeTag in decorationIterator.getCloseTags()
-              tagsToReopenAfterFold.splice(tagsToReopenAfterFold.lastIndexOf(closeTag), 1)
-            tagsToReopenAfterFold.push(decorationIterator.getOpenTags()...)
-            decorationIterator.moveToSuccessor()
-        else
-          if spatialDecoration?
-            tagsToClose.push(spatialDecoration)
-
-          if not metadata?.softLineBreak
-            if tagsToReopenAfterFold?
-              tagsToOpen.push(tagsToReopenAfterFold...)
-              tagsToReopenAfterFold = null
-
-            if comparePoints(decorationIterator.getPosition(), bufferStart) is 0
-              tagsToClose.push(decorationIterator.getCloseTags()...)
-              tagsToOpen.push(decorationIterator.getOpenTags()...)
+          if metadata?.fold
+            @updateTags(closeTags, openTags, containingTags, containingTags.slice().reverse(), [], atLineStart)
+            tagsToReopenAfterFold = decorationIterator.seek(spatialTokenBufferEnd)
+            while comparePoints(decorationIterator.getPosition(), spatialTokenBufferEnd) is 0
+              for closeTag in decorationIterator.getCloseTags()
+                tagsToReopenAfterFold.splice(tagsToReopenAfterFold.lastIndexOf(closeTag), 1)
+              tagsToReopenAfterFold.push(decorationIterator.getOpenTags()...)
               decorationIterator.moveToSuccessor()
+          else
+            if spatialDecoration?
+              tagsToClose.push(spatialDecoration)
 
-        if spatialDecoration = @getSpatialTokenTextDecoration(metadata)
-          tagsToOpen.push(spatialDecoration)
+            if not metadata?.softLineBreak
+              if tagsToReopenAfterFold?
+                tagsToOpen.push(tagsToReopenAfterFold...)
+                tagsToReopenAfterFold = null
 
-        @updateTags(closeTags, openTags, containingTags, tagsToClose, tagsToOpen, atLineStart)
+              if comparePoints(decorationIterator.getPosition(), bufferStart) is 0
+                tagsToClose.push(decorationIterator.getCloseTags()...)
+                tagsToOpen.push(decorationIterator.getOpenTags()...)
+                decorationIterator.moveToSuccessor()
 
-        text = @buildTokenText(metadata, screenExtent, bufferStart, spatialTokenBufferEnd)
-        startIndex = 0
-        while comparePoints(decorationIterator.getPosition(), spatialTokenBufferEnd) < 0
-          endIndex = startIndex + decorationIterator.getPosition().column - bufferStart.column
-          tokens.push({closeTags, openTags, text: text.substring(startIndex, endIndex)})
-          bufferStart = decorationIterator.getPosition()
-          startIndex = endIndex
+          if spatialDecoration = @getSpatialTokenTextDecoration(metadata)
+            tagsToOpen.push(spatialDecoration)
+
+          @updateTags(closeTags, openTags, containingTags, tagsToClose, tagsToOpen, atLineStart)
+
+          text = @buildTokenText(metadata, screenExtent, bufferStart, spatialTokenBufferEnd)
+          startIndex = 0
+          while comparePoints(decorationIterator.getPosition(), spatialTokenBufferEnd) < 0
+            endIndex = startIndex + decorationIterator.getPosition().column - bufferStart.column
+            tokens.push({closeTags, openTags, text: text.substring(startIndex, endIndex)})
+            bufferStart = decorationIterator.getPosition()
+            startIndex = endIndex
+            closeTags = []
+            openTags = []
+            @updateTags(closeTags, openTags, containingTags, decorationIterator.getCloseTags(), decorationIterator.getOpenTags())
+            decorationIterator.moveToSuccessor()
+
+          tokens.push({closeTags, openTags, text: text.substring(startIndex)})
+
           closeTags = []
           openTags = []
+          bufferStart = spatialTokenBufferEnd
+          atLineStart = false
+
+        if containingTags.length > 0
+          tokens.push({closeTags: containingTags.slice().reverse(), openTags: [], text: ''})
+
+        if tagsToReopenAfterFold?
+          containingTags = tagsToReopenAfterFold
+          tagsToReopenAfterFold = null
+        else if spatialDecoration?
+          containingTags.splice(containingTags.indexOf(spatialDecoration), 1)
+
+        while not @screenLineIterator.isSoftWrappedAtEnd() and comparePoints(decorationIterator.getPosition(), spatialTokenBufferEnd) is 0
           @updateTags(closeTags, openTags, containingTags, decorationIterator.getCloseTags(), decorationIterator.getOpenTags())
           decorationIterator.moveToSuccessor()
 
-        tokens.push({closeTags, openTags, text: text.substring(startIndex)})
+        invalidationCount = @invalidationCountsByScreenLineId.get(screenLineId) ? 0
+        screenLine = {id: "#{screenLineId}-#{invalidationCount}", tokens}
+        @screenLinesBySpatialLineId.set(screenLineId, screenLine)
+        screenLines.push(screenLine)
 
-        closeTags = []
-        openTags = []
-        bufferStart = spatialTokenBufferEnd
-        atLineStart = false
-
-      if containingTags.length > 0
-        tokens.push({closeTags: containingTags.slice().reverse(), openTags: [], text: ''})
-
-      if tagsToReopenAfterFold?
-        containingTags = tagsToReopenAfterFold
-        tagsToReopenAfterFold = null
-      else if spatialDecoration?
-        containingTags.splice(containingTags.indexOf(spatialDecoration), 1)
-
-      while not @screenLineIterator.isSoftWrappedAtEnd() and comparePoints(decorationIterator.getPosition(), spatialTokenBufferEnd) is 0
-        @updateTags(closeTags, openTags, containingTags, decorationIterator.getCloseTags(), decorationIterator.getOpenTags())
-        decorationIterator.moveToSuccessor()
-
-      screenLineId = @screenLineIterator.getId()
-      invalidationCount = @invalidationCountsByScreenLineId.get(screenLineId) ? 0
-      screenLines.push({id: "#{screenLineId}-#{invalidationCount}", tokens})
       break unless @screenLineIterator.moveToSuccessor()
     screenLines
 
