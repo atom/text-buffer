@@ -962,8 +962,26 @@ expectTokens = (displayLayer, expectedTokens) ->
 
 getTokenLines = (displayLayer, startRow=0, endRow=displayLayer.getScreenLineCount()) ->
   tokenLines = []
-  for screenLine in displayLayer.getScreenLines(startRow, endRow)
-    tokenLines.push(screenLine.tokens)
+  for {lineText, tagCodes} in displayLayer.getScreenLines(startRow, endRow)
+    tokens = []
+    startIndex = 0
+    closeTags = []
+    openTags = []
+    for tagCode in tagCodes
+      if displayLayer.isCloseTagCode(tagCode)
+        closeTags.push(displayLayer.tagForCode(tagCode))
+      else if displayLayer.isOpenTagCode(tagCode)
+        openTags.push(displayLayer.tagForCode(tagCode))
+      else
+        tokens.push({closeTags, openTags, text: lineText.substr(startIndex, tagCode)})
+        startIndex += tagCode
+        closeTags = []
+        openTags = []
+
+    if closeTags.length > 0 or openTags.length > 0
+      tokens.push({closeTags, openTags, text: ''})
+
+    tokenLines.push(tokens)
   tokenLines
 
 updateTokenLines = (tokenLines, displayLayer, changes) ->

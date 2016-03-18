@@ -29,6 +29,9 @@ class DisplayLayer
     @emitter = new Emitter
     @invalidationCountsByScreenLineId = new Map
     @screenLinesBySpatialLineId = new Map
+    @codesByTag = new Map
+    @tagsByCode = new Map
+    @nextOpenTagCode = -1
     @reset({
       invisibles: settings.invisibles ? {}
       tabLength: settings.tabLength ? 4
@@ -678,13 +681,7 @@ class DisplayLayer
     excessTokens
 
   getText: ->
-    lines = []
-    for screenLine in @getScreenLines()
-      line = ''
-      for token in screenLine.tokens
-        line += token.text
-      lines.push(line)
-    lines.join('\n')
+    @getScreenLines().map((screenLine) -> screenLine.lineText).join('\n')
 
   getScreenLines: (startRow=0, endRow=@getScreenLineCount()) ->
     decorationIterator = @textDecorationLayer.buildIterator()
@@ -703,7 +700,8 @@ class DisplayLayer
         if previousLineWasCached
           containingTags = decorationIterator.seek(bufferStart)
           previousLineWasCached = false
-        tokens = []
+        screenLineText = ''
+        tagCodes = []
         spatialDecoration = null
         closeTags = []
         openTags = containingTags.slice()
@@ -749,11 +747,13 @@ class DisplayLayer
 
           @updateTags(closeTags, openTags, containingTags, tagsToClose, tagsToOpen, atLineStart)
 
-          text = @buildTokenText(metadata, screenExtent, bufferStart, spatialTokenBufferEnd)
+          spatialTokenText = @buildTokenText(metadata, screenExtent, bufferStart, spatialTokenBufferEnd)
           startIndex = 0
           while comparePoints(decorationIterator.getPosition(), spatialTokenBufferEnd) < 0
             endIndex = startIndex + decorationIterator.getPosition().column - bufferStart.column
-            tokens.push({closeTags, openTags, text: text.substring(startIndex, endIndex)})
+            tagCodes.push(@codeForCloseTag(tag)) for tag in closeTags
+            tagCodes.push(@codeForOpenTag(tag)) for tag in openTags
+            tagCodes.push(endIndex - startIndex)
             bufferStart = decorationIterator.getPosition()
             startIndex = endIndex
             closeTags = []
@@ -761,7 +761,11 @@ class DisplayLayer
             @updateTags(closeTags, openTags, containingTags, decorationIterator.getCloseTags(), decorationIterator.getOpenTags())
             decorationIterator.moveToSuccessor()
 
-          tokens.push({closeTags, openTags, text: text.substring(startIndex)})
+          tagCodes.push(@codeForCloseTag(tag)) for tag in closeTags
+          tagCodes.push(@codeForOpenTag(tag)) for tag in openTags
+          tagCodes.push(spatialTokenText.length - startIndex)
+
+          screenLineText += spatialTokenText
 
           closeTags = []
           openTags = []
@@ -769,7 +773,8 @@ class DisplayLayer
           atLineStart = false
 
         if containingTags.length > 0
-          tokens.push({closeTags: containingTags.slice().reverse(), openTags: [], text: ''})
+          for containingTag in containingTags by -1
+            tagCodes.push(@codeForCloseTag(containingTag))
 
         if tagsToReopenAfterFold?
           containingTags = tagsToReopenAfterFold
@@ -782,12 +787,35 @@ class DisplayLayer
           decorationIterator.moveToSuccessor()
 
         invalidationCount = @invalidationCountsByScreenLineId.get(screenLineId) ? 0
-        screenLine = {id: "#{screenLineId}-#{invalidationCount}", tokens}
+        screenLine = {id: "#{screenLineId}-#{invalidationCount}", lineText: screenLineText, tagCodes}
         @screenLinesBySpatialLineId.set(screenLineId, screenLine)
         screenLines.push(screenLine)
 
       break unless @screenLineIterator.moveToSuccessor()
     screenLines
+
+  isOpenTagCode: (tagCode) ->
+    tagCode < 0 and tagCode % 2 is -1
+
+  isCloseTagCode: (tagCode) ->
+    tagCode < 0 and tagCode % 2 is 0
+
+  tagForCode: (tagCode) ->
+    tagCode++ if @isCloseTagCode(tagCode)
+    @tagsByCode.get(tagCode)
+
+  codeForOpenTag: (tag) ->
+    if @codesByTag.has(tag)
+      @codesByTag.get(tag)
+    else
+      codeForTag = @nextOpenTagCode
+      @codesByTag.set(tag, @nextOpenTagCode)
+      @tagsByCode.set(@nextOpenTagCode, tag)
+      @nextOpenTagCode -= 2
+      codeForTag
+
+  codeForCloseTag: (tag) ->
+    @codeForOpenTag(tag) - 1
 
   buildTokenText: (metadata, screenExtent, bufferStart, bufferEnd) ->
     if metadata?.hardTab
