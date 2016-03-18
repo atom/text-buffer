@@ -100,18 +100,27 @@ class DisplayLayer
   foldsIntersectingBufferRange: (bufferRange) ->
     @foldsMarkerLayer.findMarkers(intersectsRange: bufferRange).map ({id}) -> id
 
-  outermostFoldsInBufferRowRange: (startRow, endRow) ->
+  foldsStartingAtBufferRow: (bufferRow) ->
+    @foldsMarkerLayer.findMarkers(startRow: bufferRow).map ({id}) -> id
+
+  outermostFoldsInBufferRowRange: (startBufferRow, endBufferRow) ->
     folds = []
     lastFoldEndRow = -1
 
-    for marker in @foldsMarkerLayer.findMarkers(intersectsRowRange: [startRow, endRow])
+    for marker in @foldsMarkerLayer.findMarkers(intersectsRowRange: [startBufferRow, endBufferRow])
       range = marker.getRange()
       if range.start.row > lastFoldEndRow
         lastFoldEndRow = range.end.row
-        if startRow <= range.start.row <= range.end.row < endRow
+        if startBufferRow <= range.start.row <= range.end.row < endBufferRow
           folds.push(marker.id)
 
     folds
+
+  largestFoldStartingAtBufferRow: (row) ->
+    @foldsStartingAtBufferRow(row)[0]
+
+  largestFoldContainingBufferRow: (row) ->
+    @foldsIntersectingBufferRange([[row, 0], [row, Infinity]])[0]
 
   destroyFold: (foldId) ->
     if foldMarker = @foldsMarkerLayer.getMarker(foldId)
