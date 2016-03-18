@@ -10,6 +10,10 @@ comparePoints = pointHelpers.compare
 maxPoint = pointHelpers.max
 {normalizePatchChanges} = require './helpers'
 
+isWordStart = (previousCharacter, character) ->
+  (previousCharacter is ' ' or previousCharacter is '\t') and
+  (character isnt ' '  and character isnt '\t')
+
 module.exports =
 class DisplayLayer
   constructor: (@buffer, settings={}) ->
@@ -32,6 +36,7 @@ class DisplayLayer
       softWrapHangingIndent: settings.softWrapHangingIndent ? 0
       showIndentGuides: settings.showIndentGuides ? false,
       ratioForCharacter: settings.ratioForCharacter ? -> 1.0,
+      isWrapBoundary: settings.isWrapBoundary ? isWordStart
     })
 
   destroy: ->
@@ -40,7 +45,7 @@ class DisplayLayer
     for id, displayMarkerLayer of @displayMarkerLayersById
       displayMarkerLayer.destroy()
 
-  reset: ({@tabLength, @invisibles, @showIndentGuides, @softWrapColumn, @softWrapHangingIndent, @ratioForCharacter}) ->
+  reset: ({@tabLength, @invisibles, @showIndentGuides, @softWrapColumn, @softWrapHangingIndent, @ratioForCharacter, @isWrapBoundary}) ->
     @eolInvisibles = {
       "\r": @invisibles.cr
       "\n": @invisibles.eol
@@ -262,10 +267,10 @@ class DisplayLayer
       inLeadingWhitespace = not isBlankLine
       continuingSoftWrappedLine = false
       lastWrapBufferColumn = 0
-      lastWordStartScreenColumn = 0
-      lastWordStartBufferColumn = 0
-      screenLineWidthAtLastWordStart = 0
-      lastWordEndsLeadingWhitespace = true
+      wrapBoundaryScreenColumn = 0
+      wrapBoundaryBufferColumn = 0
+      screenLineWidthAtWrapCharacter = 0
+      wrapBoundaryEndsLeadingWhitespace = true
       softWrapIndent = null
 
       while bufferColumn <= bufferLineLength
@@ -288,12 +293,11 @@ class DisplayLayer
           (inLeadingWhitespace or isBlankLine and inTrailingWhitespace) and
             (screenColumn % @tabLength) is 0 and (screenColumn - tokensScreenExtent) is @tabLength
 
-        if ((previousCharacter is ' ' or previousCharacter is '\t') and
-            character isnt ' '  and character isnt '\t')
-          lastWordStartScreenColumn = screenColumn
-          lastWordStartBufferColumn = bufferColumn
-          screenLineWidthAtLastWordStart = screenLineWidth
-          lastWordEndsLeadingWhitespace = inLeadingWhitespace
+        if character? and @isWrapBoundary(previousCharacter, character)
+          wrapBoundaryScreenColumn = screenColumn
+          wrapBoundaryBufferColumn = bufferColumn
+          screenLineWidthAtWrapCharacter = screenLineWidth
+          wrapBoundaryEndsLeadingWhitespace = inLeadingWhitespace
 
         if character isnt ' ' or foldEndBufferPosition? or atSoftTabBoundary
           if inLeadingWhitespace and bufferColumn < bufferLineLength
@@ -338,10 +342,10 @@ class DisplayLayer
               tokensScreenExtent = screenColumn
 
         if character? and ((screenLineWidth + characterWidth) > @softWrapColumn) and screenColumn > 0
-          if lastWordStartBufferColumn > lastWrapBufferColumn and not lastWordEndsLeadingWhitespace
-            wrapScreenColumn = lastWordStartScreenColumn
-            wrapBufferColumn = lastWordStartBufferColumn
-            screenLineWidthAtWrapColumn = screenLineWidthAtLastWordStart
+          if wrapBoundaryBufferColumn > lastWrapBufferColumn and not wrapBoundaryEndsLeadingWhitespace
+            wrapScreenColumn = wrapBoundaryScreenColumn
+            wrapBufferColumn = wrapBoundaryBufferColumn
+            screenLineWidthAtWrapColumn = screenLineWidthAtWrapCharacter
           else
             wrapScreenColumn = screenColumn
             wrapBufferColumn = bufferColumn
@@ -456,10 +460,10 @@ class DisplayLayer
           screenColumn += 1
           screenLineWidth += @ratioForCharacter('⋯')
           tokensScreenExtent = screenColumn
-          lastWordStartBufferColumn = bufferColumn
-          lastWordStartScreenColumn = screenColumn
-          lastWordEndsLeadingWhitespace = false
-          screenLineWidthAtLastWordStart = screenLineWidth
+          wrapBoundaryBufferColumn = bufferColumn
+          wrapBoundaryScreenColumn = screenColumn
+          wrapBoundaryEndsLeadingWhitespace = false
+          screenLineWidthAtWrapCharacter = screenLineWidth
           inLeadingWhitespace = true
           for column in [0...bufferColumn] by 1
             character = bufferLine[column]

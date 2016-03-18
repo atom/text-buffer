@@ -269,6 +269,11 @@ describe "DisplayLayer", ->
       displayLayer = buffer.addDisplayLayer(softWrapColumn: 8)
       expect(JSON.stringify(displayLayer.getText())).toBe JSON.stringify('        \n    abcd\n    efgh')
 
+    it "soft wraps the line according to the isWrapBoundary function", ->
+      buffer = new TextBuffer(text: 'abcdefghijk\nlmno')
+      displayLayer = buffer.addDisplayLayer(softWrapColumn: 8, isWrapBoundary: (previousCharacter, character) -> character is 'd')
+      expect(JSON.stringify(displayLayer.getText())).toBe JSON.stringify('abc\ndefghijk\nlmno')
+
     it "takes into account character ratios when determining the wrap boundary", ->
       ratiosByCharacter = {'ㅅ': 1.3, 'ㅘ': 1.3, 'ｶ': 0.5, 'ﾕ': 0.5, 'あ': 2.0, '繁': 2.0, '體': 2.0, '字': 2.0, ' ': 4.0}
       buffer = new TextBuffer(text: 'ㅅㅘｶﾕあ繁體字abc def\n 字ｶﾕghi')
