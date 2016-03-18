@@ -278,7 +278,9 @@ class DisplayLayer
         character = bufferLine[bufferColumn]
         previousCharacter = bufferLine[bufferColumn - 1]
         foldEndBufferPosition = folds[bufferRow]?[bufferColumn]
-        if foldEndBufferPosition?
+        if not character?
+          characterWidth = 0
+        else if foldEndBufferPosition?
           characterWidth = @ratioForCharacter('⋯')
         else if character is '\t'
           distanceToNextTabStop = @tabLength - (screenColumn % @tabLength)
