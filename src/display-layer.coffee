@@ -40,13 +40,7 @@ class DisplayLayer
     for id, displayMarkerLayer of @displayMarkerLayersById
       displayMarkerLayer.destroy()
 
-  reset: ({tabLength, invisibles, showIndentGuides, softWrapColumn, softWrapHangingIndent, ratioForCharacter}) ->
-    @tabLength = tabLength
-    @showIndentGuides = showIndentGuides
-    @softWrapColumn = softWrapColumn
-    @softWrapHangingIndent = softWrapHangingIndent
-    @ratioForCharacter = ratioForCharacter
-    @invisibles = invisibles
+  reset: ({@tabLength, @invisibles, @showIndentGuides, @softWrapColumn, @softWrapHangingIndent, @ratioForCharacter}) ->
     @eolInvisibles = {
       "\r": @invisibles.cr
       "\n": @invisibles.eol
