@@ -77,6 +77,9 @@ class DisplayLayer
     @textDecorationLayer = layer
     @decorationLayerDisposable = layer.onDidInvalidateRange?(@decorationLayerDidInvalidateRange.bind(this))
 
+  bufferRangeForFold: (id) ->
+    @foldsMarkerLayer.getMarkerRange(id)
+
   foldBufferRange: (bufferRange) ->
     bufferRange = @buffer.clipRange(bufferRange)
     foldId = @foldsMarkerLayer.markRange(bufferRange).id
@@ -96,6 +99,19 @@ class DisplayLayer
 
   foldsIntersectingBufferRange: (bufferRange) ->
     @foldsMarkerLayer.findMarkers(intersectsRange: bufferRange).map ({id}) -> id
+
+  outermostFoldsInBufferRowRange: (startRow, endRow) ->
+    folds = []
+    lastFoldEndRow = -1
+
+    for marker in @foldsMarkerLayer.findMarkers(intersectsRowRange: [startRow, endRow])
+      range = marker.getRange()
+      if range.start.row > lastFoldEndRow
+        lastFoldEndRow = range.end.row
+        if startRow <= range.start.row <= range.end.row < endRow
+          folds.push(marker.id)
+
+    folds
 
   destroyFold: (foldId) ->
     if foldMarker = @foldsMarkerLayer.getMarker(foldId)
