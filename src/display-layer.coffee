@@ -22,12 +22,12 @@ class DisplayLayer
     @foldsMarkerLayer = settings.foldsMarkerLayer ? @buffer.addMarkerLayer({maintainHistory: true})
     @foldIdCounter = 1
     @disposables = @buffer.onDidChange(@bufferDidChange.bind(this))
-    @screenLineIndex = new DisplayIndex
-    @spatialTokenIterator = @screenLineIndex.buildTokenIterator()
-    @screenLineIterator = @screenLineIndex.buildScreenLineIterator()
+    @displayIndex = new DisplayIndex
+    @spatialTokenIterator = @displayIndex.buildTokenIterator()
+    @spatialLineIterator = @displayIndex.buildScreenLineIterator()
     @textDecorationLayer = new EmptyDecorationLayer
     @emitter = new Emitter
-    @invalidationCountsByScreenLineId = new Map
+    @invalidationCountsBySpatialLineId = new Map
     @screenLinesBySpatialLineId = new Map
     @codesByTag = new Map
     @tagsByCode = new Map
@@ -56,7 +56,7 @@ class DisplayLayer
     }
 
     {startScreenRow, endScreenRow} = @expandBufferRangeToLineBoundaries(Range(Point.ZERO, Point(@buffer.getLineCount(), 0)))
-    newLines = @buildSpatialTokenLines(0, @buffer.getLineCount())
+    newLines = @buildSpatialScreenLines(0, @buffer.getLineCount())
     oldRowExtent = endScreenRow - startScreenRow + 1
     newRowExtent = newLines.length
     @spliceDisplayIndex(startScreenRow, oldRowExtent, newLines)
@@ -88,7 +88,7 @@ class DisplayLayer
     if @foldsMarkerLayer.findMarkers(containsRange: bufferRange).length is 1
       {startScreenRow, endScreenRow, startBufferRow, endBufferRow} = @expandBufferRangeToLineBoundaries(bufferRange)
       oldRowExtent = endScreenRow - startScreenRow + 1
-      newScreenLines = @buildSpatialTokenLines(startBufferRow, endBufferRow)
+      newScreenLines = @buildSpatialScreenLines(startBufferRow, endBufferRow)
       newRowExtent = newScreenLines.length
       @spliceDisplayIndex(startScreenRow, oldRowExtent, newScreenLines)
       @emitter.emit 'did-change-sync', Object.freeze([{
@@ -144,7 +144,7 @@ class DisplayLayer
       combinedRange = Range(combinedRangeStart, combinedRangeEnd)
       {startScreenRow, endScreenRow, startBufferRow, endBufferRow} = @expandBufferRangeToLineBoundaries(combinedRange)
       oldRowExtent = endScreenRow - startScreenRow + 1
-      newScreenLines = @buildSpatialTokenLines(startBufferRow, endBufferRow)
+      newScreenLines = @buildSpatialScreenLines(startBufferRow, endBufferRow)
       newRowExtent = newScreenLines.length
       @spliceDisplayIndex(startScreenRow, oldRowExtent, newScreenLines)
       @emitter.emit 'did-change-sync', Object.freeze([{
@@ -161,7 +161,7 @@ class DisplayLayer
     {startScreenRow, endScreenRow, startBufferRow} = @expandBufferRangeToLineBoundaries(oldRange)
 
     oldRowExtent = endScreenRow - startScreenRow + 1
-    newScreenLines = @buildSpatialTokenLines(startBufferRow, newRange.end.row + 1)
+    newScreenLines = @buildSpatialScreenLines(startBufferRow, newRange.end.row + 1)
     newRowExtent = newScreenLines.length
     @spliceDisplayIndex(startScreenRow, oldRowExtent, newScreenLines)
 
@@ -186,17 +186,17 @@ class DisplayLayer
     @emitter.emit 'did-change-sync', Object.freeze(normalizePatchChanges(combinedChanges.getChanges()))
 
   spliceDisplayIndex: (startScreenRow, oldRowExtent, newScreenLines) ->
-    deletedScreenLineIds = @screenLineIndex.splice(startScreenRow, oldRowExtent, newScreenLines)
-    for screenLineId in deletedScreenLineIds
-      @invalidationCountsByScreenLineId.delete(screenLineId)
-      @screenLinesBySpatialLineId.delete(screenLineId)
+    deletedSpatialLineIds = @displayIndex.splice(startScreenRow, oldRowExtent, newScreenLines)
+    for id in deletedSpatialLineIds
+      @invalidationCountsBySpatialLineId.delete(id)
+      @screenLinesBySpatialLineId.delete(id)
     return
 
   invalidateScreenLines: (screenRange) ->
-    for screenLineId in @screenLineIdsForScreenRange(screenRange)
-      count = @invalidationCountsByScreenLineId.get(screenLineId) ? 0
-      @invalidationCountsByScreenLineId.set(screenLineId, count + 1)
-      @screenLinesBySpatialLineId.delete(screenLineId)
+    for id in @spatialLineIdsForScreenRange(screenRange)
+      invalidationCount = @invalidationCountsBySpatialLineId.get(id) ? 0
+      @invalidationCountsBySpatialLineId.set(id, invalidationCount + 1)
+      @screenLinesBySpatialLineId.delete(id)
     return
 
   decorationLayerDidInvalidateRange: (bufferRange) ->
@@ -209,12 +209,12 @@ class DisplayLayer
       newExtent: extent
     }]
 
-  screenLineIdsForScreenRange: (screenRange) ->
-    @screenLineIterator.seekToScreenRow(screenRange.start.row)
+  spatialLineIdsForScreenRange: (screenRange) ->
+    @spatialLineIterator.seekToScreenRow(screenRange.start.row)
     ids = []
-    while @screenLineIterator.getScreenRow() <= screenRange.end.row
-      ids.push(@screenLineIterator.getId())
-      break unless @screenLineIterator.moveToSuccessor()
+    while @spatialLineIterator.getScreenRow() <= screenRange.end.row
+      ids.push(@spatialLineIterator.getId())
+      break unless @spatialLineIterator.moveToSuccessor()
     ids
 
   expandChangeRegionToSurroundingEmptyLines: (oldRange, newRange) ->
@@ -234,21 +234,21 @@ class DisplayLayer
     {oldRange, newRange}
 
   expandBufferRangeToLineBoundaries: (range) ->
-    @screenLineIterator.seekToBufferPosition(Point(range.start.row, 0))
-    while @screenLineIterator.isSoftWrappedAtStart()
-      @screenLineIterator.moveToPredecessor()
-    startScreenRow = @screenLineIterator.getScreenRow()
-    startBufferRow = @screenLineIterator.getBufferStart().row
+    @spatialLineIterator.seekToBufferPosition(Point(range.start.row, 0))
+    while @spatialLineIterator.isSoftWrappedAtStart()
+      @spatialLineIterator.moveToPredecessor()
+    startScreenRow = @spatialLineIterator.getScreenRow()
+    startBufferRow = @spatialLineIterator.getBufferStart().row
 
-    @screenLineIterator.seekToBufferPosition(Point(range.end.row, Infinity))
-    while @screenLineIterator.isSoftWrappedAtEnd()
-      @screenLineIterator.moveToSuccessor()
-    endScreenRow = @screenLineIterator.getScreenRow()
-    endBufferRow = @screenLineIterator.getBufferEnd().row
+    @spatialLineIterator.seekToBufferPosition(Point(range.end.row, Infinity))
+    while @spatialLineIterator.isSoftWrappedAtEnd()
+      @spatialLineIterator.moveToSuccessor()
+    endScreenRow = @spatialLineIterator.getScreenRow()
+    endBufferRow = @spatialLineIterator.getBufferEnd().row
 
     {startScreenRow, endScreenRow, startBufferRow, endBufferRow}
 
-  buildSpatialTokenLines: (startBufferRow, endBufferRow) ->
+  buildSpatialScreenLines: (startBufferRow, endBufferRow) ->
     {startBufferRow, endBufferRow, folds} = @computeFoldsInBufferRowRange(startBufferRow, endBufferRow)
 
     screenLines = []
@@ -686,17 +686,17 @@ class DisplayLayer
   getScreenLines: (startRow=0, endRow=@getScreenLineCount()) ->
     decorationIterator = @textDecorationLayer.buildIterator()
     screenLines = []
-    @screenLineIterator.seekToScreenRow(startRow)
-    containingTags = decorationIterator.seek(@screenLineIterator.getBufferStart())
+    @spatialLineIterator.seekToScreenRow(startRow)
+    containingTags = decorationIterator.seek(@spatialLineIterator.getBufferStart())
     previousLineWasCached = false
 
-    while @screenLineIterator.getScreenRow() < endRow
-      screenLineId = @screenLineIterator.getId()
+    while @spatialLineIterator.getScreenRow() < endRow
+      screenLineId = @spatialLineIterator.getId()
       if @screenLinesBySpatialLineId.has(screenLineId)
         screenLines.push(@screenLinesBySpatialLineId.get(screenLineId))
         previousLineWasCached = true
       else
-        bufferStart = @screenLineIterator.getBufferStart()
+        bufferStart = @spatialLineIterator.getBufferStart()
         if previousLineWasCached
           containingTags = decorationIterator.seek(bufferStart)
           previousLineWasCached = false
@@ -715,7 +715,7 @@ class DisplayLayer
             Buffer row #{bufferRow} has length #{@buffer.lineLengthForRow(bufferRow)}.
           """)
 
-        for {screenExtent, bufferExtent, metadata} in @screenLineIterator.getTokens()
+        for {screenExtent, bufferExtent, metadata} in @spatialLineIterator.getTokens()
           spatialTokenBufferEnd = traverse(bufferStart, bufferExtent)
           tagsToClose = []
           tagsToOpen = []
@@ -782,16 +782,16 @@ class DisplayLayer
         else if spatialDecoration?
           containingTags.splice(containingTags.indexOf(spatialDecoration), 1)
 
-        while not @screenLineIterator.isSoftWrappedAtEnd() and comparePoints(decorationIterator.getPosition(), spatialTokenBufferEnd) is 0
+        while not @spatialLineIterator.isSoftWrappedAtEnd() and comparePoints(decorationIterator.getPosition(), spatialTokenBufferEnd) is 0
           @updateTags(closeTags, openTags, containingTags, decorationIterator.getCloseTags(), decorationIterator.getOpenTags())
           decorationIterator.moveToSuccessor()
 
-        invalidationCount = @invalidationCountsByScreenLineId.get(screenLineId) ? 0
+        invalidationCount = @invalidationCountsBySpatialLineId.get(screenLineId) ? 0
         screenLine = {id: "#{screenLineId}-#{invalidationCount}", lineText: screenLineText, tagCodes}
         @screenLinesBySpatialLineId.set(screenLineId, screenLine)
         screenLines.push(screenLine)
 
-      break unless @screenLineIterator.moveToSuccessor()
+      break unless @spatialLineIterator.moveToSuccessor()
     screenLines
 
   isOpenTagCode: (tagCode) ->
@@ -998,10 +998,10 @@ class DisplayLayer
     Point.fromObject(screenPosition)
 
   getScreenLineCount: ->
-    @screenLineIndex.getScreenLineCount()
+    @displayIndex.getScreenLineCount()
 
   getRightmostScreenPosition: ->
-    @screenLineIndex.getScreenPositionWithMaxLineLength() or {row: 0, column: 0}
+    @displayIndex.getScreenPositionWithMaxLineLength() or {row: 0, column: 0}
 
   lineLengthForScreenRow: (screenRow) ->
-    @screenLineIndex.lineLengthForScreenRow(screenRow) or 0
+    @displayIndex.lineLengthForScreenRow(screenRow) or 0

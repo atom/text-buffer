@@ -838,7 +838,7 @@ verifyPositionTranslations = (displayLayer) ->
   lineScreenStart = Point.ZERO
   lineBufferStart = Point.ZERO
 
-  for screenLine in displayLayer.buildSpatialTokenLines(0, displayLayer.buffer.getLineCount())
+  for screenLine in displayLayer.buildSpatialScreenLines(0, displayLayer.buffer.getLineCount())
     tokenScreenStart = lineScreenStart
     tokenBufferStart = lineBufferStart
 
