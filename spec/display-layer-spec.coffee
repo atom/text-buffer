@@ -850,7 +850,7 @@ verifyPositionTranslations = (displayLayer) ->
         screenPosition = traverse(tokenScreenStart, Point(0, i))
         bufferPosition = traverse(tokenBufferStart, Point(0, i))
 
-        if token.metadata?.atomic
+        if token.metadata & displayLayer.ATOMIC_TOKEN
           unless isEqualPoint(screenPosition, tokenScreenStart)
             expect(displayLayer.clipScreenPosition(screenPosition, clipDirection: 'backward')).toEqual(tokenScreenStart)
             expect(displayLayer.clipScreenPosition(screenPosition, clipDirection: 'forward')).toEqual(tokenScreenEnd)
@@ -859,7 +859,7 @@ verifyPositionTranslations = (displayLayer) ->
             if comparePoints(bufferPosition, tokenBufferEnd) < 0
               expect(displayLayer.translateBufferPosition(bufferPosition, clipDirection: 'backward')).toEqual(tokenScreenStart)
               expect(displayLayer.translateBufferPosition(bufferPosition, clipDirection: 'forward')).toEqual(tokenScreenEnd)
-        else unless token.metadata?.void
+        else unless token.metadata & displayLayer.VOID_TOKEN
           expect(displayLayer.clipScreenPosition(screenPosition, clipDirection: 'backward')).toEqual(screenPosition)
           expect(displayLayer.clipScreenPosition(screenPosition, clipDirection: 'forward')).toEqual(screenPosition)
           expect(displayLayer.translateScreenPosition(screenPosition, clipDirection: 'backward')).toEqual(bufferPosition)

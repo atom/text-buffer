@@ -10,12 +10,51 @@ comparePoints = pointHelpers.compare
 maxPoint = pointHelpers.max
 {normalizePatchChanges} = require './helpers'
 
+VOID = 1 << 0
+ATOMIC = 1 << 1
+INVISIBLE_CHARACTER = 1 << 2
+FOLD = 1 << 3
+HARD_TAB = 1 << 4
+LEADING_WHITESPACE = 1 << 5
+TRAILING_WHITESPACE = 1 << 6
+SHOW_INDENT_GUIDE = 1 << 7
+SOFT_LINE_BREAK = 1 << 8
+SOFT_WRAP_INDENTATION = 1 << 9
+LINE_ENDING = 1 << 10
+CR = 1 << 11
+LF = 1 << 12
+
 isWordStart = (previousCharacter, character) ->
   (previousCharacter is ' ' or previousCharacter is '\t') and
   (character isnt ' '  and character isnt '\t')
 
+spatialTokenTextDecorationCache = new Map
+getSpatialTokenTextDecoration = (metadata) ->
+  if metadata
+    if spatialTokenTextDecorationCache.has(metadata)
+      spatialTokenTextDecorationCache.get(metadata)
+    else
+      decoration = ''
+      decoration += 'invisible-character ' if metadata & INVISIBLE_CHARACTER
+      decoration += 'hard-tab ' if metadata & HARD_TAB
+      decoration += 'leading-whitespace ' if metadata & LEADING_WHITESPACE
+      decoration += 'trailing-whitespace ' if metadata & TRAILING_WHITESPACE
+      decoration += 'eol ' if metadata & LINE_ENDING
+      decoration += 'indent-guide ' if (metadata & SHOW_INDENT_GUIDE)
+      decoration += 'fold-marker ' if metadata & FOLD
+      if decoration.length > 0
+        decoration = decoration.trim()
+      else
+        decoration = undefined
+      spatialTokenTextDecorationCache.set(metadata, decoration)
+      decoration
+
 module.exports =
 class DisplayLayer
+  # Used in test
+  VOID_TOKEN: VOID
+  ATOMIC_TOKEN: ATOMIC
+
   constructor: (@buffer, settings={}) ->
     @displayMarkerLayersById = {}
     @textDecorationLayer = null
@@ -309,15 +348,14 @@ class DisplayLayer
               softWrapIndent = screenColumn
             if screenColumn > tokensScreenExtent
               spaceCount = screenColumn - tokensScreenExtent
+              metadata = LEADING_WHITESPACE
+              metadata |= INVISIBLE_CHARACTER if @invisibles.space?
+              metadata |= ATOMIC if atSoftTabBoundary
+              metadata |= SHOW_INDENT_GUIDE if @showIndentGuides and (tokensScreenExtent % @tabLength) is 0
               tokens.push({
                 screenExtent: spaceCount,
                 bufferExtent: Point(0, spaceCount),
-                metadata: {
-                  leadingWhitespace: true,
-                  invisibleCharacter: @invisibles.space?,
-                  atomic: atSoftTabBoundary,
-                  showIndentGuide: (tokensScreenExtent % @tabLength) is 0
-                }
+                metadata
               })
               tokensScreenExtent = screenColumn
 
@@ -327,20 +365,20 @@ class DisplayLayer
               tokens.push({
                 screenExtent: behindCount,
                 bufferExtent: Point(0, behindCount)
+                metadata: 0
               })
               tokensScreenExtent = trailingWhitespaceStartScreenColumn
 
             if screenColumn > tokensScreenExtent
               spaceCount = screenColumn - tokensScreenExtent
+              metadata = TRAILING_WHITESPACE
+              metadata |= INVISIBLE_CHARACTER if @invisibles.space?
+              metadata |= ATOMIC if atSoftTabBoundary
+              metadata |= SHOW_INDENT_GUIDE if @showIndentGuides and isBlankLine and (tokensScreenExtent % @tabLength) is 0
               tokens.push({
                 screenExtent: spaceCount,
                 bufferExtent: Point(0, spaceCount),
-                metadata: {
-                  trailingWhitespace: true,
-                  invisibleCharacter: @invisibles.space?,
-                  atomic: atSoftTabBoundary,
-                  showIndentGuide: isBlankLine and (tokensScreenExtent % @tabLength) is 0
-                }
+                metadata
               })
               tokensScreenExtent = screenColumn
 
@@ -359,13 +397,17 @@ class DisplayLayer
             tokens.push({
               screenExtent: behindCount,
               bufferExtent: Point(0, behindCount)
+              metadata: 0
             })
             tokensScreenExtent = trailingWhitespaceStartScreenColumn
 
           if wrapScreenColumn >= tokensScreenExtent
             behindCount = wrapScreenColumn - tokensScreenExtent
             if behindCount > 0
-              metadata = if inTrailingWhitespace then {trailingWhitespace: true, invisibleCharacter: @invisibles.space?}
+              metadata = 0
+              if inTrailingWhitespace
+                metadata |= TRAILING_WHITESPACE
+                metadata |= INVISIBLE_CHARACTER if @invisibles.space?
               tokens.push({
                 screenExtent: behindCount,
                 bufferExtent: Point(0, behindCount)
@@ -378,7 +420,7 @@ class DisplayLayer
           tokens.push({
             screenExtent: 0,
             bufferExtent: Point(0, 0),
-            metadata: {void: true, softLineBreak: true}
+            metadata: VOID | SOFT_LINE_BREAK
           })
 
           tokensScreenExtent = wrapScreenColumn
@@ -414,19 +456,19 @@ class DisplayLayer
                 tokens.push({
                   screenExtent: @tabLength,
                   bufferExtent: Point.ZERO,
-                  metadata: {void: true, softWrapIndentation: true, showIndentGuide: true}
+                  metadata: VOID | SOFT_WRAP_INDENTATION | SHOW_INDENT_GUIDE
                 })
 
               tokens.push({
                 screenExtent: (indentLength % @tabLength) or @tabLength,
                 bufferExtent: Point.ZERO,
-                metadata: {void: true, softWrapIndentation: true, showIndentGuide: true}
+                metadata: VOID | SOFT_WRAP_INDENTATION | SHOW_INDENT_GUIDE
               })
             else
               tokens.push({
                 screenExtent: indentLength,
                 bufferExtent: Point.ZERO
-                metadata: {void: true, softWrapIndentation: true}
+                metadata: VOID | SOFT_WRAP_INDENTATION
               })
             tokensScreenExtent += indentLength
             screenColumn += indentLength
@@ -444,6 +486,7 @@ class DisplayLayer
             tokens.push({
               screenExtent: behindCount,
               bufferExtent: Point(0, behindCount)
+              metadata: 0
             })
             tokensScreenExtent = screenColumn
 
@@ -452,7 +495,7 @@ class DisplayLayer
           tokens.push({
             screenExtent: 1,
             bufferExtent: traversal(foldEndBufferPosition, foldStartBufferPosition),
-            metadata: {fold: true, atomic: true}
+            metadata: FOLD | ATOMIC
           })
 
           bufferRow = foldEndBufferPosition.row
@@ -483,21 +526,20 @@ class DisplayLayer
               tokens.push({
                 screenExtent: behindCount,
                 bufferExtent: Point(0, behindCount)
+                metadata: 0
               })
               tokensScreenExtent = screenColumn
 
             distanceToNextTabStop = @tabLength - (screenColumn % @tabLength)
+            metadata = HARD_TAB | ATOMIC
+            metadata |= LEADING_WHITESPACE if inLeadingWhitespace
+            metadata |= TRAILING_WHITESPACE if inTrailingWhitespace
+            metadata |= INVISIBLE_CHARACTER if @invisibles.tab?
+            metadata |= SHOW_INDENT_GUIDE if @showIndentGuides and (inLeadingWhitespace or isBlankLine and inTrailingWhitespace) and distanceToNextTabStop is @tabLength
             tokens.push({
               screenExtent: distanceToNextTabStop,
               bufferExtent: Point(0, 1),
-              metadata: {
-                hardTab: true
-                atomic: true
-                leadingWhitespace: inLeadingWhitespace
-                trailingWhitespace: inTrailingWhitespace
-                invisibleCharacter: @invisibles.tab?
-                showIndentGuide: (inLeadingWhitespace or isBlankLine and inTrailingWhitespace) and distanceToNextTabStop is @tabLength
-              }
+              metadata
             })
             bufferColumn += 1
             screenColumn += distanceToNextTabStop
@@ -514,34 +556,39 @@ class DisplayLayer
         tokens.push({
           screenExtent: behindCount,
           bufferExtent: Point(0, behindCount)
+          metadata: 0
         })
         tokensScreenExtent = screenColumn
 
       indentGuidesCount = @emptyLineIndentationForBufferRow(bufferRow)
 
-      if eolInvisibleReplacement = @eolInvisibles[@buffer.lineEndingForRow(bufferRow)]
+      lineEnding = @buffer.lineEndingForRow(bufferRow)
+      if eolInvisibleReplacement = @eolInvisibles[lineEnding]
+        metadata = LINE_ENDING | VOID | INVISIBLE_CHARACTER
+        metadata |= SHOW_INDENT_GUIDE if @showIndentGuides and isEmptyLine and indentGuidesCount > 0
+        if lineEnding is '\n'
+          metadata |= LF
+        else if lineEnding is '\r\n'
+          metadata |= (CR | LF)
+        else if lineEnding is '\r'
+          metadata |= CR
+
         tokens.push({
           screenExtent: eolInvisibleReplacement.length,
           bufferExtent: Point(0, 0),
-          metadata: {
-            eol: eolInvisibleReplacement,
-            invisibleCharacter: true,
-            showIndentGuide: isEmptyLine and @showIndentGuides and indentGuidesCount > 0,
-            void: true
-          }
+          metadata
         })
         screenColumn += eolInvisibleReplacement.length
         tokensScreenExtent = screenColumn
 
       while @showIndentGuides and indentGuidesCount > 0 and not previousPositionWasFold
         distanceToNextTabStop = @tabLength - (screenColumn % @tabLength)
+        metadata = VOID
+        metadata |= SHOW_INDENT_GUIDE if (screenColumn % @tabLength is 0)
         tokens.push({
           screenExtent: distanceToNextTabStop,
           bufferExtent: Point(0, 0),
-          metadata: {
-            showIndentGuide: (screenColumn % @tabLength is 0),
-            void: true
-          }
+          metadata
         })
         screenColumn += distanceToNextTabStop
         tokensScreenExtent = screenColumn
@@ -720,7 +767,7 @@ class DisplayLayer
           tagsToClose = []
           tagsToOpen = []
 
-          if metadata?.fold
+          if metadata & FOLD
             @updateTags(closeTags, openTags, containingTags, containingTags.slice().reverse(), [], atLineStart)
             tagsToReopenAfterFold = decorationIterator.seek(spatialTokenBufferEnd)
             while comparePoints(decorationIterator.getPosition(), spatialTokenBufferEnd) is 0
@@ -732,7 +779,7 @@ class DisplayLayer
             if spatialDecoration?
               tagsToClose.push(spatialDecoration)
 
-            if not metadata?.softLineBreak
+            if not (metadata & SOFT_LINE_BREAK)
               if tagsToReopenAfterFold?
                 tagsToOpen.push(tagsToReopenAfterFold...)
                 tagsToReopenAfterFold = null
@@ -742,7 +789,7 @@ class DisplayLayer
                 tagsToOpen.push(decorationIterator.getOpenTags()...)
                 decorationIterator.moveToSuccessor()
 
-          if spatialDecoration = @getSpatialTokenTextDecoration(metadata)
+          if spatialDecoration = getSpatialTokenTextDecoration(metadata)
             tagsToOpen.push(spatialDecoration)
 
           @updateTags(closeTags, openTags, containingTags, tagsToClose, tagsToOpen, atLineStart)
@@ -818,18 +865,23 @@ class DisplayLayer
     @codeForOpenTag(tag) - 1
 
   buildTokenText: (metadata, screenExtent, bufferStart, bufferEnd) ->
-    if metadata?.hardTab
+    if metadata & HARD_TAB
       if @invisibles.tab?
         @invisibles.tab + ' '.repeat(screenExtent - 1)
       else
         ' '.repeat(screenExtent)
-    else if (metadata?.leadingWhitespace or metadata?.trailingWhitespace) and @invisibles.space?
+    else if ((metadata & LEADING_WHITESPACE) or (metadata & TRAILING_WHITESPACE)) and @invisibles.space?
       @invisibles.space.repeat(screenExtent)
-    else if metadata?.fold
+    else if metadata & FOLD
       '⋯'
-    else if metadata?.void
-      if metadata?.eol?
-        metadata.eol
+    else if metadata & VOID
+      if metadata & LINE_ENDING
+        if (metadata & CR) and (metadata & LF)
+          @eolInvisibles['\r\n']
+        else if metadata & LF
+          @eolInvisibles['\n']
+        else
+          @eolInvisibles['\r']
       else
         ' '.repeat(screenExtent)
     else
@@ -864,29 +916,16 @@ class DisplayLayer
     openTags.push(tagsToOpen...)
     containingTags.push(tagsToOpen...)
 
-  getSpatialTokenTextDecoration: (metadata) ->
-    if metadata
-      decoration = ''
-      decoration += 'invisible-character ' if metadata.invisibleCharacter
-      decoration += 'hard-tab ' if metadata.hardTab
-      decoration += 'leading-whitespace ' if metadata.leadingWhitespace
-      decoration += 'trailing-whitespace ' if metadata.trailingWhitespace
-      decoration += 'eol ' if metadata.eol
-      decoration += 'indent-guide ' if metadata.showIndentGuide and @showIndentGuides
-      decoration += 'fold-marker ' if metadata.fold
-      if decoration.length > 0
-        decoration.trim()
-
   translateBufferPosition: (bufferPosition, options) ->
     bufferPosition = @buffer.clipPosition(bufferPosition, options)
     clipDirection = options?.clipDirection
 
     @spatialTokenIterator.seekToBufferPosition(bufferPosition)
 
-    if @spatialTokenIterator.getMetadata()?.softLineBreak or @spatialTokenIterator.getMetadata()?.softWrapIndentation
+    if @spatialTokenIterator.getMetadata() & SOFT_LINE_BREAK or @spatialTokenIterator.getMetadata() & SOFT_WRAP_INDENTATION
       clipDirection = 'forward'
 
-    while @spatialTokenIterator.getMetadata()?.void
+    while @spatialTokenIterator.getMetadata() & VOID
       if clipDirection is 'forward'
         if @spatialTokenIterator.moveToSuccessor()
           bufferPosition = @spatialTokenIterator.getBufferStart()
@@ -896,7 +935,7 @@ class DisplayLayer
         @spatialTokenIterator.moveToPredecessor()
         bufferPosition = @spatialTokenIterator.getBufferEnd()
 
-    if @spatialTokenIterator.getMetadata()?.atomic
+    if @spatialTokenIterator.getMetadata() & ATOMIC
       if comparePoints(bufferPosition, @spatialTokenIterator.getBufferStart()) is 0
         screenPosition = @spatialTokenIterator.getScreenStart()
       else if comparePoints(bufferPosition, @spatialTokenIterator.getBufferEnd()) is 0 or options?.clipDirection is 'forward'
@@ -921,23 +960,23 @@ class DisplayLayer
 
     @spatialTokenIterator.seekToScreenPosition(screenPosition)
 
-    while @spatialTokenIterator.getMetadata()?.void
-      if @spatialTokenIterator.getMetadata().eol and comparePoints(screenPosition, @spatialTokenIterator.getScreenStart()) is 0
+    while @spatialTokenIterator.getMetadata() & VOID
+      if @spatialTokenIterator.getMetadata() & LINE_ENDING and comparePoints(screenPosition, @spatialTokenIterator.getScreenStart()) is 0
         break
 
       if (clipDirection is 'forward' or
-          (options?.skipSoftWrapIndentation and @spatialTokenIterator.getMetadata().softWrapIndentation))
+          (options?.skipSoftWrapIndentation and @spatialTokenIterator.getMetadata() & SOFT_WRAP_INDENTATION))
         if @spatialTokenIterator.moveToSuccessor()
           screenPosition = @spatialTokenIterator.getScreenStart()
         else
           clipDirection = 'backward'
       else
-        {softLineBreak} = @spatialTokenIterator.getMetadata()
+        softLineBreak = @spatialTokenIterator.getMetadata() & SOFT_LINE_BREAK
         @spatialTokenIterator.moveToPredecessor()
         screenPosition = @spatialTokenIterator.getScreenEnd()
         screenPosition = traverse(screenPosition, Point(0, -1)) if softLineBreak
 
-    if @spatialTokenIterator.getMetadata()?.atomic
+    if @spatialTokenIterator.getMetadata() & ATOMIC
       if comparePoints(screenPosition, @spatialTokenIterator.getScreenStart()) is 0
         bufferPosition = @spatialTokenIterator.getBufferStart()
       else if comparePoints(screenPosition, @spatialTokenIterator.getScreenEnd()) is 0 or options?.clipDirection is 'forward'
@@ -965,24 +1004,24 @@ class DisplayLayer
 
     @spatialTokenIterator.seekToScreenPosition(screenPosition)
 
-    while @spatialTokenIterator.getMetadata()?.void
-      if @spatialTokenIterator.getMetadata().eol and comparePoints(screenPosition, @spatialTokenIterator.getScreenStart()) is 0
+    while @spatialTokenIterator.getMetadata() & VOID
+      if @spatialTokenIterator.getMetadata() & LINE_ENDING and comparePoints(screenPosition, @spatialTokenIterator.getScreenStart()) is 0
         break
 
       if (clipDirection is 'forward' or
-          (options?.skipSoftWrapIndentation and @spatialTokenIterator.getMetadata().softWrapIndentation))
+          (options?.skipSoftWrapIndentation and @spatialTokenIterator.getMetadata() & SOFT_WRAP_INDENTATION))
         if @spatialTokenIterator.moveToSuccessor()
           screenPosition = @spatialTokenIterator.getScreenStart()
         else
           clipDirection = 'backward'
       else
-        {softLineBreak} = @spatialTokenIterator.getMetadata()
+        softLineBreak = @spatialTokenIterator.getMetadata() & SOFT_LINE_BREAK
         @spatialTokenIterator.moveToPredecessor()
         screenPosition = @spatialTokenIterator.getScreenEnd()
         screenPosition = traverse(screenPosition, Point(0, -1)) if softLineBreak
 
     if comparePoints(screenPosition, @spatialTokenIterator.getScreenEnd()) <= 0
-      if (@spatialTokenIterator.getMetadata()?.atomic and
+      if (@spatialTokenIterator.getMetadata() & ATOMIC and
           comparePoints(screenPosition, @spatialTokenIterator.getScreenStart()) > 0 and
           comparePoints(screenPosition, @spatialTokenIterator.getScreenEnd()) < 0)
         if options?.clipDirection is 'forward'
