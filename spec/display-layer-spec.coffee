@@ -987,11 +987,3 @@ getTokenLines = (displayLayer, startRow=0, endRow=displayLayer.getScreenLineCoun
 updateTokenLines = (tokenLines, displayLayer, changes) ->
   for {start, oldExtent, newExtent} in changes
     tokenLines.splice(start.row, oldExtent.row, getTokenLines(displayLayer, start.row, start.row + newExtent.row)...)
-
-logTokens = (displayLayer) ->
-  s = 'expectTokens(displayLayer, [\n'
-  for tokens in getTokenLines(displayLayer)
-    for {text, closeTags, openTags} in tokens
-      s += "  {text: '#{text}', close: #{JSON.stringify(closeTags)}, open: #{JSON.stringify(openTags)}},\n"
-  s += '])'
-  console.log s
