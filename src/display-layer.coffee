@@ -141,28 +141,6 @@ class DisplayLayer
   foldsIntersectingBufferRange: (bufferRange) ->
     @foldsMarkerLayer.findMarkers(intersectsRange: bufferRange).map ({id}) -> id
 
-  foldsStartingAtBufferRow: (bufferRow) ->
-    @foldsMarkerLayer.findMarkers(startRow: bufferRow).map ({id}) -> id
-
-  outermostFoldsInBufferRowRange: (startBufferRow, endBufferRow) ->
-    folds = []
-    lastFoldEndRow = -1
-
-    for marker in @foldsMarkerLayer.findMarkers(intersectsRowRange: [startBufferRow, endBufferRow])
-      range = marker.getRange()
-      if range.start.row > lastFoldEndRow
-        lastFoldEndRow = range.end.row
-        if startBufferRow <= range.start.row <= range.end.row < endBufferRow
-          folds.push(marker.id)
-
-    folds
-
-  largestFoldStartingAtBufferRow: (row) ->
-    @foldsStartingAtBufferRow(row)[0]
-
-  largestFoldContainingBufferRow: (row) ->
-    @foldsIntersectingBufferRange([[row, 0], [row, Infinity]])[0]
-
   destroyFold: (foldId) ->
     if foldMarker = @foldsMarkerLayer.getMarker(foldId)
       @destroyFoldMarkers([foldMarker])
@@ -175,22 +153,25 @@ class DisplayLayer
     @destroyFoldMarkers(@foldsMarkerLayer.getMarkers())
 
   destroyFoldMarkers: (foldMarkers) ->
-    if foldMarkers.length > 0
-      combinedRangeStart = combinedRangeEnd = foldMarkers[0].getStartPosition()
-      for foldMarker in foldMarkers
-        combinedRangeEnd = maxPoint(combinedRangeEnd, foldMarker.getEndPosition())
-        foldMarker.destroy()
-      combinedRange = Range(combinedRangeStart, combinedRangeEnd)
-      {startScreenRow, endScreenRow, startBufferRow, endBufferRow} = @expandBufferRangeToLineBoundaries(combinedRange)
-      oldRowExtent = endScreenRow - startScreenRow + 1
-      newScreenLines = @buildSpatialScreenLines(startBufferRow, endBufferRow)
-      newRowExtent = newScreenLines.length
-      @spliceDisplayIndex(startScreenRow, oldRowExtent, newScreenLines)
-      @emitter.emit 'did-change-sync', Object.freeze([{
-        start: Point(startScreenRow, 0),
-        oldExtent: Point(oldRowExtent, 0),
-        newExtent: Point(newRowExtent, 0)
-      }])
+    return [] if foldMarkers.length is 0
+
+    combinedRangeStart = combinedRangeEnd = foldMarkers[0].getStartPosition()
+    for foldMarker in foldMarkers
+      combinedRangeEnd = maxPoint(combinedRangeEnd, foldMarker.getEndPosition())
+      foldMarker.destroy()
+    combinedRange = Range(combinedRangeStart, combinedRangeEnd)
+    {startScreenRow, endScreenRow, startBufferRow, endBufferRow} = @expandBufferRangeToLineBoundaries(combinedRange)
+    oldRowExtent = endScreenRow - startScreenRow + 1
+    newScreenLines = @buildSpatialScreenLines(startBufferRow, endBufferRow)
+    newRowExtent = newScreenLines.length
+    @spliceDisplayIndex(startScreenRow, oldRowExtent, newScreenLines)
+    @emitter.emit 'did-change-sync', Object.freeze([{
+      start: Point(startScreenRow, 0),
+      oldExtent: Point(oldRowExtent, 0),
+      newExtent: Point(newRowExtent, 0)
+    }])
+
+    foldMarkers.map((marker) -> marker.getRange())
 
   onDidChangeSync: (callback) ->
     @emitter.on 'did-change-sync', callback
