@@ -253,18 +253,23 @@ class DisplayLayer
 
     {oldRange, newRange}
 
-  expandBufferRangeToLineBoundaries: (range) ->
-    @spatialLineIterator.seekToBufferPosition(Point(range.start.row, 0))
+  lineStartBoundaryForBufferRow: (bufferRow) ->
+    @spatialLineIterator.seekToBufferPosition(Point(bufferRow, 0))
     while @spatialLineIterator.isSoftWrappedAtStart()
       @spatialLineIterator.moveToPredecessor()
-    startScreenRow = @spatialLineIterator.getScreenRow()
-    startBufferRow = @spatialLineIterator.getBufferStart().row
 
-    @spatialLineIterator.seekToBufferPosition(Point(range.end.row, Infinity))
+    {screenRow: @spatialLineIterator.getScreenRow(), bufferRow: @spatialLineIterator.getBufferStart().row}
+
+  lineEndBoundaryForBufferRow: (bufferRow) ->
+    @spatialLineIterator.seekToBufferPosition(Point(bufferRow, Infinity))
     while @spatialLineIterator.isSoftWrappedAtEnd()
       @spatialLineIterator.moveToSuccessor()
-    endScreenRow = @spatialLineIterator.getScreenRow()
-    endBufferRow = @spatialLineIterator.getBufferEnd().row
+
+    {screenRow: @spatialLineIterator.getScreenRow(), bufferRow: @spatialLineIterator.getBufferEnd().row}
+
+  expandBufferRangeToLineBoundaries: (range) ->
+    {screenRow: startScreenRow, bufferRow: startBufferRow} = @lineStartBoundaryForBufferRow(range.start.row)
+    {screenRow: endScreenRow, bufferRow: endBufferRow} = @lineEndBoundaryForBufferRow(range.end.row)
 
     {startScreenRow, endScreenRow, startBufferRow, endBufferRow}
 
