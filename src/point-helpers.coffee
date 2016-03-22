@@ -42,8 +42,10 @@ exports.characterIndexForPoint = (text, point) ->
   NEWLINE_REG_EXP.lastIndex + column
 
 exports.clipNegativePoint = (point) ->
-  if point.row < 0 or point.column < 0
-    Point(Math.max(0, point.row), Math.max(0, point.column))
+  if point.row < 0
+    Point(0, 0)
+  else if point.column < 0
+    Point(point.row, 0)
   else
     point
 
