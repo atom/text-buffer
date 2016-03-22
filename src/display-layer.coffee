@@ -88,6 +88,13 @@ class DisplayLayer
   serialize: ->
     {foldsMarkerLayerId: @foldsMarkerLayer.id}
 
+  copy: ->
+    foldsMarkerLayer = @foldsMarkerLayer.copy()
+    @buffer.addDisplayLayer({
+      foldsMarkerLayer, @tabLength, @invisibles, @showIndentGuides,
+      @softWrapColumn, @softWrapHangingIndent, @ratioForCharacter, @isWrapBoundary
+    })
+
   destroy: ->
     @disposables.dispose()
     @foldsMarkerLayer.destroy()
