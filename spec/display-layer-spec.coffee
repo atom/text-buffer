@@ -90,6 +90,29 @@ describe "DisplayLayer", ->
       expect(displayLayer.clipScreenPosition([2, 6])).toEqual [2, 4]
       expect(displayLayer.clipScreenPosition([2, 13])).toEqual [2, 13]
 
+  describe "paired characters", ->
+    it "treats paired characters as atomic units", ->
+      buffer = new TextBuffer(text: 'abc🐲def')
+      displayLayer = buffer.addDisplayLayer()
+
+      expectPositionTranslations(displayLayer, [
+        [Point(0, 0), Point(0, 0)],
+        [Point(0, 1), Point(0, 1)],
+        [Point(0, 2), Point(0, 2)],
+        [Point(0, 3), Point(0, 3)],
+        [Point(0, 4), [Point(0, 3), Point(0, 5)]],
+        [Point(0, 5), Point(0, 5)],
+        [Point(0, 6), Point(0, 6)],
+        [Point(0, 7), Point(0, 7)],
+        [Point(0, 8), Point(0, 8)]
+      ])
+
+    it "doesn't soft wrap when the wrap boundary is between two paired characters", ->
+      buffer = new TextBuffer(text: 'abcde🐲fghij')
+      displayLayer = buffer.addDisplayLayer(softWrapColumn: 6)
+
+      expect(JSON.stringify(displayLayer.getText())).toBe JSON.stringify('abcde🐲\nfghij')
+
   describe "folds", ->
     it "allows single folds to be created and destroyed", ->
       buffer = new TextBuffer(text: SAMPLE_TEXT)

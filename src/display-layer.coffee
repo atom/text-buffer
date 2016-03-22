@@ -9,6 +9,7 @@ EmptyDecorationLayer = require './empty-decoration-layer'
 comparePoints = pointHelpers.compare
 maxPoint = pointHelpers.max
 {normalizePatchChanges} = require './helpers'
+isCharacterPair = require './is-character-pair'
 
 VOID = 1 << 0
 ATOMIC = 1 << 1
@@ -316,8 +317,9 @@ class DisplayLayer
       softWrapIndent = null
 
       while bufferColumn <= bufferLineLength
-        character = bufferLine[bufferColumn]
         previousCharacter = bufferLine[bufferColumn - 1]
+        character = bufferLine[bufferColumn]
+        nextCharacter = bufferLine[bufferColumn + 1]
         foldEndBufferPosition = folds[bufferRow]?[bufferColumn]
         if not character?
           characterWidth = 0
@@ -381,6 +383,28 @@ class DisplayLayer
                 metadata
               })
               tokensScreenExtent = screenColumn
+
+        if character? and nextCharacter? and isCharacterPair(character, nextCharacter)
+          if screenColumn > tokensScreenExtent
+            behindCount = screenColumn - tokensScreenExtent
+            tokens.push({
+              screenExtent: behindCount,
+              bufferExtent: Point(0, behindCount)
+              metadata: 0
+            })
+            tokensScreenExtent = screenColumn
+
+          tokens.push({
+            screenExtent: 2,
+            bufferExtent: Point(0, 2),
+            metadata: ATOMIC
+          })
+
+          bufferColumn += 2
+          screenColumn += 2
+          tokensScreenExtent += 2
+          screenLineWidth += 2
+          continue
 
         if character? and ((screenLineWidth + characterWidth) > @softWrapColumn) and screenColumn > 0
           if wrapBoundaryBufferColumn > lastWrapBufferColumn and not wrapBoundaryEndsLeadingWhitespace
