@@ -55,6 +55,10 @@ class DisplayLayer
   VOID_TOKEN: VOID
   ATOMIC_TOKEN: ATOMIC
 
+  @deserialize: (params, buffer) ->
+    foldsMarkerLayer = buffer.getMarkerLayer(params.foldsMarkerLayerId)
+    buffer.addDisplayLayer({foldsMarkerLayer})
+
   constructor: (@buffer, settings={}) ->
     @displayMarkerLayersById = {}
     @textDecorationLayer = null
@@ -80,6 +84,9 @@ class DisplayLayer
       ratioForCharacter: settings.ratioForCharacter ? -> 1.0,
       isWrapBoundary: settings.isWrapBoundary ? isWordStart
     })
+
+  serialize: ->
+    {foldsMarkerLayerId: @foldsMarkerLayer.id}
 
   destroy: ->
     @disposables.dispose()

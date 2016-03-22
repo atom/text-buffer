@@ -838,6 +838,8 @@ describe "TextBuffer", ->
 
     it "can serialize / deserialize the buffer along with its history, marker layers, and markers", (done) ->
       bufferA = new TextBuffer(text: "hello\nworld\r\nhow are you doing?")
+      displayLayerA = bufferA.addDisplayLayer()
+      displayLayerA.foldBufferRange([[0, 1], [0, 3]])
       bufferA.createCheckpoint()
       bufferA.setTextInRange([[0, 5], [0, 5]], " there")
       bufferA.transact -> bufferA.setTextInRange([[1, 0], [1, 5]], "friend")
@@ -857,6 +859,7 @@ describe "TextBuffer", ->
 
       expect(bufferB.getText()).toBe "hello there\ngood friend\r\nhow are you doing??"
       expectSameMarkers(bufferB.getMarkerLayer(layerA.id), layerA)
+      expect(bufferB.getDisplayLayer().foldsIntersectingBufferRange([[0, 1], [0, 3]]).length).toBe(1)
 
       bufferA.redo()
       bufferB.redo()

@@ -129,6 +129,7 @@ class TextBuffer
     params.history = History.deserialize(params.history)
     params.load = true if params.filePath
     TextBuffer.call(buffer, params)
+    DisplayLayer.deserialize(params.displayLayer, buffer) if params.displayLayer?
     buffer
 
   # Returns a {String} representing a unique identifier for this {TextBuffer}.
@@ -155,6 +156,7 @@ class TextBuffer
     digestWhenLastPersisted: @file?.getDigestSync()
     preferredLineEnding: @preferredLineEnding
     nextMarkerId: @nextMarkerId
+    displayLayer: @displayLayer?.serialize()
 
   ###
   Section: Event Subscription
@@ -1388,7 +1390,10 @@ class TextBuffer
   ###
 
   addDisplayLayer: (params) ->
-    new DisplayLayer(this, params)
+    @displayLayer = new DisplayLayer(this, params)
+
+  getDisplayLayer: ->
+    @displayLayer
 
   ###
   Section: Private Utility Methods
