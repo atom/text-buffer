@@ -836,10 +836,12 @@ describe "TextBuffer", ->
         expect(marker1).toEqual(markers2[i])
       return
 
-    it "can serialize / deserialize the buffer along with its history, marker layers, and markers", (done) ->
+    it "can serialize / deserialize the buffer along with its history, marker layers, markers, and display layers", (done) ->
       bufferA = new TextBuffer(text: "hello\nworld\r\nhow are you doing?")
-      displayLayerA = bufferA.addDisplayLayer()
-      displayLayerA.foldBufferRange([[0, 1], [0, 3]])
+      displayLayer1A = bufferA.addDisplayLayer()
+      displayLayer2A = bufferA.addDisplayLayer()
+      displayLayer1A.foldBufferRange([[0, 1], [0, 3]])
+      displayLayer2A.foldBufferRange([[0, 0], [0, 2]])
       bufferA.createCheckpoint()
       bufferA.setTextInRange([[0, 5], [0, 5]], " there")
       bufferA.transact -> bufferA.setTextInRange([[1, 0], [1, 5]], "friend")
@@ -859,7 +861,11 @@ describe "TextBuffer", ->
 
       expect(bufferB.getText()).toBe "hello there\ngood friend\r\nhow are you doing??"
       expectSameMarkers(bufferB.getMarkerLayer(layerA.id), layerA)
-      expect(bufferB.getDisplayLayer().foldsIntersectingBufferRange([[0, 1], [0, 3]]).length).toBe(1)
+      expect(bufferB.getDisplayLayer(displayLayer1A.id).foldsIntersectingBufferRange([[0, 1], [0, 3]]).length).toBe(1)
+      expect(bufferB.getDisplayLayer(displayLayer2A.id).foldsIntersectingBufferRange([[0, 0], [0, 2]]).length).toBe(1)
+      displayLayer3B = bufferB.addDisplayLayer()
+      expect(displayLayer3B.id).toBeGreaterThan(displayLayer1A.id)
+      expect(displayLayer3B.id).toBeGreaterThan(displayLayer2A.id)
 
       bufferA.redo()
       bufferB.redo()

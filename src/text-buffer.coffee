@@ -102,7 +102,9 @@ class TextBuffer
     maxUndoEntries = params?.maxUndoEntries ? @defaultMaxUndoEntries
     @history = params?.history ? new History(maxUndoEntries)
     @nextMarkerLayerId = params?.nextMarkerLayerId ? 0
+    @nextDisplayLayerId = params?.nextDisplayLayerId ? 0
     @defaultMarkerLayer = params?.defaultMarkerLayer ? new MarkerLayer(this, String(@nextMarkerLayerId++))
+    @displayLayers = {}
     @markerLayers = params?.markerLayers ? {}
     @markerLayers[@defaultMarkerLayer.id] = @defaultMarkerLayer
     @nextMarkerId = params?.nextMarkerId ? 1
@@ -129,7 +131,10 @@ class TextBuffer
     params.history = History.deserialize(params.history)
     params.load = true if params.filePath
     TextBuffer.call(buffer, params)
-    DisplayLayer.deserialize(params.displayLayer, buffer) if params.displayLayer?
+    displayLayers = {}
+    for layerId, layerState of params.displayLayers
+      displayLayers[layerId] = DisplayLayer.deserialize(buffer, layerState)
+    buffer.setDisplayLayers(displayLayers)
     buffer
 
   # Returns a {String} representing a unique identifier for this {TextBuffer}.
@@ -145,18 +150,23 @@ class TextBuffer
       for id, layer of @markerLayers
         markerLayers[id] = layer.serialize() if layer.maintainHistory
 
+    displayLayers = {}
+    for id, layer of @displayLayers
+      displayLayers[id] = layer.serialize()
+
     id: @getId()
     text: @getText()
     defaultMarkerLayerId: @defaultMarkerLayer.id
     markerLayers: markerLayers
+    displayLayers: displayLayers
     nextMarkerLayerId: @nextMarkerLayerId
+    nextDisplayLayerId: @nextDisplayLayerId
     history: @history.serialize(options)
     encoding: @getEncoding()
     filePath: @getPath()
     digestWhenLastPersisted: @file?.getDigestSync()
     preferredLineEnding: @preferredLineEnding
     nextMarkerId: @nextMarkerId
-    displayLayer: @displayLayer?.serialize()
 
   ###
   Section: Event Subscription
@@ -1390,10 +1400,17 @@ class TextBuffer
   ###
 
   addDisplayLayer: (params) ->
-    @displayLayer = new DisplayLayer(this, params)
+    id = @nextDisplayLayerId++
+    @displayLayers[id] = new DisplayLayer(id, this, params)
 
-  getDisplayLayer: ->
-    @displayLayer
+  destroyDisplayLayer: (id) ->
+    @displayLayers[id]?.destroy()
+    delete @displayLayers[id]
+
+  getDisplayLayer: (id) ->
+    @displayLayers[id]
+
+  setDisplayLayers: (@displayLayers) -> # Used for deserialization
 
   ###
   Section: Private Utility Methods

@@ -56,11 +56,11 @@ class DisplayLayer
   VOID_TOKEN: VOID
   ATOMIC_TOKEN: ATOMIC
 
-  @deserialize: (params, buffer) ->
+  @deserialize: (buffer, params) ->
     foldsMarkerLayer = buffer.getMarkerLayer(params.foldsMarkerLayerId)
-    buffer.addDisplayLayer({foldsMarkerLayer})
+    new DisplayLayer(params.id, buffer, {foldsMarkerLayer})
 
-  constructor: (@buffer, settings={}) ->
+  constructor: (@id, @buffer, settings={}) ->
     @displayMarkerLayersById = {}
     @textDecorationLayer = null
     @foldsMarkerLayer = settings.foldsMarkerLayer ? @buffer.addMarkerLayer({maintainHistory: true})
@@ -87,7 +87,7 @@ class DisplayLayer
     })
 
   serialize: ->
-    {foldsMarkerLayerId: @foldsMarkerLayer.id}
+    {id: @id, foldsMarkerLayerId: @foldsMarkerLayer.id}
 
   copy: ->
     foldsMarkerLayer = @foldsMarkerLayer.copy()
