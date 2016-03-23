@@ -89,9 +89,9 @@ class DisplayLayer
   serialize: ->
     {id: @id, foldsMarkerLayerId: @foldsMarkerLayer.id}
 
-  copy: ->
+  copy: (newId) ->
     foldsMarkerLayer = @foldsMarkerLayer.copy()
-    @buffer.addDisplayLayer({
+    new DisplayLayer(newId, @buffer, {
       foldsMarkerLayer, @tabLength, @invisibles, @showIndentGuides,
       @softWrapColumn, @softWrapHangingIndent, @ratioForCharacter, @isWrapBoundary
     })
