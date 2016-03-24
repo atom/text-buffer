@@ -8,6 +8,7 @@ class DisplayMarker
     @emitter = new Emitter
     @disposables = null
     @destroyed = false
+    @bufferMarker.onDidDestroy(@destroy.bind(this))
 
   destroy: ->
     @bufferMarker.destroy()

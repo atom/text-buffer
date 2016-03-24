@@ -22,7 +22,8 @@ class DisplayMarkerLayer
     @emitter.on('did-update', callback)
 
   onDidCreateMarker: (callback) ->
-    @emitter.on('did-create-marker', callback)
+    @bufferMarkerLayer.onDidCreateMarker (bufferMarker) =>
+      callback(@getMarker(bufferMarker.id))
 
   refreshMarkerScreenPositions: ->
     for marker in @getMarkers()
@@ -50,7 +51,6 @@ class DisplayMarkerLayer
   createDisplayMarker: (bufferMarker) ->
     displayMarker = new DisplayMarker(this, bufferMarker)
     @markersById[displayMarker.id] = displayMarker
-    @emitter.emit('did-create-marker', displayMarker)
     displayMarker
 
   getMarker: (id) ->
