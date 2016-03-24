@@ -260,6 +260,28 @@ describe "DisplayLayer", ->
 
       expect(displayLayer.getText()).toBe 'abc\ndef\nghi\nj'
 
+    it "automatically destroy folds when they become invalid after a buffer change", ->
+      buffer = new TextBuffer(text: '''
+        abc def
+        ghi jkl
+        mno pqr
+        stu vwx
+      ''')
+      displayLayer = buffer.addDisplayLayer()
+
+      displayLayer.foldBufferRange([[0, 1], [1, 2]])
+      displayLayer.foldBufferRange([[1, 5], [2, 4]])
+      displayLayer.foldBufferRange([[3, 0], [3, 3]])
+      expect(displayLayer.getText()).toBe 'a⋯i j⋯pqr\n⋯ vwx'
+
+      buffer.insert([0, 3], 'y')
+      expect(displayLayer.getText()).toBe 'abcy def\nghi j⋯pqr\n⋯ vwx'
+
+      buffer.setTextInRange([[1, 6], [3, 4]], 'z')
+      expect(displayLayer.getText()).toBe 'abcy def\nghi jkzvwx'
+
+      expect(displayLayer.foldsIntersectingBufferRange([[0, 0], [Infinity, 0]])).toEqual []
+
   describe "soft wraps", ->
     it "soft wraps the line at the first word start at or preceding the softWrapColumn", ->
       buffer = new TextBuffer(text: 'abc def ghi jkl mno')

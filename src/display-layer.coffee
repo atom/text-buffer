@@ -138,7 +138,7 @@ class DisplayLayer
 
   foldBufferRange: (bufferRange) ->
     bufferRange = @buffer.clipRange(bufferRange)
-    foldId = @foldsMarkerLayer.markRange(bufferRange).id
+    foldId = @foldsMarkerLayer.markRange(bufferRange, {invalidate: 'inside'}).id
     if @foldsMarkerLayer.findMarkers(containsRange: bufferRange).length is 1
       {startScreenRow, endScreenRow, startBufferRow, endBufferRow} = @expandBufferRangeToLineBoundaries(bufferRange)
       oldRowExtent = endScreenRow - startScreenRow + 1
@@ -194,9 +194,13 @@ class DisplayLayer
   bufferDidChange: (change) ->
     {oldRange, newRange} = @expandChangeRegionToSurroundingEmptyLines(change.oldRange, change.newRange)
     {startScreenRow, endScreenRow, startBufferRow} = @expandBufferRangeToLineBoundaries(oldRange)
+    endBufferRow = newRange.end.row
+    for fold in @foldsMarkerLayer.findMarkers(intersectsRange: newRange) when not fold.isValid()
+      endBufferRow = Math.max(fold.getEndPosition().row, endBufferRow)
+      fold.destroy()
 
     oldRowExtent = endScreenRow - startScreenRow + 1
-    newScreenLines = @buildSpatialScreenLines(startBufferRow, newRange.end.row + 1)
+    newScreenLines = @buildSpatialScreenLines(startBufferRow, endBufferRow + 1)
     newRowExtent = newScreenLines.length
     @spliceDisplayIndex(startScreenRow, oldRowExtent, newScreenLines)
 
