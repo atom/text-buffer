@@ -1787,6 +1787,10 @@ describe "TextBuffer", ->
         expect(buffer.getText()).toBe(fileContents)
         done()
 
+    it "does not throw if the buffer has no backing file", ->
+      buffer = new TextBuffer()
+      buffer.reload()
+
   describe "::saveAs(path, {backup})", ->
     [filePath, saveAsBuffer, tempDir] = []
 

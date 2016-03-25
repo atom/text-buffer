@@ -1318,7 +1318,7 @@ class TextBuffer
       @clearUndoStack()
       @setTextInRange(@getRange(), @cachedDiskContents ? "", normalizeLineEndings: false, undo: 'skip')
     else
-      @setTextViaDiff(@cachedDiskContents)
+      @setTextViaDiff(@cachedDiskContents ? "")
     @emitModifiedStatusChanged(false)
     @emitter.emit 'did-reload'
 
