@@ -979,6 +979,8 @@ class TextBuffer
 
     endMarkerSnapshot = @createMarkerSnapshot()
     compactedChanges = @history.groupChangesSinceCheckpoint(checkpointBefore, endMarkerSnapshot, true)
+    global.atom?.assert compactedChanges, "groupChangesSinceCheckpoint() returned false.", (error) ->
+      error.metadata = {history: @history.toString()}
     @history.applyGroupingInterval(groupingInterval)
     @emitMarkerChangeEvents(endMarkerSnapshot)
     @emitDidChangeTextEvent(compactedChanges) if compactedChanges
