@@ -989,7 +989,7 @@ class TextBuffer
 
   # Public: Clear the undo stack. When calling this method within a transaction,
   # the {::onDidChangeText} event will not be triggered because the information
-  # which describes the changes is lost.
+  # describing the changes is lost.
   clearUndoStack: -> @history.clearUndoStack()
 
   # Public: Create a pointer to the current state of the buffer for use
