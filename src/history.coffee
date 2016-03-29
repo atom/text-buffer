@@ -281,6 +281,22 @@ class History
   clearRedoStack: ->
     @redoStack.length = 0
 
+  toString: ->
+    output = ''
+    for entry in @undoStack
+      switch entry.constructor
+        when Checkpoint
+          output += "Checkpoint, "
+        when GroupStart
+          output += "GroupStart, "
+        when GroupEnd
+          output += "GroupEnd, "
+        when Patch
+          output += "Patch, "
+        else
+          output += "Unknown {#{JSON.stringify(entry)}}, "
+    '[' + output.slice(0, -2) + ']'
+
   serialize: (options) ->
     version: SerializationVersion
     nextCheckpointId: @nextCheckpointId
