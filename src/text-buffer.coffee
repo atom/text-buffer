@@ -981,13 +981,15 @@ class TextBuffer
     compactedChanges = @history.groupChangesSinceCheckpoint(checkpointBefore, endMarkerSnapshot, true)
     @history.applyGroupingInterval(groupingInterval)
     @emitMarkerChangeEvents(endMarkerSnapshot)
-    @emitDidChangeTextEvent(compactedChanges)
+    @emitDidChangeTextEvent(compactedChanges) if compactedChanges
     result
 
   abortTransaction: ->
     throw new TransactionAbortedError("Transaction aborted.")
 
-  # Public: Clear the undo stack.
+  # Public: Clear the undo stack. When calling this method within a transaction,
+  # the {::onDidChangeText} event will not be triggered because the information
+  # which describes the changes is lost.
   clearUndoStack: -> @history.clearUndoStack()
 
   # Public: Create a pointer to the current state of the buffer for use

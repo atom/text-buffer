@@ -2439,6 +2439,11 @@ describe "TextBuffer", ->
         }
       ])
 
+    it "doesn't throw an error when clearing the undo stack within a transaction", ->
+      buffer.onDidChangeText(didChangeTextSpy = jasmine.createSpy())
+      expect(-> buffer.transact(-> buffer.clearUndoStack())).not.toThrowError()
+      expect(didChangeTextSpy).not.toHaveBeenCalled()
+
   describe "::onDidStopChanging(callback)", ->
     [delay, didStopChangingCallback] = []
     beforeEach (done) ->
