@@ -351,31 +351,20 @@ describe "TextBuffer", ->
     it "does not allow the undo stack to grow without bound", ->
       buffer = new TextBuffer(maxUndoEntries: 12)
 
-      # A transaction with 1 change uses 3 undo entries, so we can undo 4 of
-      # these transactions.
-      for i in [1...10]
-        buffer.append("#{i}\n")
-      expect(buffer.getLineCount()).toBe 10
-
-      undoCount = 0
-      undoCount++ while buffer.undo()
-      expect(undoCount).toBe 4
-      expect(buffer.getLineCount()).toBe 6
-
-      # A transaction with 2 changes uses 4 undo entries, so we can undo 3 of
-      # these transactions.
+      # Each transaction is treated as a single undo entry. We can undo up
+      # to 12 of them.
       buffer.setText("")
       buffer.clearUndoStack()
-      for i in [1...10]
+      for i in [0...13]
         buffer.transact ->
           buffer.append(String(i))
           buffer.append("\n")
-      expect(buffer.getLineCount()).toBe 10
+      expect(buffer.getLineCount()).toBe 14
 
       undoCount = 0
       undoCount++ while buffer.undo()
-      expect(undoCount).toBe 3
-      expect(buffer.getLineCount()).toBe 7
+      expect(undoCount).toBe 12
+      expect(buffer.getText()).toBe '0\n'
 
   describe "transactions", ->
     now = null

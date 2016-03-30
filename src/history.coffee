@@ -1,7 +1,7 @@
 Patch = require 'atom-patch'
 MarkerLayer = require './marker-layer'
 
-SerializationVersion = 4
+SerializationVersion = 5
 
 class Checkpoint
   constructor: (@id, @snapshot, @isBoundary) ->
@@ -9,13 +9,21 @@ class Checkpoint
       global.atom?.assert(false, "Checkpoint created without snapshot")
       @snapshot = {}
 
-class GroupStart
-  constructor: (@snapshot) ->
-
-class GroupEnd
-  constructor: (@snapshot) ->
+class Transaction
+  constructor: (@markerSnapshotBefore, @patch, @markerSnapshotAfter, @groupingInterval=0) ->
     @timestamp = Date.now()
-    @groupingInterval = 0
+
+  shouldGroupWith: (previousTransaction) ->
+    timeBetweenTransactions = @timestamp - previousTransaction.timestamp
+    timeBetweenTransactions < Math.min(@groupingInterval, previousTransaction.groupingInterval)
+
+  groupWith: (previousTransaction) ->
+    new Transaction(
+      previousTransaction.markerSnapshotBefore,
+      Patch.compose([previousTransaction.patch, @patch]),
+      @markerSnapshotAfter,
+      @groupingInterval
+    )
 
 # Manages undo/redo for {TextBuffer}
 module.exports =
@@ -27,150 +35,90 @@ class History
 
   constructor: (@maxUndoEntries) ->
     @nextCheckpointId = 0
-    @undoStackSize = 0
     @undoStack = []
     @redoStack = []
 
   createCheckpoint: (snapshot, isBoundary) ->
     checkpoint = new Checkpoint(@nextCheckpointId++, snapshot, isBoundary)
     @undoStack.push(checkpoint)
-    @undoStackSize += 1
     checkpoint.id
 
-  groupChangesSinceCheckpoint: (checkpointId, endSnapshot, deleteCheckpoint=false) ->
-    withinGroup = false
+  groupChangesSinceCheckpoint: (checkpointId, markerSnapshotAfter, deleteCheckpoint=false) ->
     checkpointIndex = null
-    startSnapshot = null
+    markerSnapshotBefore = null
     patchesSinceCheckpoint = []
-    previousStackSize = @undoStack
 
     for entry, i in @undoStack by -1
       break if checkpointIndex?
 
       switch entry.constructor
-        when GroupEnd
-          withinGroup = true
-          @undoStackSize -= 1
-        when GroupStart
-          if withinGroup
-            withinGroup = false
-            @undoStackSize -= 1
-          else
-            @undoStackSize = previousStackSize
-            return false
         when Checkpoint
           if entry.id is checkpointId
             checkpointIndex = i
-            startSnapshot = entry.snapshot
+            markerSnapshotBefore = entry.snapshot
           else if entry.isBoundary
-            @undoStackSize = previousStackSize
             return false
-        else
-          @undoStackSize -= entry.getChanges().length
+        when Transaction
+          patchesSinceCheckpoint.unshift(entry.patch)
+        when Patch
           patchesSinceCheckpoint.unshift(entry)
+        else
+          throw new Error("Unexpected undo stack entry type: #{entry.constructor.name}")
 
     if checkpointIndex?
       composedPatches = Patch.compose(patchesSinceCheckpoint)
       if patchesSinceCheckpoint.length > 0
         @undoStack.splice(checkpointIndex + 1)
-        @undoStack.push(new GroupStart(startSnapshot))
-        @undoStack.push(composedPatches)
-        @undoStack.push(new GroupEnd(endSnapshot))
-        @undoStackSize += composedPatches.getChanges().length + 2
+        @undoStack.push(new Transaction(markerSnapshotBefore, composedPatches, markerSnapshotAfter))
       if deleteCheckpoint
         @undoStack.splice(checkpointIndex, 1)
-        @undoStackSize -= 1
       composedPatches
     else
       false
 
+  enforceUndoStackSizeLimit: ->
+    if @undoStack.length > @maxUndoEntries
+      @undoStack.splice(0, @undoStack.length - @maxUndoEntries)
+
   applyGroupingInterval: (groupingInterval) ->
     topEntry = @undoStack[@undoStack.length - 1]
-    if topEntry instanceof GroupEnd
+    previousEntry = @undoStack[@undoStack.length - 2]
+
+    if topEntry instanceof Transaction
       topEntry.groupingInterval = groupingInterval
     else
       return
 
     return if groupingInterval is 0
 
-    for entry, i in @undoStack by -1
-      if entry instanceof GroupStart
-        previousEntry = @undoStack[i - 1]
-        if previousEntry instanceof GroupEnd
-          if (topEntry.timestamp - previousEntry.timestamp < Math.min(previousEntry.groupingInterval, groupingInterval))
-            previousPatch = @undoStack[i - 2]
-            currentPatch = @undoStack[i + 1]
-            @undoStack.splice(i - 2, 4, Patch.compose([previousPatch, currentPatch]))
-        return
-
-    throw new Error("Didn't find matching group-start entry")
+    if previousEntry instanceof Transaction and topEntry.shouldGroupWith(previousEntry)
+      @undoStack.splice(@undoStack.length - 2, 2, topEntry.groupWith(previousEntry))
 
   pushChange: (change) ->
     @undoStack.push(Patch.hunk(change))
     @clearRedoStack()
-    @undoStackSize += 1
-
-    if @undoStackSize > @maxUndoEntries
-      spliceIndex = null
-      withinGroup = false
-      for entry, i in @undoStack
-        break if spliceIndex?
-        switch entry.constructor
-          when GroupStart
-            if withinGroup
-              throw new Error("Invalid undo stack state")
-            else
-              withinGroup = true
-              @undoStackSize -= 1
-          when GroupEnd
-            if withinGroup
-              spliceIndex = i
-              @undoStackSize -= 1
-            else
-              throw new Error("Invalid undo stack state")
-          when Patch
-            @undoStackSize -= entry.getChanges().length
-            unless withinGroup
-              spliceIndex = i
-
-      @undoStack.splice(0, spliceIndex + 1) if spliceIndex?
 
   popUndoStack: ->
     snapshotBelow = null
-    spliceIndex = null
-    withinGroup = false
     patch = null
-    previousStackSize = @undoStackSize
+    spliceIndex = null
 
     for entry, i in @undoStack by -1
       break if spliceIndex?
 
       switch entry.constructor
-        when GroupStart
-          if withinGroup
-            snapshotBelow = entry.snapshot
-            spliceIndex = i
-            @undoStackSize -= 1
-          else
-            @undoStackSize = previousStackSize
-            return false
-        when GroupEnd
-          if withinGroup
-            throw new Error("Invalid undo stack state")
-          else
-            withinGroup = true
-            @undoStackSize -= 1
         when Checkpoint
           if entry.isBoundary
-            @undoStackSize = previousStackSize
             return false
-          else
-            @undoStackSize -= 1
-        else
+        when Transaction
+          snapshotBelow = entry.markerSnapshotBefore
+          patch = Patch.invert(entry.patch)
+          spliceIndex = i
+        when Patch
           patch = Patch.invert(entry)
-          @undoStackSize -= patch.getChanges().length
-          unless withinGroup
-            spliceIndex = i
+          spliceIndex = i
+        else
+          throw new Error("Unexpected entry type when popping undoStack: #{entry.constructor.name}")
 
     if spliceIndex?
       @redoStack.push(@undoStack.splice(spliceIndex).reverse()...)
@@ -183,39 +131,25 @@ class History
 
   popRedoStack: ->
     snapshotBelow = null
-    spliceIndex = null
-    withinGroup = false
     patch = null
-    previousStackSize = @undoStackSize
+    spliceIndex = null
 
     for entry, i in @redoStack by -1
       break if spliceIndex?
 
       switch entry.constructor
-        when GroupEnd
-          if withinGroup
-            snapshotBelow = entry.snapshot
-            spliceIndex = i
-            @undoStackSize += 1
-          else
-            @undoStackSize = previousStackSize
-            return false
-        when GroupStart
-          if withinGroup
-            throw new Error("Invalid redo stack state")
-          else
-            @undoStackSize += 1
-            withinGroup = true
         when Checkpoint
           if entry.isBoundary
             throw new Error("Invalid redo stack state")
-          else
-            @undoStackSize += 1
-        else
+        when Transaction
+          snapshotBelow = entry.markerSnapshotAfter
+          patch = entry.patch
+          spliceIndex = i
+        when Patch
           patch = entry
-          @undoStackSize += patch.getChanges().length
-          unless withinGroup
-            spliceIndex = i
+          spliceIndex = i
+        else
+          throw new Error("Unexpected entry type when popping redoStack: #{entry.constructor.name}")
 
     while @redoStack[spliceIndex - 1] instanceof Checkpoint
       spliceIndex--
@@ -232,39 +166,22 @@ class History
   truncateUndoStack: (checkpointId) ->
     snapshotBelow = null
     spliceIndex = null
-    withinGroup = false
     patchesSinceCheckpoint = []
-    previousStackSize = @undoStackSize
 
     for entry, i in @undoStack by -1
       break if spliceIndex?
 
       switch entry.constructor
-        when GroupStart
-          if withinGroup
-            withinGroup = false
-            @undoStackSize -= 1
-          else
-            @undoStackSize = previousStackSize
-            return false
-        when GroupEnd
-          if withinGroup
-            throw new Error("Invalid undo stack state")
-          else
-            withinGroup = true
-            @undoStackSize -= 1
         when Checkpoint
           if entry.id is checkpointId
-            spliceIndex = i
             snapshotBelow = entry.snapshot
-            @undoStackSize -= 1
+            spliceIndex = i
           else if entry.isBoundary
-            @undoStackSize = previousStackSize
             return false
+        when Transaction
+          patchesSinceCheckpoint.push(Patch.invert(entry.patch))
         else
-          patch = Patch.invert(entry)
-          patchesSinceCheckpoint.push(patch)
-          @undoStackSize -= patch.getChanges().length
+          patchesSinceCheckpoint.push(Patch.invert(entry))
 
     if spliceIndex?
       @undoStack.splice(spliceIndex)
@@ -287,10 +204,8 @@ class History
       switch entry.constructor
         when Checkpoint
           output += "Checkpoint, "
-        when GroupStart
-          output += "GroupStart, "
-        when GroupEnd
-          output += "GroupEnd, "
+        when Transaction
+          output += "Transaction, "
         when Patch
           output += "Patch, "
         else
@@ -302,6 +217,7 @@ class History
     nextCheckpointId: @nextCheckpointId
     undoStack: @serializeStack(@undoStack, options)
     redoStack: @serializeStack(@redoStack, options)
+    maxUndoEntries: @maxUndoEntries
 
   deserialize: (state) ->
     return unless state.version is SerializationVersion
@@ -330,21 +246,20 @@ class History
             snapshot: @serializeSnapshot(entry.snapshot, options)
             isBoundary: entry.isBoundary
           }
-        when GroupStart
+        when Transaction
           {
-            type: 'group-start'
-            snapshot: @serializeSnapshot(entry.snapshot, options)
+            type: 'transaction'
+            markerSnapshotBefore: @serializeSnapshot(entry.markerSnapshotBefore, options)
+            markerSnapshotAfter: @serializeSnapshot(entry.markerSnapshotAfter, options)
+            patch: entry.patch.serialize()
           }
-        when GroupEnd
-          {
-            type: 'group-end'
-            snapshot: @serializeSnapshot(entry.snapshot, options)
-          }
-        else
+        when Patch
           {
             type: 'patch'
             content: entry.serialize()
           }
+        else
+          throw new Error("Unexpected undoStack entry type during serialization: #{entry.constructor.name}")
 
   deserializeStack: (stack) ->
     for entry in stack
@@ -355,16 +270,16 @@ class History
             MarkerLayer.deserializeSnapshot(entry.snapshot)
             entry.isBoundary
           )
-        when 'group-start'
-          new GroupStart(
-            MarkerLayer.deserializeSnapshot(entry.snapshot)
-          )
-        when 'group-end'
-          new GroupEnd(
-            MarkerLayer.deserializeSnapshot(entry.snapshot)
+        when 'transaction'
+          new Transaction(
+            MarkerLayer.deserializeSnapshot(entry.markerSnapshotBefore)
+            Patch.deserialize(entry.patch)
+            MarkerLayer.deserializeSnapshot(entry.markerSnapshotAfter)
           )
         when 'patch'
           Patch.deserialize(entry.content)
+        else
+          throw new Error("Unexpected undoStack entry type during deserialization: #{entry.type}")
 
   serializeSnapshot: (snapshot, options) ->
     return unless options.markerLayers
