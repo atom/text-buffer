@@ -982,6 +982,7 @@ class TextBuffer
     global.atom?.assert compactedChanges, "groupChangesSinceCheckpoint() returned false.", (error) =>
       error.metadata = {history: @history.toString()}
     @history.applyGroupingInterval(groupingInterval)
+    @history.enforceUndoStackSizeLimit()
     @emitMarkerChangeEvents(endMarkerSnapshot)
     @emitDidChangeTextEvent(compactedChanges) if compactedChanges
     result
