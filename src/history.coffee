@@ -217,6 +217,7 @@ class History
     nextCheckpointId: @nextCheckpointId
     undoStack: @serializeStack(@undoStack, options)
     redoStack: @serializeStack(@redoStack, options)
+    maxUndoEntries: @maxUndoEntries
 
   deserialize: (state) ->
     return unless state.version is SerializationVersion
