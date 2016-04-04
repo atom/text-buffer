@@ -1,7 +1,7 @@
 {Emitter, CompositeDisposable} = require 'event-kit'
 {File} = require 'pathwatcher'
 SpanSkipList = require 'span-skip-list'
-diff = require 'atom-diff'
+diff = require 'diff'
 _ = require 'underscore-plus'
 fs = require 'fs-plus'
 path = require 'path'
@@ -617,14 +617,15 @@ class TextBuffer
       changeOptions = normalizeLineEndings: false
 
       for change in lineDiff
+        # Using change.count does not account for lone carriage-returns
         lineCount = change.value.match(newlineRegex)?.length ? 0
         currentPosition[0] = row
         currentPosition[1] = column
 
         if change.added
-          @setTextInRange([currentPosition, currentPosition], change.value, changeOptions)
           row += lineCount
           column = computeBufferColumn(change.value)
+          @setTextInRange([currentPosition, currentPosition], change.value, changeOptions)
 
         else if change.removed
           endRow = row + lineCount
@@ -990,15 +991,20 @@ class TextBuffer
 
     endMarkerSnapshot = @createMarkerSnapshot()
     compactedChanges = @history.groupChangesSinceCheckpoint(checkpointBefore, endMarkerSnapshot, true)
+    global.atom?.assert compactedChanges, "groupChangesSinceCheckpoint() returned false.", (error) =>
+      error.metadata = {history: @history.toString()}
     @history.applyGroupingInterval(groupingInterval)
+    @history.enforceUndoStackSizeLimit()
     @emitMarkerChangeEvents(endMarkerSnapshot)
-    @emitDidChangeTextEvent(compactedChanges)
+    @emitDidChangeTextEvent(compactedChanges) if compactedChanges
     result
 
   abortTransaction: ->
     throw new TransactionAbortedError("Transaction aborted.")
 
-  # Public: Clear the undo stack.
+  # Public: Clear the undo stack. When calling this method within a transaction,
+  # the {::onDidChangeText} event will not be triggered because the information
+  # describing the changes is lost.
   clearUndoStack: -> @history.clearUndoStack()
 
   # Public: Create a pointer to the current state of the buffer for use
@@ -1331,7 +1337,7 @@ class TextBuffer
       @clearUndoStack()
       @setTextInRange(@getRange(), @cachedDiskContents ? "", normalizeLineEndings: false, undo: 'skip')
     else
-      @setTextViaDiff(@cachedDiskContents)
+      @setTextViaDiff(@cachedDiskContents ? "")
     @emitModifiedStatusChanged(false)
     @emitter.emit 'did-reload'
 
