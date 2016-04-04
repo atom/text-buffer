@@ -623,17 +623,19 @@ describe "DisplayLayer", ->
       buffer = new TextBuffer(text: "\n\n          a\n\n     b\n\n\n")
       displayLayer = buffer.addDisplayLayer({showIndentGuides: true, tabLength: 4, invisibles: {eol: '¬'}})
 
-      expect(displayLayer.getText()).toBe("¬       \n¬       \n          a¬\n¬       \n     b¬\n¬   \n¬   \n    ")
+      expect(displayLayer.getText()).toBe("¬         \n¬         \n          a¬\n¬         \n     b¬\n¬    \n¬    \n     ")
       expectTokens(displayLayer, [
         {text: '', close: [], open: []},
         {text: '¬', close: [], open: ["invisible-character eol indent-guide"]},
         {text: '   ', close: ["invisible-character eol indent-guide"], open: []},
         {text: '    ', close: [], open: ["indent-guide"]},
+        {text: '  ', close: ["indent-guide"], open: ["indent-guide"]},
         {text: '', close: ["indent-guide"], open: []},
         {text: '', close: [], open: []},
         {text: '¬', close: [], open: ["invisible-character eol indent-guide"]},
         {text: '   ', close: ["invisible-character eol indent-guide"], open: []},
         {text: '    ', close: [], open: ["indent-guide"]},
+        {text: '  ', close: ["indent-guide"], open: ["indent-guide"]},
         {text: '', close: ["indent-guide"], open: []},
         {text: '    ', close: [], open: ["leading-whitespace indent-guide"]},
         {text: '    ', close: ["leading-whitespace indent-guide"], open: ["leading-whitespace indent-guide"]},
@@ -645,6 +647,7 @@ describe "DisplayLayer", ->
         {text: '¬', close: [], open: ["invisible-character eol indent-guide"]},
         {text: '   ', close: ["invisible-character eol indent-guide"], open: []},
         {text: '    ', close: [], open: ["indent-guide"]},
+        {text: '  ', close: ["indent-guide"], open: ["indent-guide"]},
         {text: '', close: ["indent-guide"], open: []},
         {text: '    ', close: [], open: ["leading-whitespace indent-guide"]},
         {text: ' ', close: ["leading-whitespace indent-guide"], open: ["leading-whitespace indent-guide"]},
@@ -654,11 +657,16 @@ describe "DisplayLayer", ->
         {text: '', close: [], open: []},
         {text: '¬', close: [], open: ["invisible-character eol indent-guide"]},
         {text: '   ', close: ["invisible-character eol indent-guide"], open: []},
+        {text: ' ', close: [], open: ["indent-guide"]},
+        {text: '', close: ["indent-guide"], open: []},
         {text: '', close: [], open: []},
         {text: '¬', close: [], open: ["invisible-character eol indent-guide"]},
         {text: '   ', close: ["invisible-character eol indent-guide"], open: []},
+        {text: ' ', close: [], open: ["indent-guide"]},
+        {text: '', close: ["indent-guide"], open: []},
         {text: '', close: [], open: []},
         {text: '    ', close: [], open: ["indent-guide"]},
+        {text: ' ', close: ["indent-guide"], open: ["indent-guide"]},
         {text: '', close: ["indent-guide"], open: []},
       ])
 
@@ -681,6 +689,25 @@ describe "DisplayLayer", ->
       # clips screen positions backwards when no non-void successor token is found.
       expect(displayLayer.clipScreenPosition([7, 3], clipDirection: 'backward')).toEqual([7, 0])
       expect(displayLayer.clipScreenPosition([7, 3], clipDirection: 'forward')).toEqual([7, 0])
+
+    it "renders a single indent guide on empty lines surrounded by lines with leading whitespace less than the tab length", ->
+      buffer = new TextBuffer(text: "a\n\nb\n  c\n\n")
+      displayLayer = buffer.addDisplayLayer({showIndentGuides: true, tabLength: 4})
+
+      expect(JSON.stringify(displayLayer.getText())).toBe(JSON.stringify("a\n\nb\n  c\n  \n  "))
+      expectTokens(displayLayer, [
+        {text: 'a', close: [], open: []},
+        {text: '', close: [], open: []},
+        {text: 'b', close: [], open: []},
+        {text: '  ', close: [], open: ["leading-whitespace indent-guide"]},
+        {text: 'c', close: ["leading-whitespace indent-guide"], open: []},
+        {text: '', close: [], open: []},
+        {text: '  ', close: [], open: ["indent-guide"]},
+        {text: '', close: ["indent-guide"], open: []},
+        {text: '', close: [], open: []},
+        {text: '  ', close: [], open: ["indent-guide"]},
+        {text: '', close: ["indent-guide"], open: []}
+      ])
 
   describe "text decorations", ->
     it "exposes open and close tags from the text decoration layer in the token iterator", ->
@@ -1032,3 +1059,11 @@ getTokenLines = (displayLayer, startRow=0, endRow=displayLayer.getScreenLineCoun
 updateTokenLines = (tokenLines, displayLayer, changes) ->
   for {start, oldExtent, newExtent} in changes
     tokenLines.splice(start.row, oldExtent.row, getTokenLines(displayLayer, start.row, start.row + newExtent.row)...)
+
+logTokens = (displayLayer) ->
+  s = 'expectTokens(displayLayer, [\n'
+  for tokens in getTokenLines(displayLayer)
+    for {text, closeTags, openTags} in tokens
+      s += "  {text: '#{text}', close: #{JSON.stringify(closeTags)}, open: #{JSON.stringify(openTags)}},\n"
+  s += '])'
+  console.log s

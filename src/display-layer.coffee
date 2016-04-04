@@ -588,12 +588,15 @@ class DisplayLayer
         })
         tokensScreenExtent = screenColumn
 
-      indentGuidesCount = @emptyLineIndentationForBufferRow(bufferRow)
+      if isEmptyLine
+        emptyLineWhitespaceLength = @whitespaceLengthForEmptyBufferRow(bufferRow)
+      else
+        emptyLineWhitespaceLength = 0
 
       lineEnding = @buffer.lineEndingForRow(bufferRow)
       if eolInvisibleReplacement = @eolInvisibles[lineEnding]
         metadata = LINE_ENDING | VOID | INVISIBLE_CHARACTER
-        metadata |= SHOW_INDENT_GUIDE if @showIndentGuides and isEmptyLine and indentGuidesCount > 0
+        metadata |= SHOW_INDENT_GUIDE if @showIndentGuides and emptyLineWhitespaceLength > 0
         if lineEnding is '\n'
           metadata |= LF
         else if lineEnding is '\r\n'
@@ -608,19 +611,21 @@ class DisplayLayer
         })
         screenColumn += eolInvisibleReplacement.length
         tokensScreenExtent = screenColumn
+        emptyLineWhitespaceLength -= eolInvisibleReplacement.length
 
-      while @showIndentGuides and indentGuidesCount > 0 and not previousPositionWasFold
+      while @showIndentGuides and emptyLineWhitespaceLength > 0 and not previousPositionWasFold
         distanceToNextTabStop = @tabLength - (screenColumn % @tabLength)
+        screenExtent = Math.min(distanceToNextTabStop, emptyLineWhitespaceLength)
         metadata = VOID
         metadata |= SHOW_INDENT_GUIDE if (screenColumn % @tabLength is 0)
         tokens.push({
-          screenExtent: distanceToNextTabStop,
+          screenExtent: screenExtent,
           bufferExtent: Point(0, 0),
           metadata
         })
-        screenColumn += distanceToNextTabStop
+        screenColumn += screenExtent
         tokensScreenExtent = screenColumn
-        indentGuidesCount--
+        emptyLineWhitespaceLength -= screenExtent
 
       # this creates a non-void position at the beginning of an empty line, even
       # if it has void eol or indent guide tokens.
@@ -696,7 +701,7 @@ class DisplayLayer
 
     {folds, startBufferRow, endBufferRow}
 
-  emptyLineIndentationForBufferRow: (bufferRow) ->
+  whitespaceLengthForEmptyBufferRow: (bufferRow) ->
     return 0 if @buffer.lineForRow(bufferRow).length > 0
 
     previousBufferRow = bufferRow - 1
@@ -714,7 +719,7 @@ class DisplayLayer
     if nextLine?
       maxLeadingWhitespace = Math.max(maxLeadingWhitespace, @findLeadingWhitespaceEndColumn(nextLine))
 
-    Math.floor(maxLeadingWhitespace / @tabLength)
+    maxLeadingWhitespace
 
   # Walk forward through the line, looking for the first non whitespace
   # character and expanding tabs as we go. If we return 0, this means there is
