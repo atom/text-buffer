@@ -11,8 +11,10 @@ class DisplayMarker
     @bufferMarker.onDidDestroy(@destroy.bind(this))
 
   destroy: ->
-    @bufferMarker.destroy()
+    return if @destroyed
+
     @destroyed = true
+    @bufferMarker.destroy()
     @emitter.emit('did-destroy')
 
   compare: (otherMarker) ->
