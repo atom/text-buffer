@@ -93,6 +93,18 @@ describe "DisplayMarkerLayer", ->
 
     marker = markerLayer.markScreenRange([[0, 4], [1, 4]])
 
+  it "allows markers to be copied", ->
+    buffer = new TextBuffer(text: '\ta\tbc\tdef\tg\n\th')
+    displayLayer = buffer.addDisplayLayer(tabLength: 4)
+    markerLayer = displayLayer.addMarkerLayer()
+
+    markerA = markerLayer.markScreenRange([[0, 4], [1, 4]], a: 1, b: 2)
+    markerB = markerA.copy(b: 3, c: 4)
+
+    expect(markerB.id).not.toBe(markerA.id)
+    expect(markerB.getProperties()).toEqual({a: 1, b: 3, c: 4})
+    expect(markerB.getScreenRange()).toEqual(markerA.getScreenRange())
+
   describe "findMarkers(params)", ->
     [markerLayer, displayLayer] = []
 
