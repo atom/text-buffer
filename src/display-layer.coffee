@@ -84,6 +84,7 @@ class DisplayLayer
       showIndentGuides: settings.showIndentGuides ? false,
       ratioForCharacter: settings.ratioForCharacter ? -> 1.0,
       isWrapBoundary: settings.isWrapBoundary ? isWordStart
+      foldCharacter: settings.foldCharacter ? '⋯'
     })
 
   serialize: ->
@@ -102,7 +103,7 @@ class DisplayLayer
     for id, displayMarkerLayer of @displayMarkerLayersById
       displayMarkerLayer.destroy()
 
-  reset: ({@tabLength, @invisibles, @showIndentGuides, @softWrapColumn, @softWrapHangingIndent, @ratioForCharacter, @isWrapBoundary}) ->
+  reset: ({@tabLength, @invisibles, @showIndentGuides, @softWrapColumn, @softWrapHangingIndent, @ratioForCharacter, @isWrapBoundary, @foldCharacter}) ->
     @eolInvisibles = {
       "\r": @invisibles.cr
       "\n": @invisibles.eol
@@ -328,7 +329,7 @@ class DisplayLayer
         if not character?
           characterWidth = 0
         else if foldEndBufferPosition?
-          characterWidth = @ratioForCharacter('⋯')
+          characterWidth = @ratioForCharacter(@foldCharacter)
         else if character is '\t'
           distanceToNextTabStop = @tabLength - (screenColumn % @tabLength)
           characterWidth = @ratioForCharacter(' ') * distanceToNextTabStop
@@ -532,7 +533,7 @@ class DisplayLayer
           bufferLineLength = bufferLine.length
           isEmptyLine &&= (bufferLineLength is 0)
           screenColumn += 1
-          screenLineWidth += @ratioForCharacter('⋯')
+          screenLineWidth += @ratioForCharacter(@foldCharacter)
           tokensScreenExtent = screenColumn
           wrapBoundaryBufferColumn = bufferColumn
           wrapBoundaryScreenColumn = screenColumn
@@ -906,7 +907,7 @@ class DisplayLayer
     else if ((metadata & LEADING_WHITESPACE) or (metadata & TRAILING_WHITESPACE)) and @invisibles.space?
       @invisibles.space.repeat(screenExtent)
     else if metadata & FOLD
-      '⋯'
+      @foldCharacter
     else if metadata & VOID
       if metadata & LINE_ENDING
         if (metadata & CR) and (metadata & LF)
