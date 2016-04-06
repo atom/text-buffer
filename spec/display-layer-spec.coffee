@@ -443,6 +443,13 @@ describe "DisplayLayer", ->
         {text: '', close: ['trailing-whitespace'], open: []}
       ])
 
+    it "gracefully handles non-positive softWrapColumns", ->
+      buffer = new TextBuffer(text: 'abc')
+      displayLayer = buffer.addDisplayLayer(softWrapColumn: 0)
+      expect(displayLayer.getText()).toBe('a\nb\nc')
+      displayLayer = buffer.addDisplayLayer(softWrapColumn: -1)
+      expect(displayLayer.getText()).toBe('a\nb\nc')
+
   describe "invisibles", ->
     it "replaces leading whitespaces with the corresponding invisible character, appropriately decorated", ->
       buffer = new TextBuffer(text: """
