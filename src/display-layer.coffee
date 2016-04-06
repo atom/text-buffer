@@ -90,18 +90,21 @@ class DisplayLayer
   serialize: ->
     {id: @id, foldsMarkerLayerId: @foldsMarkerLayer.id}
 
-  copy: (newId) ->
+  copy: ->
+    newId = @buffer.nextDisplayLayerId++
     foldsMarkerLayer = @foldsMarkerLayer.copy()
-    new DisplayLayer(newId, @buffer, {
+    copy = new DisplayLayer(newId, @buffer, {
       foldsMarkerLayer, @tabLength, @invisibles, @showIndentGuides,
       @softWrapColumn, @softWrapHangingIndent, @ratioForCharacter, @isWrapBoundary
     })
+    @buffer.displayLayers[newId] = copy
 
   destroy: ->
     @disposables.dispose()
     @foldsMarkerLayer.destroy()
     for id, displayMarkerLayer of @displayMarkerLayersById
       displayMarkerLayer.destroy()
+    delete @buffer.displayLayers[@id]
 
   reset: ({@tabLength, @invisibles, @showIndentGuides, @softWrapColumn, @softWrapHangingIndent, @ratioForCharacter, @isWrapBoundary, @foldCharacter}) ->
     @eolInvisibles = {

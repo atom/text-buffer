@@ -1409,14 +1409,6 @@ class TextBuffer
     id = @nextDisplayLayerId++
     @displayLayers[id] = new DisplayLayer(id, this, params)
 
-  copyDisplayLayer: (id) ->
-    newId = @nextDisplayLayerId++
-    @displayLayers[newId] = @displayLayers[id].copy(newId)
-
-  destroyDisplayLayer: (id) ->
-    @displayLayers[id]?.destroy()
-    delete @displayLayers[id]
-
   getDisplayLayer: (id) ->
     @displayLayers[id]
 
