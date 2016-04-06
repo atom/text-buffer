@@ -1094,7 +1094,7 @@ class DisplayLayer
     @displayIndex.getScreenLineCount()
 
   getRightmostScreenPosition: ->
-    @displayIndex.getScreenPositionWithMaxLineLength() or {row: 0, column: 0}
+    @displayIndex.getScreenPositionWithMaxLineLength() or Point.ZERO
 
   lineLengthForScreenRow: (screenRow) ->
     @displayIndex.lineLengthForScreenRow(screenRow) or 0
