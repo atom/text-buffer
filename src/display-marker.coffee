@@ -220,10 +220,15 @@ class DisplayMarker
   # Essential: Modifies the screen range of this marker.
   #
   # * `screenRange` The new {Range} to use
-  # * `properties` (optional) {Object} properties to associate with the marker.
+  # * `options` (optional) An {Object} with the following keys:
   #   * `reversed` {Boolean} If true, the marker will to be in a reversed orientation.
-  setScreenRange: (screenRange, properties) ->
-    @setBufferRange(@layer.translateScreenRange(screenRange, properties), properties)
+  #   * `clipDirection` {String} If `'backward'`, returns the first valid
+  #     position preceding an invalid position. If `'forward'`, returns the
+  #     first valid position following an invalid position. If `'closest'`,
+  #     returns the first valid position closest to an invalid position.
+  #     Defaults to `'closest'`. Applies to the start and end of the given range.
+  setScreenRange: (screenRange, options) ->
+    @setBufferRange(@layer.translateScreenRange(screenRange, options), options)
 
   # Extended: Retrieves the buffer position of the marker's head.
   #
@@ -234,11 +239,17 @@ class DisplayMarker
   # Extended: Sets the buffer position of the marker's head.
   #
   # * `bufferPosition` The new {Point} to use
-  # * `properties` (optional) {Object} properties to associate with the marker.
-  setHeadBufferPosition: (bufferPosition, properties) ->
-    @bufferMarker.setHeadPosition(bufferPosition, properties)
+  setHeadBufferPosition: (bufferPosition) ->
+    @bufferMarker.setHeadPosition(bufferPosition)
 
   # Extended: Retrieves the screen position of the marker's head.
+  #
+  # * `options` (optional) An {Object} with the following keys:
+  #   * `clipDirection` {String} If `'backward'`, returns the first valid
+  #     position preceding an invalid position. If `'forward'`, returns the
+  #     first valid position following an invalid position. If `'closest'`,
+  #     returns the first valid position closest to an invalid position.
+  #     Defaults to `'closest'`. Applies to the start and end of the given range.
   #
   # Returns a {Point}.
   getHeadScreenPosition: (options) ->
@@ -247,9 +258,14 @@ class DisplayMarker
   # Extended: Sets the screen position of the marker's head.
   #
   # * `screenPosition` The new {Point} to use
-  # * `properties` (optional) {Object} properties to associate with the marker.
-  setHeadScreenPosition: (screenPosition, properties) ->
-    @setHeadBufferPosition(@layer.translateScreenPosition(screenPosition, properties), properties)
+  # * `options` (optional) An {Object} with the following keys:
+  #   * `clipDirection` {String} If `'backward'`, returns the first valid
+  #     position preceding an invalid position. If `'forward'`, returns the
+  #     first valid position following an invalid position. If `'closest'`,
+  #     returns the first valid position closest to an invalid position.
+  #     Defaults to `'closest'`. Applies to the start and end of the given range.
+  setHeadScreenPosition: (screenPosition, options) ->
+    @setHeadBufferPosition(@layer.translateScreenPosition(screenPosition, options))
 
   # Extended: Retrieves the buffer position of the marker's tail.
   #
@@ -260,22 +276,33 @@ class DisplayMarker
   # Extended: Sets the buffer position of the marker's tail.
   #
   # * `bufferPosition` The new {Point} to use
-  # * `properties` (optional) {Object} properties to associate with the marker.
-  setTailBufferPosition: (bufferPosition, properties) ->
-    @bufferMarker.setTailPosition(bufferPosition, properties)
+  setTailBufferPosition: (bufferPosition) ->
+    @bufferMarker.setTailPosition(bufferPosition)
 
   # Extended: Retrieves the screen position of the marker's tail.
   #
+  # * `options` (optional) An {Object} with the following keys:
+  #   * `clipDirection` {String} If `'backward'`, returns the first valid
+  #     position preceding an invalid position. If `'forward'`, returns the
+  #     first valid position following an invalid position. If `'closest'`,
+  #     returns the first valid position closest to an invalid position.
+  #     Defaults to `'closest'`. Applies to the start and end of the given range.
+  #
   # Returns a {Point}.
-  getTailScreenPosition: ->
-    @layer.translateBufferPosition(@bufferMarker.getTailPosition())
+  getTailScreenPosition: (options) ->
+    @layer.translateBufferPosition(@bufferMarker.getTailPosition(), options)
 
   # Extended: Sets the screen position of the marker's tail.
   #
   # * `screenPosition` The new {Point} to use
-  # * `properties` (optional) {Object} properties to associate with the marker.
-  setTailScreenPosition: (screenPosition, properties) ->
-    @bufferMarker.setTailPosition(@layer.translateScreenPosition(screenPosition, properties), properties)
+  # * `options` (optional) An {Object} with the following keys:
+  #   * `clipDirection` {String} If `'backward'`, returns the first valid
+  #     position preceding an invalid position. If `'forward'`, returns the
+  #     first valid position following an invalid position. If `'closest'`,
+  #     returns the first valid position closest to an invalid position.
+  #     Defaults to `'closest'`. Applies to the start and end of the given range.
+  setTailScreenPosition: (screenPosition, options) ->
+    @bufferMarker.setTailPosition(@layer.translateScreenPosition(screenPosition, options))
 
   # Extended: Retrieves the buffer position of the marker's start. This will always be
   # less than or equal to the result of {DisplayMarker::getEndBufferPosition}.
@@ -286,6 +313,13 @@ class DisplayMarker
 
   # Essential: Retrieves the screen position of the marker's start. This will always be
   # less than or equal to the result of {DisplayMarker::getEndScreenPosition}.
+  #
+  # * `options` (optional) An {Object} with the following keys:
+  #   * `clipDirection` {String} If `'backward'`, returns the first valid
+  #     position preceding an invalid position. If `'forward'`, returns the
+  #     first valid position following an invalid position. If `'closest'`,
+  #     returns the first valid position closest to an invalid position.
+  #     Defaults to `'closest'`. Applies to the start and end of the given range.
   #
   # Returns a {Point}.
   getStartScreenPosition: (options) ->
@@ -300,6 +334,13 @@ class DisplayMarker
 
   # Essential: Retrieves the screen position of the marker's end. This will always be
   # greater than or equal to the result of {DisplayMarker::getStartScreenPosition}.
+  #
+  # * `options` (optional) An {Object} with the following keys:
+  #   * `clipDirection` {String} If `'backward'`, returns the first valid
+  #     position preceding an invalid position. If `'forward'`, returns the
+  #     first valid position following an invalid position. If `'closest'`,
+  #     returns the first valid position closest to an invalid position.
+  #     Defaults to `'closest'`. Applies to the start and end of the given range.
   #
   # Returns a {Point}.
   getEndScreenPosition: (options) ->

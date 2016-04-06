@@ -100,13 +100,11 @@ class Marker
   #
   # * `range` A {Range} or range-compatible {Array}. The range will be clipped
   #   before it is assigned.
-  # * `properties` (optional) {Object} properties to associate with the marker.
+  # * `params` (optional) An {Object} with the following keys:
   #   * `reversed`  {Boolean} If true, the marker will to be in a reversed orientation.
-  setRange: (range, properties) ->
-    params = @extractParams(properties)
-    params.tailed = true
-    params.range = Range.fromObject(range, true)
-    @update(@getRange(), params)
+  setRange: (range, params) ->
+    params ?= {}
+    @update(@getRange(), {reversed: params.reversed, tailed: true, range: Range.fromObject(range, true)})
 
   # Public: Returns a {Point} representing the marker's current head position.
   getHeadPosition: ->
@@ -119,11 +117,10 @@ class Marker
   #
   # * `position` A {Point} or point-compatible {Array}. The position will be
   #   clipped before it is assigned.
-  # * `properties` (optional) {Object} properties to associate with the marker.
-  setHeadPosition: (position, properties) ->
+  setHeadPosition: (position) ->
     position = Point.fromObject(position)
-    params = @extractParams(properties)
     oldRange = @getRange()
+    params = {}
 
     if @hasTail()
       if @isReversed()
@@ -155,12 +152,10 @@ class Marker
   #
   # * `position` A {Point} or point-compatible {Array}. The position will be
   #   clipped before it is assigned.
-  # * `properties` (optional) {Object} properties to associate with the marker.
-  setTailPosition: (position, properties) ->
+  setTailPosition: (position) ->
     position = Point.fromObject(position)
-    params = @extractParams(properties)
-    params.tailed = true
     oldRange = @getRange()
+    params = {tailed: true}
 
     if @reversed
       if position.isLessThan(oldRange.start)
@@ -190,27 +185,17 @@ class Marker
   # Public: Removes the marker's tail. After calling the marker's head position
   # will be reported as its current tail position until the tail is planted
   # again.
-  #
-  # * `properties` (optional) {Object} properties to associate with the marker.
-  clearTail: (properties) ->
-    params = @extractParams(properties)
-    params.tailed = false
-    params.reversed = false
+  clearTail: ->
     headPosition = @getHeadPosition()
-    params.range = new Range(headPosition, headPosition)
-    @update(@getRange(), params)
+    @update(@getRange(), {tailed: false, reversed: false, range: Range(headPosition, headPosition)})
 
   # Public: Plants the marker's tail at the current head position. After calling
   # the marker's tail position will be its head position at the time of the
   # call, regardless of where the marker's head is moved.
-  #
-  # * `properties` (optional) {Object} properties to associate with the marker.
-  plantTail: (properties) ->
-    params = @extractParams(properties)
+  plantTail: ->
     unless @hasTail()
-      params.tailed = true
-      params.range = new Range(@getHeadPosition(), @getHeadPosition())
-    @update(@getRange(), params)
+      headPosition = @getHeadPosition()
+      @update(@getRange(), {tailed: true, range: new Range(headPosition, headPosition)})
 
   # Public: Returns a {Boolean} indicating whether the head precedes the tail.
   isReversed: ->

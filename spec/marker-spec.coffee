@@ -146,31 +146,6 @@ describe "Marker", ->
         expect(markersUpdatedCount).toBe 0
         expect(changes.length).toBe 0
 
-      it "allows new properties to be assigned to the state", ->
-        marker.setHeadPosition([0, 12], foo: 1)
-        expect(markersUpdatedCount).toBe 1
-        expect(changes).toEqual [{
-          oldHeadPosition: [0, 9], newHeadPosition: [0, 12]
-          oldTailPosition: [0, 6], newTailPosition: [0, 6]
-          hadTail: true, hasTail: true
-          wasValid: true, isValid: true
-          oldProperties: {}, newProperties: {foo: 1}
-          textChanged: false
-        }]
-
-        changes = []
-        marker.setHeadPosition([0, 12], bar: 2)
-        expect(marker.getProperties()).toEqual {foo: 1, bar: 2}
-        expect(markersUpdatedCount).toBe 2
-        expect(changes).toEqual [{
-          oldHeadPosition: [0, 12], newHeadPosition: [0, 12]
-          oldTailPosition: [0, 6], newTailPosition: [0, 6]
-          hadTail: true, hasTail: true
-          wasValid: true, isValid: true
-          oldProperties: {foo: 1}, newProperties: {foo: 1, bar: 2}
-          textChanged: false
-        }]
-
       it "clips the assigned position", ->
         marker.setHeadPosition([100, 100])
         expect(marker.getHeadPosition()).toEqual [0, 26]
@@ -226,29 +201,6 @@ describe "Marker", ->
         expect(marker.setTailPosition(marker.getTailPosition())).toBe false
         expect(changes.length).toBe 0
 
-      it "allows new properties to be assigned to the state", ->
-        marker.setTailPosition([0, 3], foo: 1)
-        expect(changes).toEqual [{
-          oldHeadPosition: [0, 9], newHeadPosition: [0, 9]
-          oldTailPosition: [0, 6], newTailPosition: [0, 3]
-          hadTail: true, hasTail: true
-          wasValid: true, isValid: true
-          oldProperties: {}, newProperties: {foo: 1}
-          textChanged: false
-        }]
-
-        changes = []
-        marker.setTailPosition([0, 3], bar: 2)
-        expect(marker.getProperties()).toEqual {foo: 1, bar: 2}
-        expect(changes).toEqual [{
-          oldHeadPosition: [0, 9], newHeadPosition: [0, 9]
-          oldTailPosition: [0, 3], newTailPosition: [0, 3]
-          hadTail: true, hasTail: true
-          wasValid: true, isValid: true
-          oldProperties: {foo: 1}, newProperties: {foo: 1, bar: 2}
-          textChanged: false
-        }]
-
       it "clips the assigned position", ->
         marker.setTailPosition([100, 100])
         expect(marker.getTailPosition()).toEqual [0, 26]
@@ -290,29 +242,6 @@ describe "Marker", ->
         marker.setRange([[0, 1], [0, 10]])
         expect(marker.hasTail()).toBe true
         expect(marker.getRange()).toEqual [[0, 1], [0, 10]]
-
-      it "allows new properties to be assigned to the state", ->
-        marker.setRange([[0, 1], [0, 2]], foo: 1)
-        expect(changes).toEqual [{
-          oldHeadPosition: [0, 9], newHeadPosition: [0, 2]
-          oldTailPosition: [0, 6], newTailPosition: [0, 1]
-          hadTail: true, hasTail: true
-          wasValid: true, isValid: true
-          oldProperties: {}, newProperties: {foo: 1}
-          textChanged: false
-        }]
-
-        changes = []
-        marker.setRange([[0, 3], [0, 6]], bar: 2)
-        expect(marker.getProperties()).toEqual {foo: 1, bar: 2}
-        expect(changes).toEqual [{
-          oldHeadPosition: [0, 2], newHeadPosition: [0, 6]
-          oldTailPosition: [0, 1], newTailPosition: [0, 3]
-          hadTail: true, hasTail: true
-          wasValid: true, isValid: true
-          oldProperties: {foo: 1}, newProperties: {foo: 1, bar: 2}
-          textChanged: false
-        }]
 
       it "clips the assigned range", ->
         marker.setRange([[-100, -100], [100, 100]])
