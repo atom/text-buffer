@@ -994,8 +994,15 @@ class DisplayLayer
         screenPosition = @spatialTokenIterator.getScreenStart()
       else if comparePoints(bufferPosition, @spatialTokenIterator.getBufferEnd()) is 0 or options?.clipDirection is 'forward'
         screenPosition = @spatialTokenIterator.getScreenEnd()
-      else
+      else if options?.clipDirection is 'backward'
         screenPosition = @spatialTokenIterator.getScreenStart()
+      else # clipDirection is 'closest'
+        distanceFromStart = traversal(bufferPosition, @spatialTokenIterator.getBufferStart())
+        distanceFromEnd = traversal(@spatialTokenIterator.getBufferEnd(), bufferPosition)
+        if distanceFromEnd.compare(distanceFromStart) < 0
+          screenPosition = @spatialTokenIterator.getScreenEnd()
+        else
+          screenPosition = @spatialTokenIterator.getScreenStart()
     else
       screenPosition = @spatialTokenIterator.translateBufferPosition(bufferPosition)
 
@@ -1035,8 +1042,15 @@ class DisplayLayer
         bufferPosition = @spatialTokenIterator.getBufferStart()
       else if comparePoints(screenPosition, @spatialTokenIterator.getScreenEnd()) is 0 or options?.clipDirection is 'forward'
         bufferPosition = @spatialTokenIterator.getBufferEnd()
-      else
+      else if options?.clipDirection is 'backward'
         bufferPosition = @spatialTokenIterator.getBufferStart()
+      else # clipDirection is 'closest'
+        distanceFromStart = traversal(screenPosition, @spatialTokenIterator.getScreenStart())
+        distanceFromEnd = traversal(@spatialTokenIterator.getScreenEnd(), screenPosition)
+        if distanceFromEnd.compare(distanceFromStart) < 0
+          bufferPosition = @spatialTokenIterator.getBufferEnd()
+        else
+          bufferPosition = @spatialTokenIterator.getBufferStart()
     else
       bufferPosition = @spatialTokenIterator.translateScreenPosition(screenPosition)
 
@@ -1080,8 +1094,15 @@ class DisplayLayer
           comparePoints(screenPosition, @spatialTokenIterator.getScreenEnd()) < 0)
         if options?.clipDirection is 'forward'
           screenPosition = @spatialTokenIterator.getScreenEnd()
-        else
+        else if options?.clipDirection is 'backward'
           screenPosition = @spatialTokenIterator.getScreenStart()
+        else # clipDirection is 'closest'
+          distanceFromStart = traversal(screenPosition, @spatialTokenIterator.getScreenStart())
+          distanceFromEnd = traversal(@spatialTokenIterator.getScreenEnd(), screenPosition)
+          if distanceFromEnd.compare(distanceFromStart) < 0
+            screenPosition = @spatialTokenIterator.getScreenEnd()
+          else
+            screenPosition = @spatialTokenIterator.getScreenStart()
     else
       if options?.clipDirection is 'forward' and @spatialTokenIterator.moveToSuccessor()
         screenPosition = @spatialTokenIterator.getScreenStart()

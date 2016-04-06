@@ -817,6 +817,52 @@ describe "DisplayLayer", ->
 
       expect(e.message).toMatch(/Invalid text decoration iterator position/)
 
+  describe "position translation", ->
+    it "honors the clip direction when in the middle of an atomic unit", ->
+      buffer = new TextBuffer(text: '    hello world\nhow is it going\ni am good')
+      displayLayer = buffer.addDisplayLayer(tabLength: 4)
+      displayLayer.foldBufferRange([[0, 7], [2, 7]])
+      expect(displayLayer.getText()).toBe '    hel⋯od'
+
+      # closer to the beginning of the tab
+      expect(displayLayer.clipScreenPosition([0, 1], clipDirection: 'backward')).toEqual [0, 0]
+      expect(displayLayer.clipScreenPosition([0, 1], clipDirection: 'closest')).toEqual [0, 0]
+      expect(displayLayer.clipScreenPosition([0, 1], clipDirection: 'forward')).toEqual [0, 4]
+      # exactly in the middle of the tab
+      expect(displayLayer.clipScreenPosition([0, 2], clipDirection: 'backward')).toEqual [0, 0]
+      expect(displayLayer.clipScreenPosition([0, 2], clipDirection: 'closest')).toEqual [0, 0]
+      expect(displayLayer.clipScreenPosition([0, 2], clipDirection: 'forward')).toEqual [0, 4]
+      # closer to the end of the tab
+      expect(displayLayer.clipScreenPosition([0, 3], clipDirection: 'backward')).toEqual [0, 0]
+      expect(displayLayer.clipScreenPosition([0, 3], clipDirection: 'closest')).toEqual [0, 4]
+      expect(displayLayer.clipScreenPosition([0, 3], clipDirection: 'forward')).toEqual [0, 4]
+
+      # closer to the beginning of the tab
+      expect(displayLayer.translateScreenPosition([0, 1], clipDirection: 'backward')).toEqual [0, 0]
+      expect(displayLayer.translateScreenPosition([0, 1], clipDirection: 'closest')).toEqual [0, 0]
+      expect(displayLayer.translateScreenPosition([0, 1], clipDirection: 'forward')).toEqual [0, 4]
+      # exactly in the middle of the tab
+      expect(displayLayer.translateScreenPosition([0, 2], clipDirection: 'backward')).toEqual [0, 0]
+      expect(displayLayer.translateScreenPosition([0, 2], clipDirection: 'closest')).toEqual [0, 0]
+      expect(displayLayer.translateScreenPosition([0, 2], clipDirection: 'forward')).toEqual [0, 4]
+      # closer to the end of the tab
+      expect(displayLayer.translateScreenPosition([0, 3], clipDirection: 'backward')).toEqual [0, 0]
+      expect(displayLayer.translateScreenPosition([0, 3], clipDirection: 'closest')).toEqual [0, 4]
+      expect(displayLayer.translateScreenPosition([0, 3], clipDirection: 'forward')).toEqual [0, 4]
+
+      # closer to the beginning of the fold
+      expect(displayLayer.translateBufferPosition([0, 12], clipDirection: 'backward')).toEqual [0, 7]
+      expect(displayLayer.translateBufferPosition([0, 12], clipDirection: 'closest')).toEqual [0, 7]
+      expect(displayLayer.translateBufferPosition([0, 12], clipDirection: 'forward')).toEqual [0, 8]
+      # exactly in the middle of the fold
+      expect(displayLayer.translateBufferPosition([1, 7], clipDirection: 'backward')).toEqual [0, 7]
+      expect(displayLayer.translateBufferPosition([1, 7], clipDirection: 'closest')).toEqual [0, 7]
+      expect(displayLayer.translateBufferPosition([1, 7], clipDirection: 'forward')).toEqual [0, 8]
+      # closer to the end of the fold
+      expect(displayLayer.translateBufferPosition([1, 8], clipDirection: 'backward')).toEqual [0, 7]
+      expect(displayLayer.translateBufferPosition([1, 8], clipDirection: 'closest')).toEqual [0, 8]
+      expect(displayLayer.translateBufferPosition([1, 8], clipDirection: 'forward')).toEqual [0, 8]
+
   now = Date.now()
   for i in [0...100] by 1
     do ->
