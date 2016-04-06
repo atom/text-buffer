@@ -300,14 +300,14 @@ class Marker
       @layer.compareMarkers(@id, other.id)
 
   # Returns whether this marker matches the given parameters. The parameters
-  # are the same as {MarkerManager::findMarkers}.
+  # are the same as {MarkerLayer::findMarkers}.
   matchesParams: (params) ->
     for key in Object.keys(params)
       return false unless @matchesParam(key, params[key])
     true
 
   # Returns whether this marker matches the given parameter name and value.
-  # The parameters are the same as {MarkerManager::findMarkers}.
+  # The parameters are the same as {MarkerLayer::findMarkers}.
   matchesParam: (key, value) ->
     switch key
       when 'startPosition'
