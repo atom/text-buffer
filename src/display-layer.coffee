@@ -1045,9 +1045,9 @@ class DisplayLayer
       else if options?.clipDirection is 'backward'
         bufferPosition = @spatialTokenIterator.getBufferStart()
       else # clipDirection is 'closest'
-        distanceFromStart = traversal(screenPosition, @spatialTokenIterator.getScreenStart())
-        distanceFromEnd = traversal(@spatialTokenIterator.getScreenEnd(), screenPosition)
-        if distanceFromEnd.compare(distanceFromStart) < 0
+        screenStartColumn = @spatialTokenIterator.getScreenStart().column
+        screenEndColumn = @spatialTokenIterator.getScreenEnd().column
+        if screenPosition.column > ((screenStartColumn + screenEndColumn) / 2)
           bufferPosition = @spatialTokenIterator.getBufferEnd()
         else
           bufferPosition = @spatialTokenIterator.getBufferStart()
@@ -1097,9 +1097,9 @@ class DisplayLayer
         else if options?.clipDirection is 'backward'
           screenPosition = @spatialTokenIterator.getScreenStart()
         else # clipDirection is 'closest'
-          distanceFromStart = traversal(screenPosition, @spatialTokenIterator.getScreenStart())
-          distanceFromEnd = traversal(@spatialTokenIterator.getScreenEnd(), screenPosition)
-          if distanceFromEnd.compare(distanceFromStart) < 0
+          screenStartColumn = @spatialTokenIterator.getScreenStart().column
+          screenEndColumn = @spatialTokenIterator.getScreenEnd().column
+          if screenPosition.column > ((screenStartColumn + screenEndColumn) / 2)
             screenPosition = @spatialTokenIterator.getScreenEnd()
           else
             screenPosition = @spatialTokenIterator.getScreenStart()
