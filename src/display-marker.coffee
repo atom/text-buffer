@@ -222,8 +222,8 @@ class DisplayMarker
   # * `screenRange` The new {Range} to use
   # * `properties` (optional) {Object} properties to associate with the marker.
   #   * `reversed` {Boolean} If true, the marker will to be in a reversed orientation.
-  setScreenRange: (screenRange, properties, options) ->
-    @setBufferRange(@layer.translateScreenRange(screenRange, options), properties)
+  setScreenRange: (screenRange, properties) ->
+    @setBufferRange(@layer.translateScreenRange(screenRange, properties), properties)
 
   # Extended: Retrieves the buffer position of the marker's head.
   #
@@ -248,9 +248,8 @@ class DisplayMarker
   #
   # * `screenPosition` The new {Point} to use
   # * `properties` (optional) {Object} properties to associate with the marker.
-  setHeadScreenPosition: (screenPosition, properties, options) ->
-    bufferPosition = @layer.translateScreenPosition(screenPosition, options)
-    @setHeadBufferPosition(bufferPosition, properties)
+  setHeadScreenPosition: (screenPosition, properties) ->
+    @setHeadBufferPosition(@layer.translateScreenPosition(screenPosition, properties), properties)
 
   # Extended: Retrieves the buffer position of the marker's tail.
   #
@@ -275,9 +274,8 @@ class DisplayMarker
   #
   # * `screenPosition` The new {Point} to use
   # * `properties` (optional) {Object} properties to associate with the marker.
-  setTailScreenPosition: (screenPosition, properties, options) ->
-    bufferPosition = @layer.translateScreenPosition(screenPosition, options)
-    @bufferMarker.setTailPosition(bufferPosition, properties)
+  setTailScreenPosition: (screenPosition, properties) ->
+    @bufferMarker.setTailPosition(@layer.translateScreenPosition(screenPosition, properties), properties)
 
   # Extended: Retrieves the buffer position of the marker's start. This will always be
   # less than or equal to the result of {DisplayMarker::getEndBufferPosition}.
