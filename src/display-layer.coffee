@@ -106,7 +106,16 @@ class DisplayLayer
       displayMarkerLayer.destroy()
     delete @buffer.displayLayers[@id]
 
-  reset: ({@tabLength, @invisibles, @showIndentGuides, @softWrapColumn, @softWrapHangingIndent, @ratioForCharacter, @isWrapBoundary, @foldCharacter}) ->
+  reset: (params) ->
+    @tabLength = params.tabLength if params.hasOwnProperty('tabLength')
+    @invisibles = params.invisibles if params.hasOwnProperty('invisibles')
+    @showIndentGuides = params.showIndentGuides if params.hasOwnProperty('showIndentGuides')
+    @softWrapColumn = params.softWrapColumn if params.hasOwnProperty('softWrapColumn')
+    @softWrapHangingIndent = params.softWrapHangingIndent if params.hasOwnProperty('softWrapHangingIndent')
+    @ratioForCharacter = params.ratioForCharacter if params.hasOwnProperty('ratioForCharacter')
+    @isWrapBoundary = params.isWrapBoundary if params.hasOwnProperty('isWrapBoundary')
+    @foldCharacter = params.foldCharacter if params.hasOwnProperty('foldCharacter')
+
     @eolInvisibles = {
       "\r": @invisibles.cr
       "\n": @invisibles.eol
@@ -123,6 +132,7 @@ class DisplayLayer
       oldExtent: Point(oldRowExtent, 0),
       newExtent: Point(newRowExtent, 0)
     }])
+    @notifyObserversIfMarkerScreenPositionsChanged()
 
   addMarkerLayer: (options) ->
     markerLayer = new DisplayMarkerLayer(this, @buffer.addMarkerLayer(options))
@@ -131,6 +141,10 @@ class DisplayLayer
   getMarkerLayer: (id) ->
     if bufferMarkerLayer = @buffer.getMarkerLayer(id)
       @displayMarkerLayersById[id] ?= new DisplayMarkerLayer(this, bufferMarkerLayer)
+
+  notifyObserversIfMarkerScreenPositionsChanged: ->
+    for id, displayMarkerLayer of @displayMarkerLayersById
+      displayMarkerLayer.notifyObserversIfMarkerScreenPositionsChanged()
 
   setTextDecorationLayer: (layer) ->
     @decorationLayerDisposable?.dispose()
@@ -154,6 +168,8 @@ class DisplayLayer
         oldExtent: Point(oldRowExtent, 0),
         newExtent: Point(newRowExtent, 0)
       }])
+
+    @notifyObserversIfMarkerScreenPositionsChanged()
 
     foldId
 
@@ -189,6 +205,7 @@ class DisplayLayer
       oldExtent: Point(oldRowExtent, 0),
       newExtent: Point(newRowExtent, 0)
     }])
+    @notifyObserversIfMarkerScreenPositionsChanged()
 
     foldMarkers.map((marker) -> marker.getRange())
 

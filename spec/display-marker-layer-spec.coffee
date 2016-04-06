@@ -8,55 +8,112 @@ describe "DisplayMarkerLayer", ->
     jasmine.addCustomEqualityTester(require("underscore-plus").isEqual)
 
   it "allows DisplayMarkers to be created and manipulated in screen coordinates", ->
-    buffer = new TextBuffer(text: '\ta\tbc\tdef\tg\n\th')
+    buffer = new TextBuffer(text: 'abc\ndef\nghi\nj\tk\tl\nmno')
     displayLayer = buffer.addDisplayLayer(tabLength: 4)
     markerLayer = displayLayer.addMarkerLayer()
 
-    marker = markerLayer.markScreenRange([[0, 4], [1, 4]])
-    expect(marker.getScreenRange()).toEqual [[0, 4], [1, 4]]
-    expect(marker.getBufferRange()).toEqual [[0, 1], [1, 1]]
+    marker = markerLayer.markScreenRange([[3, 4], [4, 2]])
+    expect(marker.getScreenRange()).toEqual [[3, 4], [4, 2]]
+    expect(marker.getBufferRange()).toEqual [[3, 2], [4, 2]]
 
     markerChangeEvents = []
     marker.onDidChange (change) -> markerChangeEvents.push(change)
 
-    marker.setScreenRange([[0, 5], [1, 0]])
+    marker.setScreenRange([[3, 8], [4, 3]])
 
-    expect(marker.getBufferRange()).toEqual([[0, 2], [1, 0]])
-    expect(marker.getScreenRange()).toEqual([[0, 5], [1, 0]])
+    expect(marker.getBufferRange()).toEqual([[3, 4], [4, 3]])
+    expect(marker.getScreenRange()).toEqual([[3, 8], [4, 3]])
     expect(markerChangeEvents[0]).toEqual {
-      oldHeadBufferPosition: [1, 1]
-      newHeadBufferPosition: [1, 0]
-      oldTailBufferPosition: [0, 1]
-      newTailBufferPosition: [0, 2]
-      oldHeadScreenPosition: [1, 4]
-      newHeadScreenPosition: [1, 0]
-      oldTailScreenPosition: [0, 4]
-      newTailScreenPosition: [0, 5]
+      oldHeadBufferPosition: [4, 2]
+      newHeadBufferPosition: [4, 3]
+      oldTailBufferPosition: [3, 2]
+      newTailBufferPosition: [3, 4]
+      oldHeadScreenPosition: [4, 2]
+      newHeadScreenPosition: [4, 3]
+      oldTailScreenPosition: [3, 4]
+      newTailScreenPosition: [3, 8]
       wasValid: true
       isValid: true
       textChanged: false
     }
 
     markerChangeEvents = []
-    buffer.insert([0, 0], '\t')
+    buffer.insert([4, 0], '\t')
 
-    expect(marker.getBufferRange()).toEqual([[0, 3], [1, 0]])
-    expect(marker.getScreenRange()).toEqual([[0, 9], [1, 0]])
-    expect(markerChangeEvents).toEqual [{
-      oldHeadBufferPosition: [1, 0]
-      newHeadBufferPosition: [1, 0]
-      oldTailBufferPosition: [0, 2]
-      newTailBufferPosition: [0, 3]
-      oldHeadScreenPosition: [1, 0]
-      newHeadScreenPosition: [1, 0]
-      oldTailScreenPosition: [0, 5]
-      newTailScreenPosition: [0, 9]
+    expect(marker.getBufferRange()).toEqual([[3, 4], [4, 4]])
+    expect(marker.getScreenRange()).toEqual([[3, 8], [4, 7]])
+    expect(markerChangeEvents[0]).toEqual {
+      oldHeadBufferPosition: [4, 3]
+      newHeadBufferPosition: [4, 4]
+      oldTailBufferPosition: [3, 4]
+      newTailBufferPosition: [3, 4]
+      oldHeadScreenPosition: [4, 3]
+      newHeadScreenPosition: [4, 7]
+      oldTailScreenPosition: [3, 8]
+      newTailScreenPosition: [3, 8]
       wasValid: true
       isValid: true
       textChanged: true
-    }]
+    }
 
     expect(markerLayer.getMarker(marker.id)).toBe marker
+
+    markerChangeEvents = []
+    foldId = displayLayer.foldBufferRange([[0, 2], [2, 2]])
+
+    expect(marker.getBufferRange()).toEqual([[3, 4], [4, 4]])
+    expect(marker.getScreenRange()).toEqual([[1, 8], [2, 7]])
+    expect(markerChangeEvents[0]).toEqual {
+      oldHeadBufferPosition: [4, 4]
+      newHeadBufferPosition: [4, 4]
+      oldTailBufferPosition: [3, 4]
+      newTailBufferPosition: [3, 4]
+      oldHeadScreenPosition: [4, 7]
+      newHeadScreenPosition: [2, 7]
+      oldTailScreenPosition: [3, 8]
+      newTailScreenPosition: [1, 8]
+      wasValid: true
+      isValid: true
+      textChanged: false
+    }
+
+    markerChangeEvents = []
+    displayLayer.destroyFold(foldId)
+
+    expect(marker.getBufferRange()).toEqual([[3, 4], [4, 4]])
+    expect(marker.getScreenRange()).toEqual([[3, 8], [4, 7]])
+    expect(markerChangeEvents[0]).toEqual {
+      oldHeadBufferPosition: [4, 4]
+      newHeadBufferPosition: [4, 4]
+      oldTailBufferPosition: [3, 4]
+      newTailBufferPosition: [3, 4]
+      oldHeadScreenPosition: [2, 7]
+      newHeadScreenPosition: [4, 7]
+      oldTailScreenPosition: [1, 8]
+      newTailScreenPosition: [3, 8]
+      wasValid: true
+      isValid: true
+      textChanged: false
+    }
+
+    markerChangeEvents = []
+    displayLayer.reset({tabLength: 3})
+
+    expect(marker.getBufferRange()).toEqual([[3, 4], [4, 4]])
+    expect(marker.getScreenRange()).toEqual([[3, 6], [4, 6]])
+    expect(markerChangeEvents[0]).toEqual {
+      oldHeadBufferPosition: [4, 4]
+      newHeadBufferPosition: [4, 4]
+      oldTailBufferPosition: [3, 4]
+      newTailBufferPosition: [3, 4]
+      oldHeadScreenPosition: [4, 7]
+      newHeadScreenPosition: [4, 6]
+      oldTailScreenPosition: [3, 8]
+      newTailScreenPosition: [3, 6]
+      wasValid: true
+      isValid: true
+      textChanged: false
+    }
 
   it "emits events when markers are created and destroyed", ->
     buffer = new TextBuffer(text: 'hello world')

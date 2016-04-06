@@ -25,9 +25,9 @@ class DisplayMarkerLayer
     @bufferMarkerLayer.onDidCreateMarker (bufferMarker) =>
       callback(@getMarker(bufferMarker.id))
 
-  refreshMarkerScreenPositions: ->
+  notifyObserversIfMarkerScreenPositionsChanged: ->
     for marker in @getMarkers()
-      marker.notifyObservers(textChanged: false)
+      marker.notifyObservers(false)
     return
 
   markScreenRange: (screenRange, properties) ->
