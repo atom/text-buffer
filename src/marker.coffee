@@ -3,6 +3,7 @@
 Delegator = require 'delegato'
 Point = require './point'
 Range = require './range'
+Grim = require 'grim'
 
 OptionKeys = new Set(['reversed', 'tailed', 'invalidate', 'persistent'])
 
@@ -30,13 +31,29 @@ class Marker
 
   @extractParams: (inputParams) ->
     outputParams = {}
+    containsCustomProperties = false
     if inputParams?
       for key in Object.keys(inputParams)
         if OptionKeys.has(key)
           outputParams[key] = inputParams[key]
+        else if key is 'clipDirection' or key is 'skipSoftWrapIndentation'
+          # TODO: Ignore these two keys for now. Eventually, when the
+          # deprecation below will be gone, we can remove this conditional as
+          # well, and just return standard marker properties.
         else
+          containsCustomProperties = true
           outputParams.properties ?= {}
           outputParams.properties[key] = inputParams[key]
+
+    # TODO: Remove both this deprecation and the conditional above on the
+    # release after the one where we'll ship `DisplayLayer`.
+    if containsCustomProperties
+      Grim.deprecate("""
+      Assigning custom properties to a marker when creating/copying it is
+      deprecated. Please, consider storing the custom properties you need in
+      some other object in your package.
+      """)
+
     outputParams
 
   @delegatesMethods 'containsPoint', 'containsRange', 'intersectsRow', toMethod: 'getRange'
