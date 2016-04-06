@@ -16,6 +16,7 @@ class DisplayMarker
     @destroyed = true
     @bufferMarker.destroy()
     @emitter.emit('did-destroy')
+    @layer.didDestroyMarker(this)
 
   copy: (params) ->
     @layer.getMarker(@bufferMarker.copy(params).id)
