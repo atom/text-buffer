@@ -887,10 +887,24 @@ class TextBuffer
   # marker layer.
   #
   # * `position` {Point} or point-compatible {Array}
-  # * `properties` This is the same as the `properties` parameter in {::markRange}
+  # * `options` (optional) An {Object} with the following keys:
+  #   * `invalidate` (optional) {String} Determines the rules by which changes
+  #     to the buffer *invalidate* the marker. (default: 'overlap') It can be
+  #     any of the following strategies, in order of fragility:
+  #     * __never__: The marker is never marked as invalid. This is a good choice for
+  #       markers representing selections in an editor.
+  #     * __surround__: The marker is invalidated by changes that completely surround it.
+  #     * __overlap__: The marker is invalidated by changes that surround the
+  #       start or end of the marker. This is the default.
+  #     * __inside__: The marker is invalidated by changes that extend into the
+  #       inside of the marker. Changes that end at the marker's start or
+  #       start at the marker's end do not invalidate the marker.
+  #     * __touch__: The marker is invalidated by a change that touches the marked
+  #       region in any way, including changes that end at the marker's
+  #       start or start at the marker's end. This is the most fragile strategy.
   #
   # Returns a {Marker}.
-  markPosition: (position, properties) -> @defaultMarkerLayer.markPosition(position, properties)
+  markPosition: (position, options) -> @defaultMarkerLayer.markPosition(position, options)
 
   # Public: Get all existing markers on the default marker layer.
   #

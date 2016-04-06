@@ -85,13 +85,33 @@ class DisplayMarkerLayer
   # Public: Create a marker on this layer with the given screen position and no
   # tail.
   #
-  # See the documentation for {TextBuffer::markPosition}
+  # * `screenPosition` A {Point} or point-compatible {Array}
+  # * `options` (optional) An {Object} with the following keys:
+  #   * `invalidate` (optional) {String} Determines the rules by which changes
+  #     to the buffer *invalidate* the marker. (default: 'overlap') It can be
+  #     any of the following strategies, in order of fragility:
+  #     * __never__: The marker is never marked as invalid. This is a good choice for
+  #       markers representing selections in an editor.
+  #     * __surround__: The marker is invalidated by changes that completely surround it.
+  #     * __overlap__: The marker is invalidated by changes that surround the
+  #       start or end of the marker. This is the default.
+  #     * __inside__: The marker is invalidated by changes that extend into the
+  #       inside of the marker. Changes that end at the marker's start or
+  #       start at the marker's end do not invalidate the marker.
+  #     * __touch__: The marker is invalidated by a change that touches the marked
+  #       region in any way, including changes that end at the marker's
+  #       start or start at the marker's end. This is the most fragile strategy.
+  #   * `clipDirection` {String} If `'backward'`, returns the first valid
+  #     position preceding an invalid position. If `'forward'`, returns the
+  #     first valid position following an invalid position. If `'closest'`,
+  #     returns the first valid position closest to an invalid position.
+  #     Defaults to `'closest'`.
   #
   # Returns a {DisplayMarker}.
-  markScreenPosition: (screenPosition, properties) ->
+  markScreenPosition: (screenPosition, options) ->
     screenPosition = Point.fromObject(screenPosition)
-    bufferPosition = @displayLayer.translateScreenPosition(screenPosition, properties)
-    @createDisplayMarker(@bufferMarkerLayer.markPosition(bufferPosition, properties))
+    bufferPosition = @displayLayer.translateScreenPosition(screenPosition, options)
+    @createDisplayMarker(@bufferMarkerLayer.markPosition(bufferPosition, options))
 
   # Essential: Create a marker on this layer with the given range in buffer
   # coordinates.
@@ -104,10 +124,26 @@ class DisplayMarkerLayer
   # Public: Create a marker on this layer with the given buffer position and no
   # tail.
   #
-  # See the documentation for {TextBuffer::markPosition}
-  markBufferPosition: (bufferPosition, properties) ->
-    bufferPosition = Point.fromObject(bufferPosition)
-    @createDisplayMarker(@bufferMarkerLayer.markPosition(bufferPosition, properties))
+  # * `bufferPosition` A {Point} or point-compatible {Array}
+  # * `options` (optional) An {Object} with the following keys:
+  #   * `invalidate` (optional) {String} Determines the rules by which changes
+  #     to the buffer *invalidate* the marker. (default: 'overlap') It can be
+  #     any of the following strategies, in order of fragility:
+  #     * __never__: The marker is never marked as invalid. This is a good choice for
+  #       markers representing selections in an editor.
+  #     * __surround__: The marker is invalidated by changes that completely surround it.
+  #     * __overlap__: The marker is invalidated by changes that surround the
+  #       start or end of the marker. This is the default.
+  #     * __inside__: The marker is invalidated by changes that extend into the
+  #       inside of the marker. Changes that end at the marker's start or
+  #       start at the marker's end do not invalidate the marker.
+  #     * __touch__: The marker is invalidated by a change that touches the marked
+  #       region in any way, including changes that end at the marker's
+  #       start or start at the marker's end. This is the most fragile strategy.
+  #
+  # Returns a {DisplayMarker}.
+  markBufferPosition: (bufferPosition, options) ->
+    @createDisplayMarker(@bufferMarkerLayer.markPosition(Point.fromObject(bufferPosition), options))
 
   createDisplayMarker: (bufferMarker) ->
     displayMarker = new DisplayMarker(this, bufferMarker)
