@@ -867,7 +867,7 @@ describe "DisplayLayer", ->
   for i in [0...100] by 1
     do ->
       seed = now + i
-      it "updates the displayed text correctly when the underlying buffer changes: #{seed}", ->
+      fit "updates the displayed text correctly when the underlying buffer changes: #{seed}", ->
         random = new Random(seed)
         buffer = new TextBuffer(text: buildRandomLines(random, 10))
         invisibles = {}
@@ -906,9 +906,6 @@ describe "DisplayLayer", ->
 performRandomChange = (random, buffer, displayLayer) ->
   tries = 10
   range = getRandomRange(random, buffer)
-  while displayLayer.foldsMarkerLayer.findMarkers(intersectsRange: range).length > 0
-    range = getRandomRange(random, buffer)
-    return if --tries is 0
 
   verifyChangeEvent displayLayer, ->
     text = buildRandomLines(random, 4)

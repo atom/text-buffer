@@ -63,7 +63,7 @@ class DisplayLayer
   constructor: (@id, @buffer, settings={}) ->
     @displayMarkerLayersById = {}
     @textDecorationLayer = null
-    @foldsMarkerLayer = settings.foldsMarkerLayer ? @buffer.addMarkerLayer({maintainHistory: true})
+    @foldsMarkerLayer = settings.foldsMarkerLayer ? @buffer.addMarkerLayer({maintainHistory: false})
     @foldIdCounter = 1
     @disposables = @buffer.onDidChange(@bufferDidChange.bind(this))
     @displayIndex = new DisplayIndex
@@ -156,8 +156,8 @@ class DisplayLayer
 
   foldBufferRange: (bufferRange) ->
     bufferRange = @buffer.clipRange(bufferRange)
-    foldId = @foldsMarkerLayer.markRange(bufferRange, {invalidate: 'inside'}).id
-    if @foldsMarkerLayer.findMarkers(containsRange: bufferRange).length is 1
+    foldId = @foldsMarkerLayer.markRange(bufferRange, {invalidate: 'overlap'}).id
+    if @findFoldMarkers({containsRange: bufferRange, valid: true}).length is 1
       {startScreenRow, endScreenRow, startBufferRow, endBufferRow} = @expandBufferRangeToLineBoundaries(bufferRange)
       oldRowExtent = endScreenRow - startScreenRow
       newScreenLines = @buildSpatialScreenLines(startBufferRow, endBufferRow)
@@ -174,7 +174,11 @@ class DisplayLayer
     foldId
 
   foldsIntersectingBufferRange: (bufferRange) ->
-    @foldsMarkerLayer.findMarkers(intersectsRange: bufferRange).map ({id}) -> id
+    @findFoldMarkers(intersectsRange: bufferRange).map ({id}) -> id
+
+  findFoldMarkers: (params) ->
+    params.valid = true
+    @foldsMarkerLayer.findMarkers(params)
 
   destroyFold: (foldId) ->
     if foldMarker = @foldsMarkerLayer.getMarker(foldId)
@@ -182,7 +186,7 @@ class DisplayLayer
 
   destroyFoldsIntersectingBufferRange: (bufferRange) ->
     bufferRange = @buffer.clipRange(bufferRange)
-    @destroyFoldMarkers(@foldsMarkerLayer.findMarkers(intersectsRange: bufferRange))
+    @destroyFoldMarkers(@findFoldMarkers(intersectsRange: bufferRange))
 
   destroyAllFolds: ->
     @destroyFoldMarkers(@foldsMarkerLayer.getMarkers())
@@ -214,14 +218,12 @@ class DisplayLayer
 
   bufferDidChange: (change) ->
     {oldRange, newRange} = @expandChangeRegionToSurroundingEmptyLines(change.oldRange, change.newRange)
-    {startScreenRow, endScreenRow, startBufferRow} = @expandBufferRangeToLineBoundaries(oldRange)
-    endBufferRow = newRange.end.row
-    for fold in @foldsMarkerLayer.findMarkers(intersectsRange: newRange) when not fold.isValid()
-      endBufferRow = Math.max(fold.getEndPosition().row, endBufferRow)
-      fold.destroy()
 
-    oldRowExtent = endScreenRow - startScreenRow + 1
-    newScreenLines = @buildSpatialScreenLines(startBufferRow, endBufferRow + 1)
+    {startScreenRow, endScreenRow, startBufferRow, endBufferRow} = @expandBufferRangeToLineBoundaries(oldRange)
+    endBufferRow = newRange.end.row + (endBufferRow - oldRange.end.row)
+
+    oldRowExtent = endScreenRow - startScreenRow
+    newScreenLines = @buildSpatialScreenLines(startBufferRow, endBufferRow)
     newRowExtent = newScreenLines.length
     @spliceDisplayIndex(startScreenRow, oldRowExtent, newScreenLines)
 
@@ -680,14 +682,14 @@ class DisplayLayer
   # with a folds object mapping startRow to startColumn to endPosition.
   computeFoldsInBufferRowRange: (startBufferRow, endBufferRow) ->
     folds = {}
-    foldMarkers = @foldsMarkerLayer.findMarkers(intersectsRowRange: [startBufferRow, endBufferRow - 1])
+    foldMarkers = @findFoldMarkers(intersectsRowRange: [startBufferRow, endBufferRow - 1], valid: true)
     if foldMarkers.length > 0
       # If the first fold starts before the initial row range, prepend any
       # fold markers that intersect the first fold's row range.
       loop
         foldsStartBufferRow = foldMarkers[0].getStartPosition().row
         break unless foldsStartBufferRow < startBufferRow
-        precedingFoldMarkers = @foldsMarkerLayer.findMarkers(intersectsRowRange: [foldsStartBufferRow, startBufferRow - 1])
+        precedingFoldMarkers = @findFoldMarkers(intersectsRowRange: [foldsStartBufferRow, startBufferRow - 1])
         foldMarkers.unshift(precedingFoldMarkers...)
         startBufferRow = foldsStartBufferRow
 
@@ -703,7 +705,7 @@ class DisplayLayer
           # additional query for any subsequent folds that intersect the portion
           # of the current fold's row range omitted from previous queries.
           if foldEnd.row >= endBufferRow
-            followingFoldMarkers = @foldsMarkerLayer.findMarkers(intersectsRowRange: [endBufferRow, foldEnd.row])
+            followingFoldMarkers = @findFoldMarkers(intersectsRowRange: [endBufferRow, foldEnd.row])
             foldMarkers.push(followingFoldMarkers...)
             endBufferRow = foldEnd.row + 1
 

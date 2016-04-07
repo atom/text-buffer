@@ -323,6 +323,8 @@ class Marker
         @intersectsRow(value)
       when 'invalidate', 'reversed', 'tailed', 'persistent'
         isEqual(@[key], value)
+      when 'valid'
+        @isValid() is value
       else
         isEqual(@properties[key], value)
 
