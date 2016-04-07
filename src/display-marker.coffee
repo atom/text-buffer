@@ -191,6 +191,7 @@ class DisplayMarker
   #
   # * `other` {DisplayMarker} other marker
   isEqual: (other) ->
+    return false unless other instanceof @constructor
     @bufferMarker.isEqual(other.bufferMarker)
 
   ###
