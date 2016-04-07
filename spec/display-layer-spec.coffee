@@ -881,15 +881,26 @@ describe "DisplayLayer", ->
         displayLayer.setTextDecorationLayer(textDecorationLayer)
 
         foldIds = []
+        undoableChanges = 0
+        redoableChanges = 0
         screenLinesById = new Map
 
-        for j in [0...5] by 1
+        for j in [0...10] by 1
           k = random(10)
           if k < 2
             createRandomFold(random, displayLayer, foldIds)
           else if k < 4 and foldIds.length > 0
             destroyRandomFold(random, displayLayer, foldIds)
+          else if k < 5 and undoableChanges > 0
+            undoableChanges--
+            redoableChanges++
+            performUndo(random, buffer, displayLayer)
+          else if k < 6 and redoableChanges > 0
+            undoableChanges++
+            redoableChanges--
+            performRedo(random, buffer, displayLayer)
           else
+            undoableChanges++
             performRandomChange(random, buffer, displayLayer)
 
           # incrementally-updated text matches freshly computed text
@@ -904,12 +915,17 @@ describe "DisplayLayer", ->
           expectedDisplayLayer.destroy()
 
 performRandomChange = (random, buffer, displayLayer) ->
-  tries = 10
   range = getRandomRange(random, buffer)
 
   verifyChangeEvent displayLayer, ->
     text = buildRandomLines(random, 4)
     buffer.setTextInRange(range, text)
+
+performUndo = (random, buffer, displayLayer) ->
+  verifyChangeEvent displayLayer, -> buffer.undo()
+
+performRedo = (random, buffer, displayLayer) ->
+  verifyChangeEvent displayLayer, -> buffer.redo()
 
 createRandomFold = (random, displayLayer, foldIds) ->
   verifyChangeEvent displayLayer, ->
