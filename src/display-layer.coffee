@@ -124,7 +124,7 @@ class DisplayLayer
 
     {startScreenRow, endScreenRow} = @expandBufferRangeToLineBoundaries(Range(Point.ZERO, Point(@buffer.getLineCount(), 0)))
     newLines = @buildSpatialScreenLines(0, @buffer.getLineCount())
-    oldRowExtent = endScreenRow - startScreenRow + 1
+    oldRowExtent = endScreenRow - startScreenRow
     newRowExtent = newLines.length
     @spliceDisplayIndex(startScreenRow, oldRowExtent, newLines)
     @emitter.emit 'did-change-sync', Object.freeze([{
@@ -159,7 +159,7 @@ class DisplayLayer
     foldId = @foldsMarkerLayer.markRange(bufferRange, {invalidate: 'inside'}).id
     if @foldsMarkerLayer.findMarkers(containsRange: bufferRange).length is 1
       {startScreenRow, endScreenRow, startBufferRow, endBufferRow} = @expandBufferRangeToLineBoundaries(bufferRange)
-      oldRowExtent = endScreenRow - startScreenRow + 1
+      oldRowExtent = endScreenRow - startScreenRow
       newScreenLines = @buildSpatialScreenLines(startBufferRow, endBufferRow)
       newRowExtent = newScreenLines.length
       @spliceDisplayIndex(startScreenRow, oldRowExtent, newScreenLines)
@@ -196,7 +196,7 @@ class DisplayLayer
       foldMarker.destroy()
     combinedRange = Range(combinedRangeStart, combinedRangeEnd)
     {startScreenRow, endScreenRow, startBufferRow, endBufferRow} = @expandBufferRangeToLineBoundaries(combinedRange)
-    oldRowExtent = endScreenRow - startScreenRow + 1
+    oldRowExtent = endScreenRow - startScreenRow
     newScreenLines = @buildSpatialScreenLines(startBufferRow, endBufferRow)
     newRowExtent = newScreenLines.length
     @spliceDisplayIndex(startScreenRow, oldRowExtent, newScreenLines)
@@ -305,7 +305,10 @@ class DisplayLayer
     while @spatialLineIterator.isSoftWrappedAtEnd()
       @spatialLineIterator.moveToSuccessor()
 
-    {screenRow: @spatialLineIterator.getScreenRow(), bufferRow: @spatialLineIterator.getBufferEnd().row}
+    {
+      screenRow: @spatialLineIterator.getScreenRow() + 1,
+      bufferRow: @spatialLineIterator.getBufferEnd().row
+    }
 
   expandBufferRangeToLineBoundaries: (range) ->
     {screenRow: startScreenRow, bufferRow: startBufferRow} = @lineStartBoundaryForBufferRow(range.start.row)
