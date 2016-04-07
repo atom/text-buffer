@@ -71,19 +71,43 @@ class DisplayMarkerLayer
   Section: Marker creation
   ###
 
-  # Essential: Create a marker on this layer with the given range in screen
-  # coordinates.
+  # Public: Create a marker with the given screen range.
   #
-  # See the documentation for {TextBuffer::markRange}.
+  # * `range` A {Range} or range-compatible {Array}
+  # * `options` A hash of key-value pairs to associate with the marker. There
+  #   are also reserved property names that have marker-specific meaning.
+  #   * `reversed` (optional) {Boolean} Creates the marker in a reversed
+  #     orientation. (default: false)
+  #   * `persistent` (optional) {Boolean} Whether to include this marker when
+  #     serializing the buffer. (default: true)
+  #   * `invalidate` (optional) {String} Determines the rules by which changes
+  #     to the buffer *invalidate* the marker. (default: 'overlap') It can be
+  #     any of the following strategies, in order of fragility:
+  #     * __never__: The marker is never marked as invalid. This is a good choice for
+  #       markers representing selections in an editor.
+  #     * __surround__: The marker is invalidated by changes that completely surround it.
+  #     * __overlap__: The marker is invalidated by changes that surround the
+  #       start or end of the marker. This is the default.
+  #     * __inside__: The marker is invalidated by changes that extend into the
+  #       inside of the marker. Changes that end at the marker's start or
+  #       start at the marker's end do not invalidate the marker.
+  #     * __touch__: The marker is invalidated by a change that touches the marked
+  #       region in any way, including changes that end at the marker's
+  #       start or start at the marker's end. This is the most fragile strategy.
+  #   * `clipDirection` {String} If `'backward'`, returns the first valid
+  #     position preceding an invalid position. If `'forward'`, returns the
+  #     first valid position following an invalid position. If `'closest'`,
+  #     returns the first valid position closest to an invalid position.
+  #     Defaults to `'closest'`. Applies to the start and end of the given range.
   #
   # Returns a {DisplayMarker}.
-  markScreenRange: (screenRange, properties) ->
+  markScreenRange: (screenRange, options) ->
     screenRange = Range.fromObject(screenRange)
-    bufferRange = @displayLayer.translateScreenRange(screenRange, properties)
-    @createDisplayMarker(@bufferMarkerLayer.markRange(bufferRange, properties))
+    bufferRange = @displayLayer.translateScreenRange(screenRange, options)
+    @createDisplayMarker(@bufferMarkerLayer.markRange(bufferRange, options))
 
-  # Public: Create a marker on this layer with the given screen position and no
-  # tail.
+  # Public: Create a marker on this layer with its head at the given screen
+  # position and no tail.
   #
   # * `screenPosition` A {Point} or point-compatible {Array}
   # * `options` (optional) An {Object} with the following keys:
@@ -113,16 +137,37 @@ class DisplayMarkerLayer
     bufferPosition = @displayLayer.translateScreenPosition(screenPosition, options)
     @createDisplayMarker(@bufferMarkerLayer.markPosition(bufferPosition, options))
 
-  # Essential: Create a marker on this layer with the given range in buffer
-  # coordinates.
+  # Public: Create a marker with the given buffer range.
   #
-  # See the documentation for {TextBuffer::markRange}.
-  markBufferRange: (bufferRange, properties) ->
+  # * `range` A {Range} or range-compatible {Array}
+  # * `options` A hash of key-value pairs to associate with the marker. There
+  #   are also reserved property names that have marker-specific meaning.
+  #   * `reversed` (optional) {Boolean} Creates the marker in a reversed
+  #     orientation. (default: false)
+  #   * `persistent` (optional) {Boolean} Whether to include this marker when
+  #     serializing the buffer. (default: true)
+  #   * `invalidate` (optional) {String} Determines the rules by which changes
+  #     to the buffer *invalidate* the marker. (default: 'overlap') It can be
+  #     any of the following strategies, in order of fragility:
+  #     * __never__: The marker is never marked as invalid. This is a good choice for
+  #       markers representing selections in an editor.
+  #     * __surround__: The marker is invalidated by changes that completely surround it.
+  #     * __overlap__: The marker is invalidated by changes that surround the
+  #       start or end of the marker. This is the default.
+  #     * __inside__: The marker is invalidated by changes that extend into the
+  #       inside of the marker. Changes that end at the marker's start or
+  #       start at the marker's end do not invalidate the marker.
+  #     * __touch__: The marker is invalidated by a change that touches the marked
+  #       region in any way, including changes that end at the marker's
+  #       start or start at the marker's end. This is the most fragile strategy.
+  #
+  # Returns a {DisplayMarker}.
+  markBufferRange: (bufferRange, options) ->
     bufferRange = Range.fromObject(bufferRange)
-    @createDisplayMarker(@bufferMarkerLayer.markRange(bufferRange, properties))
+    @createDisplayMarker(@bufferMarkerLayer.markRange(bufferRange, options))
 
-  # Public: Create a marker on this layer with the given buffer position and no
-  # tail.
+  # Public: Create a marker on this layer with its head at the given buffer
+  # position and no tail.
   #
   # * `bufferPosition` A {Point} or point-compatible {Array}
   # * `options` (optional) An {Object} with the following keys:
