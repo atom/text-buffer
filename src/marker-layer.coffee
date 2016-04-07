@@ -140,11 +140,31 @@ class MarkerLayer
 
   # Public: Create a marker with the given range.
   #
-  # See the documentation for {TextBuffer::markRange}
+  # * `range` A {Range} or range-compatible {Array}
+  # * `options` A hash of key-value pairs to associate with the marker. There
+  #   are also reserved property names that have marker-specific meaning.
+  #   * `reversed` (optional) {Boolean} Creates the marker in a reversed
+  #     orientation. (default: false)
+  #   * `invalidate` (optional) {String} Determines the rules by which changes
+  #     to the buffer *invalidate* the marker. (default: 'overlap') It can be
+  #     any of the following strategies, in order of fragility:
+  #     * __never__: The marker is never marked as invalid. This is a good choice for
+  #       markers representing selections in an editor.
+  #     * __surround__: The marker is invalidated by changes that completely surround it.
+  #     * __overlap__: The marker is invalidated by changes that surround the
+  #       start or end of the marker. This is the default.
+  #     * __inside__: The marker is invalidated by changes that extend into the
+  #       inside of the marker. Changes that end at the marker's start or
+  #       start at the marker's end do not invalidate the marker.
+  #     * __touch__: The marker is invalidated by a change that touches the marked
+  #       region in any way, including changes that end at the marker's
+  #       start or start at the marker's end. This is the most fragile strategy.
+  #
+  # Returns a {Marker}.
   markRange: (range, options={}) ->
     @createMarker(@delegate.clipRange(range), Marker.extractParams(options))
 
-  # Public: Create a marker at the given position with no tail.
+  # Public: Create a marker at with its head at the given position with no tail.
   #
   # * `position` {Point} or point-compatible {Array}
   # * `options` (optional) An {Object} with the following keys:

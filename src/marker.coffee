@@ -51,7 +51,7 @@ class Marker
       Grim.deprecate("""
       Assigning custom properties to a marker when creating/copying it is
       deprecated. Please, consider storing the custom properties you need in
-      some other object in your package.
+      some other object in your package, keyed by the marker's id property.
       """)
 
     outputParams
