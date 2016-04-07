@@ -175,7 +175,7 @@ describe "MarkerLayer", ->
     it "creates a new marker layer with markers in the same states", ->
       originalLayer = buffer.addMarkerLayer(maintainHistory: true)
       originalLayer.markRange([[0, 1], [0, 3]], a: 'b')
-      originalLayer.markPosition([0, 2], c: 'd')
+      originalLayer.markPosition([0, 2])
 
       copy = originalLayer.copy()
       expect(copy).not.toBe originalLayer
@@ -185,5 +185,4 @@ describe "MarkerLayer", ->
       expect(markers[0].getRange()).toEqual [[0, 1], [0, 3]]
       expect(markers[0].getProperties()).toEqual {a: 'b'}
       expect(markers[1].getRange()).toEqual [[0, 2], [0, 2]]
-      expect(markers[1].getProperties()).toEqual {c: 'd'}
       expect(markers[1].hasTail()).toBe false

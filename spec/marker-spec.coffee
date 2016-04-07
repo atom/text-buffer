@@ -69,10 +69,6 @@ describe "Marker", ->
         marker = buffer.markPosition([0, 3], invalidate: 'inside')
         expect(marker.getInvalidationStrategy()).toBe 'inside'
 
-      it "allows custom state to be assigned", ->
-        marker = buffer.markPosition([0, 3], foo: 1, bar: 2)
-        expect(marker.getProperties()).toEqual {foo: 1, bar: 2}
-
       it "throws an error if an invalid point is given", ->
         marker1 = buffer.markPosition([0, 1])
 
