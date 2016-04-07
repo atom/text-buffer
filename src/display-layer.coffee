@@ -168,8 +168,7 @@ class DisplayLayer
         oldExtent: Point(oldRowExtent, 0),
         newExtent: Point(newRowExtent, 0)
       }])
-
-    @notifyObserversIfMarkerScreenPositionsChanged()
+      @notifyObserversIfMarkerScreenPositionsChanged()
 
     foldId
 
