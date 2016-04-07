@@ -275,12 +275,12 @@ describe "DisplayLayer", ->
       expect(displayLayer.getText()).toBe 'a⋯i j⋯pqr\n⋯ vwx'
 
       buffer.insert([0, 3], 'y')
-      expect(displayLayer.getText()).toBe 'abcy def\nghi j⋯pqr\n⋯ vwx'
+      expect(displayLayer.getText()).toBe 'a⋯i j⋯pqr\n⋯ vwx'
 
       buffer.setTextInRange([[1, 6], [3, 4]], 'z')
-      expect(displayLayer.getText()).toBe 'abcy def\nghi jkzvwx'
+      expect(displayLayer.getText()).toBe 'a⋯i jkzvwx'
 
-      expect(displayLayer.foldsIntersectingBufferRange([[0, 0], [Infinity, 0]])).toEqual []
+      expect(displayLayer.foldsIntersectingBufferRange([[0, 0], [Infinity, 0]]).length).toBe 1
 
   describe "soft wraps", ->
     it "soft wraps the line at the first word start at or preceding the softWrapColumn", ->
