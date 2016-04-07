@@ -287,11 +287,6 @@ class Marker
     @layer.destroyMarker(@id)
     @emitter.emit 'did-destroy'
 
-  extractParams: (params) ->
-    params = @constructor.extractParams(params)
-    params.properties = extend({}, @properties, params.properties) if params.properties?
-    params
-
   # Public: Compares this marker to another based on their ranges.
   #
   # * `other` {Marker}
