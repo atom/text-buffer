@@ -867,7 +867,7 @@ describe "DisplayLayer", ->
   for i in [0...100] by 1
     do ->
       seed = now + i
-      fit "updates the displayed text correctly when the underlying buffer changes: #{seed}", ->
+      it "updates the displayed text correctly when the underlying buffer changes: #{seed}", ->
         random = new Random(seed)
         buffer = new TextBuffer(text: buildRandomLines(random, 10))
         invisibles = {}
