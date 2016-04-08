@@ -18,9 +18,6 @@ class MarkerLayer
     store.deserialize(state)
     store
 
-  @serializeSnapshot: (snapshot) ->
-    snapshot
-
   @deserializeSnapshot: (snapshot) ->
     result = {}
     for layerId, markerSnapshots of snapshot
@@ -36,6 +33,7 @@ class MarkerLayer
 
   constructor: (@delegate, @id, options) ->
     @maintainHistory = options?.maintainHistory ? false
+    @persistent = options?.persistent ? false
     @emitter = new Emitter
     @index = new MarkerIndex
     @markersById = {}
@@ -282,12 +280,13 @@ class MarkerLayer
     for id in Object.keys(@markersById)
       marker = @markersById[id]
       markersById[id] = marker.getSnapshot(Range.fromObject(ranges[id]), false) if marker.persistent
-    {@id, @maintainHistory, markersById, version: SerializationVersion}
+    {@id, @maintainHistory, @persistent, markersById, version: SerializationVersion}
 
   deserialize: (state) ->
     return unless state.version is SerializationVersion
     @id = state.id
     @maintainHistory = state.maintainHistory
+    @persistent = state.persistent
     for id, markerState of state.markersById
       range = Range.fromObject(markerState.range)
       delete markerState.range
