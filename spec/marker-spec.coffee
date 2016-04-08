@@ -36,6 +36,24 @@ describe "Marker", ->
         marker = buffer.markRange([[0, 3], [0, 6]], invalidate: 'inside')
         expect(marker.getInvalidationStrategy()).toBe 'inside'
 
+      it "allows an exclusive marker to be created independently of its invalidation strategy", ->
+        layer = buffer.addMarkerLayer({maintainHistory: true})
+        marker1 = layer.markRange([[0, 3], [0, 6]], invalidate: 'overlap', exclusive: true)
+        marker2 = marker1.copy()
+        marker3 = marker1.copy(exclusive: false)
+        marker4 = marker1.copy(exclusive: null, invalidate: 'inside')
+
+        buffer.insert([0, 3], 'something')
+
+        expect(marker1.getStartPosition()).toEqual [0, 12]
+        expect(marker1.isExclusive()).toBe true
+        expect(marker2.getStartPosition()).toEqual [0, 12]
+        expect(marker2.isExclusive()).toBe true
+        expect(marker3.getStartPosition()).toEqual [0, 3]
+        expect(marker3.isExclusive()).toBe false
+        expect(marker4.getStartPosition()).toEqual [0, 12]
+        expect(marker4.isExclusive()).toBe true
+
       it "allows custom state to be assigned", ->
         marker = buffer.markRange([[0, 3], [0, 6]], foo: 1, bar: 2)
         expect(marker.getProperties()).toEqual {foo: 1, bar: 2}

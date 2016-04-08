@@ -329,8 +329,8 @@ class MarkerLayer
     @index.delete(id)
     @index.insert(id, start, end)
 
-  setMarkerHasTail: (id, hasTail) ->
-    @index.setExclusive(id, not hasTail)
+  setMarkerIsExclusive: (id, exclusive) ->
+    @index.setExclusive(id, exclusive)
 
   createMarker: (range, params) ->
     id = @delegate.getNextMarkerId()
@@ -348,12 +348,8 @@ class MarkerLayer
   addMarker: (id, range, params) ->
     Point.assertValid(range.start)
     Point.assertValid(range.end)
-    marker = new Marker(id, this, range, params)
-    @markersById[id] = marker
     @index.insert(id, range.start, range.end)
-    if marker.getInvalidationStrategy() is 'inside'
-      @index.setExclusive(id, true)
-    marker
+    @markersById[id] = new Marker(id, this, range, params)
 
   scheduleUpdateEvent: ->
     unless @didUpdateEventScheduled

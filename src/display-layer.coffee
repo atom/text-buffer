@@ -156,7 +156,7 @@ class DisplayLayer
 
   foldBufferRange: (bufferRange) ->
     bufferRange = @buffer.clipRange(bufferRange)
-    foldId = @foldsMarkerLayer.markRange(bufferRange, {invalidate: 'overlap'}).id
+    foldMarker = @foldsMarkerLayer.markRange(bufferRange, {invalidate: 'overlap', exclusive: true})
     if @findFoldMarkers({containsRange: bufferRange, valid: true}).length is 1
       {startScreenRow, endScreenRow, startBufferRow, endBufferRow} = @expandBufferRangeToLineBoundaries(bufferRange)
       oldRowExtent = endScreenRow - startScreenRow
@@ -170,7 +170,7 @@ class DisplayLayer
       }])
       @notifyObserversIfMarkerScreenPositionsChanged()
 
-    foldId
+    foldMarker.id
 
   foldsIntersectingBufferRange: (bufferRange) ->
     @findFoldMarkers(intersectsRange: bufferRange).map ({id}) -> id

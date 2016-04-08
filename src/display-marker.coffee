@@ -148,6 +148,11 @@ class DisplayMarker
   isReversed: ->
     @bufferMarker.isReversed()
 
+  # Essential: Returns a {Boolean} indicating whether changes that occur exactly
+  # at the marker's head or tail cause it to move.
+  isExclusive: ->
+    @bufferMarker.isExclusive()
+
   # Essential: Get the invalidation strategy for this marker.
   #
   # Valid values include: `never`, `surround`, `overlap`, `inside`, and `touch`.
