@@ -816,7 +816,7 @@ class TextBuffer
   Section: Markers
   ###
 
-  # Public: *Experimental:* Create a layer to contain a set of related markers.
+  # Public: Create a layer to contain a set of related markers.
   #
   # * `options` An object contaning the following keys:
   #   * `maintainHistory` A {Boolean} indicating whether or not the state of
@@ -828,31 +828,25 @@ class TextBuffer
   #     maintained across the serialization boundary, allowing you to retrieve
   #     it via {::getMarkerLayer}.
   #
-  # This API is experimental and subject to change on any release.
-  #
   # Returns a {MarkerLayer}.
   addMarkerLayer: (options) ->
     layer = new MarkerLayer(this, String(@nextMarkerLayerId++), options)
     @markerLayers[layer.id] = layer
     layer
 
-  # Public: *Experimental:* Get a {MarkerLayer} by id.
+  # Public: Get a {MarkerLayer} by id.
   #
   # * `id` The id of the marker layer to retrieve.
-  #
-  # This API is experimental and subject to change on any release.
   #
   # Returns a {MarkerLayer} or `undefined` if no layer exists with the given
   # id.
   getMarkerLayer: (id) ->
     @markerLayers[id]
 
-  # Public: *Experimental:* Get the default {MarkerLayer}.
+  # Public: Get the default {MarkerLayer}.
   #
   # All marker APIs not tied to an explicit layer interact with this default
   # layer.
-  #
-  # This API is experimental and subject to change on any release.
   #
   # Returns a {MarkerLayer}.
   getDefaultMarkerLayer: ->
