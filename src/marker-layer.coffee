@@ -33,6 +33,7 @@ class MarkerLayer
 
   constructor: (@delegate, @id, options) ->
     @maintainHistory = options?.maintainHistory ? false
+    @destroyInvalidatedMarkers = options?.destroyInvalidatedMarkers ? false
     @persistent = options?.persistent ? false
     @emitter = new Emitter
     @index = new MarkerIndex
@@ -250,7 +251,10 @@ class MarkerLayer
     invalidated.touch.forEach (id) =>
       marker = @markersById[id]
       if invalidated[marker.getInvalidationStrategy()]?.has(id)
-        marker.valid = false
+        if @destroyInvalidatedMarkers
+          marker.destroy()
+        else
+          marker.valid = false
     @scheduleUpdateEvent()
 
   restoreFromSnapshot: (snapshots) ->

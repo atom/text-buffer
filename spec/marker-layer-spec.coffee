@@ -68,6 +68,23 @@ describe "MarkerLayer", ->
     expect(createEventCount).toBe 1
     expect(updateEventCount).toBe 2
 
+  describe "when destroyInvalidatedMarkers is enabled for the layer", ->
+    it "destroys markers when they are invalidated via a splice", ->
+      layer3 = buffer.addMarkerLayer(destroyInvalidatedMarkers: true)
+
+      marker1 = layer3.markRange([[0, 0], [0, 3]], invalidate: 'inside')
+      marker2 = layer3.markRange([[0, 2], [0, 6]], invalidate: 'inside')
+
+      destroyedMarkers = []
+      marker1.onDidDestroy -> destroyedMarkers.push(marker1)
+      marker2.onDidDestroy -> destroyedMarkers.push(marker2)
+
+      buffer.insert([0, 5], 'x')
+
+      expect(destroyedMarkers).toEqual [marker2]
+      expect(marker2.isDestroyed()).toBe true
+      expect(marker1.isDestroyed()).toBe false
+
   describe "when maintainHistory is enabled for the layer", ->
     layer3 = null
 
