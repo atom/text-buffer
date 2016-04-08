@@ -822,6 +822,11 @@ class TextBuffer
   #   * `maintainHistory` A {Boolean} indicating whether or not the state of
   #     this layer should be restored on undo/redo operations. Defaults to
   #     `false`.
+  #   * `persistent` A {Boolean} indicating whether or not this marker layer
+  #     should be serialized and deserialized along with the rest of the
+  #     buffer. Defaults to `false`. If `true`, the marker layer's id will be
+  #     maintained across the serialization boundary, allowing you to retrieve
+  #     it via {::getMarkerLayer}.
   #
   # This API is experimental and subject to change on any release.
   #
