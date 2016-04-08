@@ -924,6 +924,15 @@ describe "TextBuffer", ->
       expect(markerLayerA.id).not.toBe(markerLayerB.id)
       expect(bufferB.getMarker(marker1A.id)).toBeUndefined()
 
+    it "doesn't attempt to serialize snapshots for destroyed marker layers", ->
+      buffer = new TextBuffer(text: "abc")
+      markerLayer = buffer.addMarkerLayer(maintainHistory: true, persistent: true)
+      markerLayer.markPosition([0, 3])
+      buffer.insert([0, 0], 'x')
+      markerLayer.destroy()
+
+      expect(-> buffer.serialize()).not.toThrowError()
+
     it "doesn't remember marker layers when calling serialize with {markerLayers: false}", ->
       bufferA = new TextBuffer(text: "world")
       layerA = bufferA.addMarkerLayer(maintainHistory: true)
