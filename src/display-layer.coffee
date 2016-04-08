@@ -63,7 +63,11 @@ class DisplayLayer
   constructor: (@id, @buffer, settings={}) ->
     @displayMarkerLayersById = {}
     @textDecorationLayer = null
-    @foldsMarkerLayer = settings.foldsMarkerLayer ? @buffer.addMarkerLayer({maintainHistory: false, persistent: true})
+    @foldsMarkerLayer = settings.foldsMarkerLayer ? @buffer.addMarkerLayer({
+      maintainHistory: false,
+      persistent: true,
+      destroyInvalidatedMarkers: true
+    })
     @foldIdCounter = 1
     @disposables = @buffer.onDidChange(@bufferDidChange.bind(this))
     @displayIndex = new DisplayIndex
