@@ -89,6 +89,7 @@ class DisplayLayer
       ratioForCharacter: settings.ratioForCharacter ? -> 1.0,
       isWrapBoundary: settings.isWrapBoundary ? isWordStart
       foldCharacter: settings.foldCharacter ? '⋯'
+      atomicSoftTabs: settings.atomicSoftTabs ? true
     })
 
   serialize: ->
@@ -119,6 +120,7 @@ class DisplayLayer
     @ratioForCharacter = params.ratioForCharacter if params.hasOwnProperty('ratioForCharacter')
     @isWrapBoundary = params.isWrapBoundary if params.hasOwnProperty('isWrapBoundary')
     @foldCharacter = params.foldCharacter if params.hasOwnProperty('foldCharacter')
+    @atomicSoftTabs = params.atomicSoftTabs if params.hasOwnProperty('foldCharacter')
 
     @eolInvisibles = {
       "\r": @invisibles.cr
@@ -385,7 +387,7 @@ class DisplayLayer
               spaceCount = screenColumn - tokensScreenExtent
               metadata = LEADING_WHITESPACE
               metadata |= INVISIBLE_CHARACTER if @invisibles.space?
-              metadata |= ATOMIC if atSoftTabBoundary
+              metadata |= ATOMIC if atSoftTabBoundary and @atomicSoftTabs
               metadata |= SHOW_INDENT_GUIDE if @showIndentGuides and (tokensScreenExtent % @tabLength) is 0
               tokens.push({
                 screenExtent: spaceCount,

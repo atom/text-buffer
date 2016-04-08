@@ -90,6 +90,12 @@ describe "DisplayLayer", ->
       expect(displayLayer.clipScreenPosition([2, 6])).toEqual [2, 4]
       expect(displayLayer.clipScreenPosition([2, 13])).toEqual [2, 13]
 
+    it "does not treat soft tabs as atomic if the atomicSoftTabs option is false", ->
+      buffer = new TextBuffer(text: '    a\n        b')
+      displayLayer = buffer.addDisplayLayer(tabLength: 4, atomicSoftTabs: false)
+      expect(displayLayer.clipScreenPosition([0, 2])).toEqual [0, 2]
+      expect(displayLayer.clipScreenPosition([1, 6])).toEqual [1, 6]
+
   describe "paired characters", ->
     it "treats paired characters as atomic units", ->
       buffer = new TextBuffer(text: 'abc🐲def')
