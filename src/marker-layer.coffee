@@ -157,6 +157,12 @@ class MarkerLayer
   #     * __touch__: The marker is invalidated by a change that touches the marked
   #       region in any way, including changes that end at the marker's
   #       start or start at the marker's end. This is the most fragile strategy.
+  #   * `exclusive` {Boolean} indicating whether insertions at the start or end
+  #     of the marked range should be interpreted as happening *outside* the
+  #     marker. Defaults to `false`, except when using the `inside`
+  #     invalidation strategy or when when the marker has no tail, in which
+  #     case it defaults to true. Explicitly assigning this option overrides
+  #     behavior in all circumstances.
   #
   # Returns a {Marker}.
   markRange: (range, options={}) ->
@@ -180,6 +186,12 @@ class MarkerLayer
   #     * __touch__: The marker is invalidated by a change that touches the marked
   #       region in any way, including changes that end at the marker's
   #       start or start at the marker's end. This is the most fragile strategy.
+  #   * `exclusive` {Boolean} indicating whether insertions at the start or end
+  #     of the marked range should be interpreted as happening *outside* the
+  #     marker. Defaults to `false`, except when using the `inside`
+  #     invalidation strategy or when when the marker has no tail, in which
+  #     case it defaults to true. Explicitly assigning this option overrides
+  #     behavior in all circumstances.
   #
   # Returns a {Marker}.
   markPosition: (position, options={}) ->
