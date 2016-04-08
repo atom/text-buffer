@@ -5,7 +5,7 @@ Point = require './point'
 Range = require './range'
 Grim = require 'grim'
 
-OptionKeys = new Set(['reversed', 'tailed', 'invalidate', 'persistent', 'exclusive'])
+OptionKeys = new Set(['reversed', 'tailed', 'invalidate', 'exclusive'])
 
 # Private: Represents a buffer annotation that remains logically stationary
 # even as the buffer changes. This is used to represent cursors, folds, snippet
@@ -59,13 +59,12 @@ class Marker
   @delegatesMethods 'containsPoint', 'containsRange', 'intersectsRow', toMethod: 'getRange'
 
   constructor: (@id, @layer, range, params) ->
-    {@tailed, @reversed, @valid, @invalidate, @persistent, @exclusive, @properties} = params
+    {@tailed, @reversed, @valid, @invalidate, @exclusive, @properties} = params
     @emitter = new Emitter
     @tailed ?= true
     @reversed ?= false
     @valid ?= true
     @invalidate ?= 'overlap'
-    @persistent ?= true
     @properties ?= {}
     @hasChangeObservers = false
     @rangeWhenDestroyed = null
@@ -249,7 +248,6 @@ class Marker
   isEqual: (other) ->
     @invalidate is other.invalidate and
       @tailed is other.tailed and
-      @persistent is other.persistent and
       @reversed is other.reversed and
       isEqual(@properties, other.properties) and
       @getRange().isEqual(other.getRange())
@@ -329,7 +327,7 @@ class Marker
         @getEndPosition().row is value
       when 'intersectsRow'
         @intersectsRow(value)
-      when 'invalidate', 'reversed', 'tailed', 'persistent'
+      when 'invalidate', 'reversed', 'tailed'
         isEqual(@[key], value)
       when 'valid'
         @isValid() is value

@@ -78,8 +78,6 @@ class DisplayMarkerLayer
   #   are also reserved property names that have marker-specific meaning.
   #   * `reversed` (optional) {Boolean} Creates the marker in a reversed
   #     orientation. (default: false)
-  #   * `persistent` (optional) {Boolean} Whether to include this marker when
-  #     serializing the buffer. (default: true)
   #   * `invalidate` (optional) {String} Determines the rules by which changes
   #     to the buffer *invalidate* the marker. (default: 'overlap') It can be
   #     any of the following strategies, in order of fragility:
@@ -144,8 +142,6 @@ class DisplayMarkerLayer
   #   are also reserved property names that have marker-specific meaning.
   #   * `reversed` (optional) {Boolean} Creates the marker in a reversed
   #     orientation. (default: false)
-  #   * `persistent` (optional) {Boolean} Whether to include this marker when
-  #     serializing the buffer. (default: true)
   #   * `invalidate` (optional) {String} Determines the rules by which changes
   #     to the buffer *invalidate* the marker. (default: 'overlap') It can be
   #     any of the following strategies, in order of fragility:

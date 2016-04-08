@@ -279,7 +279,7 @@ class MarkerLayer
     markersById = {}
     for id in Object.keys(@markersById)
       marker = @markersById[id]
-      markersById[id] = marker.getSnapshot(Range.fromObject(ranges[id]), false) if marker.persistent
+      markersById[id] = marker.getSnapshot(Range.fromObject(ranges[id]), false)
     {@id, @maintainHistory, @persistent, markersById, version: SerializationVersion}
 
   deserialize: (state) ->

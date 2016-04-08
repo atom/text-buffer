@@ -914,19 +914,7 @@ describe "TextBuffer", ->
       expect(layer1B).toBe undefined
       expectSameMarkers(layer2A, layer2B)
 
-    it "doesn't serialize markers with the 'persistent' option set to false", ->
-      bufferA = new TextBuffer(text: "hello\nworld\r\nhow are you doing?")
-
-      layerA = bufferA.addMarkerLayer(maintainHistory: true, persistent: true)
-
-      marker1A = layerA.markRange([[0, 1], [1, 2]], persistent: false, foo: 1)
-      marker2A = layerA.markPosition([2, 2], bar: 2)
-
-      bufferB = TextBuffer.deserialize(bufferA.serialize())
-      expect(bufferB.getMarkerLayer(layerA.id).getMarker(marker1A.id)).toBeUndefined()
-      expect(bufferB.getMarkerLayer(layerA.id).getMarker(marker2A.id)).toBeDefined()
-
-    it "doesn't serialize default marker layer", ->
+    it "doesn't serialize the default marker layer", ->
       bufferA = new TextBuffer(text: "hello\nworld\r\nhow are you doing?")
       markerLayerA = bufferA.getDefaultMarkerLayer()
       marker1A = bufferA.markRange([[0, 1], [1, 2]], foo: 1)
