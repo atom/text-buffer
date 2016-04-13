@@ -967,6 +967,7 @@ class DisplayLayer
         while mostRecentOpenTag = containingTags[--containingTagsIndex]
           if mostRecentOpenTag is closeTag
             containingTags.splice(containingTagsIndex, 1)
+            tagsToCloseCounts[mostRecentOpenTag]--
             break
 
           closeTags.push(mostRecentOpenTag)
