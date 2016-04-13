@@ -869,6 +869,24 @@ describe "DisplayLayer", ->
       expect(displayLayer.translateBufferPosition([1, 8], clipDirection: 'closest')).toEqual [0, 8]
       expect(displayLayer.translateBufferPosition([1, 8], clipDirection: 'forward')).toEqual [0, 8]
 
+  describe "when the buffer changes", ->
+    it "waits until the end of a transaction to emit a change event", ->
+      buffer = new TextBuffer(text: 'abc\ndef\nghi\njk')
+      displayLayer = buffer.addDisplayLayer()
+
+      eventCount = 0
+      displayLayer.onDidChangeSync -> eventCount++
+
+      buffer.transact ->
+        buffer.insert([0, 0], 'A')
+        expect(eventCount).toBe(0)
+        buffer.insert([2, 2], 'B')
+        expect(eventCount).toBe(0)
+
+      expect(eventCount).toBe(1)
+
+    it "answers queries successfully in the middle of a transaction", ->
+
   now = Date.now()
   for i in [0...100] by 1
     do ->
@@ -907,7 +925,7 @@ describe "DisplayLayer", ->
             performRedo(random, buffer, displayLayer)
           else
             undoableChanges++
-            performRandomChange(random, buffer, displayLayer)
+            performRandomChanges(random, buffer, displayLayer)
 
           # incrementally-updated text matches freshly computed text
           expectedDisplayLayer = buffer.addDisplayLayer({foldsMarkerLayer: displayLayer.foldsMarkerLayer.copy(), tabLength: 4, invisibles, showIndentGuides, softWrapColumn})
@@ -920,12 +938,14 @@ describe "DisplayLayer", ->
 
           expectedDisplayLayer.destroy()
 
-performRandomChange = (random, buffer, displayLayer) ->
-  range = getRandomRange(random, buffer)
-
+performRandomChanges = (random, buffer, displayLayer) ->
   verifyChangeEvent displayLayer, ->
-    text = buildRandomLines(random, 4)
-    buffer.setTextInRange(range, text)
+    buffer.transact ->
+      loop
+        range = getRandomRange(random, buffer)
+        text = buildRandomLines(random, 4)
+        buffer.setTextInRange(range, text)
+        break if Boolean(random(2))
 
 performUndo = (random, buffer, displayLayer) ->
   verifyChangeEvent displayLayer, -> buffer.undo()
