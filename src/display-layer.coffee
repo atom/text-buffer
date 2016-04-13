@@ -69,7 +69,7 @@ class DisplayLayer
       destroyInvalidatedMarkers: true
     })
     @foldIdCounter = 1
-    @disposables = @buffer.onDidChange(@bufferDidChange.bind(this))
+    @disposables = @buffer.onDidChangeText(@bufferDidChangeText.bind(this))
     @displayIndex = new DisplayIndex
     @spatialTokenIterator = @displayIndex.buildTokenIterator()
     @spatialLineIterator = @displayIndex.buildScreenLineIterator()
@@ -221,23 +221,28 @@ class DisplayLayer
   onDidChangeSync: (callback) ->
     @emitter.on 'did-change-sync', callback
 
-  bufferDidChange: (change) ->
-    {oldRange, newRange} = @expandChangeRegionToSurroundingEmptyLines(change.oldRange, change.newRange)
-
-    {startScreenRow, endScreenRow, startBufferRow, endBufferRow} = @expandBufferRangeToLineBoundaries(oldRange)
-    endBufferRow = newRange.end.row + (endBufferRow - oldRange.end.row)
-
-    oldRowExtent = endScreenRow - startScreenRow
-    newScreenLines = @buildSpatialScreenLines(startBufferRow, endBufferRow)
-    newRowExtent = newScreenLines.length
-    @spliceDisplayIndex(startScreenRow, oldRowExtent, newScreenLines)
-
-    start = Point(startScreenRow, 0)
-    oldExtent = Point(oldRowExtent, 0)
-    newExtent = Point(newRowExtent, 0)
-
+  bufferDidChangeText: ({changes}) ->
     combinedChanges = new Patch
-    combinedChanges.splice(start, oldExtent, newExtent)
+
+    for change in changes
+      {start, oldExtent, newExtent} = change
+      oldRange = Range.fromPointWithTraversalExtent(start, oldExtent)
+      newRange = Range.fromPointWithTraversalExtent(start, newExtent)
+      {oldRange, newRange} = @expandChangeRegionToSurroundingEmptyLines(oldRange, newRange)
+
+      {startScreenRow, endScreenRow, startBufferRow, endBufferRow} = @expandBufferRangeToLineBoundaries(oldRange)
+      endBufferRow = newRange.end.row + (endBufferRow - oldRange.end.row)
+
+      oldRowExtent = endScreenRow - startScreenRow
+      newScreenLines = @buildSpatialScreenLines(startBufferRow, endBufferRow)
+      newRowExtent = newScreenLines.length
+      @spliceDisplayIndex(startScreenRow, oldRowExtent, newScreenLines)
+
+      start = Point(startScreenRow, 0)
+      oldExtent = Point(oldRowExtent, 0)
+      newExtent = Point(newRowExtent, 0)
+
+      combinedChanges.splice(start, oldExtent, newExtent)
 
     if @textDecorationLayer?
       invalidatedRanges = @textDecorationLayer.getInvalidatedRanges()
