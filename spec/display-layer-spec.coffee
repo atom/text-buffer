@@ -266,7 +266,7 @@ describe "DisplayLayer", ->
 
       expect(displayLayer.getText()).toBe 'abc\ndef\nghi\nj'
 
-    it "automatically destroy folds when they become invalid after a buffer change", ->
+    it "automatically destroys folds when they become invalid after a buffer change", ->
       buffer = new TextBuffer(text: '''
         abc def
         ghi jkl
