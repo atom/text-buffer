@@ -457,9 +457,10 @@ describe "Marker", ->
             expect(marker.getRange()).toEqual [[0, 6], [0, 11]]
             expect(marker.isValid()).toBe true
 
-          for marker in [insideMarker, touchMarker]
-            expect(marker.getRange()).toEqual [[0, 6], [0, 11]]
-            expect(marker.isValid()).toBe false
+          expect(insideMarker.getRange()).toEqual [[0, 9], [0, 11]]
+          expect(insideMarker.isValid()).toBe false
+          expect(touchMarker.getRange()).toEqual [[0, 6], [0, 11]]
+          expect(touchMarker.isValid()).toBe false
 
       describe "when the marker has no tail", ->
         it "interprets the change as being outside the marker for all invalidation strategies", ->
