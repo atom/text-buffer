@@ -1,4 +1,5 @@
 {
   "presets": ["es2015", "stage-0"],
-  "sourceMaps": "inline"
+  "sourceMaps": "inline",
+  "ignore": ["spec/helpers/words.js"]
 }
