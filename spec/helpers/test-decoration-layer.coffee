@@ -13,6 +13,7 @@ class TestDecorationLayer
     @markerIndex = new MarkerIndex
     @tagsByMarkerId = {}
     @emitter = new Emitter
+    @invalidatedRanges = []
 
     for [tag, [rangeStart, rangeEnd]] in decorations
       markerId = @nextMarkerId++

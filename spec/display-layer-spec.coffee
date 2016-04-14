@@ -886,6 +886,21 @@ describe "DisplayLayer", ->
       expect(eventCount).toBe(1)
 
     it "answers queries successfully in the middle of a transaction", ->
+      buffer = new TextBuffer(text: 'abc\ndef\nghi\njk')
+      displayLayer = buffer.addDisplayLayer(invisibles: {eol: '¬'})
+
+      eventCount = 0
+      displayLayer.onDidChangeSync -> eventCount++
+
+      buffer.transact ->
+        buffer.insert([0, 0], 'V')
+        buffer.insert([2, 1], 'WX')
+        expect(displayLayer.getText()).toBe 'Vabc¬\ndef¬\ngWXhi¬\njk'
+        buffer.insert([3, 2], 'YZ')
+        expect(displayLayer.getText()).toBe 'Vabc¬\ndef¬\ngWXhi¬\njkYZ'
+
+      expect(displayLayer.getText()).toBe 'Vabc¬\ndef¬\ngWXhi¬\njkYZ'
+      expect(eventCount).toBe(1)
 
   now = Date.now()
   for i in [0...100] by 1
