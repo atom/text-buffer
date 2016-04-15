@@ -897,10 +897,9 @@ describe "DisplayLayer", ->
         buffer.insert([2, 1], 'WX')
         expect(displayLayer.getText()).toBe 'Vabc¬\ndef¬\ngWXhi¬\njk'
         buffer.insert([3, 2], 'YZ')
-        expect(displayLayer.getText()).toBe 'Vabc¬\ndef¬\ngWXhi¬\njkYZ'
 
       expect(displayLayer.getText()).toBe 'Vabc¬\ndef¬\ngWXhi¬\njkYZ'
-      expect(eventCount).toBe(1)
+      expect(eventCount).toBe(2)
 
   now = Date.now()
   for i in [0...100] by 1

@@ -71,6 +71,7 @@ class DisplayLayer
     })
     @foldIdCounter = 1
     @pendingBufferChanges = []
+    @hasFlushedChangesBeforeEndOfTransaction = false
     @disposables = new CompositeDisposable
     @disposables.add @buffer.onDidChangeText(@bufferDidChangeText.bind(this))
     @disposables.add @buffer.onDidChange(@pushPendingBufferChange.bind(this))
@@ -233,8 +234,8 @@ class DisplayLayer
     @pendingBufferChanges.push(change)
 
   flushPendingBufferChanges: ->
-    return if @buffer.transactCallDepth is 0
     return if @pendingBufferChanges.length is 0
+    return if @buffer.transactCallDepth is 0
 
     Grim ?= require 'grim'
     Grim.deprecate("""
@@ -243,24 +244,27 @@ class DisplayLayer
     begins or after it ends for better performance.
     """)
 
+    combinedChanges = new Patch
     for {oldRange, newRange} in @pendingBufferChanges
-      {oldRange, newRange} = @expandChangeRegionToSurroundingEmptyLines(oldRange, newRange)
-      {startScreenRow, endScreenRow, startBufferRow, endBufferRow} = @expandBufferRangeToLineBoundaries(oldRange)
-      endBufferRow = newRange.end.row + (endBufferRow - oldRange.end.row)
-      oldRowExtent = endScreenRow - startScreenRow
-      newScreenLines = @buildSpatialScreenLines(startBufferRow, endBufferRow)
+      combinedChanges.splice(oldRange.start, oldRange.getExtent(), newRange.getExtent())
 
-      @spliceDisplayIndex(startScreenRow, oldRowExtent, newScreenLines)
-    @clearPendingBufferChanges()
-
-    if @textDecorationLayer?
-      for bufferRange in @textDecorationLayer.getInvalidatedRanges()
-        @invalidateScreenLines(@translateBufferRange(bufferRange))
-
-  clearPendingBufferChanges: ->
     @pendingBufferChanges = []
+    @hasFlushedChangesBeforeEndOfTransaction = true
+    @applyChanges(normalizePatchChanges(combinedChanges.getChanges()))
 
   bufferDidChangeText: ({changes}) ->
+    if @hasFlushedChangesBeforeEndOfTransaction
+      combinedChanges = new Patch
+      for {oldRange, newRange} in @pendingBufferChanges
+        combinedChanges.splice(oldRange.start, oldRange.getExtent(), newRange.getExtent())
+      @hasFlushedChangesBeforeEndOfTransaction = false
+      @applyChanges(normalizePatchChanges(combinedChanges.getChanges()))
+    else
+      @applyChanges(changes)
+
+    @pendingBufferChanges = []
+
+  applyChanges: (changes) ->
     combinedChanges = new Patch
 
     i = 0
@@ -307,7 +311,6 @@ class DisplayLayer
         extent = range.getExtent()
         combinedChanges.splice(range.start, extent, extent)
 
-    @clearPendingBufferChanges()
     @emitter.emit 'did-change-sync', Object.freeze(normalizePatchChanges(combinedChanges.getChanges()))
 
   spliceDisplayIndex: (startScreenRow, oldRowExtent, newScreenLines) ->
