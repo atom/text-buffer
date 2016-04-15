@@ -362,6 +362,7 @@ class DisplayLayer
     {oldRange, newRange}
 
   lineStartBoundaryForBufferRow: (bufferRow) ->
+    @flushPendingBufferChanges()
     @spatialLineIterator.seekToBufferPosition(Point(bufferRow, 0))
     while @spatialLineIterator.isSoftWrappedAtStart()
       @spatialLineIterator.moveToPredecessor()
@@ -369,6 +370,7 @@ class DisplayLayer
     {screenRow: @spatialLineIterator.getScreenRow(), bufferRow: @spatialLineIterator.getBufferStart().row}
 
   lineEndBoundaryForBufferRow: (bufferRow) ->
+    @flushPendingBufferChanges()
     @spatialLineIterator.seekToBufferPosition(Point(bufferRow, Infinity))
     while @spatialLineIterator.isSoftWrappedAtEnd()
       @spatialLineIterator.moveToSuccessor()
