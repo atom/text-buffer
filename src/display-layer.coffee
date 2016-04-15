@@ -10,6 +10,7 @@ comparePoints = pointHelpers.compare
 maxPoint = pointHelpers.max
 {normalizePatchChanges} = require './helpers'
 isCharacterPair = require './is-character-pair'
+Grim = null
 
 VOID = 1 << 0
 ATOMIC = 1 << 1
@@ -235,6 +236,13 @@ class DisplayLayer
 
   flushPendingBufferChanges: ->
     return if @pendingBufferChanges.length is 0
+
+    Grim ?= require 'grim'
+    Grim.deprecate("""
+    Querying the state of the display layer during a transaction with pending
+    changes is deprecated. Please, consider doing so before the transaction
+    begins or after it ends for better performance.
+    """)
 
     for {oldRange, newRange} in @pendingBufferChanges
       {oldRange, newRange} = @expandChangeRegionToSurroundingEmptyLines(oldRange, newRange)
