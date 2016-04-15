@@ -165,8 +165,7 @@ class DisplayLayer
     @foldsMarkerLayer.getMarkerRange(id)
 
   foldBufferRange: (bufferRange) ->
-    if @buffer.transactCallDepth > 0
-      @flushPendingBufferChanges()
+    @flushPendingBufferChanges()
 
     bufferRange = @buffer.clipRange(bufferRange)
     foldMarker = @foldsMarkerLayer.markRange(bufferRange, {invalidate: 'overlap', exclusive: true})
@@ -206,8 +205,7 @@ class DisplayLayer
   destroyFoldMarkers: (foldMarkers) ->
     return [] if foldMarkers.length is 0
 
-    if @buffer.transactCallDepth > 0
-      @flushPendingBufferChanges()
+    @flushPendingBufferChanges()
 
     combinedRangeStart = combinedRangeEnd = foldMarkers[0].getStartPosition()
     for foldMarker in foldMarkers
@@ -235,6 +233,7 @@ class DisplayLayer
     @pendingBufferChanges.push(change)
 
   flushPendingBufferChanges: ->
+    return if @buffer.transactCallDepth is 0
     return if @pendingBufferChanges.length is 0
 
     Grim ?= require 'grim'
@@ -854,8 +853,7 @@ class DisplayLayer
     @getScreenLines().map((screenLine) -> screenLine.lineText).join('\n')
 
   getScreenLines: (startRow=0, endRow=@getScreenLineCount()) ->
-    if @buffer.transactCallDepth > 0
-      @flushPendingBufferChanges()
+    @flushPendingBufferChanges()
 
     decorationIterator = @textDecorationLayer.buildIterator()
     screenLines = []
@@ -1044,8 +1042,7 @@ class DisplayLayer
     containingTags.push(tagsToOpen...)
 
   translateBufferPosition: (bufferPosition, options) ->
-    if @buffer.transactCallDepth > 0
-      @flushPendingBufferChanges()
+    @flushPendingBufferChanges()
 
     bufferPosition = @buffer.clipPosition(bufferPosition, options)
     clipDirection = options?.clipDirection
@@ -1091,8 +1088,7 @@ class DisplayLayer
     Range(start, end)
 
   translateScreenPosition: (screenPosition, options) ->
-    if @buffer.transactCallDepth > 0
-      @flushPendingBufferChanges()
+    @flushPendingBufferChanges()
 
     screenPosition = Point.fromObject(screenPosition)
     screenPosition = clipNegativePoint(screenPosition)
@@ -1145,8 +1141,7 @@ class DisplayLayer
     Range(start, end)
 
   clipScreenPosition: (screenPosition, options) ->
-    if @buffer.transactCallDepth > 0
-      @flushPendingBufferChanges()
+    @flushPendingBufferChanges()
 
     screenPosition = Point.fromObject(screenPosition)
     screenPosition = clipNegativePoint(screenPosition)
@@ -1194,19 +1189,16 @@ class DisplayLayer
     Point.fromObject(screenPosition)
 
   getScreenLineCount: ->
-    if @buffer.transactCallDepth > 0
-      @flushPendingBufferChanges()
+    @flushPendingBufferChanges()
 
     @displayIndex.getScreenLineCount()
 
   getRightmostScreenPosition: ->
-    if @buffer.transactCallDepth > 0
-      @flushPendingBufferChanges()
+    @flushPendingBufferChanges()
 
     @displayIndex.getScreenPositionWithMaxLineLength() or Point.ZERO
 
   lineLengthForScreenRow: (screenRow) ->
-    if @buffer.transactCallDepth > 0
-      @flushPendingBufferChanges()
+    @flushPendingBufferChanges()
 
     @displayIndex.lineLengthForScreenRow(screenRow) or 0
