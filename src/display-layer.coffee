@@ -10,7 +10,6 @@ comparePoints = pointHelpers.compare
 maxPoint = pointHelpers.max
 {combineBufferChanges, normalizePatchChanges} = require './helpers'
 isCharacterPair = require './is-character-pair'
-Grim = null
 
 VOID = 1 << 0
 ATOMIC = 1 << 1
@@ -246,12 +245,13 @@ class DisplayLayer
     return if @pendingBufferChanges.length is 0
     return if @buffer.transactCallDepth is 0
 
-    Grim ?= require 'grim'
-    Grim.deprecate("""
-    Querying the state of the display layer during a transaction with pending
-    changes is deprecated. Please, consider doing so before the transaction
+    warningMessage = """
+    Querying the state of the display layer while a transaction is in progress
+    is considered to be slow. Please, consider doing so before the transaction
     begins or after it ends for better performance.
-    """)
+    """
+    stackTrace = new Error().stack
+    console.warn warningMessage, stackTrace
 
     combinedChanges = combineBufferChanges(@pendingBufferChanges)
     @pendingBufferChanges = []
