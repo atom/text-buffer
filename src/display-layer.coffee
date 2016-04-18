@@ -8,7 +8,7 @@ EmptyDecorationLayer = require './empty-decoration-layer'
 {traverse, traversal, clipNegativePoint} = pointHelpers = require './point-helpers'
 comparePoints = pointHelpers.compare
 maxPoint = pointHelpers.max
-{normalizePatchChanges} = require './helpers'
+{combineBufferChanges, normalizePatchChanges} = require './helpers'
 isCharacterPair = require './is-character-pair'
 Grim = null
 
@@ -244,21 +244,16 @@ class DisplayLayer
     begins or after it ends for better performance.
     """)
 
-    combinedChanges = new Patch
-    for {oldRange, newRange} in @pendingBufferChanges
-      combinedChanges.splice(oldRange.start, oldRange.getExtent(), newRange.getExtent())
-
+    combinedChanges = combineBufferChanges(@pendingBufferChanges)
     @pendingBufferChanges = []
     @hasFlushedChangesBeforeEndOfTransaction = true
-    @applyChanges(normalizePatchChanges(combinedChanges.getChanges()))
+    @applyChanges(combinedChanges)
 
   bufferDidChangeText: ({changes}) ->
     if @hasFlushedChangesBeforeEndOfTransaction
-      combinedChanges = new Patch
-      for {oldRange, newRange} in @pendingBufferChanges
-        combinedChanges.splice(oldRange.start, oldRange.getExtent(), newRange.getExtent())
+      combinedChanges = combineBufferChanges(@pendingBufferChanges)
       @hasFlushedChangesBeforeEndOfTransaction = false
-      @applyChanges(normalizePatchChanges(combinedChanges.getChanges()))
+      @applyChanges(combinedChanges)
     else
       @applyChanges(changes)
 

@@ -1,4 +1,5 @@
 Point = require './point'
+Patch = require 'atom-patch'
 
 SpliceArrayChunkSize = 100000
 
@@ -15,6 +16,12 @@ module.exports =
       removedValues
 
   newlineRegex: /\r\n|\n|\r/g
+
+  combineBufferChanges: (changes) ->
+    combinedChanges = new Patch
+    for {oldRange, newRange} in changes
+      combinedChanges.splice(oldRange.start, oldRange.getExtent(), newRange.getExtent())
+    module.exports.normalizePatchChanges(combinedChanges.getChanges())
 
   normalizePatchChanges: (changes) ->
     changes.map (change) -> {
