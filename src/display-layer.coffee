@@ -69,10 +69,8 @@ class DisplayLayer
       destroyInvalidatedMarkers: true
     })
     @foldIdCounter = 1
-    @pendingBufferChanges = []
-    @hasFlushedChangesBeforeEndOfTransaction = false
+    @resetPendingBufferChanges()
     @disposables = new CompositeDisposable
-    @disposables.add @buffer.onDidChangeText(@bufferDidChangeText.bind(this))
     @disposables.add @buffer.onDidChange(@pushPendingBufferChange.bind(this))
     @displayIndex = new DisplayIndex
     @spatialTokenIterator = @displayIndex.buildTokenIterator()
@@ -232,90 +230,91 @@ class DisplayLayer
   pushPendingBufferChange: (change) ->
     @pendingBufferChanges.push(change)
 
-  transactionAborted: ->
-    return unless @hasFlushedChangesBeforeEndOfTransaction
+  willBeginTransaction: ->
+    if @buffer.transactCallDepth > 0
+      @flushPendingBufferChanges(false)
 
-    @flushPendingBufferChanges()
-    if @buffer.transactCallDepth is 1
-      # no change event will be emitted for this transaction, so we need to
-      # restore pending buffer changes state manually before it ends.
-      @hasFlushedChangesBeforeEndOfTransaction = false
+  didAbortTransaction: ->
+    @flushPendingBufferChanges(false)
+    @resetPendingBufferChanges() if @buffer.transactCallDepth is 1
 
-  flushPendingBufferChanges: ->
-    return if @pendingBufferChanges.length is 0
-    return if @buffer.transactCallDepth is 0
-
-    warningMessage = """
-    Querying the state of the display layer while a transaction is in progress
-    is considered to be slow. Please, consider doing so before the transaction
-    begins or after it ends for better performance.
-    """
-    stackTrace = new Error().stack
-    console.warn warningMessage, stackTrace
-
-    combinedChanges = combineBufferChanges(@pendingBufferChanges)
-    @pendingBufferChanges = []
-    @hasFlushedChangesBeforeEndOfTransaction = true
-    @applyChanges(combinedChanges)
-
-  bufferDidChangeText: ({changes}) ->
-    if @hasFlushedChangesBeforeEndOfTransaction
-      combinedChanges = combineBufferChanges(@pendingBufferChanges)
-      @hasFlushedChangesBeforeEndOfTransaction = false
-      @applyChanges(combinedChanges)
+  didCommitTransaction: (patch) ->
+    if @hasFlushedBeforeEndingOutermostTransaction
+      @flushPendingBufferChanges(false)
     else
-      @applyChanges(changes)
+      @flushChanges(normalizePatchChanges(patch.getChanges()))
 
+    @resetPendingBufferChanges() if @buffer.transactCallDepth is 0
+
+  resetPendingBufferChanges: ->
     @pendingBufferChanges = []
+    @hasFlushedBeforeEndingOutermostTransaction = false
 
-  applyChanges: (changes) ->
-    combinedChanges = new Patch
+  flushPendingBufferChanges: (logWarning=true) ->
+    changes = combineBufferChanges(@pendingBufferChanges)
+    if changes.length > 0
+      if logWarning
+        warningMessage = """
+        Querying the state of the display layer while a transaction is in progress
+        is considered to be slow. Please, consider doing so before the transaction
+        begins or after it ends for better performance.
+        """
+        console.warn warningMessage, new Error().stack
 
-    i = 0
-    while i < changes.length
-      {start, oldStart, oldExtent, newExtent} = changes[i]
-      startRow = start.row
-      oldRangeEndRow = startRow + oldExtent.row + 1
-      newRangeDelta = newExtent.row - oldExtent.row
+      @flushChanges(changes, logWarning)
 
-      while i < changes.length - 1 and changes[i + 1].oldStart.row - oldRangeEndRow <= 1
-        {oldStart, oldExtent, newExtent} = changes[i + 1]
-        newRangeDelta += newExtent.row - oldExtent.row
-        oldRangeEndRow = oldStart.row + oldExtent.row + 1
+  flushChanges: (changes) ->
+    @pendingBufferChanges = []
+    @hasFlushedBeforeEndingOutermostTransaction = true
+
+    if changes.length > 0
+      combinedChanges = new Patch
+
+      i = 0
+      while i < changes.length
+        {start, oldStart, oldExtent, newExtent} = changes[i]
+        startRow = start.row
+        oldRangeEndRow = startRow + oldExtent.row + 1
+        newRangeDelta = newExtent.row - oldExtent.row
+
+        while i < changes.length - 1 and changes[i + 1].oldStart.row - oldRangeEndRow <= 1
+          {oldStart, oldExtent, newExtent} = changes[i + 1]
+          newRangeDelta += newExtent.row - oldExtent.row
+          oldRangeEndRow = oldStart.row + oldExtent.row + 1
+          i++
+
+        oldRange = Range(Point(startRow, 0), Point(oldRangeEndRow, 0))
+        newRange = Range(Point(startRow, 0), Point(oldRangeEndRow + newRangeDelta, 0))
+        {oldRange, newRange} = @expandChangeRegionToSurroundingEmptyLines(oldRange, newRange)
+
+        {startScreenRow, endScreenRow, startBufferRow, endBufferRow} = @expandBufferRangeToLineBoundaries(oldRange)
+        endBufferRow = newRange.end.row + (endBufferRow - oldRange.end.row)
+
+        oldRowExtent = endScreenRow - startScreenRow
+        newScreenLines = @buildSpatialScreenLines(startBufferRow, endBufferRow)
+        newRowExtent = newScreenLines.length
+
+        @spliceDisplayIndex(startScreenRow, oldRowExtent, newScreenLines)
+
+        start = Point(startScreenRow, 0)
+        oldExtent = Point(oldRowExtent, 0)
+        newExtent = Point(newRowExtent, 0)
+
+        combinedChanges.splice(start, oldExtent, newExtent)
         i++
 
-      oldRange = Range(Point(startRow, 0), Point(oldRangeEndRow, 0))
-      newRange = Range(Point(startRow, 0), Point(oldRangeEndRow + newRangeDelta, 0))
-      {oldRange, newRange} = @expandChangeRegionToSurroundingEmptyLines(oldRange, newRange)
+      if @textDecorationLayer?
+        invalidatedRanges = @textDecorationLayer.getInvalidatedRanges()
+        for range in invalidatedRanges
+          range = @translateBufferRange(range)
+          @invalidateScreenLines(range)
+          range.start.column = 0
+          range.end.row++
+          range.end.column = 0
+          extent = range.getExtent()
+          combinedChanges.splice(range.start, extent, extent)
 
-      {startScreenRow, endScreenRow, startBufferRow, endBufferRow} = @expandBufferRangeToLineBoundaries(oldRange)
-      endBufferRow = newRange.end.row + (endBufferRow - oldRange.end.row)
-
-      oldRowExtent = endScreenRow - startScreenRow
-      newScreenLines = @buildSpatialScreenLines(startBufferRow, endBufferRow)
-      newRowExtent = newScreenLines.length
-
-      @spliceDisplayIndex(startScreenRow, oldRowExtent, newScreenLines)
-
-      start = Point(startScreenRow, 0)
-      oldExtent = Point(oldRowExtent, 0)
-      newExtent = Point(newRowExtent, 0)
-
-      combinedChanges.splice(start, oldExtent, newExtent)
-      i++
-
-    if @textDecorationLayer?
-      invalidatedRanges = @textDecorationLayer.getInvalidatedRanges()
-      for range in invalidatedRanges
-        range = @translateBufferRange(range)
-        @invalidateScreenLines(range)
-        range.start.column = 0
-        range.end.row++
-        range.end.column = 0
-        extent = range.getExtent()
-        combinedChanges.splice(range.start, extent, extent)
-
-    @emitter.emit 'did-change-sync', Object.freeze(normalizePatchChanges(combinedChanges.getChanges()))
+      @emitter.emit 'did-change-sync', Object.freeze(normalizePatchChanges(combinedChanges.getChanges()))
 
   spliceDisplayIndex: (startScreenRow, oldRowExtent, newScreenLines) ->
     deletedSpatialLineIds = @displayIndex.splice(startScreenRow, oldRowExtent, newScreenLines)

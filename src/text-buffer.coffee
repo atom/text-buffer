@@ -964,6 +964,8 @@ class TextBuffer
   undo: ->
     if pop = @history.popUndoStack()
       @applyChange(change) for change in pop.patch.getChanges()
+      for id, displayLayer of @displayLayers when @transactCallDepth is 0
+        displayLayer.didCommitTransaction(pop.patch)
       @restoreFromMarkerSnapshot(pop.snapshot)
       @emitMarkerChangeEvents(pop.snapshot)
       @emitDidChangeTextEvent(pop.patch)
@@ -975,6 +977,8 @@ class TextBuffer
   redo: ->
     if pop = @history.popRedoStack()
       @applyChange(change) for change in pop.patch.getChanges()
+      for id, displayLayer of @displayLayers when @transactCallDepth is 0
+        displayLayer.didCommitTransaction(pop.patch)
       @restoreFromMarkerSnapshot(pop.snapshot)
       @emitMarkerChangeEvents(pop.snapshot)
       @emitDidChangeTextEvent(pop.patch)
@@ -1000,6 +1004,8 @@ class TextBuffer
       fn = groupingInterval
       groupingInterval = 0
 
+    displayLayer.willBeginTransaction() for id, displayLayer of @displayLayers
+
     checkpointBefore = @history.createCheckpoint(@createMarkerSnapshot(), true)
 
     try
@@ -1007,8 +1013,7 @@ class TextBuffer
       result = fn()
     catch exception
       @revertToCheckpoint(checkpointBefore, true)
-      for id, displayLayer of @displayLayers
-        displayLayer.transactionAborted()
+      displayLayer.didAbortTransaction() for id, displayLayer of @displayLayers
       throw exception unless exception instanceof TransactionAbortedError
       return
     finally
@@ -1020,8 +1025,9 @@ class TextBuffer
       error.metadata = {history: @history.toString()}
     @history.applyGroupingInterval(groupingInterval)
     @history.enforceUndoStackSizeLimit()
+    displayLayer.didCommitTransaction(compactedChanges) for id, displayLayer of @displayLayers
     @emitMarkerChangeEvents(endMarkerSnapshot)
-    @emitDidChangeTextEvent(compactedChanges) if compactedChanges
+    @emitDidChangeTextEvent(compactedChanges) if compactedChanges and @transactCallDepth is 0
     result
 
   abortTransaction: ->
@@ -1051,6 +1057,8 @@ class TextBuffer
   revertToCheckpoint: (checkpoint) ->
     if truncated = @history.truncateUndoStack(checkpoint)
       @applyChange(change) for change in truncated.patch.getChanges()
+      for id, displayLayer of @displayLayers when @transactCallDepth is 0
+        displayLayer.didCommitTransaction(truncated.patch)
       @restoreFromMarkerSnapshot(truncated.snapshot)
       @emitter.emit 'did-update-markers'
       @emitDidChangeTextEvent(truncated.patch)
