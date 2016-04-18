@@ -1007,6 +1007,8 @@ class TextBuffer
       result = fn()
     catch exception
       @revertToCheckpoint(checkpointBefore, true)
+      for id, displayLayer of @displayLayers
+        displayLayer.transactionAborted()
       throw exception unless exception instanceof TransactionAbortedError
       return
     finally

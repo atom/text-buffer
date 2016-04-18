@@ -901,6 +901,23 @@ describe "DisplayLayer", ->
       expect(displayLayer.getText()).toBe 'Vabc¬\ndef¬\ngWXhi¬\njkYZ'
       expect(eventCount).toBe(2)
 
+    it "allows aborting a transaction after querying in the middle of it", ->
+      buffer = new TextBuffer(text: 'abc\ndef\nghi\njk')
+      displayLayer = buffer.addDisplayLayer(invisibles: {eol: '¬'})
+
+      eventCount = 0
+      displayLayer.onDidChangeSync -> eventCount++
+
+      buffer.transact ->
+        buffer.insert([0, 0], 'V')
+        buffer.insert([2, 1], 'WX')
+        displayLayer.getText()
+        buffer.insert([3, 2], 'YZ')
+        buffer.abortTransaction()
+
+      expect(displayLayer.getText()).toBe 'abc¬\ndef¬\nghi¬\njk'
+      expect(eventCount).toBe(2)
+
   now = Date.now()
   for i in [0...100] by 1
     do ->

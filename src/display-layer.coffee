@@ -233,6 +233,15 @@ class DisplayLayer
   pushPendingBufferChange: (change) ->
     @pendingBufferChanges.push(change)
 
+  transactionAborted: ->
+    return unless @hasFlushedChangesBeforeEndOfTransaction
+
+    @flushPendingBufferChanges()
+    if @buffer.transactCallDepth is 1
+      # no change event will be emitted for this transaction, so we need to
+      # restore pending buffer changes state manually before it ends.
+      @hasFlushedChangesBeforeEndOfTransaction = false
+
   flushPendingBufferChanges: ->
     return if @pendingBufferChanges.length is 0
     return if @buffer.transactCallDepth is 0
