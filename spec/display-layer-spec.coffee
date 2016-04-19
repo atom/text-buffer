@@ -870,6 +870,12 @@ describe "DisplayLayer", ->
       expect(displayLayer.translateBufferPosition([1, 8], clipDirection: 'forward')).toEqual [0, 8]
 
   describe "when the buffer changes", ->
+    warnsCount = null
+
+    beforeEach ->
+      warnsCount = 0
+      spyOn(console, 'warn').andCallFake -> warnsCount++
+
     it "waits until the end of a transaction to emit a change event", ->
       buffer = new TextBuffer(text: 'abc\ndef\nghi\njk')
       displayLayer = buffer.addDisplayLayer()
@@ -880,10 +886,13 @@ describe "DisplayLayer", ->
       buffer.transact ->
         buffer.insert([0, 0], 'A')
         expect(eventCount).toBe(0)
+        expect(warnsCount).toBe(0)
         buffer.insert([2, 2], 'B')
         expect(eventCount).toBe(0)
+        expect(warnsCount).toBe(0)
 
       expect(eventCount).toBe(1)
+      expect(warnsCount).toBe(0)
 
     it "answers queries successfully in the middle of a transaction", ->
       buffer = new TextBuffer(text: 'abc\ndef\nghi\njk')
@@ -895,11 +904,45 @@ describe "DisplayLayer", ->
       buffer.transact ->
         buffer.insert([0, 0], 'V')
         buffer.insert([2, 1], 'WX')
+        expect(eventCount).toBe(0)
+        expect(warnsCount).toBe(0)
         expect(displayLayer.getText()).toBe 'Vabc¬\ndef¬\ngWXhi¬\njk'
+        expect(eventCount).toBe(1)
+        expect(warnsCount).toBe(1)
         buffer.insert([3, 2], 'YZ')
 
       expect(displayLayer.getText()).toBe 'Vabc¬\ndef¬\ngWXhi¬\njkYZ'
       expect(eventCount).toBe(2)
+      expect(warnsCount).toBe(1)
+
+    it "answers queries successfully in the middle of a nested transaction", ->
+      buffer = new TextBuffer(text: 'abc\ndef\nghi\njk')
+      displayLayer = buffer.addDisplayLayer(invisibles: {eol: '¬'})
+
+      eventCount = 0
+      displayLayer.onDidChangeSync -> eventCount++
+
+      buffer.transact ->
+        buffer.insert([0, 0], 'U')
+        expect(eventCount).toBe(0)
+        expect(warnsCount).toBe(0)
+
+        buffer.transact ->
+          expect(eventCount).toBe(1)
+          expect(warnsCount).toBe(0)
+          buffer.insert([1, 1], 'V')
+          expect(displayLayer.getText()).toBe 'Uabc¬\ndVef¬\nghi¬\njk'
+          expect(eventCount).toBe(2)
+          expect(warnsCount).toBe(1)
+          buffer.insert([2, 1], 'WX')
+
+        expect(eventCount).toBe(3)
+        expect(warnsCount).toBe(1)
+        buffer.insert([3, 2], 'YZ')
+
+      expect(displayLayer.getText()).toBe 'Uabc¬\ndVef¬\ngWXhi¬\njkYZ'
+      expect(eventCount).toBe(4)
+      expect(warnsCount).toBe(1)
 
     it "allows aborting a transaction after querying in the middle of it", ->
       buffer = new TextBuffer(text: 'abc\ndef\nghi\njk')
@@ -911,12 +954,17 @@ describe "DisplayLayer", ->
       buffer.transact ->
         buffer.insert([0, 0], 'V')
         buffer.insert([2, 1], 'WX')
+        expect(eventCount).toBe(0)
+        expect(warnsCount).toBe(0)
         displayLayer.getText()
+        expect(eventCount).toBe(1)
+        expect(warnsCount).toBe(1)
         buffer.insert([3, 2], 'YZ')
         buffer.abortTransaction()
 
       expect(displayLayer.getText()).toBe 'abc¬\ndef¬\nghi¬\njk'
       expect(eventCount).toBe(2)
+      expect(warnsCount).toBe(1)
 
   now = Date.now()
   for i in [0...100] by 1
