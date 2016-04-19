@@ -1389,8 +1389,8 @@ class TextBuffer
   reload: (clearHistory=false) ->
     @emitter.emit 'will-reload'
     if clearHistory
+      @setTextInRange(@getRange(), @cachedDiskContents ? "", normalizeLineEndings: false)
       @clearUndoStack()
-      @setTextInRange(@getRange(), @cachedDiskContents ? "", normalizeLineEndings: false, undo: 'skip')
     else
       @setTextViaDiff(@cachedDiskContents ? "")
     @emitModifiedStatusChanged(false)
