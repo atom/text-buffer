@@ -18,6 +18,8 @@ module.exports =
   newlineRegex: /\r\n|\n|\r/g
 
   combineBufferChanges: (changes) ->
+    return [] if changes.length is 0
+
     combinedChanges = new Patch
     for {oldRange, newRange} in changes
       combinedChanges.splice(oldRange.start, oldRange.getExtent(), newRange.getExtent())
