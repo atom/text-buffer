@@ -69,7 +69,8 @@ class DisplayLayer
       destroyInvalidatedMarkers: true
     })
     @foldIdCounter = 1
-    @resetPendingBufferChanges()
+    @pendingBufferChanges = []
+    @hasFlushedBeforeEndingOutermostTransaction = false
     @disposables = new CompositeDisposable
     @disposables.add @buffer.onDidChange(@pushPendingBufferChange.bind(this))
     @displayIndex = new DisplayIndex
@@ -231,27 +232,28 @@ class DisplayLayer
     @pendingBufferChanges.push(change)
 
   willBeginTransaction: ->
-    if @buffer.transactCallDepth > 0
-      @flushPendingBufferChanges(false)
-
-  didAbortTransaction: ->
     @flushPendingBufferChanges(false)
-    @resetPendingBufferChanges() if @buffer.transactCallDepth is 1
 
-  didCommitTransaction: (patch) ->
+  didAbortTransaction: (transactionDepth) ->
+    @flushPendingBufferChanges(false)
+    if transactionDepth is 0
+      @pendingBufferChanges = []
+      @hasFlushedBeforeEndingOutermostTransaction = false
+
+  didCommitTransaction: (patch, transactionDepth) ->
     if @hasFlushedBeforeEndingOutermostTransaction
       @flushPendingBufferChanges(false)
     else
+      @pendingBufferChanges = []
       @flushChanges(normalizePatchChanges(patch.getChanges()))
 
-    @resetPendingBufferChanges() if @buffer.transactCallDepth is 0
-
-  resetPendingBufferChanges: ->
-    @pendingBufferChanges = []
-    @hasFlushedBeforeEndingOutermostTransaction = false
+    if transactionDepth is 0
+      @pendingBufferChanges = []
+      @hasFlushedBeforeEndingOutermostTransaction = false
 
   flushPendingBufferChanges: (logWarning=true) ->
     changes = combineBufferChanges(@pendingBufferChanges)
+    @pendingBufferChanges = []
     if changes.length > 0
       if logWarning
         warningMessage = """
@@ -264,7 +266,6 @@ class DisplayLayer
       @flushChanges(changes, logWarning)
 
   flushChanges: (changes) ->
-    @pendingBufferChanges = []
     @hasFlushedBeforeEndingOutermostTransaction = true
 
     if changes.length > 0
