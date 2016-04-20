@@ -6,7 +6,14 @@ describe "MarkerLayer", ->
 
   beforeEach ->
     jasmine.addCustomEqualityTester(require("underscore-plus").isEqual)
-    buffer = new TextBuffer(text: "abcdefghijklmnopqrstuvwxyz")
+    buffer = new TextBuffer(text: """
+    Lorem ipsum dolor sit amet,
+    consectetur adipisicing elit,
+    sed do eiusmod tempor incididunt
+    ut labore et dolore magna aliqua.
+    Ut enim ad minim veniam, quis
+    nostrud exercitation ullamco laboris.
+    """)
     layer1 = buffer.addMarkerLayer()
     layer2 = buffer.addMarkerLayer()
 
@@ -171,18 +178,38 @@ describe "MarkerLayer", ->
   describe "::onDidUpdate", ->
     it "notifies observers asynchronously when markers are created, updated, or destroyed", (done) ->
       updateCount = 0
-      layer1.onDidUpdate ->
+      layer1.onDidUpdate ({created, destroyed, updated}) ->
         updateCount++
         if updateCount is 1
+          expect(destroyed.size).toBe(0)
+          expect(updated.size).toBe(0)
+          expect(created.has(marker1.id)).toBe(true)
+          expect(created.has(marker2.id)).toBe(true)
+
           marker1.setRange([[1, 2], [3, 4]])
-          marker2.setRange([[4, 5], [6, 7]])
+          marker2.setRange([[3, 10], [4, 5]])
         else if updateCount is 2
-          buffer.insert([0, 1], "xxx")
-          buffer.insert([0, 1], "yyy")
+          expect(created.size).toBe(0)
+          expect(destroyed.size).toBe(0)
+          expect(updated.has(marker1.id)).toBe(true)
+          expect(updated.has(marker2.id)).toBe(true)
+
+          buffer.insert([1, 3], "xxx")
+          buffer.insert([2, 0], "yyy")
         else if updateCount is 3
+          expect(created.size).toBe(0)
+          expect(destroyed.size).toBe(0)
+          expect(updated.has(marker1.id)).toBe(true)
+          expect(updated.has(marker2.id)).toBe(false)
+
           marker1.destroy()
           marker2.destroy()
         else if updateCount is 4
+          expect(created.size).toBe(0)
+          expect(updated.size).toBe(0)
+          expect(destroyed.has(marker1.id)).toBe(true)
+          expect(destroyed.has(marker2.id)).toBe(true)
+
           done()
 
       marker1 = layer1.markRange([[0, 2], [0, 4]])

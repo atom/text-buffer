@@ -39,6 +39,9 @@ class MarkerLayer
     @index = new MarkerIndex
     @markersById = {}
     @markersIdsWithChangeSubscriptions = new Set
+    @createdMarkers = new Set
+    @destroyedMarkers = new Set
+    @updatedMarkers = new Set
     @destroyed = false
     @emitCreateMarkerEvents = false
 
@@ -255,6 +258,7 @@ class MarkerLayer
           marker.destroy()
         else
           marker.valid = false
+      @updatedMarkers.add(id)
     @scheduleUpdateEvent()
 
   restoreFromSnapshot: (snapshots) ->
@@ -313,8 +317,9 @@ class MarkerLayer
   Section: Private - Marker interface
   ###
 
-  markerUpdated: ->
+  markerUpdated: (id) ->
     @delegate.markersUpdated(this)
+    @updatedMarkers.add(id)
     @scheduleUpdateEvent()
 
   destroyMarker: (id) ->
@@ -323,6 +328,7 @@ class MarkerLayer
       @markersIdsWithChangeSubscriptions.delete(id)
       @index.delete(id)
       @delegate.markersUpdated(this)
+      @destroyedMarkers.add(id)
       @scheduleUpdateEvent()
 
   getMarkerRange: (id) ->
@@ -352,6 +358,7 @@ class MarkerLayer
     marker = @addMarker(id, range, params)
     @delegate.markerCreated(this, marker)
     @delegate.markersUpdated(this)
+    @createdMarkers.add(id)
     @scheduleUpdateEvent()
     @emitter.emit 'did-create-marker', marker if @emitCreateMarkerEvents
     marker
@@ -371,7 +378,11 @@ class MarkerLayer
       @didUpdateEventScheduled = true
       process.nextTick =>
         @didUpdateEventScheduled = false
-        @emitter.emit 'did-update'
+        event = {created: @createdMarkers, destroyed: @destroyedMarkers, updated: @updatedMarkers}
+        @createdMarkers = new Set
+        @destroyedMarkers = new Set
+        @updatedMarkers = new Set
+        @emitter.emit 'did-update', event
 
 filterSet = (set1, set2) ->
   if set1

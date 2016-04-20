@@ -370,7 +370,7 @@ class Marker
       updated = true
 
     @emitChangeEvent(range ? oldRange, textChanged, propertiesChanged)
-    @layer.markerUpdated() if updated and not textChanged
+    @layer.markerUpdated(@id) if updated and not textChanged
     updated
 
   getSnapshot: (range) ->

@@ -291,8 +291,8 @@ class DisplayMarkerLayer
   translateScreenRange: (screenRange, options) ->
     @displayLayer.translateScreenRange(screenRange, options)
 
-  emitDidUpdate: ->
-    @emitter.emit('did-update')
+  emitDidUpdate: (event) ->
+    @emitter.emit('did-update', event)
 
   emitDidDestroy: ->
     @emitter.emit('did-destroy')
