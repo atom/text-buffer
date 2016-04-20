@@ -42,6 +42,7 @@ class MarkerLayer
     @createdMarkers = new Set
     @destroyedMarkers = new Set
     @updatedMarkers = new Set
+    @setDisableDidUpdateEvent(false)
     @destroyed = false
     @emitCreateMarkerEvents = false
 
@@ -259,7 +260,7 @@ class MarkerLayer
         else
           marker.valid = false
       @updatedMarkers.add(id)
-    @scheduleUpdateEvent()
+    @emitDidUpdateEvent()
 
   restoreFromSnapshot: (snapshots) ->
     return unless snapshots?
@@ -318,18 +319,18 @@ class MarkerLayer
   ###
 
   markerUpdated: (id) ->
-    @delegate.markersUpdated(this)
     @updatedMarkers.add(id)
-    @scheduleUpdateEvent()
+    @emitDidUpdateEvent()
+    @delegate.markersUpdated(this)
 
   destroyMarker: (id) ->
     if @markersById.hasOwnProperty(id)
       delete @markersById[id]
       @markersIdsWithChangeSubscriptions.delete(id)
       @index.delete(id)
-      @delegate.markersUpdated(this)
       @destroyedMarkers.add(id)
-      @scheduleUpdateEvent()
+      @emitDidUpdateEvent()
+      @delegate.markersUpdated(this)
 
   getMarkerRange: (id) ->
     Range.fromObject(@index.getRange(id))
@@ -356,11 +357,11 @@ class MarkerLayer
   createMarker: (range, params) ->
     id = @delegate.getNextMarkerId()
     marker = @addMarker(id, range, params)
+    @createdMarkers.add(id)
+    @emitDidUpdateEvent()
+    @emitter.emit 'did-create-marker', marker if @emitCreateMarkerEvents
     @delegate.markerCreated(this, marker)
     @delegate.markersUpdated(this)
-    @createdMarkers.add(id)
-    @scheduleUpdateEvent()
-    @emitter.emit 'did-create-marker', marker if @emitCreateMarkerEvents
     marker
 
   ###
@@ -373,16 +374,17 @@ class MarkerLayer
     @index.insert(id, range.start, range.end)
     @markersById[id] = new Marker(id, this, range, params)
 
-  scheduleUpdateEvent: ->
-    unless @didUpdateEventScheduled
-      @didUpdateEventScheduled = true
-      process.nextTick =>
-        @didUpdateEventScheduled = false
-        event = {created: @createdMarkers, destroyed: @destroyedMarkers, updated: @updatedMarkers}
-        @createdMarkers = new Set
-        @destroyedMarkers = new Set
-        @updatedMarkers = new Set
-        @emitter.emit 'did-update', event
+  setDisableDidUpdateEvent: (@didUpdateEventDisabled) ->
+
+  emitDidUpdateEvent: ->
+    return if @didUpdateEventDisabled
+
+    if @createdMarkers.size > 0 or @destroyedMarkers.size > 0 or @updatedMarkers.size > 0
+      event = {created: @createdMarkers, destroyed: @destroyedMarkers, updated: @updatedMarkers}
+      @createdMarkers = new Set
+      @destroyedMarkers = new Set
+      @updatedMarkers = new Set
+      @emitter.emit 'did-update', event
 
 filterSet = (set1, set2) ->
   if set1
