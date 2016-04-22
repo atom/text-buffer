@@ -1066,6 +1066,22 @@ class TextBuffer
   groupChangesSinceCheckpoint: (checkpoint) ->
     @history.groupChangesSinceCheckpoint(checkpoint, @createMarkerSnapshot(), false)
 
+  # Public: Returns a list of changes since the given checkpoint.
+  #
+  # If the given checkpoint is no longer present in the undo history, this
+  # method will return an empty {Array}.
+  #
+  # Returns an {Array} containing the following change {Object}s:
+  # * `start` A {Point} representing where the change started.
+  # * `oldExtent` A {Point} representing the replaced extent.
+  # * `newExtent`: A {Point} representing the replacement extent.
+  # * `newText`: A {String} representing the replacement text.
+  getChangesSinceCheckpoint: (checkpoint) ->
+    if patch = @history.getChangesSinceCheckpoint(checkpoint)
+      normalizePatchChanges(patch.getChanges())
+    else
+      []
+
   ###
   Section: Search And Replace
   ###

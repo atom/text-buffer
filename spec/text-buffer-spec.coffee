@@ -585,6 +585,34 @@ describe "TextBuffer", ->
     beforeEach ->
       buffer = new TextBuffer
 
+    describe "::getChangesSinceCheckpoint(checkpoint)", ->
+      it "returns a list of changes that have been made since the checkpoint", ->
+        buffer.setText('abc\ndef\nghi\njkl\n')
+        buffer.append("mno\n")
+        checkpoint = buffer.createCheckpoint()
+        buffer.transact ->
+          buffer.append('pqr\n')
+          buffer.append('stu\n')
+        buffer.append('vwx\n')
+        buffer.setTextInRange([[1, 0], [1, 2]], 'yz')
+
+        expect(buffer.getText()).toBe 'abc\nyzf\nghi\njkl\nmno\npqr\nstu\nvwx\n'
+        expect(buffer.getChangesSinceCheckpoint(checkpoint)).toEqual [
+          {start: [1, 0], oldExtent: [0, 2], newExtent: [0, 2], newText: 'yz'},
+          {start: [5, 0], oldExtent: [0, 0], newExtent: [3, 0], newText: 'pqr\nstu\nvwx\n'}
+        ]
+
+      it "returns an empty list of changes when no change has been made since the checkpoint", ->
+        checkpoint = buffer.createCheckpoint()
+        expect(buffer.getChangesSinceCheckpoint(checkpoint)).toEqual []
+
+      it "returns an empty list of changes when the checkpoint doesn't exist", ->
+        buffer.transact ->
+          buffer.append('abc\n')
+          buffer.append('def\n')
+        buffer.append('ghi\n')
+        expect(buffer.getChangesSinceCheckpoint(-1)).toEqual []
+
     describe "::revertToCheckpoint(checkpoint)", ->
       it "undoes all changes following the checkpoint", ->
         buffer.append("hello")

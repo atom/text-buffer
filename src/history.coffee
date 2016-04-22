@@ -76,6 +76,29 @@ class History
     else
       false
 
+  getChangesSinceCheckpoint: (checkpointId) ->
+    checkpointIndex = null
+    patchesSinceCheckpoint = []
+
+    for entry, i in @undoStack by -1
+      break if checkpointIndex?
+
+      switch entry.constructor
+        when Checkpoint
+          if entry.id is checkpointId
+            checkpointIndex = i
+        when Transaction
+          patchesSinceCheckpoint.unshift(entry.patch)
+        when Patch
+          patchesSinceCheckpoint.unshift(entry)
+        else
+          throw new Error("Unexpected undo stack entry type: #{entry.constructor.name}")
+
+    if checkpointIndex?
+      Patch.compose(patchesSinceCheckpoint)
+    else
+      null
+
   enforceUndoStackSizeLimit: ->
     if @undoStack.length > @maxUndoEntries
       @undoStack.splice(0, @undoStack.length - @maxUndoEntries)
