@@ -140,26 +140,26 @@ describe "DisplayMarkerLayer", ->
     markerLayer.onDidUpdate (event) -> events.push({
       created: Array.from(event.created),
       updated: Array.from(event.updated),
-      invalidated: Array.from(event.invalidated),
+      touched: Array.from(event.touched),
       destroyed: Array.from(event.destroyed)
     })
 
     events = []
     marker = markerLayer.markScreenRange([[0, 4], [1, 4]], {invalidate: 'inside'})
     expect(events).toEqual([
-      {created: [marker.id], updated: [], invalidated: [], destroyed: []}
+      {created: [marker.id], updated: [], touched: [], destroyed: []}
     ])
 
     events = []
     marker.setScreenRange([[0, 5], [1, 0]])
     expect(events).toEqual([
-      {created: [], updated: [marker.id], invalidated: [], destroyed: []}
+      {created: [], updated: [marker.id], touched: [], destroyed: []}
     ])
 
     events = []
     buffer.insert([0, 8], 'foo')
     expect(events).toEqual([
-      {created: [], updated: [], invalidated: [marker.id], destroyed: []}
+      {created: [], updated: [], touched: [marker.id], destroyed: []}
     ])
 
     events = []
@@ -168,10 +168,9 @@ describe "DisplayMarkerLayer", ->
 
     events = []
     marker.destroy()
-    expect(events.length).toBe(1)
-    expect(Array.from(events[0].created)).toEqual []
-    expect(Array.from(events[0].updated)).toEqual []
-    expect(Array.from(events[0].destroyed)).toEqual [marker.id]
+    expect(events).toEqual([
+      {created: [], updated: [], touched: [], destroyed: [marker.id]}
+    ])
 
   it "allows markers to be copied", ->
     buffer = new TextBuffer(text: '\ta\tbc\tdef\tg\n\th')

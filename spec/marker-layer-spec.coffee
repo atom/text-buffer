@@ -183,7 +183,7 @@ describe "MarkerLayer", ->
       layer.onDidUpdate (event) -> events.push({
         created: Array.from(event.created),
         updated: Array.from(event.updated),
-        invalidated: Array.from(event.invalidated),
+        touched: Array.from(event.touched),
         destroyed: Array.from(event.destroyed)
       })
 
@@ -195,8 +195,8 @@ describe "MarkerLayer", ->
       marker3 = layer.markRange([[4, 0], [4, 5]])
 
       expect(events).toEqual([
-        {created: [marker1.id, marker2.id], updated: [], invalidated: [], destroyed: []},
-        {created: [marker3.id], updated: [], invalidated: [], destroyed: []}
+        {created: [marker1.id, marker2.id], updated: [], touched: [], destroyed: []},
+        {created: [marker3.id], updated: [], touched: [], destroyed: []}
       ])
 
       events = []
@@ -206,7 +206,7 @@ describe "MarkerLayer", ->
         marker3.destroy()
 
       expect(events).toEqual([
-        {created: [], updated: [marker1.id, marker2.id], invalidated: [], destroyed: [marker3.id]}
+        {created: [], updated: [marker1.id, marker2.id], touched: [], destroyed: [marker3.id]}
       ])
 
       events = []
@@ -216,8 +216,8 @@ describe "MarkerLayer", ->
       buffer.insert([1, 5], 'zzz')
 
       expect(events).toEqual([
-        {created: [], updated: [], invalidated: [marker1.id], destroyed: []},
-        {created: [], updated: [], invalidated: [marker1.id], destroyed: []}
+        {created: [], updated: [], touched: [marker1.id], destroyed: []},
+        {created: [], updated: [], touched: [marker1.id], destroyed: []}
       ])
 
       events = []
@@ -225,8 +225,8 @@ describe "MarkerLayer", ->
       buffer.undo()
 
       expect(events).toEqual([
-        {created: [], updated: [], invalidated: [marker1.id], destroyed: []},
-        {created: [], updated: [], invalidated: [marker1.id], destroyed: []}
+        {created: [], updated: [], touched: [marker1.id], destroyed: []},
+        {created: [], updated: [], touched: [marker1.id], destroyed: []}
       ])
 
       events = []
@@ -240,8 +240,8 @@ describe "MarkerLayer", ->
         buffer.insert([4, 3], 'fff')
 
       expect(events).toEqual([
-        {created: [], updated: [], invalidated: [marker1.id, marker2.id], destroyed: []},
-        {created: [], updated: [], invalidated: [marker2.id], destroyed: []}
+        {created: [], updated: [], touched: [marker1.id, marker2.id], destroyed: []},
+        {created: [], updated: [], touched: [marker2.id], destroyed: []}
       ])
 
       events = []
@@ -252,8 +252,8 @@ describe "MarkerLayer", ->
         marker2.clearTail()
 
       expect(events).toEqual([
-        {created: [], updated: [], invalidated: [marker2.id], destroyed: []},
-        {created: [], updated: [marker1.id, marker2.id], invalidated: [], destroyed: []}
+        {created: [], updated: [], touched: [marker2.id], destroyed: []},
+        {created: [], updated: [marker1.id, marker2.id], touched: [], destroyed: []}
       ])
 
       events = []
@@ -262,7 +262,7 @@ describe "MarkerLayer", ->
         marker2.destroy()
 
       expect(events).toEqual([
-        {created: [], updated: [], invalidated: [], destroyed: [marker1.id, marker2.id]}
+        {created: [], updated: [], touched: [], destroyed: [marker1.id, marker2.id]}
       ])
 
   describe "::copy", ->

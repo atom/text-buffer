@@ -33,7 +33,7 @@ class MarkerLayer
 
   constructor: (@delegate, @id, options) ->
     @maintainHistory = options?.maintainHistory ? false
-    @destroyInvalidatedMarkers = options?.destroyInvalidatedMarkers ? false
+    @destroytouchedMarkers = options?.destroytouchedMarkers ? false
     @persistent = options?.persistent ? false
     @emitter = new Emitter
     @index = new MarkerIndex
@@ -42,7 +42,7 @@ class MarkerLayer
     @createdMarkers = new Set
     @destroyedMarkers = new Set
     @updatedMarkers = new Set
-    @invalidatedMarkers = new Set
+    @touchedMarkers = new Set
     @setDisableDidUpdateEvent(false)
     @destroyed = false
     @emitCreateMarkerEvents = false
@@ -208,19 +208,21 @@ class MarkerLayer
   Section: Event subscription
   ###
 
-  # Public: Subscribe to be notified asynchronously whenever markers are
-  # created, updated, or destroyed on this layer. *Prefer this method for
-  # optimal performance when interacting with layers that could contain large
-  # numbers of markers.*
+  # Public: Subscribe to be notified whenever markers are created, updated,
+  # touched (moved because of a textual change), or destroyed on this layer.
+  # *Prefer this method for optimal performance when interacting with layers
+  # that could contain large numbers of markers.*
   #
   # * `callback` A {Function} that will be called with no arguments when changes
   #   occur on this layer.
   #
-  # Subscribers are notified once, asynchronously when any number of changes
-  # occur in a given tick of the event loop. You should re-query the layer
-  # to determine the state of markers in which you're interested in. It may
-  # be counter-intuitive, but this is much more efficient than subscribing to
-  # events on individual markers, which are expensive to deliver.
+  # Subscribers are notified once when any number of changes occur in this
+  # {MarkerLayer}. The notification gets scheduled either at the end of a
+  # transaction, or synchronously when a marker changes and no transaction is
+  # present. You should re-query the layer to determine the state of markers in
+  # which you're interested in: it may be counter-intuitive, but this is much
+  # more efficient than subscribing to events on individual markers, which are
+  # expensive to deliver.
   #
   # Returns a {Disposable}.
   onDidUpdate: (callback) ->
@@ -255,9 +257,9 @@ class MarkerLayer
     invalidated = @index.splice(start, oldExtent, newExtent)
     invalidated.touch.forEach (id) =>
       marker = @markersById[id]
-      @invalidatedMarkers.add(id)
+      @touchedMarkers.add(id)
       if invalidated[marker.getInvalidationStrategy()]?.has(id)
-        if @destroyInvalidatedMarkers
+        if @destroytouchedMarkers
           marker.destroy()
         else
           marker.valid = false
@@ -380,11 +382,11 @@ class MarkerLayer
   emitDidUpdateEvent: ->
     return if @didUpdateEventDisabled
 
-    if @createdMarkers.size > 0 or @destroyedMarkers.size > 0 or @invalidatedMarkers.size > 0 or @updatedMarkers.size > 0
-      event = {created: @createdMarkers, destroyed: @destroyedMarkers, invalidated: @invalidatedMarkers, updated: @updatedMarkers}
+    if @createdMarkers.size > 0 or @destroyedMarkers.size > 0 or @touchedMarkers.size > 0 or @updatedMarkers.size > 0
+      event = {created: @createdMarkers, destroyed: @destroyedMarkers, touched: @touchedMarkers, updated: @updatedMarkers}
       @createdMarkers = new Set
       @destroyedMarkers = new Set
-      @invalidatedMarkers = new Set
+      @touchedMarkers = new Set
       @updatedMarkers = new Set
       @emitter.emit 'did-update', event
 
