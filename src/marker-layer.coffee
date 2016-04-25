@@ -33,7 +33,7 @@ class MarkerLayer
 
   constructor: (@delegate, @id, options) ->
     @maintainHistory = options?.maintainHistory ? false
-    @destroytouchedMarkers = options?.destroytouchedMarkers ? false
+    @destroyInvalidatedMarkers = options?.destroyInvalidatedMarkers ? false
     @persistent = options?.persistent ? false
     @emitter = new Emitter
     @index = new MarkerIndex
@@ -259,7 +259,7 @@ class MarkerLayer
       marker = @markersById[id]
       @touchedMarkers.add(id)
       if invalidated[marker.getInvalidationStrategy()]?.has(id)
-        if @destroytouchedMarkers
+        if @destroyInvalidatedMarkers
           marker.destroy()
         else
           marker.valid = false

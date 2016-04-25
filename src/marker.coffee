@@ -102,12 +102,12 @@ class Marker
   #
   # Returns a {Disposable} on which `.dispose()` can be called to unsubscribe.
   onDidChange: (callback) ->
-    Grim.deprecate("""
-    Subscribing to marker change events is deprecated. Please, consider using
-    MarkerLayer.prototype.onDidUpdate instead.
-    """)
-
     unless @hasChangeObservers
+      Grim.deprecate("""
+      Subscribing to marker change events is deprecated. Please, consider using
+      `MarkerLayer.prototype.onDidUpdate` instead.
+      """)
+
       @previousEventState = @getSnapshot(@getRange())
       @hasChangeObservers = true
       @layer.markersIdsWithChangeSubscriptions.add(@id)

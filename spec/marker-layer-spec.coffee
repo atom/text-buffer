@@ -176,7 +176,7 @@ describe "MarkerLayer", ->
       expect(layer2.findMarkers(containsPoint: [0, 4])).toEqual [layer2Marker]
 
   describe "::onDidUpdate", ->
-    it "notifies observers synchronously or at the end of a transaction when markers are created, updated, invalidated, or destroyed", ->
+    it "notifies observers synchronously or at the end of a transaction when markers are created, updated directly, updated indirectly, or destroyed", ->
       layer = buffer.addMarkerLayer({maintainHistory: true})
       events = []
       [marker1, marker2, marker3] = []
