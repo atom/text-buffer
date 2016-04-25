@@ -964,24 +964,28 @@ class TextBuffer
   # Public: Undo the last operation. If a transaction is in progress, aborts it.
   undo: ->
     if pop = @history.popUndoStack()
-      @emitMarkerLayersDidUpdateEvent =>
-        @applyChange(change) for change in pop.patch.getChanges()
-        @restoreFromMarkerSnapshot(pop.snapshot)
-        @emitMarkerChangeEvents(pop.snapshot)
-        @emitDidChangeTextEvent(pop.patch)
-        true
+      markerLayerUpdateEventWasDisabled = @disableMarkerLayersDidUpdateEvent()
+      @applyChange(change) for change in pop.patch.getChanges()
+      @restoreFromMarkerSnapshot(pop.snapshot)
+      @enableMarkersLayersDidUpdateEvent()
+      @emitMarkerChangeEvents(pop.snapshot)
+      @disableMarkerLayersDidUpdateEvent() if markerLayerUpdateEventWasDisabled
+      @emitDidChangeTextEvent(pop.patch)
+      true
     else
       false
 
   # Public: Redo the last operation
   redo: ->
     if pop = @history.popRedoStack()
-      @emitMarkerLayersDidUpdateEvent =>
-        @applyChange(change) for change in pop.patch.getChanges()
-        @restoreFromMarkerSnapshot(pop.snapshot)
-        @emitMarkerChangeEvents(pop.snapshot)
-        @emitDidChangeTextEvent(pop.patch)
-        true
+      markerLayerUpdateEventWasDisabled = @disableMarkerLayersDidUpdateEvent()
+      @applyChange(change) for change in pop.patch.getChanges()
+      @restoreFromMarkerSnapshot(pop.snapshot)
+      @enableMarkersLayersDidUpdateEvent()
+      @emitMarkerChangeEvents(pop.snapshot)
+      @disableMarkerLayersDidUpdateEvent() if markerLayerUpdateEventWasDisabled
+      @emitDidChangeTextEvent(pop.patch)
+      true
     else
       false
 
@@ -1003,28 +1007,30 @@ class TextBuffer
       fn = groupingInterval
       groupingInterval = 0
 
-    @emitMarkerLayersDidUpdateEvent =>
-      checkpointBefore = @history.createCheckpoint(@createMarkerSnapshot(), true)
+    markerLayerUpdateEventWasDisabled = @disableMarkerLayersDidUpdateEvent()
+    checkpointBefore = @history.createCheckpoint(@createMarkerSnapshot(), true)
 
-      try
-        @transactCallDepth++
-        result = fn()
-      catch exception
-        @revertToCheckpoint(checkpointBefore, true)
-        throw exception unless exception instanceof TransactionAbortedError
-        return
-      finally
-        @transactCallDepth--
+    try
+      @transactCallDepth++
+      result = fn()
+    catch exception
+      @revertToCheckpoint(checkpointBefore, true)
+      throw exception unless exception instanceof TransactionAbortedError
+      return
+    finally
+      @transactCallDepth--
 
-      endMarkerSnapshot = @createMarkerSnapshot()
-      compactedChanges = @history.groupChangesSinceCheckpoint(checkpointBefore, endMarkerSnapshot, true)
-      global.atom?.assert compactedChanges, "groupChangesSinceCheckpoint() returned false.", (error) =>
-        error.metadata = {history: @history.toString()}
-      @history.applyGroupingInterval(groupingInterval)
-      @history.enforceUndoStackSizeLimit()
-      @emitMarkerChangeEvents(endMarkerSnapshot)
-      @emitDidChangeTextEvent(compactedChanges) if compactedChanges
-      result
+    endMarkerSnapshot = @createMarkerSnapshot()
+    compactedChanges = @history.groupChangesSinceCheckpoint(checkpointBefore, endMarkerSnapshot, true)
+    global.atom?.assert compactedChanges, "groupChangesSinceCheckpoint() returned false.", (error) =>
+      error.metadata = {history: @history.toString()}
+    @history.applyGroupingInterval(groupingInterval)
+    @history.enforceUndoStackSizeLimit()
+    @enableMarkersLayersDidUpdateEvent()
+    @emitMarkerChangeEvents(endMarkerSnapshot)
+    @disableMarkerLayersDidUpdateEvent() if markerLayerUpdateEventWasDisabled
+    @emitDidChangeTextEvent(compactedChanges) if compactedChanges
+    result
 
   abortTransaction: ->
     throw new TransactionAbortedError("Transaction aborted.")
@@ -1052,12 +1058,14 @@ class TextBuffer
   # Returns a {Boolean} indicating whether the operation succeeded.
   revertToCheckpoint: (checkpoint) ->
     if truncated = @history.truncateUndoStack(checkpoint)
-      @emitMarkerLayersDidUpdateEvent =>
-        @applyChange(change) for change in truncated.patch.getChanges()
-        @restoreFromMarkerSnapshot(truncated.snapshot)
-        @emitter.emit 'did-update-markers'
-        @emitDidChangeTextEvent(truncated.patch)
-        true
+      markerLayerUpdateEventWasDisabled = @disableMarkerLayersDidUpdateEvent()
+      @applyChange(change) for change in truncated.patch.getChanges()
+      @restoreFromMarkerSnapshot(truncated.snapshot)
+      @enableMarkersLayersDidUpdateEvent()
+      @emitMarkerChangeEvents(truncated.snapshot)
+      @disableMarkerLayersDidUpdateEvent() if markerLayerUpdateEventWasDisabled
+      @emitDidChangeTextEvent(truncated.patch)
+      true
     else
       false
 
@@ -1547,20 +1555,20 @@ class TextBuffer
 
   emitMarkerChangeEvents: (snapshot) ->
     for markerLayerId, markerLayer of @markerLayers
+      markerLayer.emitDidUpdateEvent()
       markerLayer.emitChangeEvents(snapshot?[markerLayerId])
 
-  emitMarkerLayersDidUpdateEvent: (fn) ->
+  disableMarkerLayersDidUpdateEvent: ->
     wasDisabled = @markerLayerDidUpdateEventDisabled
     @markerLayerDidUpdateEventDisabled = true
     for id, markerLayer of @markerLayers
       markerLayer.setDisableDidUpdateEvent(true)
-    result = fn()
-    @markerLayerDidUpdateEventDisabled = wasDisabled
+    wasDisabled
+
+  enableMarkersLayersDidUpdateEvent: ->
+    @markerLayerDidUpdateEventDisabled = false
     for id, markerLayer of @markerLayers
       markerLayer.setDisableDidUpdateEvent(false)
-      markerLayer.emitDidUpdateEvent()
-      markerLayer.setDisableDidUpdateEvent(wasDisabled)
-    result
 
   emitDidChangeTextEvent: (patch) ->
     return if @transactCallDepth isnt 0
