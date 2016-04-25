@@ -255,8 +255,8 @@ class MarkerLayer
     invalidated = @index.splice(start, oldExtent, newExtent)
     invalidated.touch.forEach (id) =>
       marker = @markersById[id]
+      @invalidatedMarkers.add(id)
       if invalidated[marker.getInvalidationStrategy()]?.has(id)
-        @invalidatedMarkers.add(id)
         if @destroyInvalidatedMarkers
           marker.destroy()
         else

@@ -188,8 +188,8 @@ describe "MarkerLayer", ->
       })
 
       buffer.transact ->
-        marker1 = layer.markRange([[0, 2], [0, 4]], {invalidate: 'touch'})
-        marker2 = layer.markRange([[0, 6], [0, 8]], {invalidate: 'touch'})
+        marker1 = layer.markRange([[0, 2], [0, 4]])
+        marker2 = layer.markRange([[0, 6], [0, 8]])
         expect(events.length).toBe(0)
 
       marker3 = layer.markRange([[4, 0], [4, 5]])
