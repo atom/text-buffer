@@ -137,25 +137,34 @@ describe "DisplayMarkerLayer", ->
     markerLayer = displayLayer.addMarkerLayer()
 
     events = []
-    markerLayer.onDidUpdate (event) -> events.push(event)
+    markerLayer.onDidUpdate (event) -> events.push({
+      created: Array.from(event.created),
+      updated: Array.from(event.updated),
+      invalidated: Array.from(event.invalidated),
+      destroyed: Array.from(event.destroyed)
+    })
 
     events = []
-    marker = markerLayer.markScreenRange([[0, 4], [1, 4]])
-    expect(events.length).toBe(1)
-    expect(Array.from(events[0].created)).toEqual [marker.id]
-    expect(Array.from(events[0].updated)).toEqual []
-    expect(Array.from(events[0].destroyed)).toEqual []
+    marker = markerLayer.markScreenRange([[0, 4], [1, 4]], {invalidate: 'inside'})
+    expect(events).toEqual([
+      {created: [marker.id], updated: [], invalidated: [], destroyed: []}
+    ])
 
     events = []
     marker.setScreenRange([[0, 5], [1, 0]])
-    expect(events.length).toBe(1)
-    expect(Array.from(events[0].created)).toEqual []
-    expect(Array.from(events[0].updated)).toEqual [marker.id]
-    expect(Array.from(events[0].destroyed)).toEqual []
+    expect(events).toEqual([
+      {created: [], updated: [marker.id], invalidated: [], destroyed: []}
+    ])
+
+    events = []
+    buffer.insert([0, 8], 'foo')
+    expect(events).toEqual([
+      {created: [], updated: [], invalidated: [marker.id], destroyed: []}
+    ])
 
     events = []
     buffer.insert([0, 0], '\t')
-    expect(events.length).toBe(0)
+    expect(events).toEqual([])
 
     events = []
     marker.destroy()

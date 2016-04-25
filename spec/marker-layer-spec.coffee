@@ -176,26 +176,28 @@ describe "MarkerLayer", ->
       expect(layer2.findMarkers(containsPoint: [0, 4])).toEqual [layer2Marker]
 
   describe "::onDidUpdate", ->
-    it "notifies observers synchronously or at the end of a transaction when markers are created, updated, or destroyed", ->
+    it "notifies observers synchronously or at the end of a transaction when markers are created, updated, invalidated, or destroyed", ->
       layer = buffer.addMarkerLayer({maintainHistory: true})
       events = []
       [marker1, marker2, marker3] = []
-      layer.onDidUpdate (event) -> events.push(event)
+      layer.onDidUpdate (event) -> events.push({
+        created: Array.from(event.created),
+        updated: Array.from(event.updated),
+        invalidated: Array.from(event.invalidated),
+        destroyed: Array.from(event.destroyed)
+      })
 
       buffer.transact ->
-        marker1 = layer.markRange([[0, 2], [0, 4]])
-        marker2 = layer.markRange([[0, 6], [0, 8]])
+        marker1 = layer.markRange([[0, 2], [0, 4]], {invalidate: 'touch'})
+        marker2 = layer.markRange([[0, 6], [0, 8]], {invalidate: 'touch'})
         expect(events.length).toBe(0)
 
       marker3 = layer.markRange([[4, 0], [4, 5]])
 
-      expect(events.length).toBe(2)
-      expect(Array.from(events[0].created)).toEqual [marker1.id, marker2.id]
-      expect(Array.from(events[0].updated)).toEqual []
-      expect(Array.from(events[0].destroyed)).toEqual []
-      expect(Array.from(events[1].created)).toEqual [marker3.id]
-      expect(Array.from(events[1].updated)).toEqual []
-      expect(Array.from(events[1].destroyed)).toEqual []
+      expect(events).toEqual([
+        {created: [marker1.id, marker2.id], updated: [], invalidated: [], destroyed: []},
+        {created: [marker3.id], updated: [], invalidated: [], destroyed: []}
+      ])
 
       events = []
       buffer.transact ->
@@ -203,10 +205,9 @@ describe "MarkerLayer", ->
         marker2.setRange([[3, 10], [4, 5]])
         marker3.destroy()
 
-      expect(events.length).toBe(1)
-      expect(Array.from(events[0].created)).toEqual []
-      expect(Array.from(events[0].updated)).toEqual [marker1.id, marker2.id]
-      expect(Array.from(events[0].destroyed)).toEqual [marker3.id]
+      expect(events).toEqual([
+        {created: [], updated: [marker1.id, marker2.id], invalidated: [], destroyed: [marker3.id]}
+      ])
 
       events = []
       buffer.transact ->
@@ -214,25 +215,19 @@ describe "MarkerLayer", ->
         buffer.insert([2, 0], "yyy")
       buffer.insert([1, 5], 'zzz')
 
-      expect(events.length).toBe(2)
-      expect(Array.from(events[0].created)).toEqual []
-      expect(Array.from(events[0].updated)).toEqual [marker1.id]
-      expect(Array.from(events[0].destroyed)).toEqual []
-      expect(Array.from(events[1].created)).toEqual []
-      expect(Array.from(events[1].updated)).toEqual [marker1.id]
-      expect(Array.from(events[1].destroyed)).toEqual []
+      expect(events).toEqual([
+        {created: [], updated: [], invalidated: [marker1.id], destroyed: []},
+        {created: [], updated: [], invalidated: [marker1.id], destroyed: []}
+      ])
 
       events = []
       buffer.undo()
       buffer.undo()
 
-      expect(events.length).toBe(2)
-      expect(Array.from(events[0].created)).toEqual []
-      expect(Array.from(events[0].updated)).toEqual [marker1.id]
-      expect(Array.from(events[0].destroyed)).toEqual []
-      expect(Array.from(events[1].created)).toEqual []
-      expect(Array.from(events[1].updated)).toEqual [marker1.id]
-      expect(Array.from(events[1].destroyed)).toEqual []
+      expect(events).toEqual([
+        {created: [], updated: [], invalidated: [marker1.id], destroyed: []},
+        {created: [], updated: [], invalidated: [marker1.id], destroyed: []}
+      ])
 
       events = []
       buffer.transact ->
@@ -244,13 +239,10 @@ describe "MarkerLayer", ->
         buffer.insert([4, 0], 'eee')
         buffer.insert([4, 3], 'fff')
 
-      expect(events.length).toBe(2)
-      expect(Array.from(events[0].created)).toEqual []
-      expect(Array.from(events[0].updated)).toEqual [marker1.id, marker2.id]
-      expect(Array.from(events[0].destroyed)).toEqual []
-      expect(Array.from(events[1].created)).toEqual []
-      expect(Array.from(events[1].updated)).toEqual [marker2.id]
-      expect(Array.from(events[1].destroyed)).toEqual []
+      expect(events).toEqual([
+        {created: [], updated: [], invalidated: [marker1.id, marker2.id], destroyed: []},
+        {created: [], updated: [], invalidated: [marker2.id], destroyed: []}
+      ])
 
       events = []
       buffer.transact ->
@@ -259,23 +251,19 @@ describe "MarkerLayer", ->
         marker1.clearTail()
         marker2.clearTail()
 
-      expect(events.length).toBe(2)
-      expect(Array.from(events[0].created)).toEqual []
-      expect(Array.from(events[0].updated)).toEqual [marker2.id]
-      expect(Array.from(events[0].destroyed)).toEqual []
-      expect(Array.from(events[1].created)).toEqual []
-      expect(Array.from(events[1].updated)).toEqual [marker1.id, marker2.id]
-      expect(Array.from(events[1].destroyed)).toEqual []
+      expect(events).toEqual([
+        {created: [], updated: [], invalidated: [marker2.id], destroyed: []},
+        {created: [], updated: [marker1.id, marker2.id], invalidated: [], destroyed: []}
+      ])
 
       events = []
       buffer.transact ->
         marker1.destroy()
         marker2.destroy()
 
-      expect(events.length).toBe(1)
-      expect(Array.from(events[0].created)).toEqual []
-      expect(Array.from(events[0].updated)).toEqual []
-      expect(Array.from(events[0].destroyed)).toEqual [marker1.id, marker2.id]
+      expect(events).toEqual([
+        {created: [], updated: [], invalidated: [], destroyed: [marker1.id, marker2.id]}
+      ])
 
   describe "::copy", ->
     it "creates a new marker layer with markers in the same states", ->

@@ -42,6 +42,7 @@ class MarkerLayer
     @createdMarkers = new Set
     @destroyedMarkers = new Set
     @updatedMarkers = new Set
+    @invalidatedMarkers = new Set
     @setDisableDidUpdateEvent(false)
     @destroyed = false
     @emitCreateMarkerEvents = false
@@ -255,11 +256,11 @@ class MarkerLayer
     invalidated.touch.forEach (id) =>
       marker = @markersById[id]
       if invalidated[marker.getInvalidationStrategy()]?.has(id)
+        @invalidatedMarkers.add(id)
         if @destroyInvalidatedMarkers
           marker.destroy()
         else
           marker.valid = false
-      @updatedMarkers.add(id)
     @emitDidUpdateEvent()
 
   restoreFromSnapshot: (snapshots) ->
@@ -379,10 +380,11 @@ class MarkerLayer
   emitDidUpdateEvent: ->
     return if @didUpdateEventDisabled
 
-    if @createdMarkers.size > 0 or @destroyedMarkers.size > 0 or @updatedMarkers.size > 0
-      event = {created: @createdMarkers, destroyed: @destroyedMarkers, updated: @updatedMarkers}
+    if @createdMarkers.size > 0 or @destroyedMarkers.size > 0 or @invalidatedMarkers.size > 0 or @updatedMarkers.size > 0
+      event = {created: @createdMarkers, destroyed: @destroyedMarkers, invalidated: @invalidatedMarkers, updated: @updatedMarkers}
       @createdMarkers = new Set
       @destroyedMarkers = new Set
+      @invalidatedMarkers = new Set
       @updatedMarkers = new Set
       @emitter.emit 'did-update', event
 
