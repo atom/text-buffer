@@ -328,14 +328,14 @@ class DisplayMarkerLayer
           value = @displayLayer.translateScreenPosition(Point(value, 0)).row
         when 'endScreenRow'
           key = 'endRow'
-          value = @displayLayer.translateScreenPosition(Point(value, Infinity), clipDirection: 'backward').row
+          value = @displayLayer.translateScreenPosition(Point(value, Infinity)).row
         when 'intersectsBufferRowRange'
           key = 'intersectsRowRange'
         when 'intersectsScreenRowRange'
           key = 'intersectsRowRange'
           [startScreenRow, endScreenRow] = value
           startBufferRow = @displayLayer.translateScreenPosition(Point(startScreenRow, 0)).row
-          endBufferRow = @displayLayer.translateScreenPosition(Point(endScreenRow, Infinity), clipDirection: 'backward').row
+          endBufferRow = @displayLayer.translateScreenPosition(Point(endScreenRow, Infinity)).row
           value = [startBufferRow, endBufferRow]
         when 'containsBufferRange'
           key = 'containsRange'
