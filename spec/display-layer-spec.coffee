@@ -632,11 +632,11 @@ describe "DisplayLayer", ->
         {text: '', close: ["hard-tab trailing-whitespace indent-guide"], open: []},
       ])
 
-    it "decorates empty lines with the appropriate number of indent guides", ->
-      buffer = new TextBuffer(text: "\n\n          a\n\n     b\n\n\n")
+    it "decorates empty lines with the max number of indent guides found on the surrounding non-empty lines", ->
+      buffer = new TextBuffer(text: "\n\n          a\n\n\t \t b\n\n\n")
       displayLayer = buffer.addDisplayLayer({showIndentGuides: true, tabLength: 4, invisibles: {eol: '¬'}})
 
-      expect(displayLayer.getText()).toBe("¬         \n¬         \n          a¬\n¬         \n     b¬\n¬    \n¬    \n     ")
+      expect(displayLayer.getText()).toBe("¬         \n¬         \n          a¬\n¬         \n         b¬\n¬        \n¬        \n         ")
       expectTokens(displayLayer, [
         {text: '', close: [], open: []},
         {text: '¬', close: [], open: ["invisible-character eol indent-guide"]},
@@ -662,25 +662,30 @@ describe "DisplayLayer", ->
         {text: '    ', close: [], open: ["indent-guide"]},
         {text: '  ', close: ["indent-guide"], open: ["indent-guide"]},
         {text: '', close: ["indent-guide"], open: []},
-        {text: '    ', close: [], open: ["leading-whitespace indent-guide"]},
-        {text: ' ', close: ["leading-whitespace indent-guide"], open: ["leading-whitespace indent-guide"]},
+        {text: '    ', close: [], open: ["hard-tab leading-whitespace indent-guide"]},
+        {text: ' ', close: ["hard-tab leading-whitespace indent-guide"], open: ["leading-whitespace indent-guide"]},
+        {text: '   ', close: ["leading-whitespace indent-guide"], open: ["hard-tab leading-whitespace"]},
+        {text: ' ', close: ["hard-tab leading-whitespace"], open: ["leading-whitespace indent-guide"]},
         {text: 'b', close: ["leading-whitespace indent-guide"], open: []},
         {text: '¬', close: [], open: ["invisible-character eol"]},
         {text: '', close: ["invisible-character eol"], open: []},
         {text: '', close: [], open: []},
         {text: '¬', close: [], open: ["invisible-character eol indent-guide"]},
         {text: '   ', close: ["invisible-character eol indent-guide"], open: []},
-        {text: ' ', close: [], open: ["indent-guide"]},
+        {text: '    ', close: [], open: ["indent-guide"]},
+        {text: ' ', close: ["indent-guide"], open: ["indent-guide"]},
         {text: '', close: ["indent-guide"], open: []},
         {text: '', close: [], open: []},
         {text: '¬', close: [], open: ["invisible-character eol indent-guide"]},
         {text: '   ', close: ["invisible-character eol indent-guide"], open: []},
-        {text: ' ', close: [], open: ["indent-guide"]},
-        {text: '', close: ["indent-guide"], open: []},
-        {text: '', close: [], open: []},
         {text: '    ', close: [], open: ["indent-guide"]},
         {text: ' ', close: ["indent-guide"], open: ["indent-guide"]},
         {text: '', close: ["indent-guide"], open: []},
+        {text: '', close: [], open: []},
+        {text: '    ', close: [], open: ["indent-guide"]},
+        {text: '    ', close: ["indent-guide"], open: ["indent-guide"]},
+        {text: ' ', close: ["indent-guide"], open: ["indent-guide"]},
+        {text: '', close: ["indent-guide"], open: []}
       ])
 
       # always clips screen positions to the beginning of the line.

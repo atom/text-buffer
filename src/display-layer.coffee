@@ -339,7 +339,7 @@ class DisplayLayer
       bufferLine = @buffer.lineForRow(bufferRow)
       bufferLineLength = bufferLine.length
       previousPositionWasFold = false
-      trailingWhitespaceStartBufferColumn = @findTrailingWhitespaceStartColumn(bufferLine)
+      trailingWhitespaceStartBufferColumn = @findTrailingWhitespaceStartBufferColumn(bufferLine)
       isBlankLine = trailingWhitespaceStartBufferColumn is 0
       isEmptyLine = bufferLineLength is 0
       inLeadingWhitespace = not isBlankLine
@@ -575,7 +575,7 @@ class DisplayLayer
             unless character is ' ' or character is '\t'
               inLeadingWhitespace = false
               break
-          trailingWhitespaceStartBufferColumn = @findTrailingWhitespaceStartColumn(bufferLine)
+          trailingWhitespaceStartBufferColumn = @findTrailingWhitespaceStartBufferColumn(bufferLine)
           if bufferColumn >= trailingWhitespaceStartBufferColumn
             trailingWhitespaceStartBufferColumn = bufferColumn
         else
@@ -746,24 +746,31 @@ class DisplayLayer
 
     maxLeadingWhitespace = 0
     if previousLine?
-      maxLeadingWhitespace = Math.max(maxLeadingWhitespace, @findLeadingWhitespaceEndColumn(previousLine))
+      maxLeadingWhitespace = Math.max(maxLeadingWhitespace, @findLeadingWhitespaceEndScreenColumn(previousLine))
     if nextLine?
-      maxLeadingWhitespace = Math.max(maxLeadingWhitespace, @findLeadingWhitespaceEndColumn(nextLine))
+      maxLeadingWhitespace = Math.max(maxLeadingWhitespace, @findLeadingWhitespaceEndScreenColumn(nextLine))
 
     maxLeadingWhitespace
 
   # Walk forward through the line, looking for the first non whitespace
-  # character and expanding tabs as we go. If we return 0, this means there is
-  # no leading whitespace.
-  findLeadingWhitespaceEndColumn: (line) ->
-    for character, column in line by 1
-      return column unless character is ' ' or character is '\t'
-    line.length
+  # character *and* expanding tabs as we go. If we return 0, this means
+  # there is no leading whitespace.
+  findLeadingWhitespaceEndScreenColumn: (line) ->
+    screenExtent = 0
+    for character in line by 1
+      if character is '\t'
+        screenExtent += @tabLength - (screenExtent % @tabLength)
+      else if character is ' '
+        screenExtent += 1
+      else
+        return screenExtent
+    screenExtent
 
-  # Walk backwards through the line, looking for the first non whitespace
-  # character. The trailing whitespace starts *after* that character. If we
-  # return the line's length, this means there is no trailing whitespace.
-  findTrailingWhitespaceStartColumn: (line) ->
+  # Walk backwards through the line, looking for the first non
+  # whitespace character. The trailing whitespace starts *after* that
+  # character. If we return the line's length, this means there is no
+  # trailing whitespace.
+  findTrailingWhitespaceStartBufferColumn: (line) ->
     for character, column in line by -1
       unless character is ' ' or character is '\t'
         return column + 1
