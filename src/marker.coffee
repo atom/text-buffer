@@ -383,6 +383,9 @@ class Marker
   Section: Private
   ###
 
+  inspect: ->
+    @toString()
+
   emitChangeEvent: (currentRange, textChanged, propertiesChanged) ->
     return unless @hasChangeObservers
     oldState = @previousEventState

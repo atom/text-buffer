@@ -368,9 +368,15 @@ class DisplayMarker
   clearTail: ->
     @bufferMarker.clearTail()
 
+  toString: ->
+    "[Marker #{@id}, bufferRange: #{@getBufferRange()}, screenRange: #{@getScreenRange()}}]"
+
   ###
   Section: Private
   ###
+
+  inspect: ->
+    @toString()
 
   notifyObservers: (textChanged) ->
     textChanged ?= false
