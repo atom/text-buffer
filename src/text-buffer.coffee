@@ -100,7 +100,7 @@ class TextBuffer
     @offsetIndex = new SpanSkipList('rows', 'characters')
     @setTextInRange([[0, 0], [0, 0]], text ? params?.text ? '', normalizeLineEndings: false)
     maxUndoEntries = params?.maxUndoEntries ? @defaultMaxUndoEntries
-    @history = params?.history ? new History(maxUndoEntries, this)
+    @history = params?.history ? new History(this, maxUndoEntries)
     @nextMarkerLayerId = params?.nextMarkerLayerId ? 0
     @nextDisplayLayerId = params?.nextDisplayLayerId ? 0
     @defaultMarkerLayer = params?.defaultMarkerLayer ? new MarkerLayer(this, String(@nextMarkerLayerId++))

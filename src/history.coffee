@@ -33,7 +33,7 @@ class History
     history.deserialize(state)
     history
 
-  constructor: (@maxUndoEntries, @buffer) ->
+  constructor: (@buffer, @maxUndoEntries) ->
     @nextCheckpointId = 0
     @undoStack = []
     @redoStack = []
