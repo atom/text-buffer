@@ -763,7 +763,7 @@ class DisplayLayer
       else if character is ' '
         screenExtent += 1
       else
-        return screenExtent
+        break
     screenExtent
 
   # Walk backwards through the line, looking for the first non
