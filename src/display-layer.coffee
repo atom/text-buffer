@@ -714,9 +714,11 @@ class DisplayLayer
             foldMarkers.push(followingFoldMarkers...)
             endBufferRow = foldEnd.row + 1
 
-          # Skip subsequent fold markers that nest within the current fold, and
-          # merge folds that start within the the current fold but end after it.
-          if i < (foldMarkers.length - 1) and comparePoints(foldMarkers[i + 1].getStartPosition(), foldEnd) <= 0
+          # Skip subsequent fold markers that nest within the current
+          # fold, and merge folds that start within the current fold but
+          # end after it. Subsequent folds that start exactly where the
+          # current fold ends will be preserved.
+          if i < (foldMarkers.length - 1) and comparePoints(foldMarkers[i + 1].getStartPosition(), foldEnd) < 0
             if comparePoints(foldMarkers[i + 1].getEndPosition(), foldEnd) > 0
               foldEnd = foldMarkers[i + 1].getEndPosition()
             i++

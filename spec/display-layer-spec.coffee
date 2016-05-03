@@ -208,21 +208,26 @@ describe "DisplayLayer", ->
         abc
         def
         ghi
-        j
+        jkl
+        mno
       ''')
       displayLayer = buffer.addDisplayLayer()
 
       foldAId = displayLayer.foldBufferRange([[0, 1], [1, 2]])
       foldBId = displayLayer.foldBufferRange([[1, 1], [2, 2]])
       foldCId = displayLayer.foldBufferRange([[2, 1], [3, 0]])
+      foldDId = displayLayer.foldBufferRange([[3, 0], [4, 0]])
 
-      expect(displayLayer.getText()).toBe 'a⋯j'
+      expect(displayLayer.getText()).toBe 'a⋯⋯mno'
 
       displayLayer.destroyFold(foldCId)
-      expect(displayLayer.getText()).toBe 'a⋯i\nj'
+      expect(displayLayer.getText()).toBe 'a⋯i\n⋯mno'
 
       displayLayer.destroyFold(foldBId)
-      expect(displayLayer.getText()).toBe 'a⋯f\nghi\nj'
+      expect(displayLayer.getText()).toBe 'a⋯f\nghi\n⋯mno'
+
+      displayLayer.destroyFold(foldDId)
+      expect(displayLayer.getText()).toBe 'a⋯f\nghi\njkl\nmno'
 
     it "allows folds intersecting a buffer range to be destroyed", ->
       buffer = new TextBuffer(text: '''
