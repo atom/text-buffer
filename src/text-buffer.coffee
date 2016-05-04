@@ -7,12 +7,12 @@ fs = require 'fs-plus'
 path = require 'path'
 crypto = require 'crypto'
 Patch = require 'atom-patch'
-
 Point = require './point'
 Range = require './range'
 History = require './history'
 MarkerLayer = require './marker-layer'
 MatchIterator = require './match-iterator'
+DisplayLayer = require './display-layer'
 {spliceArray, newlineRegex, normalizePatchChanges} = require './helpers'
 
 class SearchCallbackArgument
@@ -100,9 +100,11 @@ class TextBuffer
     @offsetIndex = new SpanSkipList('rows', 'characters')
     @setTextInRange([[0, 0], [0, 0]], text ? params?.text ? '', normalizeLineEndings: false)
     maxUndoEntries = params?.maxUndoEntries ? @defaultMaxUndoEntries
-    @history = params?.history ? new History(maxUndoEntries)
+    @history = params?.history ? new History(this, maxUndoEntries)
     @nextMarkerLayerId = params?.nextMarkerLayerId ? 0
+    @nextDisplayLayerId = params?.nextDisplayLayerId ? 0
     @defaultMarkerLayer = params?.defaultMarkerLayer ? new MarkerLayer(this, String(@nextMarkerLayerId++))
+    @displayLayers = {}
     @markerLayers = params?.markerLayers ? {}
     @markerLayers[@defaultMarkerLayer.id] = @defaultMarkerLayer
     @nextMarkerId = params?.nextMarkerId ? 1
@@ -126,9 +128,13 @@ class TextBuffer
       markerLayers[layerId] = MarkerLayer.deserialize(buffer, layerState)
     params.markerLayers = markerLayers
     params.defaultMarkerLayer = params.markerLayers[params.defaultMarkerLayerId]
-    params.history = History.deserialize(params.history)
+    params.history = History.deserialize(params.history, buffer)
     params.load = true if params.filePath
     TextBuffer.call(buffer, params)
+    displayLayers = {}
+    for layerId, layerState of params.displayLayers
+      displayLayers[layerId] = DisplayLayer.deserialize(buffer, layerState)
+    buffer.setDisplayLayers(displayLayers)
     buffer
 
   # Returns a {String} representing a unique identifier for this {TextBuffer}.
@@ -141,14 +147,20 @@ class TextBuffer
 
     markerLayers = {}
     if options.markerLayers
-      for id, layer of @markerLayers
-        markerLayers[id] = layer.serialize() if layer.maintainHistory
+      for id, layer of @markerLayers when layer.persistent
+        markerLayers[id] = layer.serialize()
+
+    displayLayers = {}
+    for id, layer of @displayLayers
+      displayLayers[id] = layer.serialize()
 
     id: @getId()
     text: @getText()
     defaultMarkerLayerId: @defaultMarkerLayer.id
     markerLayers: markerLayers
+    displayLayers: displayLayers
     nextMarkerLayerId: @nextMarkerLayerId
+    nextDisplayLayerId: @nextDisplayLayerId
     history: @history.serialize(options)
     encoding: @getEncoding()
     filePath: @getPath()
@@ -804,14 +816,17 @@ class TextBuffer
   Section: Markers
   ###
 
-  # Public: *Experimental:* Create a layer to contain a set of related markers.
+  # Public: Create a layer to contain a set of related markers.
   #
   # * `options` An object contaning the following keys:
   #   * `maintainHistory` A {Boolean} indicating whether or not the state of
   #     this layer should be restored on undo/redo operations. Defaults to
   #     `false`.
-  #
-  # This API is experimental and subject to change on any release.
+  #   * `persistent` A {Boolean} indicating whether or not this marker layer
+  #     should be serialized and deserialized along with the rest of the
+  #     buffer. Defaults to `false`. If `true`, the marker layer's id will be
+  #     maintained across the serialization boundary, allowing you to retrieve
+  #     it via {::getMarkerLayer}.
   #
   # Returns a {MarkerLayer}.
   addMarkerLayer: (options) ->
@@ -819,23 +834,19 @@ class TextBuffer
     @markerLayers[layer.id] = layer
     layer
 
-  # Public: *Experimental:* Get a {MarkerLayer} by id.
+  # Public: Get a {MarkerLayer} by id.
   #
   # * `id` The id of the marker layer to retrieve.
-  #
-  # This API is experimental and subject to change on any release.
   #
   # Returns a {MarkerLayer} or `undefined` if no layer exists with the given
   # id.
   getMarkerLayer: (id) ->
     @markerLayers[id]
 
-  # Public: *Experimental:* Get the default {MarkerLayer}.
+  # Public: Get the default {MarkerLayer}.
   #
   # All marker APIs not tied to an explicit layer interact with this default
   # layer.
-  #
-  # This API is experimental and subject to change on any release.
   #
   # Returns a {MarkerLayer}.
   getDefaultMarkerLayer: ->
@@ -851,8 +862,6 @@ class TextBuffer
   #   are also reserved property names that have marker-specific meaning.
   #   * `reversed` (optional) {Boolean} Creates the marker in a reversed
   #     orientation. (default: false)
-  #   * `persistent` (optional) {Boolean} Whether to include this marker when
-  #     serializing the buffer. (default: true)
   #   * `invalidate` (optional) {String} Determines the rules by which changes
   #     to the buffer *invalidate* the marker. (default: 'overlap') It can be
   #     any of the following strategies, in order of fragility:
@@ -867,6 +876,12 @@ class TextBuffer
   #     * __touch__: The marker is invalidated by a change that touches the marked
   #       region in any way, including changes that end at the marker's
   #       start or start at the marker's end. This is the most fragile strategy.
+  #   * `exclusive` {Boolean} indicating whether insertions at the start or end
+  #     of the marked range should be interpreted as happening *outside* the
+  #     marker. Defaults to `false`, except when using the `inside`
+  #     invalidation strategy or when when the marker has no tail, in which
+  #     case it defaults to true. Explicitly assigning this option overrides
+  #     behavior in all circumstances.
   #
   # Returns a {Marker}.
   markRange: (range, properties) -> @defaultMarkerLayer.markRange(range, properties)
@@ -875,10 +890,30 @@ class TextBuffer
   # marker layer.
   #
   # * `position` {Point} or point-compatible {Array}
-  # * `properties` This is the same as the `properties` parameter in {::markRange}
+  # * `options` (optional) An {Object} with the following keys:
+  #   * `invalidate` (optional) {String} Determines the rules by which changes
+  #     to the buffer *invalidate* the marker. (default: 'overlap') It can be
+  #     any of the following strategies, in order of fragility:
+  #     * __never__: The marker is never marked as invalid. This is a good choice for
+  #       markers representing selections in an editor.
+  #     * __surround__: The marker is invalidated by changes that completely surround it.
+  #     * __overlap__: The marker is invalidated by changes that surround the
+  #       start or end of the marker. This is the default.
+  #     * __inside__: The marker is invalidated by changes that extend into the
+  #       inside of the marker. Changes that end at the marker's start or
+  #       start at the marker's end do not invalidate the marker.
+  #     * __touch__: The marker is invalidated by a change that touches the marked
+  #       region in any way, including changes that end at the marker's
+  #       start or start at the marker's end. This is the most fragile strategy.
+  #   * `exclusive` {Boolean} indicating whether insertions at the start or end
+  #     of the marked range should be interpreted as happening *outside* the
+  #     marker. Defaults to `false`, except when using the `inside`
+  #     invalidation strategy or when when the marker has no tail, in which
+  #     case it defaults to true. Explicitly assigning this option overrides
+  #     behavior in all circumstances.
   #
   # Returns a {Marker}.
-  markPosition: (position, properties) -> @defaultMarkerLayer.markPosition(position, properties)
+  markPosition: (position, options) -> @defaultMarkerLayer.markPosition(position, options)
 
   # Public: Get all existing markers on the default marker layer.
   #
@@ -1280,7 +1315,7 @@ class TextBuffer
   #
   # Returns a new {Point} if the given position is invalid, otherwise returns
   # the given position.
-  clipPosition: (position) ->
+  clipPosition: (position, options) ->
     position = Point.fromObject(position)
     Point.assertValid(position)
     {row, column} = position
@@ -1288,13 +1323,15 @@ class TextBuffer
       @getFirstPosition()
     else if row > @getLastRow()
       @getEndPosition()
-    else
-      column = Math.min(Math.max(column, 0), @lineLengthForRow(row))
-      if column is position.column
-        position
+    else if column < 0
+      Point(row, 0)
+    else if column >= @lineLengthForRow(row)
+      if options?.clipDirection is 'forward' and row < @getLastRow()
+        Point(row + 1, 0)
       else
-        new Point(row, column)
-
+        Point(row, @lineLengthForRow(row))
+    else
+      position
 
   ###
   Section: Buffer Operations
@@ -1402,6 +1439,19 @@ class TextBuffer
     fs.closeSync(fd)
 
     fs.removeSync(backupFilePath)
+
+  ###
+  Section: Display Layers
+  ###
+
+  addDisplayLayer: (params) ->
+    id = @nextDisplayLayerId++
+    @displayLayers[id] = new DisplayLayer(id, this, params)
+
+  getDisplayLayer: (id) ->
+    @displayLayers[id]
+
+  setDisplayLayers: (@displayLayers) -> # Used for deserialization
 
   ###
   Section: Private Utility Methods

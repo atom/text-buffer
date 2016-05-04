@@ -3,8 +3,9 @@
 Delegator = require 'delegato'
 Point = require './point'
 Range = require './range'
+Grim = require 'grim'
 
-OptionKeys = new Set(['reversed', 'tailed', 'invalidate', 'persistent'])
+OptionKeys = new Set(['reversed', 'tailed', 'invalidate', 'exclusive'])
 
 # Private: Represents a buffer annotation that remains logically stationary
 # even as the buffer changes. This is used to represent cursors, folds, snippet
@@ -30,30 +31,45 @@ class Marker
 
   @extractParams: (inputParams) ->
     outputParams = {}
+    containsCustomProperties = false
     if inputParams?
       for key in Object.keys(inputParams)
         if OptionKeys.has(key)
           outputParams[key] = inputParams[key]
+        else if key is 'clipDirection' or key is 'skipSoftWrapIndentation'
+          # TODO: Ignore these two keys for now. Eventually, when the
+          # deprecation below will be gone, we can remove this conditional as
+          # well, and just return standard marker properties.
         else
+          containsCustomProperties = true
           outputParams.properties ?= {}
           outputParams.properties[key] = inputParams[key]
+
+    # TODO: Remove both this deprecation and the conditional above on the
+    # release after the one where we'll ship `DisplayLayer`.
+    if containsCustomProperties
+      Grim.deprecate("""
+      Assigning custom properties to a marker when creating/copying it is
+      deprecated. Please, consider storing the custom properties you need in
+      some other object in your package, keyed by the marker's id property.
+      """)
+
     outputParams
 
   @delegatesMethods 'containsPoint', 'containsRange', 'intersectsRow', toMethod: 'getRange'
 
   constructor: (@id, @layer, range, params) ->
-    {@tailed, @reversed, @valid, @invalidate, @persistent, @properties} = params
+    {@tailed, @reversed, @valid, @invalidate, @exclusive, @properties} = params
     @emitter = new Emitter
     @tailed ?= true
     @reversed ?= false
     @valid ?= true
     @invalidate ?= 'overlap'
-    @persistent ?= true
     @properties ?= {}
     @hasChangeObservers = false
     @rangeWhenDestroyed = null
     Object.freeze(@properties)
-    @layer.setMarkerHasTail(@id, @tailed)
+    @layer.setMarkerIsExclusive(@id, @isExclusive())
 
   ###
   Section: Event Subscription
@@ -100,13 +116,11 @@ class Marker
   #
   # * `range` A {Range} or range-compatible {Array}. The range will be clipped
   #   before it is assigned.
-  # * `properties` (optional) {Object} properties to associate with the marker.
+  # * `params` (optional) An {Object} with the following keys:
   #   * `reversed`  {Boolean} If true, the marker will to be in a reversed orientation.
-  setRange: (range, properties) ->
-    params = @extractParams(properties)
-    params.tailed = true
-    params.range = Range.fromObject(range, true)
-    @update(@getRange(), params)
+  setRange: (range, params) ->
+    params ?= {}
+    @update(@getRange(), {reversed: params.reversed, tailed: true, range: Range.fromObject(range, true), exclusive: params.exclusive})
 
   # Public: Returns a {Point} representing the marker's current head position.
   getHeadPosition: ->
@@ -119,11 +133,10 @@ class Marker
   #
   # * `position` A {Point} or point-compatible {Array}. The position will be
   #   clipped before it is assigned.
-  # * `properties` (optional) {Object} properties to associate with the marker.
-  setHeadPosition: (position, properties) ->
+  setHeadPosition: (position) ->
     position = Point.fromObject(position)
-    params = @extractParams(properties)
     oldRange = @getRange()
+    params = {}
 
     if @hasTail()
       if @isReversed()
@@ -155,12 +168,10 @@ class Marker
   #
   # * `position` A {Point} or point-compatible {Array}. The position will be
   #   clipped before it is assigned.
-  # * `properties` (optional) {Object} properties to associate with the marker.
-  setTailPosition: (position, properties) ->
+  setTailPosition: (position) ->
     position = Point.fromObject(position)
-    params = @extractParams(properties)
-    params.tailed = true
     oldRange = @getRange()
+    params = {tailed: true}
 
     if @reversed
       if position.isLessThan(oldRange.start)
@@ -190,27 +201,17 @@ class Marker
   # Public: Removes the marker's tail. After calling the marker's head position
   # will be reported as its current tail position until the tail is planted
   # again.
-  #
-  # * `properties` (optional) {Object} properties to associate with the marker.
-  clearTail: (properties) ->
-    params = @extractParams(properties)
-    params.tailed = false
-    params.reversed = false
+  clearTail: ->
     headPosition = @getHeadPosition()
-    params.range = new Range(headPosition, headPosition)
-    @update(@getRange(), params)
+    @update(@getRange(), {tailed: false, reversed: false, range: Range(headPosition, headPosition)})
 
   # Public: Plants the marker's tail at the current head position. After calling
   # the marker's tail position will be its head position at the time of the
   # call, regardless of where the marker's head is moved.
-  #
-  # * `properties` (optional) {Object} properties to associate with the marker.
-  plantTail: (properties) ->
-    params = @extractParams(properties)
+  plantTail: ->
     unless @hasTail()
-      params.tailed = true
-      params.range = new Range(@getHeadPosition(), @getHeadPosition())
-    @update(@getRange(), params)
+      headPosition = @getHeadPosition()
+      @update(@getRange(), {tailed: true, range: new Range(headPosition, headPosition)})
 
   # Public: Returns a {Boolean} indicating whether the head precedes the tail.
   isReversed: ->
@@ -232,6 +233,14 @@ class Marker
   isDestroyed: ->
     @rangeWhenDestroyed?
 
+  # Public: Returns a {Boolean} indicating whether changes that occur exactly at
+  # the marker's head or tail cause it to move.
+  isExclusive: ->
+    if @exclusive?
+      @exclusive
+    else
+      @getInvalidationStrategy() is 'inside' or not @hasTail()
+
   # Public: Returns a {Boolean} indicating whether this marker is equivalent to
   # another marker, meaning they have the same range and options.
   #
@@ -239,7 +248,6 @@ class Marker
   isEqual: (other) ->
     @invalidate is other.invalidate and
       @tailed is other.tailed and
-      @persistent is other.persistent and
       @reversed is other.reversed and
       isEqual(@properties, other.properties) and
       @getRange().isEqual(other.getRange())
@@ -285,11 +293,6 @@ class Marker
     @layer.destroyMarker(@id)
     @emitter.emit 'did-destroy'
 
-  extractParams: (params) ->
-    params = @constructor.extractParams(params)
-    params.properties = extend({}, @properties, params.properties) if params.properties?
-    params
-
   # Public: Compares this marker to another based on their ranges.
   #
   # * `other` {Marker}
@@ -300,14 +303,14 @@ class Marker
       @layer.compareMarkers(@id, other.id)
 
   # Returns whether this marker matches the given parameters. The parameters
-  # are the same as {MarkerManager::findMarkers}.
+  # are the same as {MarkerLayer::findMarkers}.
   matchesParams: (params) ->
     for key in Object.keys(params)
       return false unless @matchesParam(key, params[key])
     true
 
   # Returns whether this marker matches the given parameter name and value.
-  # The parameters are the same as {MarkerManager::findMarkers}.
+  # The parameters are the same as {MarkerLayer::findMarkers}.
   matchesParam: (key, value) ->
     switch key
       when 'startPosition'
@@ -324,14 +327,17 @@ class Marker
         @getEndPosition().row is value
       when 'intersectsRow'
         @intersectsRow(value)
-      when 'invalidate', 'reversed', 'tailed', 'persistent'
+      when 'invalidate', 'reversed', 'tailed'
         isEqual(@[key], value)
+      when 'valid'
+        @isValid() is value
       else
         isEqual(@properties[key], value)
 
-  update: (oldRange, {range, reversed, tailed, valid, properties}, textChanged=false) ->
+  update: (oldRange, {range, reversed, tailed, valid, exclusive, properties}, textChanged=false) ->
     return if @isDestroyed()
 
+    wasExclusive = @isExclusive()
     updated = propertiesChanged = false
 
     if range? and not range.isEqual(oldRange)
@@ -344,11 +350,18 @@ class Marker
 
     if tailed? and tailed isnt @tailed
       @tailed = tailed
-      @layer.setMarkerHasTail(@id, @tailed)
       updated = true
 
     if valid? and valid isnt @valid
       @valid = valid
+      updated = true
+
+    if exclusive? and exclusive isnt @exclusive
+      @exclusive = exclusive
+      updated = true
+
+    if wasExclusive isnt @isExclusive()
+      @layer.setMarkerIsExclusive(@id, @isExclusive())
       updated = true
 
     if properties? and not isEqual(properties, @properties)
@@ -361,7 +374,7 @@ class Marker
     updated
 
   getSnapshot: (range) ->
-    Object.freeze({range, @properties, @reversed, @tailed, @valid, @invalidate})
+    Object.freeze({range, @properties, @reversed, @tailed, @valid, @invalidate, @exclusive})
 
   toString: ->
     "[Marker #{@id}, #{@getRange()}]"
@@ -369,6 +382,9 @@ class Marker
   ###
   Section: Private
   ###
+
+  inspect: ->
+    @toString()
 
   emitChangeEvent: (currentRange, textChanged, propertiesChanged) ->
     return unless @hasChangeObservers

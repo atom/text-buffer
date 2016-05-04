@@ -18,9 +18,6 @@ class MarkerLayer
     store.deserialize(state)
     store
 
-  @serializeSnapshot: (snapshot) ->
-    snapshot
-
   @deserializeSnapshot: (snapshot) ->
     result = {}
     for layerId, markerSnapshots of snapshot
@@ -36,6 +33,8 @@ class MarkerLayer
 
   constructor: (@delegate, @id, options) ->
     @maintainHistory = options?.maintainHistory ? false
+    @destroyInvalidatedMarkers = options?.destroyInvalidatedMarkers ? false
+    @persistent = options?.persistent ? false
     @emitter = new Emitter
     @index = new MarkerIndex
     @markersById = {}
@@ -128,9 +127,10 @@ class MarkerLayer
     markerIds ?= new Set(Object.keys(@markersById))
 
     result = []
-    markerIds.forEach (id) =>
-      marker = @markersById[id]
-      result.push(marker) if marker.matchesParams(params)
+    markerIds.forEach (markerId) =>
+      marker = @markersById[markerId]
+      return unless marker.matchesParams(params)
+      result.push(marker)
     result.sort (a, b) -> a.compare(b)
 
   ###
@@ -139,17 +139,65 @@ class MarkerLayer
 
   # Public: Create a marker with the given range.
   #
-  # See the documentation for {TextBuffer::markRange}
+  # * `range` A {Range} or range-compatible {Array}
+  # * `options` A hash of key-value pairs to associate with the marker. There
+  #   are also reserved property names that have marker-specific meaning.
+  #   * `reversed` (optional) {Boolean} Creates the marker in a reversed
+  #     orientation. (default: false)
+  #   * `invalidate` (optional) {String} Determines the rules by which changes
+  #     to the buffer *invalidate* the marker. (default: 'overlap') It can be
+  #     any of the following strategies, in order of fragility:
+  #     * __never__: The marker is never marked as invalid. This is a good choice for
+  #       markers representing selections in an editor.
+  #     * __surround__: The marker is invalidated by changes that completely surround it.
+  #     * __overlap__: The marker is invalidated by changes that surround the
+  #       start or end of the marker. This is the default.
+  #     * __inside__: The marker is invalidated by changes that extend into the
+  #       inside of the marker. Changes that end at the marker's start or
+  #       start at the marker's end do not invalidate the marker.
+  #     * __touch__: The marker is invalidated by a change that touches the marked
+  #       region in any way, including changes that end at the marker's
+  #       start or start at the marker's end. This is the most fragile strategy.
+  #   * `exclusive` {Boolean} indicating whether insertions at the start or end
+  #     of the marked range should be interpreted as happening *outside* the
+  #     marker. Defaults to `false`, except when using the `inside`
+  #     invalidation strategy or when when the marker has no tail, in which
+  #     case it defaults to true. Explicitly assigning this option overrides
+  #     behavior in all circumstances.
+  #
+  # Returns a {Marker}.
   markRange: (range, options={}) ->
     @createMarker(@delegate.clipRange(range), Marker.extractParams(options))
 
-  # Public: Create a marker with the given position and no tail.
+  # Public: Create a marker at with its head at the given position with no tail.
   #
-  # See the documentation for {TextBuffer::markPosition}
+  # * `position` {Point} or point-compatible {Array}
+  # * `options` (optional) An {Object} with the following keys:
+  #   * `invalidate` (optional) {String} Determines the rules by which changes
+  #     to the buffer *invalidate* the marker. (default: 'overlap') It can be
+  #     any of the following strategies, in order of fragility:
+  #     * __never__: The marker is never marked as invalid. This is a good choice for
+  #       markers representing selections in an editor.
+  #     * __surround__: The marker is invalidated by changes that completely surround it.
+  #     * __overlap__: The marker is invalidated by changes that surround the
+  #       start or end of the marker. This is the default.
+  #     * __inside__: The marker is invalidated by changes that extend into the
+  #       inside of the marker. Changes that end at the marker's start or
+  #       start at the marker's end do not invalidate the marker.
+  #     * __touch__: The marker is invalidated by a change that touches the marked
+  #       region in any way, including changes that end at the marker's
+  #       start or start at the marker's end. This is the most fragile strategy.
+  #   * `exclusive` {Boolean} indicating whether insertions at the start or end
+  #     of the marked range should be interpreted as happening *outside* the
+  #     marker. Defaults to `false`, except when using the `inside`
+  #     invalidation strategy or when when the marker has no tail, in which
+  #     case it defaults to true. Explicitly assigning this option overrides
+  #     behavior in all circumstances.
+  #
+  # Returns a {Marker}.
   markPosition: (position, options={}) ->
-    options.tailed ?= false
     position = @delegate.clipPosition(position)
-    @markRange(new Range(position, position), options)
+    @markRange(new Range(position, position), {tailed: false, invalidate: options.invalidate})
 
   ###
   Section: Event subscription
@@ -203,7 +251,10 @@ class MarkerLayer
     invalidated.touch.forEach (id) =>
       marker = @markersById[id]
       if invalidated[marker.getInvalidationStrategy()]?.has(id)
-        marker.valid = false
+        if @destroyInvalidatedMarkers
+          marker.destroy()
+        else
+          marker.valid = false
     @scheduleUpdateEvent()
 
   restoreFromSnapshot: (snapshots) ->
@@ -244,13 +295,14 @@ class MarkerLayer
     markersById = {}
     for id in Object.keys(@markersById)
       marker = @markersById[id]
-      markersById[id] = marker.getSnapshot(Range.fromObject(ranges[id]), false) if marker.persistent
-    {@id, @maintainHistory, markersById, version: SerializationVersion}
+      markersById[id] = marker.getSnapshot(Range.fromObject(ranges[id]), false)
+    {@id, @maintainHistory, @persistent, markersById, version: SerializationVersion}
 
   deserialize: (state) ->
     return unless state.version is SerializationVersion
     @id = state.id
     @maintainHistory = state.maintainHistory
+    @persistent = state.persistent
     for id, markerState of state.markersById
       range = Range.fromObject(markerState.range)
       delete markerState.range
@@ -292,8 +344,8 @@ class MarkerLayer
     @index.delete(id)
     @index.insert(id, start, end)
 
-  setMarkerHasTail: (id, hasTail) ->
-    @index.setExclusive(id, not hasTail)
+  setMarkerIsExclusive: (id, exclusive) ->
+    @index.setExclusive(id, exclusive)
 
   createMarker: (range, params) ->
     id = @delegate.getNextMarkerId()
@@ -311,12 +363,8 @@ class MarkerLayer
   addMarker: (id, range, params) ->
     Point.assertValid(range.start)
     Point.assertValid(range.end)
-    marker = new Marker(id, this, range, params)
-    @markersById[id] = marker
     @index.insert(id, range.start, range.end)
-    if marker.getInvalidationStrategy() is 'inside'
-      @index.setExclusive(id, true)
-    marker
+    @markersById[id] = new Marker(id, this, range, params)
 
   scheduleUpdateEvent: ->
     unless @didUpdateEventScheduled

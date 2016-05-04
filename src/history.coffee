@@ -28,12 +28,12 @@ class Transaction
 # Manages undo/redo for {TextBuffer}
 module.exports =
 class History
-  @deserialize: (state) ->
-    history = new History
+  @deserialize: (state, buffer) ->
+    history = new History(buffer)
     history.deserialize(state)
     history
 
-  constructor: (@maxUndoEntries) ->
+  constructor: (@buffer, @maxUndoEntries) ->
     @nextCheckpointId = 0
     @undoStack = []
     @redoStack = []
@@ -307,4 +307,7 @@ class History
   serializeSnapshot: (snapshot, options) ->
     return unless options.markerLayers
 
-    MarkerLayer.serializeSnapshot(snapshot)
+    layers = {}
+    for id, snapshot of snapshot when @buffer.getMarkerLayer(id)?.persistent
+      layers[id] = snapshot
+    layers
