@@ -236,6 +236,12 @@ class DisplayMarkerLayer
   getMarkers: ->
     @bufferMarkerLayer.getMarkers().map ({id}) => @getMarker(id)
 
+  # Public: Get the last (in terms of time) non-destroyed marker added to this layer.
+  #
+  # Returns a {DisplayMarker}.
+  getLastMarker: ->
+    @getMarker(@bufferMarkerLayer.getLastMarker()?.id)
+
   # Public: Get the number of markers in the marker layer.
   #
   # Returns a {Number}.

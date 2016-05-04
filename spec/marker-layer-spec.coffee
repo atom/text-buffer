@@ -75,6 +75,26 @@ describe "MarkerLayer", ->
     expect(createEventCount).toBe 1
     expect(updateEventCount).toBe 2
 
+  describe "::getLastMarker()", ->
+    it "returns the last (in terms of time) non-destroyed marker added to the layer", ->
+      marker1 = layer1.markRange([[0, 0], [0, 3]])
+      marker2 = layer1.markRange([[0, 2], [0, 6]])
+      marker3 = layer1.markRange([[0, 8], [0, 10]])
+      marker4 = layer1.markRange([[1, 0], [1, 10]])
+      expect(layer1.getLastMarker()).toBe(marker4)
+
+      marker4.destroy()
+      expect(layer1.getLastMarker()).toBe(marker3)
+
+      marker1.destroy()
+      expect(layer1.getLastMarker()).toBe(marker3)
+
+      marker3.destroy()
+      expect(layer1.getLastMarker()).toBe(marker2)
+
+      marker2.destroy()
+      expect(layer1.getLastMarker()).toBeFalsy()
+
   describe "when destroyInvalidatedMarkers is enabled for the layer", ->
     it "destroys markers when they are invalidated via a splice", ->
       layer3 = buffer.addMarkerLayer(destroyInvalidatedMarkers: true)

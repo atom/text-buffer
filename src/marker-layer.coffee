@@ -81,6 +81,12 @@ class MarkerLayer
   getMarker: (id) ->
     @markersById.get(id)
 
+  # Public: Get the last (in terms of time) non-destroyed marker added to this layer.
+  #
+  # Returns a {Marker}.
+  getLastMarker: ->
+    @getMarker(@markers[@markers.length - 1])
+
   # Public: Get all existing markers on the marker layer.
   #
   # Returns an {Array} of {Marker}s.
@@ -334,6 +340,8 @@ class MarkerLayer
   destroyMarker: (id) ->
     if @markersById.has(id)
       @markersById.delete(id)
+      index = @indexForMarkerId(id)
+      @markers.splice(index, 1) if index isnt -1
       @markersIdsWithChangeSubscriptions.delete(id)
       @index.delete(id)
       @destroyedMarkers.add(id)
@@ -382,7 +390,21 @@ class MarkerLayer
     @index.insert(id, range.start, range.end)
     marker = new Marker(id, this, range, params)
     @markersById.set(id, marker)
+    @markers.push(id)
     marker
+
+  indexForMarkerId: (id) ->
+    low = 0
+    high = @markers.length - 1
+    while low <= high
+      index = low + ((high - low) >> 1)
+      if id < @markers[index]
+        high = index - 1
+      else if id is @markers[index]
+        return index
+      else
+        low = index + 1
+    -1
 
   setDisableDidUpdateEvent: (@didUpdateEventDisabled) ->
 
