@@ -37,7 +37,8 @@ class MarkerLayer
     @persistent = options?.persistent ? false
     @emitter = new Emitter
     @index = new MarkerIndex
-    @markersById = {}
+    @markersById = new Map
+    @markers = []
     @markersIdsWithChangeSubscriptions = new Set
     @createdMarkers = new Set
     @destroyedMarkers = new Set
@@ -51,7 +52,7 @@ class MarkerLayer
   # locations.
   copy: ->
     copy = @delegate.addMarkerLayer({@maintainHistory})
-    for markerId, marker of @markersById
+    @markersById.forEach (marker, id) =>
       snapshot = marker.getSnapshot(null)
       copy.createMarker(marker.getRange(), marker.getSnapshot())
     copy
@@ -78,19 +79,21 @@ class MarkerLayer
   #
   # Returns a {Marker}.
   getMarker: (id) ->
-    @markersById[id]
+    @markersById.get(id)
 
   # Public: Get all existing markers on the marker layer.
   #
   # Returns an {Array} of {Marker}s.
   getMarkers: ->
-    marker for id, marker of @markersById
+    markers = []
+    @markersById.forEach (marker) -> markers.push(marker)
+    markers
 
   # Public: Get the number of markers in the marker layer.
   #
   # Returns a {Number}.
   getMarkerCount: ->
-    Object.keys(@markersById).length
+    @markersById.size
 
   # Public: Find markers in the layer conforming to the given parameters.
   #
@@ -129,13 +132,17 @@ class MarkerLayer
           continue
       delete params[key]
 
-    markerIds ?= new Set(Object.keys(@markersById))
-
     result = []
-    markerIds.forEach (markerId) =>
-      marker = @markersById[markerId]
-      return unless marker.matchesParams(params)
-      result.push(marker)
+    if markerIds?
+      markerIds.forEach (markerId) =>
+        marker = @markersById.get(markerId)
+        if marker.matchesParams(params)
+          result.push(marker)
+    else
+      @markersById.forEach (marker) =>
+        if marker.matchesParams(params)
+          result.push(marker)
+
     result.sort (a, b) -> a.compare(b)
 
   ###
@@ -256,7 +263,7 @@ class MarkerLayer
   splice: (start, oldExtent, newExtent) ->
     invalidated = @index.splice(start, oldExtent, newExtent)
     invalidated.touch.forEach (id) =>
-      marker = @markersById[id]
+      marker = @markersById.get(id)
       @touchedMarkers.add(id)
       if invalidated[marker.getInvalidationStrategy()]?.has(id)
         if @destroyInvalidatedMarkers
@@ -269,17 +276,17 @@ class MarkerLayer
     return unless snapshots?
 
     snapshotIds = Object.keys(snapshots)
-    existingMarkerIds = Object.keys(@markersById)
+    existingMarkerIds = Array.from(@markersById.keys())
 
     for id in snapshotIds
       snapshot = snapshots[id]
-      if marker = @markersById[id]
+      if marker = @markersById.get(parseInt(id))
         marker.update(marker.getRange(), snapshot, true)
       else
         newMarker = @createMarker(snapshot.range, snapshot)
 
     for id in existingMarkerIds
-      if (marker = @markersById[id]) and (not snapshots[id]?)
+      if (marker = @markersById.get(parseInt(id))) and (not snapshots[id]?)
         marker.destroy()
 
     @delegate.markersUpdated(this)
@@ -287,22 +294,20 @@ class MarkerLayer
   createSnapshot: ->
     result = {}
     ranges = @index.dump()
-    for id in Object.keys(@markersById)
-      marker = @markersById[id]
+    @markersById.forEach (marker, id) =>
       result[id] = marker.getSnapshot(Range.fromObject(ranges[id]), false)
     result
 
   emitChangeEvents: (snapshot) ->
     @markersIdsWithChangeSubscriptions.forEach (id) =>
-      if marker = @markersById[id] # event handlers could destroy markers
+      if marker = @markersById.get(id) # event handlers could destroy markers
         marker.emitChangeEvent(snapshot?[id]?.range, true, false)
     @delegate.markersUpdated(this)
 
   serialize: ->
     ranges = @index.dump()
     markersById = {}
-    for id in Object.keys(@markersById)
-      marker = @markersById[id]
+    @markersById.forEach (marker, id) =>
       markersById[id] = marker.getSnapshot(Range.fromObject(ranges[id]), false)
     {@id, @maintainHistory, @persistent, markersById, version: SerializationVersion}
 
@@ -314,7 +319,7 @@ class MarkerLayer
     for id, markerState of state.markersById
       range = Range.fromObject(markerState.range)
       delete markerState.range
-      @addMarker(id, range, markerState)
+      @addMarker(parseInt(id), range, markerState)
     return
 
   ###
@@ -327,8 +332,8 @@ class MarkerLayer
     @delegate.markersUpdated(this)
 
   destroyMarker: (id) ->
-    if @markersById.hasOwnProperty(id)
-      delete @markersById[id]
+    if @markersById.has(id)
+      @markersById.delete(id)
       @markersIdsWithChangeSubscriptions.delete(id)
       @index.delete(id)
       @destroyedMarkers.add(id)
@@ -375,7 +380,9 @@ class MarkerLayer
     Point.assertValid(range.start)
     Point.assertValid(range.end)
     @index.insert(id, range.start, range.end)
-    @markersById[id] = new Marker(id, this, range, params)
+    marker = new Marker(id, this, range, params)
+    @markersById.set(id, marker)
+    marker
 
   setDisableDidUpdateEvent: (@didUpdateEventDisabled) ->
 
