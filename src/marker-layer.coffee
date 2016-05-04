@@ -52,7 +52,7 @@ class MarkerLayer
   # locations.
   copy: ->
     copy = @delegate.addMarkerLayer({@maintainHistory})
-    @markersById.forEach (marker, id) =>
+    @markersById.forEach (marker, id) ->
       snapshot = marker.getSnapshot(null)
       copy.createMarker(marker.getRange(), marker.getSnapshot())
     copy
@@ -145,7 +145,7 @@ class MarkerLayer
         if marker.matchesParams(params)
           result.push(marker)
     else
-      @markersById.forEach (marker) =>
+      @markersById.forEach (marker) ->
         if marker.matchesParams(params)
           result.push(marker)
 
@@ -300,7 +300,7 @@ class MarkerLayer
   createSnapshot: ->
     result = {}
     ranges = @index.dump()
-    @markersById.forEach (marker, id) =>
+    @markersById.forEach (marker, id) ->
       result[id] = marker.getSnapshot(Range.fromObject(ranges[id]), false)
     result
 
@@ -313,7 +313,7 @@ class MarkerLayer
   serialize: ->
     ranges = @index.dump()
     markersById = {}
-    @markersById.forEach (marker, id) =>
+    @markersById.forEach (marker, id) ->
       markersById[id] = marker.getSnapshot(Range.fromObject(ranges[id]), false)
     {@id, @maintainHistory, @persistent, markersById, version: SerializationVersion}
 
