@@ -1078,16 +1078,14 @@ describe "TextBuffer", ->
             buffer2.setText(previousText)
             expect(buffer2.isModified()).toBeFalsy()
 
-      describe "when the serialized buffer was unsaved and had no path", ->
-        it "restores the previous unsaved state of the buffer", ->
-          buffer.destroy()
+    describe "when the serialized buffer was unsaved and had no path", ->
+      it "restores the previous unsaved state of the buffer", ->
+        buffer = new TextBuffer()
+        buffer.setText("abc")
 
-          buffer = new TextBuffer()
-          buffer.setText("abc")
-
-          buffer2 = TextBuffer.deserialize(buffer.serialize())
-          expect(buffer2.getPath()).toBeUndefined()
-          expect(buffer2.getText()).toBe("abc")
+        buffer2 = TextBuffer.deserialize(buffer.serialize())
+        expect(buffer2.getPath()).toBeUndefined()
+        expect(buffer2.getText()).toBe("abc")
 
   describe "::getRange()", ->
     it "returns the range of the entire buffer text", ->
