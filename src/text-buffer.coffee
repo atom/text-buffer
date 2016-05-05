@@ -1457,6 +1457,9 @@ class TextBuffer
   Section: Private Utility Methods
   ###
 
+  getTextDigest: ->
+    crypto.createHash('sha1').update(@getText()).digest('hex')
+
   loadSync: ->
     @updateCachedDiskContentsSync()
     @finishLoading()
@@ -1467,11 +1470,16 @@ class TextBuffer
   finishLoading: ->
     if @isAlive()
       @loaded = true
-      if @digestWhenLastPersisted is @file?.getDigestSync()
-        @emitModifiedStatusChanged(@isModified())
-      else
+      if not @digestWhenLastPersisted
         @reload(true)
-    this
+      else if @isModified() and @file?.existsSync()
+        if @digestWhenLastPersisted is @getTextDigest()
+          @reload(true)
+        else
+          @conflict = @digestWhenLastPersisted isnt @file?.getDigestSync()
+          @emitModifiedStatusChanged(true)
+      else
+        @emitModifiedStatusChanged(false)
 
   destroy: ->
     unless @destroyed

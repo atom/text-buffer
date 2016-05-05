@@ -1013,36 +1013,77 @@ describe "TextBuffer", ->
         buffer2?.destroy()
 
       describe "when the serialized buffer had no unsaved changes", ->
-        [buffer2, buffer2ModifiedEvents] = []
-        beforeEach (done) ->
-          buffer.append("!")
-          buffer.save()
-          expect(buffer.isModified()).toBeFalsy()
-          params = buffer.serialize()
-          params.load = false
-          buffer2 = TextBuffer.deserialize(params)
-          buffer2ModifiedEvents = []
-          buffer2.onDidChangeModified (value) -> buffer2ModifiedEvents.push(value)
-          buffer2.load().then ->
-            done()
+        describe "when the disk contents were changed since serialization", ->
+          it "loads the current contents of the file at the serialized path", (done) ->
+            buffer2ModifiedEvents = []
+            buffer.append("!")
+            buffer.save()
+            expect(buffer.isModified()).toBeFalsy()
+            params = buffer.serialize()
+            params.load = false
+            fs.writeFileSync(filePath, 'FILE CHANGED')
+            buffer2 = TextBuffer.deserialize(params)
+            buffer2ModifiedEvents = []
+            buffer2.onDidChangeModified (value) -> buffer2ModifiedEvents.push(value)
+            buffer2.load().then ->
+              expect(buffer2.isModified()).toBeFalsy()
+              expect(buffer2.isInConflict()).toBeFalsy()
+              expect(buffer2ModifiedEvents).toEqual [false]
+              expect(buffer2.getPath()).toBe(filePath)
+              expect(buffer2.getText()).toBe('FILE CHANGED')
 
-        it "loads the current contents of the file at the serialized path", (done) ->
-          expect(buffer2.isModified()).toBeFalsy()
-          expect(buffer2ModifiedEvents).toEqual [false]
-          expect(buffer2.getPath()).toBe(filePath)
-          expect(buffer2.getText()).toBe('words!')
+              buffer.undo()
+              buffer2.undo()
+              setTimeout(->
+                expect(buffer.getText()).not.toBe(buffer2.getText())
+                expect(buffer2ModifiedEvents).toEqual [false]
+                done()
+              , buffer.stoppedChangingDelay)
 
-          buffer.undo()
-          buffer2.undo()
-          setTimeout(->
-            expect(buffer2.getText()).toBe('words')
-            expect(buffer2ModifiedEvents).toEqual [false, true]
-            done()
-          , buffer.stoppedChangingDelay)
+        describe "when the disk contents are the same since serialization", ->
+          it "restores the previous buffer state", (done) ->
+            buffer2ModifiedEvents = []
+            buffer.append("!")
+            buffer.save()
+            expect(buffer.isModified()).toBeFalsy()
+            params = buffer.serialize()
+            params.load = false
+            buffer2 = TextBuffer.deserialize(params)
+            buffer2ModifiedEvents = []
+            buffer2.onDidChangeModified (value) -> buffer2ModifiedEvents.push(value)
+            buffer2.load().then ->
+              expect(buffer2.isModified()).toBeFalsy()
+              expect(buffer2.isInConflict()).toBeFalsy()
+              expect(buffer2ModifiedEvents).toEqual [false]
+              expect(buffer2.getPath()).toBe(filePath)
+              expect(buffer2.getText()).toBe('words!')
+
+              buffer.undo()
+              buffer2.undo()
+              setTimeout(->
+                expect(buffer.getText()).toBe(buffer2.getText())
+                expect(buffer2ModifiedEvents).toEqual [false, true]
+                done()
+              , buffer.stoppedChangingDelay)
+
+        describe "when the underlying file was deleted since serialization", ->
+          it "restores the previous unsaved state of the buffer", (done) ->
+            params = buffer.serialize()
+            params.load = false
+
+            fs.unlinkSync(filePath)
+
+            buffer2 = TextBuffer.deserialize(params)
+            buffer2.load().then ->
+              expect(buffer2.getPath()).toBe(buffer.getPath())
+              expect(buffer2.getText()).toBe(buffer.getText())
+              expect(buffer2.isModified()).toBeTruthy()
+              expect(buffer2.isInConflict()).toBeFalsy()
+              done()
 
       describe "when the serialized buffer had unsaved changes", ->
         describe "when the disk contents were changed since serialization", ->
-          it "loads the disk contents instead of the previous unsaved state", (done) ->
+          it "restores the previous unsaved buffer state", (done) ->
             buffer.setText("BUFFER CHANGE")
             fs.writeFileSync(filePath, "DISK CHANGE")
 
@@ -1051,8 +1092,9 @@ describe "TextBuffer", ->
             buffer2 = TextBuffer.deserialize(params)
             buffer2.load().then ->
               expect(buffer2.getPath()).toBe(buffer.getPath())
-              expect(buffer2.getText()).toBe("DISK CHANGE")
-              expect(buffer2.isModified()).toBeFalsy()
+              expect(buffer2.getText()).toBe("BUFFER CHANGE")
+              expect(buffer2.isModified()).toBeTruthy()
+              expect(buffer2.isInConflict()).toBeTruthy()
               done()
 
         describe "when the disk contents are the same since serialization", ->
@@ -1070,6 +1112,7 @@ describe "TextBuffer", ->
             expect(buffer2.getPath()).toBe(buffer.getPath())
             expect(buffer2.getText()).toBe(buffer.getText())
             expect(buffer2.isModified()).toBeTruthy()
+            expect(buffer2.isInConflict()).toBeFalsy()
 
             buffer.undo()
             buffer2.undo()
@@ -1077,6 +1120,22 @@ describe "TextBuffer", ->
 
             buffer2.setText(previousText)
             expect(buffer2.isModified()).toBeFalsy()
+
+        describe "when the underlying file was deleted since serialization", ->
+          it "restores the previous unsaved state of the buffer", (done) ->
+            buffer.setText("BUFFER CHANGE")
+            params = buffer.serialize()
+            params.load = false
+
+            fs.unlinkSync(filePath)
+
+            buffer2 = TextBuffer.deserialize(params)
+            buffer2.load().then ->
+              expect(buffer2.getPath()).toBe(buffer.getPath())
+              expect(buffer2.getText()).toBe("BUFFER CHANGE")
+              expect(buffer2.isModified()).toBeTruthy()
+              expect(buffer2.isInConflict()).toBeFalsy()
+              done()
 
     describe "when the serialized buffer was unsaved and had no path", ->
       it "restores the previous unsaved state of the buffer", ->
