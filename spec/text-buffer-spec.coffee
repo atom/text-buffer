@@ -1014,14 +1014,19 @@ describe "TextBuffer", ->
 
       describe "when the serialized buffer had no unsaved changes", ->
         describe "when the disk contents were changed since serialization", ->
-          it "loads the current contents of the file at the serialized path", (done) ->
+          params = null
+
+          beforeEach (done) ->
             buffer2ModifiedEvents = []
             buffer.append("!")
             buffer.save()
             expect(buffer.isModified()).toBeFalsy()
             params = buffer.serialize()
             params.load = false
+            buffer.onDidReload(done)
             fs.writeFileSync(filePath, 'FILE CHANGED')
+
+          it "restores the previous buffer state, loading the current contents of the file at the serialized path", (done) ->
             buffer2 = TextBuffer.deserialize(params)
             buffer2ModifiedEvents = []
             buffer2.onDidChangeModified (value) -> buffer2ModifiedEvents.push(value)
@@ -1035,8 +1040,8 @@ describe "TextBuffer", ->
               buffer.undo()
               buffer2.undo()
               setTimeout(->
-                expect(buffer.getText()).not.toBe(buffer2.getText())
-                expect(buffer2ModifiedEvents).toEqual [false]
+                expect(buffer.getText()).toBe(buffer2.getText())
+                expect(buffer2ModifiedEvents).toEqual [false, true]
                 done()
               , buffer.stoppedChangingDelay)
 
