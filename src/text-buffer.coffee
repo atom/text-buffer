@@ -382,7 +382,7 @@ class TextBuffer
       if @file.existsSync()
         @getText() != @cachedDiskContents
       else
-        not @isEmpty()
+        @wasModifiedBeforeRemove ? not @isEmpty()
     else
       not @isEmpty()
 
@@ -1523,9 +1523,13 @@ class TextBuffer
         @reload()
 
     @fileSubscriptions.add @file.onDidDelete =>
+      modified = @getText() != @cachedDiskContents
+      @wasModifiedBeforeRemove = modified
       @emitter.emit 'did-delete'
-      @updateCachedDiskContents()
-      @emitModifiedStatusChanged(@isModified())
+      if modified
+        @updateCachedDiskContents()
+      else
+        @destroy()
 
     @fileSubscriptions.add @file.onDidRename =>
       @emitter.emit 'did-change-path', @getPath()
