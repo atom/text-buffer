@@ -1335,19 +1335,27 @@ describe "TextBuffer", ->
         expect(bufferToDelete.isModified()).toBeTruthy()
 
     describe "when the file is not modified", ->
+      [previousContents, modifiedEvents] = []
+
       beforeEach (done) ->
+        previousContents = bufferToDelete.getText()
+        modifiedEvents = []
         expect(bufferToDelete.isModified()).toBeFalsy()
+        bufferToDelete.onDidChangeModified (modified) -> modifiedEvents.push(modified)
         bufferToDelete.file.onDidDelete ->
           done()
         fs.removeSync(filePath)
 
-      it "retains its path and reports the buffer as not modified", ->
+      it "retains its path and reports the buffer as modified", ->
         # FIXME: This doesn't pass on Linux
         return if process.platform is 'linux'
 
+        expect(modifiedEvents).toEqual [true]
         expect(bufferToDelete.getPath()).toBe filePath
-        expect(bufferToDelete.isModified()).toBeFalsy()
-
+        expect(bufferToDelete.isModified()).toBeTruthy()
+        expect(bufferToDelete.isInConflict()).toBeFalsy()
+        expect(bufferToDelete.isDestroyed()).toBeFalsy()
+        expect(bufferToDelete.getText()).toBe(previousContents)
 
     describe "when the file is deleted", ->
       it "notifies all onDidDelete listeners ", (done) ->
