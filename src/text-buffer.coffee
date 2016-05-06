@@ -1479,6 +1479,7 @@ class TextBuffer
           @conflict = true
 
       @emitModifiedStatusChanged(@isModified())
+    this
 
   destroy: ->
     unless @destroyed
