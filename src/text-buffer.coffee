@@ -1472,14 +1472,13 @@ class TextBuffer
       @loaded = true
       if not @digestWhenLastPersisted
         @reload(true)
-      else if @isModified() and @file?.existsSync()
+      else if @file?.existsSync() and @isModified()
         if @digestWhenLastPersisted is @getTextDigest()
           @reload()
-        else
-          @conflict = @digestWhenLastPersisted isnt @file?.getDigestSync()
-          @emitModifiedStatusChanged(true)
-      else
-        @emitModifiedStatusChanged(false)
+        else if @digestWhenLastPersisted isnt @file?.getDigestSync()
+          @conflict = true
+
+      @emitModifiedStatusChanged(@isModified())
 
   destroy: ->
     unless @destroyed
