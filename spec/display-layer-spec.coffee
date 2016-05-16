@@ -430,6 +430,19 @@ describe "DisplayLayer", ->
         [Point(2, 7), Point(0, 12)],
       ])
 
+    it "allows to query the soft-wrap descriptor of each screen row", ->
+      buffer = new TextBuffer(text: 'abc def ghi\njkl mno pqr')
+      displayLayer = buffer.addDisplayLayer(softWrapColumn: 4)
+
+      expect(JSON.stringify(displayLayer.getText())).toBe JSON.stringify("abc \ndef \nghi\njkl \nmno \npqr")
+
+      expect(displayLayer.softWrapDescriptorForScreenRow(0)).toEqual {softWrappedAtStart: false, softWrappedAtEnd: true, bufferRow: 0}
+      expect(displayLayer.softWrapDescriptorForScreenRow(1)).toEqual {softWrappedAtStart: true, softWrappedAtEnd: true, bufferRow: 0}
+      expect(displayLayer.softWrapDescriptorForScreenRow(2)).toEqual {softWrappedAtStart: true, softWrappedAtEnd: false, bufferRow: 0}
+      expect(displayLayer.softWrapDescriptorForScreenRow(3)).toEqual {softWrappedAtStart: false, softWrappedAtEnd: true, bufferRow: 1}
+      expect(displayLayer.softWrapDescriptorForScreenRow(4)).toEqual {softWrappedAtStart: true, softWrappedAtEnd: true, bufferRow: 1}
+      expect(displayLayer.softWrapDescriptorForScreenRow(5)).toEqual {softWrappedAtStart: true, softWrappedAtEnd: false, bufferRow: 1}
+
     it "prefers the skipSoftWrapIndentation option over clipDirection when translating points", ->
       buffer = new TextBuffer(text: '   abc defgh')
       displayLayer = buffer.addDisplayLayer(softWrapColumn: 8, softWrapHangingIndent: 2)

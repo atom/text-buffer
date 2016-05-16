@@ -1131,6 +1131,14 @@ class DisplayLayer
 
     Point.fromObject(screenPosition)
 
+  softWrapDescriptorForScreenRow: (row) ->
+    @spatialLineIterator.seekToScreenRow(row)
+    {
+      softWrappedAtStart: @spatialLineIterator.isSoftWrappedAtStart(),
+      softWrappedAtEnd: @spatialLineIterator.isSoftWrappedAtEnd(),
+      bufferRow: @spatialLineIterator.getBufferStart().row
+    }
+
   getScreenLineCount: ->
     @displayIndex.getScreenLineCount()
 
