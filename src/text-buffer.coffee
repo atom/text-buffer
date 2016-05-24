@@ -1351,15 +1351,15 @@ class TextBuffer
     @setPath(filePath)
 
     if options?.backup
-      backupFilePath = @backUpFileContentsBeforeWriting()
+      backupFile = @backUpFileContentsBeforeWriting()
 
     try
       @file.writeSync(@getText())
-      if backupFilePath?
-        @removeBackupFileAfterWriting(backupFilePath)
+      if backupFile?
+        backupFile.safeRemoveSync()
     catch error
-      if backupFilePath?
-        fs.writeFileSync(filePath, fs.readFileSync(backupFilePath))
+      if backupFile?
+        @file.writeSync(backupFile.readSync())
       throw error
 
     @cachedDiskContents = @getText()
@@ -1411,34 +1411,9 @@ class TextBuffer
         throw new Error("Can't create a backup file for #{@getPath()} because files already exist at every candidate path.")
       backupFilePath += '~'
 
-    backupFD = fs.openSync(backupFilePath, 'w')
-    fs.writeSync(backupFD, @file.readSync())
-
-    # Ensure backup file contents are really on disk before proceeding
-    fs.fdatasyncSync(backupFD)
-    fs.closeSync(backupFD)
-
-    # Ensure backup file directory entry is really on disk before proceeding
-    #
-    # Windows doesn't support syncing on directories so we'll just have to live
-    # with less safety on that platform.
-    unless process.platform is 'win32'
-      try
-        backupDirectoryFD = fs.openSync(path.dirname(backupFilePath), 'r')
-        fs.fdatasyncSync(backupDirectoryFD)
-        fs.closeSync(backupDirectoryFD)
-      catch error
-        console.warn("Non-fatal error syncing parent directory of backup file #{backupFilePath}")
-
-    backupFilePath
-
-  removeBackupFileAfterWriting: (backupFilePath) ->
-    # Ensure new file contents are really on disk before proceeding
-    fd = fs.openSync(@getPath(), 'a')
-    fs.fdatasyncSync(fd)
-    fs.closeSync(fd)
-
-    fs.removeSync(backupFilePath)
+    file = new File(backupFilePath)
+    file.safeWriteSync(@file.readSync())
+    file
 
   ###
   Section: Display Layers
