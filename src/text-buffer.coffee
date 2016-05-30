@@ -1411,7 +1411,7 @@ class TextBuffer
         throw new Error("Can't create a backup file for #{@getPath()} because files already exist at every candidate path.")
       backupFilePath += '~'
 
-    file = new File(backupFilePath)
+    file = new File(backupFilePath, false, false)
     file.safeWriteSync(@file.readSync())
     file
 
