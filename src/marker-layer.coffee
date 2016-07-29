@@ -197,7 +197,9 @@ class MarkerLayer
   # Returns a {Marker}.
   markPosition: (position, options={}) ->
     position = @delegate.clipPosition(position)
-    @markRange(new Range(position, position), {tailed: false, invalidate: options.invalidate})
+    options = Marker.extractParams(options)
+    options.tailed = false
+    @createMarker(@delegate.clipRange(new Range(position, position)), options)
 
   ###
   Section: Event subscription

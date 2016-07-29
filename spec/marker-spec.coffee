@@ -73,6 +73,10 @@ describe "Marker", ->
         expect(buffer.findMarkers({})).toEqual [marker1]
         expect(buffer.getMarkers()).toEqual [marker1]
 
+      it "allows arbitrary properties to be assigned", ->
+        marker = buffer.markRange([[0, 6], [0, 8]], foo: 'bar')
+        expect(marker.getProperties()).toEqual({foo: 'bar'})
+
     describe "TextBuffer::markPosition(position, properties)", ->
       it "creates a tail-less marker at the given position", ->
         marker = buffer.markPosition([0, 6])
@@ -95,6 +99,10 @@ describe "Marker", ->
 
         expect(buffer.findMarkers({})).toEqual [marker1]
         expect(buffer.getMarkers()).toEqual [marker1]
+
+      it "allows arbitrary properties to be assigned", ->
+        marker = buffer.markPosition([0, 6], foo: 'bar')
+        expect(marker.getProperties()).toEqual({foo: 'bar'})
 
   describe "direct updates", ->
     [marker, changes] = []
