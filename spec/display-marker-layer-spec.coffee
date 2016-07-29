@@ -131,24 +131,46 @@ describe "DisplayMarkerLayer", ->
     marker.destroy()
     expect(destroyEventCount).toBe 1
 
-  it "emits update events when markers are created, updated directly, updated indirectly, or destroyed", (done) ->
-    buffer = new TextBuffer(text: 'hello world')
+  it "emits update events when markers are created, updated directly, updated indirectly, or destroyed", ->
+    buffer = new TextBuffer(text: 'hello world\nhow are you?')
     displayLayer = buffer.addDisplayLayer(tabLength: 4)
     markerLayer = displayLayer.addMarkerLayer()
 
-    updateEventCount = 0
-    markerLayer.onDidUpdate ->
-      updateEventCount++
-      if updateEventCount is 1
-        marker.setScreenRange([[0, 5], [1, 0]])
-      else if updateEventCount is 2
-        buffer.insert([0, 0], '\t')
-      else if updateEventCount is 3
-        marker.destroy()
-      else if updateEventCount is 4
-        done()
+    events = []
+    markerLayer.onDidUpdate (event) -> events.push({
+      created: Array.from(event.created),
+      updated: Array.from(event.updated),
+      touched: Array.from(event.touched),
+      destroyed: Array.from(event.destroyed)
+    })
 
-    marker = markerLayer.markScreenRange([[0, 4], [1, 4]])
+    events = []
+    marker = markerLayer.markScreenRange([[0, 4], [1, 4]], {invalidate: 'inside'})
+    expect(events).toEqual([
+      {created: [marker.id], updated: [], touched: [], destroyed: []}
+    ])
+
+    events = []
+    marker.setScreenRange([[0, 5], [1, 0]])
+    expect(events).toEqual([
+      {created: [], updated: [marker.id], touched: [], destroyed: []}
+    ])
+
+    events = []
+    buffer.insert([0, 8], 'foo')
+    expect(events).toEqual([
+      {created: [], updated: [], touched: [marker.id], destroyed: []}
+    ])
+
+    events = []
+    buffer.insert([0, 0], '\t')
+    expect(events).toEqual([])
+
+    events = []
+    marker.destroy()
+    expect(events).toEqual([
+      {created: [], updated: [], touched: [], destroyed: [marker.id]}
+    ])
 
   it "allows markers to be copied", ->
     buffer = new TextBuffer(text: '\ta\tbc\tdef\tg\n\th')

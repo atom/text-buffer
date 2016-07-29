@@ -37,8 +37,14 @@ class MarkerLayer
     @persistent = options?.persistent ? false
     @emitter = new Emitter
     @index = new MarkerIndex
-    @markersById = {}
+    @markersById = new Map
+    @markers = []
     @markersIdsWithChangeSubscriptions = new Set
+    @createdMarkers = new Set
+    @destroyedMarkers = new Set
+    @updatedMarkers = new Set
+    @touchedMarkers = new Set
+    @setDisableDidUpdateEvent(false)
     @destroyed = false
     @emitCreateMarkerEvents = false
 
@@ -46,7 +52,7 @@ class MarkerLayer
   # locations.
   copy: ->
     copy = @delegate.addMarkerLayer({@maintainHistory})
-    for markerId, marker of @markersById
+    @markersById.forEach (marker, id) ->
       snapshot = marker.getSnapshot(null)
       copy.createMarker(marker.getRange(), marker.getSnapshot())
     copy
@@ -73,19 +79,27 @@ class MarkerLayer
   #
   # Returns a {Marker}.
   getMarker: (id) ->
-    @markersById[id]
+    @markersById.get(id)
+
+  # Public: Get the last (in terms of time) non-destroyed marker added to this layer.
+  #
+  # Returns a {Marker}.
+  getLastMarker: ->
+    @getMarker(@markers[@markers.length - 1])
 
   # Public: Get all existing markers on the marker layer.
   #
   # Returns an {Array} of {Marker}s.
   getMarkers: ->
-    marker for id, marker of @markersById
+    markers = []
+    @markersById.forEach (marker) -> markers.push(marker)
+    markers
 
   # Public: Get the number of markers in the marker layer.
   #
   # Returns a {Number}.
   getMarkerCount: ->
-    Object.keys(@markersById).length
+    @markersById.size
 
   # Public: Find markers in the layer conforming to the given parameters.
   #
@@ -124,13 +138,17 @@ class MarkerLayer
           continue
       delete params[key]
 
-    markerIds ?= new Set(Object.keys(@markersById))
-
     result = []
-    markerIds.forEach (markerId) =>
-      marker = @markersById[markerId]
-      return unless marker.matchesParams(params)
-      result.push(marker)
+    if markerIds?
+      markerIds.forEach (markerId) =>
+        marker = @markersById.get(markerId)
+        if marker.matchesParams(params)
+          result.push(marker)
+    else
+      @markersById.forEach (marker) ->
+        if marker.matchesParams(params)
+          result.push(marker)
+
     result.sort (a, b) -> a.compare(b)
 
   ###
@@ -205,19 +223,21 @@ class MarkerLayer
   Section: Event subscription
   ###
 
-  # Public: Subscribe to be notified asynchronously whenever markers are
-  # created, updated, or destroyed on this layer. *Prefer this method for
-  # optimal performance when interacting with layers that could contain large
-  # numbers of markers.*
+  # Public: Subscribe to be notified whenever markers are created, updated,
+  # touched (moved because of a textual change), or destroyed on this layer.
+  # *Prefer this method for optimal performance when interacting with layers
+  # that could contain large numbers of markers.*
   #
   # * `callback` A {Function} that will be called with no arguments when changes
   #   occur on this layer.
   #
-  # Subscribers are notified once, asynchronously when any number of changes
-  # occur in a given tick of the event loop. You should re-query the layer
-  # to determine the state of markers in which you're interested in. It may
-  # be counter-intuitive, but this is much more efficient than subscribing to
-  # events on individual markers, which are expensive to deliver.
+  # Subscribers are notified once when any number of changes occur in this
+  # {MarkerLayer}. The notification gets scheduled either at the end of a
+  # transaction, or synchronously when a marker changes and no transaction is
+  # present. You should re-query the layer to determine the state of markers in
+  # which you're interested in: it may be counter-intuitive, but this is much
+  # more efficient than subscribing to events on individual markers, which are
+  # expensive to deliver.
   #
   # Returns a {Disposable}.
   onDidUpdate: (callback) ->
@@ -251,29 +271,30 @@ class MarkerLayer
   splice: (start, oldExtent, newExtent) ->
     invalidated = @index.splice(start, oldExtent, newExtent)
     invalidated.touch.forEach (id) =>
-      marker = @markersById[id]
+      marker = @markersById.get(id)
+      @touchedMarkers.add(id)
       if invalidated[marker.getInvalidationStrategy()]?.has(id)
         if @destroyInvalidatedMarkers
           marker.destroy()
         else
           marker.valid = false
-    @scheduleUpdateEvent()
+    @emitDidUpdateEvent()
 
   restoreFromSnapshot: (snapshots) ->
     return unless snapshots?
 
     snapshotIds = Object.keys(snapshots)
-    existingMarkerIds = Object.keys(@markersById)
+    existingMarkerIds = Array.from(@markersById.keys())
 
     for id in snapshotIds
       snapshot = snapshots[id]
-      if marker = @markersById[id]
+      if marker = @markersById.get(parseInt(id))
         marker.update(marker.getRange(), snapshot, true)
       else
         newMarker = @createMarker(snapshot.range, snapshot)
 
     for id in existingMarkerIds
-      if (marker = @markersById[id]) and (not snapshots[id]?)
+      if (marker = @markersById.get(parseInt(id))) and (not snapshots[id]?)
         marker.destroy()
 
     @delegate.markersUpdated(this)
@@ -281,22 +302,20 @@ class MarkerLayer
   createSnapshot: ->
     result = {}
     ranges = @index.dump()
-    for id in Object.keys(@markersById)
-      marker = @markersById[id]
+    @markersById.forEach (marker, id) ->
       result[id] = marker.getSnapshot(Range.fromObject(ranges[id]), false)
     result
 
   emitChangeEvents: (snapshot) ->
     @markersIdsWithChangeSubscriptions.forEach (id) =>
-      if marker = @markersById[id] # event handlers could destroy markers
+      if marker = @markersById.get(id) # event handlers could destroy markers
         marker.emitChangeEvent(snapshot?[id]?.range, true, false)
     @delegate.markersUpdated(this)
 
   serialize: ->
     ranges = @index.dump()
     markersById = {}
-    for id in Object.keys(@markersById)
-      marker = @markersById[id]
+    @markersById.forEach (marker, id) ->
       markersById[id] = marker.getSnapshot(Range.fromObject(ranges[id]), false)
     {@id, @maintainHistory, @persistent, markersById, version: SerializationVersion}
 
@@ -308,24 +327,28 @@ class MarkerLayer
     for id, markerState of state.markersById
       range = Range.fromObject(markerState.range)
       delete markerState.range
-      @addMarker(id, range, markerState)
+      @addMarker(parseInt(id), range, markerState)
     return
 
   ###
   Section: Private - Marker interface
   ###
 
-  markerUpdated: ->
+  markerUpdated: (id) ->
+    @updatedMarkers.add(id)
+    @emitDidUpdateEvent()
     @delegate.markersUpdated(this)
-    @scheduleUpdateEvent()
 
   destroyMarker: (id) ->
-    if @markersById.hasOwnProperty(id)
-      delete @markersById[id]
+    if @markersById.has(id)
+      @markersById.delete(id)
+      index = @indexForMarkerId(id)
+      @markers.splice(index, 1) if index isnt -1
       @markersIdsWithChangeSubscriptions.delete(id)
       @index.delete(id)
+      @destroyedMarkers.add(id)
+      @emitDidUpdateEvent()
       @delegate.markersUpdated(this)
-      @scheduleUpdateEvent()
 
   getMarkerRange: (id) ->
     Range.fromObject(@index.getRange(id))
@@ -352,10 +375,11 @@ class MarkerLayer
   createMarker: (range, params) ->
     id = @delegate.getNextMarkerId()
     marker = @addMarker(id, range, params)
+    @createdMarkers.add(id)
+    @emitDidUpdateEvent()
+    @emitter.emit 'did-create-marker', marker if @emitCreateMarkerEvents
     @delegate.markerCreated(this, marker)
     @delegate.markersUpdated(this)
-    @scheduleUpdateEvent()
-    @emitter.emit 'did-create-marker', marker if @emitCreateMarkerEvents
     marker
 
   ###
@@ -366,14 +390,36 @@ class MarkerLayer
     Point.assertValid(range.start)
     Point.assertValid(range.end)
     @index.insert(id, range.start, range.end)
-    @markersById[id] = new Marker(id, this, range, params)
+    marker = new Marker(id, this, range, params)
+    @markersById.set(id, marker)
+    @markers.push(id)
+    marker
 
-  scheduleUpdateEvent: ->
-    unless @didUpdateEventScheduled
-      @didUpdateEventScheduled = true
-      process.nextTick =>
-        @didUpdateEventScheduled = false
-        @emitter.emit 'did-update'
+  indexForMarkerId: (id) ->
+    low = 0
+    high = @markers.length - 1
+    while low <= high
+      index = low + ((high - low) >> 1)
+      if id < @markers[index]
+        high = index - 1
+      else if id is @markers[index]
+        return index
+      else
+        low = index + 1
+    -1
+
+  setDisableDidUpdateEvent: (@didUpdateEventDisabled) ->
+
+  emitDidUpdateEvent: ->
+    return if @didUpdateEventDisabled
+
+    if @createdMarkers.size > 0 or @destroyedMarkers.size > 0 or @touchedMarkers.size > 0 or @updatedMarkers.size > 0
+      event = {created: @createdMarkers, destroyed: @destroyedMarkers, touched: @touchedMarkers, updated: @updatedMarkers}
+      @createdMarkers = new Set
+      @destroyedMarkers = new Set
+      @touchedMarkers = new Set
+      @updatedMarkers = new Set
+      @emitter.emit 'did-update', event
 
 filterSet = (set1, set2) ->
   if set1

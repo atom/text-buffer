@@ -108,6 +108,7 @@ class TextBuffer
     @markerLayers = params?.markerLayers ? {}
     @markerLayers[@defaultMarkerLayer.id] = @defaultMarkerLayer
     @nextMarkerId = params?.nextMarkerId ? 1
+    @markerLayerDidUpdateEventDisabled = false
 
     @setEncoding(params?.encoding)
     @setPreferredLineEnding(params?.preferredLineEnding)
@@ -963,9 +964,12 @@ class TextBuffer
   # Public: Undo the last operation. If a transaction is in progress, aborts it.
   undo: ->
     if pop = @history.popUndoStack()
+      markerLayerUpdateEventWasDisabled = @disableMarkerLayersDidUpdateEvent()
       @applyChange(change) for change in pop.patch.getChanges()
       @restoreFromMarkerSnapshot(pop.snapshot)
+      @enableMarkersLayersDidUpdateEvent()
       @emitMarkerChangeEvents(pop.snapshot)
+      @disableMarkerLayersDidUpdateEvent() if markerLayerUpdateEventWasDisabled
       @emitDidChangeTextEvent(pop.patch)
       true
     else
@@ -974,9 +978,12 @@ class TextBuffer
   # Public: Redo the last operation
   redo: ->
     if pop = @history.popRedoStack()
+      markerLayerUpdateEventWasDisabled = @disableMarkerLayersDidUpdateEvent()
       @applyChange(change) for change in pop.patch.getChanges()
       @restoreFromMarkerSnapshot(pop.snapshot)
+      @enableMarkersLayersDidUpdateEvent()
       @emitMarkerChangeEvents(pop.snapshot)
+      @disableMarkerLayersDidUpdateEvent() if markerLayerUpdateEventWasDisabled
       @emitDidChangeTextEvent(pop.patch)
       true
     else
@@ -1000,6 +1007,7 @@ class TextBuffer
       fn = groupingInterval
       groupingInterval = 0
 
+    markerLayerUpdateEventWasDisabled = @disableMarkerLayersDidUpdateEvent()
     checkpointBefore = @history.createCheckpoint(@createMarkerSnapshot(), true)
 
     try
@@ -1018,7 +1026,9 @@ class TextBuffer
       error.metadata = {history: @history.toString()}
     @history.applyGroupingInterval(groupingInterval)
     @history.enforceUndoStackSizeLimit()
+    @enableMarkersLayersDidUpdateEvent()
     @emitMarkerChangeEvents(endMarkerSnapshot)
+    @disableMarkerLayersDidUpdateEvent() if markerLayerUpdateEventWasDisabled
     @emitDidChangeTextEvent(compactedChanges) if compactedChanges
     result
 
@@ -1048,9 +1058,12 @@ class TextBuffer
   # Returns a {Boolean} indicating whether the operation succeeded.
   revertToCheckpoint: (checkpoint) ->
     if truncated = @history.truncateUndoStack(checkpoint)
+      markerLayerUpdateEventWasDisabled = @disableMarkerLayersDidUpdateEvent()
       @applyChange(change) for change in truncated.patch.getChanges()
       @restoreFromMarkerSnapshot(truncated.snapshot)
-      @emitter.emit 'did-update-markers'
+      @enableMarkersLayersDidUpdateEvent()
+      @emitMarkerChangeEvents(truncated.snapshot)
+      @disableMarkerLayersDidUpdateEvent() if markerLayerUpdateEventWasDisabled
       @emitDidChangeTextEvent(truncated.patch)
       true
     else
@@ -1517,7 +1530,20 @@ class TextBuffer
 
   emitMarkerChangeEvents: (snapshot) ->
     for markerLayerId, markerLayer of @markerLayers
+      markerLayer.emitDidUpdateEvent()
       markerLayer.emitChangeEvents(snapshot?[markerLayerId])
+
+  disableMarkerLayersDidUpdateEvent: ->
+    wasDisabled = @markerLayerDidUpdateEventDisabled
+    @markerLayerDidUpdateEventDisabled = true
+    for id, markerLayer of @markerLayers
+      markerLayer.setDisableDidUpdateEvent(true)
+    wasDisabled
+
+  enableMarkersLayersDidUpdateEvent: ->
+    @markerLayerDidUpdateEventDisabled = false
+    for id, markerLayer of @markerLayers
+      markerLayer.setDisableDidUpdateEvent(false)
 
   emitDidChangeTextEvent: (patch) ->
     return if @transactCallDepth isnt 0

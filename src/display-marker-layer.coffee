@@ -34,19 +34,21 @@ class DisplayMarkerLayer
   onDidDestroy: (callback) ->
     @emitter.on('did-destroy', callback)
 
-  # Public: Subscribe to be notified asynchronously whenever markers are
-  # created, updated, or destroyed on this layer. *Prefer this method for
-  # optimal performance when interacting with layers that could contain large
-  # numbers of markers.*
+  # Public: Subscribe to be notified whenever markers are created, updated,
+  # touched (moved because of a textual change), or destroyed on this layer.
+  # *Prefer this method for optimal performance when interacting with layers
+  # that could contain large numbers of markers.*
   #
   # * `callback` A {Function} that will be called with no arguments when changes
   #   occur on this layer.
   #
-  # Subscribers are notified once, asynchronously when any number of changes
-  # occur in a given tick of the event loop. You should re-query the layer
-  # to determine the state of markers in which you're interested in. It may
-  # be counter-intuitive, but this is much more efficient than subscribing to
-  # events on individual markers, which are expensive to deliver.
+  # Subscribers are notified once when any number of changes occur in this
+  # {MarkerLayer}. The notification gets scheduled either at the end of a
+  # transaction, or synchronously when a marker changes and no transaction is
+  # present. You should re-query the layer to determine the state of markers in
+  # which you're interested in: it may be counter-intuitive, but this is much
+  # more efficient than subscribing to events on individual markers, which are
+  # expensive to deliver.
   #
   # Returns a {Disposable}.
   onDidUpdate: (callback) ->
@@ -234,6 +236,12 @@ class DisplayMarkerLayer
   getMarkers: ->
     @bufferMarkerLayer.getMarkers().map ({id}) => @getMarker(id)
 
+  # Public: Get the last (in terms of time) non-destroyed marker added to this layer.
+  #
+  # Returns a {DisplayMarker}.
+  getLastMarker: ->
+    @getMarker(@bufferMarkerLayer.getLastMarker()?.id)
+
   # Public: Get the number of markers in the marker layer.
   #
   # Returns a {Number}.
@@ -291,8 +299,8 @@ class DisplayMarkerLayer
   translateScreenRange: (screenRange, options) ->
     @displayLayer.translateScreenRange(screenRange, options)
 
-  emitDidUpdate: ->
-    @emitter.emit('did-update')
+  emitDidUpdate: (event) ->
+    @emitter.emit('did-update', event)
 
   emitDidDestroy: ->
     @emitter.emit('did-destroy')

@@ -6,7 +6,14 @@ describe "MarkerLayer", ->
 
   beforeEach ->
     jasmine.addCustomEqualityTester(require("underscore-plus").isEqual)
-    buffer = new TextBuffer(text: "abcdefghijklmnopqrstuvwxyz")
+    buffer = new TextBuffer(text: """
+    Lorem ipsum dolor sit amet,
+    consectetur adipisicing elit,
+    sed do eiusmod tempor incididunt
+    ut labore et dolore magna aliqua.
+    Ut enim ad minim veniam, quis
+    nostrud exercitation ullamco laboris.
+    """)
     layer1 = buffer.addMarkerLayer()
     layer2 = buffer.addMarkerLayer()
 
@@ -67,6 +74,26 @@ describe "MarkerLayer", ->
 
     expect(createEventCount).toBe 1
     expect(updateEventCount).toBe 2
+
+  describe "::getLastMarker()", ->
+    it "returns the last (in terms of time) non-destroyed marker added to the layer", ->
+      marker1 = layer1.markRange([[0, 0], [0, 3]])
+      marker2 = layer1.markRange([[0, 2], [0, 6]])
+      marker3 = layer1.markRange([[0, 8], [0, 10]])
+      marker4 = layer1.markRange([[1, 0], [1, 10]])
+      expect(layer1.getLastMarker()).toBe(marker4)
+
+      marker4.destroy()
+      expect(layer1.getLastMarker()).toBe(marker3)
+
+      marker1.destroy()
+      expect(layer1.getLastMarker()).toBe(marker3)
+
+      marker3.destroy()
+      expect(layer1.getLastMarker()).toBe(marker2)
+
+      marker2.destroy()
+      expect(layer1.getLastMarker()).toBeFalsy()
 
   describe "when destroyInvalidatedMarkers is enabled for the layer", ->
     it "destroys markers when they are invalidated via a splice", ->
@@ -169,24 +196,94 @@ describe "MarkerLayer", ->
       expect(layer2.findMarkers(containsPoint: [0, 4])).toEqual [layer2Marker]
 
   describe "::onDidUpdate", ->
-    it "notifies observers asynchronously when markers are created, updated, or destroyed", (done) ->
-      updateCount = 0
-      layer1.onDidUpdate ->
-        updateCount++
-        if updateCount is 1
-          marker1.setRange([[1, 2], [3, 4]])
-          marker2.setRange([[4, 5], [6, 7]])
-        else if updateCount is 2
-          buffer.insert([0, 1], "xxx")
-          buffer.insert([0, 1], "yyy")
-        else if updateCount is 3
-          marker1.destroy()
-          marker2.destroy()
-        else if updateCount is 4
-          done()
+    it "notifies observers synchronously or at the end of a transaction when markers are created, updated directly, updated indirectly, or destroyed", ->
+      layer = buffer.addMarkerLayer({maintainHistory: true})
+      events = []
+      [marker1, marker2, marker3] = []
+      layer.onDidUpdate (event) -> events.push({
+        created: Array.from(event.created),
+        updated: Array.from(event.updated),
+        touched: Array.from(event.touched),
+        destroyed: Array.from(event.destroyed)
+      })
 
-      marker1 = layer1.markRange([[0, 2], [0, 4]])
-      marker2 = layer1.markRange([[0, 6], [0, 8]])
+      buffer.transact ->
+        marker1 = layer.markRange([[0, 2], [0, 4]])
+        marker2 = layer.markRange([[0, 6], [0, 8]])
+        expect(events.length).toBe(0)
+
+      marker3 = layer.markRange([[4, 0], [4, 5]])
+
+      expect(events).toEqual([
+        {created: [marker1.id, marker2.id], updated: [], touched: [], destroyed: []},
+        {created: [marker3.id], updated: [], touched: [], destroyed: []}
+      ])
+
+      events = []
+      buffer.transact ->
+        marker1.setRange([[1, 2], [3, 4]])
+        marker2.setRange([[3, 10], [4, 5]])
+        marker3.destroy()
+
+      expect(events).toEqual([
+        {created: [], updated: [marker1.id, marker2.id], touched: [], destroyed: [marker3.id]}
+      ])
+
+      events = []
+      buffer.transact ->
+        buffer.insert([1, 3], "xxx")
+        buffer.insert([2, 0], "yyy")
+      buffer.insert([1, 5], 'zzz')
+
+      expect(events).toEqual([
+        {created: [], updated: [], touched: [marker1.id], destroyed: []},
+        {created: [], updated: [], touched: [marker1.id], destroyed: []}
+      ])
+
+      events = []
+      buffer.undo()
+      buffer.undo()
+
+      expect(events).toEqual([
+        {created: [], updated: [], touched: [marker1.id], destroyed: []},
+        {created: [], updated: [], touched: [marker1.id], destroyed: []}
+      ])
+
+      events = []
+      buffer.transact ->
+        buffer.insert([1, 3], 'aaa')
+        buffer.insert([3, 11], 'bbb')
+        buffer.transact ->
+          buffer.insert([1, 9], 'ccc')
+          buffer.insert([1, 12], 'ddd')
+        buffer.insert([4, 0], 'eee')
+        buffer.insert([4, 3], 'fff')
+
+      expect(events).toEqual([
+        {created: [], updated: [], touched: [marker1.id, marker2.id], destroyed: []},
+        {created: [], updated: [], touched: [marker2.id], destroyed: []}
+      ])
+
+      events = []
+      buffer.transact ->
+        buffer.insert([3, 11], 'ggg')
+        buffer.undo()
+        marker1.clearTail()
+        marker2.clearTail()
+
+      expect(events).toEqual([
+        {created: [], updated: [], touched: [marker2.id], destroyed: []},
+        {created: [], updated: [marker1.id, marker2.id], touched: [], destroyed: []}
+      ])
+
+      events = []
+      buffer.transact ->
+        marker1.destroy()
+        marker2.destroy()
+
+      expect(events).toEqual([
+        {created: [], updated: [], touched: [], destroyed: [marker1.id, marker2.id]}
+      ])
 
   describe "::copy", ->
     it "creates a new marker layer with markers in the same states", ->
