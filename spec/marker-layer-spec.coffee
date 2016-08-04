@@ -99,6 +99,9 @@ describe "MarkerLayer", ->
       marker1 = layer3.markRange([[0, 0], [0, 0]], a: 'b', invalidate: 'never')
       marker2 = layer3.markRange([[0, 0], [0, 0]], c: 'd', invalidate: 'never')
 
+      marker2ChangeCount = 0
+      marker2.onDidChange -> marker2ChangeCount++
+
       buffer.transact ->
         buffer.append('\n')
         buffer.append('bar')
@@ -107,6 +110,7 @@ describe "MarkerLayer", ->
         marker2.setRange([[0, 2], [0, 3]])
         marker3 = layer3.markRange([[0, 0], [0, 3]], e: 'f', invalidate: 'never')
         marker4 = layer3.markRange([[1, 0], [1, 3]], g: 'h', invalidate: 'never')
+        expect(marker2ChangeCount).toBe(1)
 
       buffer.undo()
 
@@ -117,6 +121,7 @@ describe "MarkerLayer", ->
       expect(markers[0].getRange()).toEqual [[0, 0], [0, 0]]
       expect(markers[1].getProperties()).toEqual {a: 'b'}
       expect(markers[1].getRange()).toEqual [[0, 0], [0, 0]]
+      expect(marker2ChangeCount).toBe(2)
 
       buffer.redo()
 

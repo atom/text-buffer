@@ -292,7 +292,7 @@ class MarkerLayer
   emitChangeEvents: (snapshot) ->
     @markersWithChangeListeners.forEach (marker) ->
       unless marker.isDestroyed() # event handlers could destroy markers
-        marker.emitChangeEvent(snapshot?[id]?.range, true, false)
+        marker.emitChangeEvent(snapshot?[marker.id]?.range, true, false)
     @delegate.markersUpdated(this)
 
   serialize: ->
