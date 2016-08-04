@@ -59,6 +59,7 @@ class DisplayMarker
     return if @destroyed
 
     @destroyed = true
+    @layer.markersWithDestroyListeners.delete(this)
     @bufferMarker.destroy()
     @emitter.emit('did-destroy')
     @layer.didDestroyMarker(this)
@@ -125,6 +126,7 @@ class DisplayMarker
   #
   # Returns a {Disposable} on which `.dispose()` can be called to unsubscribe.
   onDidDestroy: (callback) ->
+    @layer.markersWithDestroyListeners.add(this)
     @emitter.on('did-destroy', callback)
 
   ###
@@ -142,7 +144,7 @@ class DisplayMarker
   # undoing the invalidating operation would restore the marker. Once a marker
   # is destroyed by calling {DisplayMarker::destroy}, no undo/redo operation
   # can ever bring it back.
-  isDestroyed: -> @destroyed
+  isDestroyed: -> @layer.isDestroyed() or @destroyed
 
   # Essential: Returns a {Boolean} indicating whether the head precedes the tail.
   isReversed: ->

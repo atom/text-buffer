@@ -38,7 +38,8 @@ class MarkerLayer
     @emitter = new Emitter
     @index = new MarkerIndex
     @markersById = {}
-    @markersIdsWithChangeSubscriptions = new Set
+    @markersWithChangeListeners = new Set
+    @markersWithDestroyListeners = new Set
     @destroyed = false
     @emitCreateMarkerEvents = false
 
@@ -53,6 +54,8 @@ class MarkerLayer
 
   # Public: Destroy this layer.
   destroy: ->
+    @markersWithDestroyListeners.forEach (marker) ->
+      marker.destroy()
     @destroyed = true
     @delegate.markerLayerDestroyed(this)
     @emitter.emit 'did-destroy'
@@ -287,8 +290,8 @@ class MarkerLayer
     result
 
   emitChangeEvents: (snapshot) ->
-    @markersIdsWithChangeSubscriptions.forEach (id) =>
-      if marker = @markersById[id] # event handlers could destroy markers
+    @markersWithChangeListeners.forEach (marker) ->
+      unless marker.isDestroyed() # event handlers could destroy markers
         marker.emitChangeEvent(snapshot?[id]?.range, true, false)
     @delegate.markersUpdated(this)
 
@@ -322,7 +325,7 @@ class MarkerLayer
   destroyMarker: (id) ->
     if @markersById.hasOwnProperty(id)
       delete @markersById[id]
-      @markersIdsWithChangeSubscriptions.delete(id)
+      @markersWithChangeListeners.delete(id)
       @index.delete(id)
       @delegate.markersUpdated(this)
       @scheduleUpdateEvent()
