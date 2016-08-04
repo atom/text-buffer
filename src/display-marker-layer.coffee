@@ -15,6 +15,7 @@ class DisplayMarkerLayer
     @destroyed = false
     @emitter = new Emitter
     @subscriptions = new CompositeDisposable
+    @markersWithDestroyListeners = new Set
     @subscriptions.add(@bufferMarkerLayer.onDidUpdate(@emitDidUpdate.bind(this)))
     @subscriptions.add(@bufferMarkerLayer.onDidDestroy(@destroy.bind(this)))
 
@@ -24,6 +25,8 @@ class DisplayMarkerLayer
 
   # Essential: Destroy this layer.
   destroy: ->
+    @markersWithDestroyListeners.forEach (marker) ->
+      marker.destroy()
     @destroyed = true
     @subscriptions.dispose()
     @bufferMarkerLayer.destroy() if @ownsBufferMarkerLayer

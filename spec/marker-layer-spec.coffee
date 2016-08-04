@@ -203,3 +203,23 @@ describe "MarkerLayer", ->
       expect(markers[0].getProperties()).toEqual {a: 'b'}
       expect(markers[1].getRange()).toEqual [[0, 2], [0, 2]]
       expect(markers[1].hasTail()).toBe false
+
+  describe "::destroy", ->
+    it "destroys the layer's markers", ->
+      buffer = new TextBuffer()
+      markerLayer = buffer.addMarkerLayer()
+
+      marker1 = markerLayer.markRange([[0, 0], [0, 0]])
+      marker2 = markerLayer.markRange([[0, 0], [0, 0]])
+
+      destroyListener = jasmine.createSpy('onDidDestroy listener')
+      marker1.onDidDestroy(destroyListener)
+
+      markerLayer.destroy()
+
+      expect(destroyListener).toHaveBeenCalled()
+      expect(marker1.isDestroyed()).toBe(true)
+
+      # Markers states are updated regardless of whether they have an
+      # ::onDidDestroy listener
+      expect(marker2.isDestroyed()).toBe(true)

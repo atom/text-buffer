@@ -81,6 +81,7 @@ class Marker
   #
   # Returns a {Disposable} on which `.dispose()` can be called to unsubscribe.
   onDidDestroy: (callback) ->
+    @layer.markersWithDestroyListeners.add(this)
     @emitter.on 'did-destroy', callback
 
   # Public: Invoke the given callback when the state of the marker changes.
@@ -105,7 +106,7 @@ class Marker
     unless @hasChangeObservers
       @previousEventState = @getSnapshot(@getRange())
       @hasChangeObservers = true
-      @layer.markersIdsWithChangeSubscriptions.add(@id)
+      @layer.markersWithChangeListeners.add(this)
     @emitter.on 'did-change', callback
 
   # Public: Returns the current {Range} of the marker. The range is immutable.
@@ -231,7 +232,7 @@ class Marker
   #
   # Returns a {Boolean}.
   isDestroyed: ->
-    @rangeWhenDestroyed?
+    @layer.isDestroyed() or @rangeWhenDestroyed?
 
   # Public: Returns a {Boolean} indicating whether changes that occur exactly at
   # the marker's head or tail cause it to move.
@@ -289,6 +290,8 @@ class Marker
   # Public: Destroys the marker, causing it to emit the 'destroyed' event.
   destroy: ->
     return if @rangeWhenDestroyed?
+    @layer.markersWithChangeListeners.delete(this)
+    @layer.markersWithDestroyListeners.delete(this)
     @rangeWhenDestroyed = @getRange()
     @layer.destroyMarker(@id)
     @emitter.emit 'did-destroy'

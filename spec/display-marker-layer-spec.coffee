@@ -199,6 +199,26 @@ describe "DisplayMarkerLayer", ->
       expect(displayMarkerLayer3.isDestroyed()).toBe(true)
       expect(displayMarkerLayer3DestroyEventCount).toBe(1)
 
+    it "destroys the layer's markers", ->
+      buffer = new TextBuffer()
+      displayLayer = buffer.addDisplayLayer()
+      displayMarkerLayer = displayLayer.addMarkerLayer()
+
+      marker1 = displayMarkerLayer.markBufferRange([[0, 0], [0, 0]])
+      marker2 = displayMarkerLayer.markBufferRange([[0, 0], [0, 0]])
+
+      destroyListener = jasmine.createSpy('onDidDestroy listener')
+      marker1.onDidDestroy(destroyListener)
+
+      displayMarkerLayer.destroy()
+
+      expect(destroyListener).toHaveBeenCalled()
+      expect(marker1.isDestroyed()).toBe(true)
+
+      # Markers states are updated regardless of whether they have an
+      # ::onDidDestroy listener
+      expect(marker2.isDestroyed()).toBe(true)
+
   it "destroys itself when the underlying buffer marker layer is destroyed", ->
     buffer = new TextBuffer(text: 'abc\ndef\nghi\nj\tk\tl\nmno')
     displayLayer1 = buffer.addDisplayLayer(tabLength: 2)
