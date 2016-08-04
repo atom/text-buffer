@@ -1,4 +1,4 @@
-{Emitter} = require 'event-kit'
+{Emitter, CompositeDisposable} = require 'event-kit'
 DisplayMarker = require './display-marker'
 Range = require './range'
 Point = require './point'
@@ -9,12 +9,14 @@ Point = require './point'
 # This API is experimental and subject to change on any release.
 module.exports =
 class DisplayMarkerLayer
-  constructor: (@displayLayer, @bufferMarkerLayer) ->
+  constructor: (@displayLayer, @bufferMarkerLayer, @ownsBufferMarkerLayer) ->
     {@id} = @bufferMarkerLayer
     @markersById = {}
+    @destroyed = false
     @emitter = new Emitter
-    @bufferMarkerLayer.onDidUpdate(@emitDidUpdate.bind(this))
-    @bufferMarkerLayer.onDidDestroy(@emitDidDestroy.bind(this))
+    @subscriptions = new CompositeDisposable
+    @subscriptions.add(@bufferMarkerLayer.onDidUpdate(@emitDidUpdate.bind(this)))
+    @subscriptions.add(@bufferMarkerLayer.onDidDestroy(@destroy.bind(this)))
 
   ###
   Section: Lifecycle
@@ -22,7 +24,16 @@ class DisplayMarkerLayer
 
   # Essential: Destroy this layer.
   destroy: ->
-    @bufferMarkerLayer.destroy()
+    @destroyed = true
+    @subscriptions.dispose()
+    @bufferMarkerLayer.destroy() if @ownsBufferMarkerLayer
+    @emitter.emit('did-destroy')
+
+  # Essential: Determine whether this layer has been destroyed.
+  #
+  # Returns a {Boolean}.
+  isDestroyed: ->
+    @destroyed
 
   ###
   Section: Event Subscription
@@ -293,9 +304,6 @@ class DisplayMarkerLayer
 
   emitDidUpdate: ->
     @emitter.emit('did-update')
-
-  emitDidDestroy: ->
-    @emitter.emit('did-destroy')
 
   notifyObserversIfMarkerScreenPositionsChanged: ->
     for marker in @getMarkers()
