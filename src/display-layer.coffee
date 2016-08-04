@@ -852,15 +852,15 @@ class DisplayLayer
             spatialScreenLines[screenRow] = screenLines[screenRow]
 
           error.metadata = {
-            spatialLineBufferStart: bufferStart,
-            decorationIteratorPosition: iteratorPosition,
+            spatialLineBufferStart: Point.fromObject(bufferStart).toString(),
+            decorationIteratorPosition: Point.fromObject(iteratorPosition).toString(),
             previousLineWasCached: wasCached,
-            decorationIteratorPositionBeforeSeek: decorationIteratorPositionBeforeSeek,
+            decorationIteratorPositionBeforeSeek: Point.fromObject(decorationIteratorPositionBeforeSeek).toString(),
             spatialScreenLines: spatialScreenLines,
             tokenizedLines: tokenizedLines,
             grammarScopeName: @textDecorationLayer.grammar?.scopeName,
             tabLength: @tabLength,
-            invisibles: @invisibles,
+            invisibles: JSON.stringify(@invisibles),
             showIndentGuides: @showIndentGuides,
             softWrapColumn: @softWrapColumn,
             softWrapHangingIndent: @softWrapHangingIndent,
