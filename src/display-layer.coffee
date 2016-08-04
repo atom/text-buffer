@@ -141,12 +141,12 @@ class DisplayLayer
     @notifyObserversIfMarkerScreenPositionsChanged()
 
   addMarkerLayer: (options) ->
-    markerLayer = new DisplayMarkerLayer(this, @buffer.addMarkerLayer(options))
+    markerLayer = new DisplayMarkerLayer(this, @buffer.addMarkerLayer(options), true)
     @displayMarkerLayersById[markerLayer.id] = markerLayer
 
   getMarkerLayer: (id) ->
     if bufferMarkerLayer = @buffer.getMarkerLayer(id)
-      @displayMarkerLayersById[id] ?= new DisplayMarkerLayer(this, bufferMarkerLayer)
+      @displayMarkerLayersById[id] ?= new DisplayMarkerLayer(this, bufferMarkerLayer, false)
 
   notifyObserversIfMarkerScreenPositionsChanged: ->
     for id, displayMarkerLayer of @displayMarkerLayersById

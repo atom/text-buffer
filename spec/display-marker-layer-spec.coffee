@@ -162,6 +162,62 @@ describe "DisplayMarkerLayer", ->
     expect(markerB.getProperties()).toEqual({a: 1, b: 3, c: 4})
     expect(markerB.getScreenRange()).toEqual(markerA.getScreenRange())
 
+  describe "::destroy()", ->
+    it "only destroys the underlying buffer MarkerLayer if the DisplayMarkerLayer was created by calling addMarkerLayer on its parent DisplayLayer", ->
+      buffer = new TextBuffer(text: 'abc\ndef\nghi\nj\tk\tl\nmno')
+      displayLayer1 = buffer.addDisplayLayer(tabLength: 2)
+      displayLayer2 = buffer.addDisplayLayer(tabLength: 4)
+      bufferMarkerLayer = buffer.addMarkerLayer()
+      displayMarkerLayer1 = displayLayer1.getMarkerLayer(bufferMarkerLayer.id)
+      displayMarkerLayer2 = displayLayer2.getMarkerLayer(bufferMarkerLayer.id)
+      displayMarkerLayer3 = displayLayer2.addMarkerLayer()
+
+      displayMarkerLayer1DestroyEventCount = 0
+      displayMarkerLayer1.onDidDestroy -> displayMarkerLayer1DestroyEventCount++
+      displayMarkerLayer2DestroyEventCount = 0
+      displayMarkerLayer2.onDidDestroy -> displayMarkerLayer2DestroyEventCount++
+      displayMarkerLayer3DestroyEventCount = 0
+      displayMarkerLayer3.onDidDestroy -> displayMarkerLayer3DestroyEventCount++
+
+      displayMarkerLayer1.destroy()
+      expect(bufferMarkerLayer.isDestroyed()).toBe(false)
+      expect(displayMarkerLayer1.isDestroyed()).toBe(true)
+      expect(displayMarkerLayer1DestroyEventCount).toBe(1)
+
+      displayMarkerLayer2.destroy()
+      expect(bufferMarkerLayer.isDestroyed()).toBe(false)
+      expect(displayMarkerLayer2.isDestroyed()).toBe(true)
+      expect(displayMarkerLayer2DestroyEventCount).toBe(1)
+
+      bufferMarkerLayer.destroy()
+      expect(bufferMarkerLayer.isDestroyed()).toBe(true)
+      expect(displayMarkerLayer1DestroyEventCount).toBe(1)
+      expect(displayMarkerLayer2DestroyEventCount).toBe(1)
+
+      displayMarkerLayer3.destroy()
+      expect(displayMarkerLayer3.bufferMarkerLayer.isDestroyed()).toBe(true)
+      expect(displayMarkerLayer3.isDestroyed()).toBe(true)
+      expect(displayMarkerLayer3DestroyEventCount).toBe(1)
+
+  it "destroys itself when the underlying buffer marker layer is destroyed", ->
+    buffer = new TextBuffer(text: 'abc\ndef\nghi\nj\tk\tl\nmno')
+    displayLayer1 = buffer.addDisplayLayer(tabLength: 2)
+    displayLayer2 = buffer.addDisplayLayer(tabLength: 4)
+
+    bufferMarkerLayer = buffer.addMarkerLayer()
+    displayMarkerLayer1 = displayLayer1.getMarkerLayer(bufferMarkerLayer.id)
+    displayMarkerLayer2 = displayLayer2.getMarkerLayer(bufferMarkerLayer.id)
+    displayMarkerLayer1DestroyEventCount = 0
+    displayMarkerLayer1.onDidDestroy -> displayMarkerLayer1DestroyEventCount++
+    displayMarkerLayer2DestroyEventCount = 0
+    displayMarkerLayer2.onDidDestroy -> displayMarkerLayer2DestroyEventCount++
+
+    bufferMarkerLayer.destroy()
+    expect(displayMarkerLayer1.isDestroyed()).toBe(true)
+    expect(displayMarkerLayer1DestroyEventCount).toBe(1)
+    expect(displayMarkerLayer2.isDestroyed()).toBe(true)
+    expect(displayMarkerLayer2DestroyEventCount).toBe(1)
+
   describe "findMarkers(params)", ->
     [markerLayer, displayLayer] = []
 
