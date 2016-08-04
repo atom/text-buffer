@@ -841,7 +841,7 @@ class DisplayLayer
           interestingBufferRows.add(decorationIteratorPositionBeforeSeek.row)
           tokenizedLines = {}
           interestingBufferRows.forEach (row) =>
-            if tokenizedLine = @textDecorationLayer.tokenizedLineForRow(row)
+            if tokenizedLine = @textDecorationLayer?.tokenizedLineForRow?(row)
               {tags, openScopes} = tokenizedLine
               tokenizedLines[row] = {tags, openScopes}
 
