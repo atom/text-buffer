@@ -1,6 +1,6 @@
-'use babel'
+'use strict'
 
-import {setEqual} from '../../src/set-helpers'
+const setEqual = require('../../src/set-helpers').setEqual
 
 Set.prototype.isEqual = (other) => { // eslint-disable-line no-extend-native
   if (other instanceof Set) {

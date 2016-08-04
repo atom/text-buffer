@@ -5,7 +5,6 @@
     "**/*.coffee"
   ],
   "helpers": [
-    "../node_modules/babel-core/register.js",
     "helpers/**/*.js"
   ],
   "stopSpecOnExpectationFailure": false,
