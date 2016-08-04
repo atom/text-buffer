@@ -844,7 +844,7 @@ describe "DisplayLayer", ->
       catch e
         exception = e
 
-      expect(e.message).toMatch(/Invalid text decoration iterator position/)
+      expect(e.message).toMatch(/iterator/)
 
   describe "position translation", ->
     it "honors the clip direction when in the middle of an atomic unit", ->

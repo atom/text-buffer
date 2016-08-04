@@ -816,6 +816,11 @@ class DisplayLayer
         screenLines.push(@screenLinesBySpatialLineId.get(screenLineId))
         previousLineWasCached = true
       else
+        #### TODO: These are temporary, for investigating a bug
+        wasCached = previousLineWasCached
+        decorationIteratorPositionBeforeSeek = decorationIterator.getPosition()
+        ####
+
         bufferStart = @spatialLineIterator.getBufferStart()
         if previousLineWasCached
           containingTags = decorationIterator.seek(bufferStart)
@@ -828,12 +833,41 @@ class DisplayLayer
         atLineStart = true
 
         if comparePoints(decorationIterator.getPosition(), bufferStart) < 0
-          bufferRow = decorationIterator.getPosition().row
           iteratorPosition = decorationIterator.getPosition()
-          throw new Error("""
-            Invalid text decoration iterator position: (#{iteratorPosition.row}, #{iteratorPosition.column}).
-            Buffer row #{bufferRow} has length #{@buffer.lineLengthForRow(bufferRow)}.
-          """)
+          error = new Error("Invalid text decoration iterator position")
+
+          # Collect subset of tokenized line data on rows around to this error
+          interestingBufferRows = new Set([Math.max(0, bufferStart.row - 3)..bufferStart.row].concat([Math.max(0, iteratorPosition.row - 3)..iteratorPosition.row]))
+          interestingBufferRows.add(decorationIteratorPositionBeforeSeek.row)
+          tokenizedLines = {}
+          interestingBufferRows.forEach (row) =>
+            if tokenizedLine = @textDecorationLayer?.tokenizedLineForRow?(row)
+              {tags, openScopes} = tokenizedLine
+              tokenizedLines[row] = {tags, openScopes}
+
+          # Collect spatial screen lines on rows around to this error
+          screenLines = @displayIndex.getScreenLines()
+          spatialScreenLines = {}
+          for screenRow in [Math.max(0, @spatialLineIterator.getScreenRow() - 3)..@spatialLineIterator.getScreenRow()]
+            spatialScreenLines[screenRow] = screenLines[screenRow]
+
+          error.metadata = {
+            spatialLineBufferStart: Point.fromObject(bufferStart).toString(),
+            decorationIteratorPosition: Point.fromObject(iteratorPosition).toString(),
+            previousLineWasCached: wasCached,
+            decorationIteratorPositionBeforeSeek: Point.fromObject(decorationIteratorPositionBeforeSeek).toString(),
+            spatialScreenLines: spatialScreenLines,
+            tokenizedLines: tokenizedLines,
+            grammarScopeName: @textDecorationLayer.grammar?.scopeName,
+            tabLength: @tabLength,
+            invisibles: JSON.stringify(@invisibles),
+            showIndentGuides: @showIndentGuides,
+            softWrapColumn: @softWrapColumn,
+            softWrapHangingIndent: @softWrapHangingIndent,
+            foldCount: @foldsMarkerLayer.getMarkerCount(),
+            atomicSoftTabs: @atomicSoftTabs
+          }
+          throw error
 
         for {screenExtent, bufferExtent, metadata} in @spatialLineIterator.getTokens()
           spatialTokenBufferEnd = traverse(bufferStart, bufferExtent)
