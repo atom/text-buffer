@@ -7,9 +7,410 @@ WORDS = require './helpers/words'
 SAMPLE_TEXT = require './helpers/sample-text'
 TestDecorationLayer = require './helpers/test-decoration-layer'
 
+lines = {
+  '22': {
+    "tags": [
+      -33,
+      7,
+      -34,
+      -103,
+      18,
+      -104,
+      -53,
+      1,
+      -54,
+      -105,
+      -107,
+      2,
+      -108,
+      -106,
+      -81,
+      3,
+      -82,
+      1,
+      -67,
+      1,
+      -68,
+      -163,
+      3,
+      -164,
+      -103,
+      19,
+      -104,
+      -53,
+      1,
+      -54,
+      -105,
+      -107,
+      2,
+      -108,
+      -106,
+      -81,
+      3,
+      -82,
+      1,
+      -63,
+      -9,
+      1,
+      -10,
+      -64,
+      -63,
+      2,
+      -64,
+      -63,
+      -65,
+      1,
+      -66,
+      -64,
+      -33,
+      1,
+      -34,
+      -163,
+      3,
+      -164
+    ],
+    "openScopes": [
+      -3
+    ]
+  },
+  '23': {
+    "tags": [
+      -103,
+      24,
+      -104,
+      -53,
+      1,
+      -54,
+      -105,
+      -107,
+      2,
+      -108,
+      -106,
+      -81,
+      3,
+      -82,
+      1,
+      -67,
+      1,
+      -68,
+      -33,
+      1,
+      -34,
+      -25,
+      2,
+      -26
+    ],
+    "openScopes": [
+      -3
+    ]
+  }
+}
+
+class TokenizedBufferIterator
+  constructor: ->
+    @openTags = null
+    @closeTags = null
+    @containingTags = null
+
+  seek: (position) ->
+    @openTags = []
+    @closeTags = []
+    @tagIndex = null
+
+    currentLine = lines[position.row]
+    @currentTags = currentLine.tags
+    @currentLineOpenTags = currentLine.openScopes
+    @currentLineLength = 130
+    @containingTags = @currentLineOpenTags.slice()
+    currentColumn = 0
+
+    for tag, index in @currentTags
+      if tag >= 0
+        if currentColumn is position.column
+          @tagIndex = index
+          break
+        else
+          currentColumn += tag
+          @containingTags.pop() while @closeTags.shift()
+          @containingTags.push(openTag) while openTag = @openTags.shift()
+          if currentColumn > position.column
+            @tagIndex = index
+            break
+      else
+        scopeName = tag
+        if tag % 2 is 0 # close tag
+          if @openTags.length > 0
+            if currentColumn is position.column
+              @tagIndex = index
+              break
+            else
+              @containingTags.pop() while @closeTags.shift()
+              @containingTags.push(openTag) while openTag = @openTags.shift()
+          @closeTags.push(scopeName)
+        else # open tag
+          @openTags.push(scopeName)
+
+    @tagIndex ?= @currentTags.length
+    @position = Point(position.row, Math.min(@currentLineLength, currentColumn))
+    @containingTags.slice()
+
+  moveToSuccessor: ->
+    @containingTags.pop() for tag in @closeTags
+    @containingTags.push(tag) for tag in @openTags
+    @openTags = []
+    @closeTags = []
+
+    loop
+      if @tagIndex is @currentTags.length
+        if @isAtTagBoundary()
+          break
+        else
+          if @shouldMoveToNextLine
+            @moveToNextLine()
+            @openTags = @currentLineOpenTags.slice()
+            @shouldMoveToNextLine = false
+          else if @nextLineHasMismatchedContainingTags()
+            @closeTags = @containingTags.slice().reverse()
+            @containingTags = []
+            @shouldMoveToNextLine = true
+          else
+            return false unless @moveToNextLine()
+      else
+        tag = @currentTags[@tagIndex]
+        if tag >= 0
+          if @isAtTagBoundary()
+            break
+          else
+            @position = Point(@position.row, Math.min(@currentLineLength, @position.column + @currentTags[@tagIndex]))
+        else
+          scopeName = tag
+          if tag % 2 is 0
+            if @openTags.length > 0
+              break
+            else
+              @closeTags.push(scopeName)
+          else
+            @openTags.push(scopeName)
+        @tagIndex++
+
+    true
+
+  getPosition: ->
+    @position
+
+  getCloseTags: ->
+    @closeTags.slice()
+
+  getOpenTags: ->
+    @openTags.slice()
+
+  ###
+  Section: Private Methods
+  ###
+
+  nextLineHasMismatchedContainingTags: ->
+    if line = lines[@position.row + 1]
+      return true if line.openScopes.length isnt @containingTags.length
+
+      for i in [0...@containingTags.length] by 1
+        if @containingTags[i] isnt line.openScopes[i]
+          return true
+      false
+    else
+      false
+
+  moveToNextLine: ->
+    @position = Point(@position.row + 1, 0)
+    if tokenizedLine = lines[@position.row]
+      @currentTags = tokenizedLine.tags
+      @currentLineLength = 130
+      @currentLineOpenTags = tokenizedLine.openScopes
+      @tagIndex = 0
+      true
+    else
+      false
+
+  isAtTagBoundary: ->
+    @closeTags.length > 0 or @openTags.length > 0
+
+spatialLines = {
+  '22': {
+    "screenExtent": 30,
+    "bufferExtent": {
+      "row": 1,
+      "column": 0
+    },
+    "tokens": [
+      {
+        "screenExtent": 2,
+        "bufferExtent": {
+          "row": 0,
+          "column": 2
+        },
+        "metadata": 34,
+        "screenStartOffset": 0,
+        "screenEndOffset": 2,
+        "bufferStartOffset": {
+          "row": 0,
+          "column": 0
+        },
+        "bufferEndOffset": {
+          "row": 0,
+          "column": 2
+        }
+      },
+      {
+        "screenExtent": 28,
+        "bufferExtent": {
+          "row": 0,
+          "column": 28
+        },
+        "metadata": 0,
+        "screenStartOffset": 2,
+        "screenEndOffset": 30,
+        "bufferStartOffset": {
+          "row": 0,
+          "column": 2
+        },
+        "bufferEndOffset": {
+          "row": 0,
+          "column": 30
+        }
+      }
+    ],
+    "softWrappedAtStart": false,
+    "softWrappedAtEnd": false
+  },
+  '23': {
+    "screenExtent": 30,
+    "bufferExtent": {
+      "row": 1,
+      "column": 0
+    },
+    "tokens": [
+      {
+        "screenExtent": 2,
+        "bufferExtent": {
+          "row": 0,
+          "column": 2
+        },
+        "metadata": 34,
+        "screenStartOffset": 0,
+        "screenEndOffset": 2,
+        "bufferStartOffset": {
+          "row": 0,
+          "column": 0
+        },
+        "bufferEndOffset": {
+          "row": 0,
+          "column": 2
+        }
+      },
+      {
+        "screenExtent": 2,
+        "bufferExtent": {
+          "row": 0,
+          "column": 2
+        },
+        "metadata": 34,
+        "screenStartOffset": 2,
+        "screenEndOffset": 4,
+        "bufferStartOffset": {
+          "row": 0,
+          "column": 2
+        },
+        "bufferEndOffset": {
+          "row": 0,
+          "column": 4
+        }
+      },
+      {
+        "screenExtent": 2,
+        "bufferExtent": {
+          "row": 0,
+          "column": 2
+        },
+        "metadata": 34,
+        "screenStartOffset": 4,
+        "screenEndOffset": 6,
+        "bufferStartOffset": {
+          "row": 0,
+          "column": 4
+        },
+        "bufferEndOffset": {
+          "row": 0,
+          "column": 6
+        }
+      },
+      {
+        "screenExtent": 24,
+        "bufferExtent": {
+          "row": 0,
+          "column": 24
+        },
+        "metadata": 0,
+        "screenStartOffset": 6,
+        "screenEndOffset": 30,
+        "bufferStartOffset": {
+          "row": 0,
+          "column": 6
+        },
+        "bufferEndOffset": {
+          "row": 0,
+          "column": 30
+        }
+      }
+    ],
+    "softWrappedAtStart": false,
+    "softWrappedAtEnd": false
+  }
+}
+
+class FakeSpatialLineIterator
+  seekToScreenRow: (@screenRow) ->
+
+  getScreenRow: ->
+    @screenRow
+
+  getId: ->
+    @screenRow
+
+  getBufferStart: ->
+    Point(@screenRow, 0)
+
+  getTokens: ->
+    spatialLines[@screenRow].tokens
+
+  isSoftWrappedAtEnd: ->
+    spatialLines[@screenRow].softWrappedAtEnd
+
+  isSoftWrappedAtStart: ->
+    spatialLines[@screenRow].softWrappedAtStart
+
+  moveToSuccessor: ->
+    @screenRow++
+
+
 describe "DisplayLayer", ->
   beforeEach ->
-    jasmine.addCustomEqualityTester(require("underscore-plus").isEqual)
+    # jasmine.addCustomEqualityTester(require("underscore-plus").isEqual)
+
+  fffit "reproduce bug", ->
+    text = ''
+    for i in [0..150]
+      text += 'abcdefghijklmnopqrstuvwxyz0123\n'
+    buffer = new TextBuffer(text)
+    displayLayer = buffer.addDisplayLayer({
+      invisibles: {},
+      atomicSoftTabs: true,
+      softWrapColumn: 125,
+      softWrapHangingIndent: 0,
+      tabLength: 2,
+      showIndentGuides: false
+    })
+    displayLayer.setTextDecorationLayer({buildIterator: -> new TokenizedBufferIterator()})
+    displayLayer.spatialLineIterator = new FakeSpatialLineIterator()
+    displayLayer.getScreenLines(22, 24)
 
   describe "hard tabs", ->
     it "expands hard tabs to their tab stops", ->
