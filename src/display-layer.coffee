@@ -864,7 +864,7 @@ class DisplayLayer
             bufferLines[bufferRow] = bufferLine.length
 
           tokenizedLines = []
-          for tokenizedLine, bufferRow in @textDecorationLayer?.tokenizedLines
+          for tokenizedLine, bufferRow in @textDecorationLayer?.tokenizedLines ? []
             if bufferRow - 10 <= bufferStart.row <= bufferRow
               {tags, openScopes} = tokenizedLine
               tokenizedLines[bufferRow] = [tags, openScopes]
