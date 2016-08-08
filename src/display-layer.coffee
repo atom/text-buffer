@@ -222,6 +222,17 @@ class DisplayLayer
     @emitter.on 'did-change-sync', callback
 
   bufferDidChange: (change) ->
+    if @lastBufferChangeEventId?
+      global.atom?.assert(
+        @lastBufferChangeEventId is change.eventId - 1,
+        'Buffer Change Event Ids are not sequential',
+        (error) =>
+          error.metadata = {
+            displayLayerEventId: @lastBufferChangeEventId,
+            nextDisplayLayerEventId: change.eventId,
+            tokenizedBufferEventId: @textDecorationLayer.lastBufferChangeEventId
+          }
+      )
     @lastBufferChangeEventId = change.eventId
     global.atom?.assert(
       @lastBufferChangeEventId is @textDecorationLayer.lastBufferChangeEventId,
