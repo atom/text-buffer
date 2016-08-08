@@ -222,6 +222,23 @@ class DisplayLayer
     @emitter.on 'did-change-sync', callback
 
   bufferDidChange: (change) ->
+    if @lastBufferChangeEventId?
+      global.atom?.assert(
+        @lastBufferChangeEventId is change.eventId - 1,
+        'Buffer Change Event Ids are not sequential',
+        (error) =>
+          error.metadata = {
+            displayLayerEventId: @lastBufferChangeEventId,
+            nextDisplayLayerEventId: change.eventId,
+            tokenizedBufferEventId: @textDecorationLayer.lastBufferChangeEventId
+          }
+      )
+    @lastBufferChangeEventId = change.eventId
+    global.atom?.assert(
+      @lastBufferChangeEventId is @textDecorationLayer.lastBufferChangeEventId,
+      'Buffer Change Event Ids are different in buffer.onDidChange event handler',
+      (error) => error.metadata = {displayLayerEventId: @lastBufferChangeEventId, tokenizedBufferEventId: @textDecorationLayer.lastBufferChangeEventId}
+    )
     {oldRange, newRange} = @expandChangeRegionToSurroundingEmptyLines(change.oldRange, change.newRange)
 
     {startScreenRow, endScreenRow, startBufferRow, endBufferRow} = @expandBufferRangeToLineBoundaries(oldRange)
@@ -804,6 +821,12 @@ class DisplayLayer
     @getScreenLines().map((screenLine) -> screenLine.lineText).join('\n')
 
   getScreenLines: (startRow=0, endRow=@getScreenLineCount()) ->
+    global.atom?.assert(
+      @lastBufferChangeEventId is @textDecorationLayer.lastBufferChangeEventId,
+      'Buffer Change Event Ids are different in getScreenLines',
+      (error) => error.metadata = {displayLayerEventId: @lastBufferChangeEventId, tokenizedBufferEventId: @textDecorationLayer.lastBufferChangeEventId}
+    )
+
     decorationIterator = @textDecorationLayer.buildIterator()
     screenLines = []
     @spatialLineIterator.seekToScreenRow(startRow)
@@ -836,20 +859,28 @@ class DisplayLayer
           iteratorPosition = decorationIterator.getPosition()
           error = new Error("Invalid text decoration iterator position")
 
-          # Collect subset of tokenized line data on rows around to this error
-          interestingBufferRows = new Set([Math.max(0, bufferStart.row - 3)..bufferStart.row].concat([Math.max(0, iteratorPosition.row - 3)..iteratorPosition.row]))
-          interestingBufferRows.add(decorationIteratorPositionBeforeSeek.row)
-          tokenizedLines = {}
-          interestingBufferRows.forEach (row) =>
-            if tokenizedLine = @textDecorationLayer?.tokenizedLineForRow?(row)
-              {tags, openScopes} = tokenizedLine
-              tokenizedLines[row] = {tags, openScopes}
+          bufferLines = []
+          for bufferLine, bufferRow in @buffer.getLines()
+            bufferLines[bufferRow] = bufferLine.length
 
-          # Collect spatial screen lines on rows around to this error
+          tokenizedLines = []
+          for tokenizedLine, bufferRow in @textDecorationLayer?.tokenizedLines ? []
+            if bufferRow - 10 <= bufferStart.row <= bufferRow
+              {tags, openScopes} = tokenizedLine
+              tokenizedLines[bufferRow] = [tags, openScopes]
+            else
+              tokenizedLines[bufferRow] = tokenizedLine.text.length
+
           screenLines = @displayIndex.getScreenLines()
-          spatialScreenLines = {}
-          for screenRow in [Math.max(0, @spatialLineIterator.getScreenRow() - 3)..@spatialLineIterator.getScreenRow()]
-            spatialScreenLines[screenRow] = screenLines[screenRow]
+          spatialScreenLines = []
+          for screenLine, screenRow in screenLines
+            if @spatialLineIterator.getScreenRow() - 10 <= screenRow <= @spatialLineIterator.getScreenRow()
+              spatialScreenLines[screenRow] = screenLines[screenRow]
+            else
+              spatialScreenLines[screenRow] = [
+                screenLines[screenRow].screenExtent,
+                Point.fromObject(screenLines[screenRow].bufferExtent).toString()
+              ]
 
           error.metadata = {
             spatialLineBufferStart: Point.fromObject(bufferStart).toString(),
@@ -858,6 +889,7 @@ class DisplayLayer
             decorationIteratorPositionBeforeSeek: Point.fromObject(decorationIteratorPositionBeforeSeek).toString(),
             spatialScreenLines: spatialScreenLines,
             tokenizedLines: tokenizedLines,
+            bufferLines: bufferLines,
             grammarScopeName: @textDecorationLayer.grammar?.scopeName,
             tabLength: @tabLength,
             invisibles: JSON.stringify(@invisibles),
@@ -865,7 +897,10 @@ class DisplayLayer
             softWrapColumn: @softWrapColumn,
             softWrapHangingIndent: @softWrapHangingIndent,
             foldCount: @foldsMarkerLayer.getMarkerCount(),
-            atomicSoftTabs: @atomicSoftTabs
+            atomicSoftTabs: @atomicSoftTabs,
+            tokenizedBufferEventId: @textDecorationLayer.lastBufferChangeEventId,
+            displayLayerEventId: @lastBufferChangeEventId,
+            tokenizedBufferInvalidRows: @textDecorationLayer.invalidRows
           }
           throw error
 

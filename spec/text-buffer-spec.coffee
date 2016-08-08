@@ -121,6 +121,7 @@ describe "TextBuffer", ->
         newRange: [[0, 2], [2, 4]]
         oldText: "llo\nworld\r\nhow"
         newText: "y there\r\ncat\nwhat"
+        eventId: 1
       }]
 
     it "notifies ::onDidChange observers with the relevant details after a change", ->
@@ -132,6 +133,7 @@ describe "TextBuffer", ->
         newRange: [[0, 2], [2, 4]]
         oldText: "llo\nworld\r\nhow"
         newText: "y there\r\ncat\nwhat"
+        eventId: 1
       }]
 
     it "returns the newRange of the change", ->
