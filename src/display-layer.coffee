@@ -120,7 +120,7 @@ class DisplayLayer
     @ratioForCharacter = params.ratioForCharacter if params.hasOwnProperty('ratioForCharacter')
     @isWrapBoundary = params.isWrapBoundary if params.hasOwnProperty('isWrapBoundary')
     @foldCharacter = params.foldCharacter if params.hasOwnProperty('foldCharacter')
-    @atomicSoftTabs = params.atomicSoftTabs if params.hasOwnProperty('foldCharacter')
+    @atomicSoftTabs = params.atomicSoftTabs if params.hasOwnProperty('atomicSoftTabs')
 
     @eolInvisibles = {
       "\r": @invisibles.cr
