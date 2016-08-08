@@ -899,7 +899,8 @@ class DisplayLayer
             foldCount: @foldsMarkerLayer.getMarkerCount(),
             atomicSoftTabs: @atomicSoftTabs,
             tokenizedBufferEventId: @textDecorationLayer.lastBufferChangeEventId,
-            displayLayerEventId: @lastBufferChangeEventId
+            displayLayerEventId: @lastBufferChangeEventId,
+            tokenizedBufferInvalidRows: @textDecorationLayer.invalidRows
           }
           throw error
 
