@@ -1,4 +1,4 @@
-{Emitter, CompositeDisposable} = require 'event-kit'
+{Emitter, CompositeDisposable, Disposable} = require 'event-kit'
 {File} = require 'pathwatcher'
 SpanSkipList = require 'span-skip-list'
 diff = require 'diff'
@@ -100,6 +100,7 @@ class TextBuffer
     @lines = ['']
     @lineEndings = ['']
     @offsetIndex = new SpanSkipList('rows', 'characters')
+    @textDecorationLayers = new Set()
     @setTextInRange([[0, 0], [0, 0]], text ? params?.text ? '', normalizeLineEndings: false)
     maxUndoEntries = params?.maxUndoEntries ? @defaultMaxUndoEntries
     @history = params?.history ? new History(this, maxUndoEntries)
@@ -761,7 +762,22 @@ class TextBuffer
     @conflict = false if @conflict and !@isModified()
 
     @changeCount++
+    @emitDidChangeEvent(changeEvent)
+
+  emitDidChangeEvent: (changeEvent) ->
+    # 1. Emit the change event on all the registered text decoration layers.
+    @textDecorationLayers.forEach (textDecorationLayer) ->
+      textDecorationLayer.bufferDidChange(changeEvent)
+    # 2. Emit the change event on all the registered display layers.
+    changeEventsByDisplayLayer = new Map()
+    for id, displayLayer of @displayLayers
+      event = displayLayer.bufferDidChange(changeEvent)
+      changeEventsByDisplayLayer.set(displayLayer, event)
+    # 3. Emit a normal `did-change` event for other subscribers too.
     @emitter.emit 'did-change', changeEvent
+    # 4. Emit a `did-change-sync` event from all the registered display layers.
+    changeEventsByDisplayLayer.forEach (event, displayLayer) ->
+      displayLayer.emitDidChangeSyncEvent(event)
 
   # Public: Delete the text in the given range.
   #
@@ -1429,6 +1445,10 @@ class TextBuffer
     @displayLayers[id]
 
   setDisplayLayers: (@displayLayers) -> # Used for deserialization
+
+  registerTextDecorationLayer: (textDecorationLayer) ->
+    @textDecorationLayers.add(textDecorationLayer)
+    new Disposable(=> @textDecorationLayers.delete(textDecorationLayer))
 
   ###
   Section: Private Utility Methods
