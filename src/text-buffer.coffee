@@ -765,14 +765,19 @@ class TextBuffer
     @emitDidChangeEvent(changeEvent)
 
   emitDidChangeEvent: (changeEvent) ->
-    # First, emit the event on all the registered text decoration layers.
+    # 1. Emit the change event on all the registered text decoration layers.
     @textDecorationLayers.forEach (textDecorationLayer) ->
       textDecorationLayer.bufferDidChange(changeEvent)
-    # Then, emit it on all the registered display layers.
+    # 2. Emit the change event on all the registered display layers.
+    changeEventsByDisplayLayer = new Map()
     for id, displayLayer of @displayLayers
-      displayLayer.bufferDidChange(changeEvent)
-    # Finally, emit a normal `did-change` event for other subscribers too.
+      event = displayLayer.bufferDidChange(changeEvent)
+      changeEventsByDisplayLayer.set(displayLayer, event)
+    # 3. Emit a normal `did-change` event for other subscribers too.
     @emitter.emit 'did-change', changeEvent
+    # 4. Emit a `did-change-sync` event from all the registered display layers.
+    changeEventsByDisplayLayer.forEach (event, displayLayer) ->
+      displayLayer.emitDidChangeSyncEvent(event)
 
   # Public: Delete the text in the given range.
   #

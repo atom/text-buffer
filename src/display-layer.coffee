@@ -131,7 +131,7 @@ class DisplayLayer
     oldRowExtent = endScreenRow - startScreenRow
     newRowExtent = newLines.length
     @spliceDisplayIndex(startScreenRow, oldRowExtent, newLines)
-    @emitter.emit 'did-change-sync', Object.freeze([{
+    @emitDidChangeSyncEvent Object.freeze([{
       start: Point(startScreenRow, 0),
       oldExtent: Point(oldRowExtent, 0),
       newExtent: Point(newRowExtent, 0)
@@ -167,7 +167,7 @@ class DisplayLayer
       newScreenLines = @buildSpatialScreenLines(startBufferRow, endBufferRow)
       newRowExtent = newScreenLines.length
       @spliceDisplayIndex(startScreenRow, oldRowExtent, newScreenLines)
-      @emitter.emit 'did-change-sync', Object.freeze([{
+      @emitDidChangeSyncEvent Object.freeze([{
         start: Point(startScreenRow, 0),
         oldExtent: Point(oldRowExtent, 0),
         newExtent: Point(newRowExtent, 0)
@@ -207,7 +207,7 @@ class DisplayLayer
     newScreenLines = @buildSpatialScreenLines(startBufferRow, endBufferRow)
     newRowExtent = newScreenLines.length
     @spliceDisplayIndex(startScreenRow, oldRowExtent, newScreenLines)
-    @emitter.emit 'did-change-sync', Object.freeze([{
+    @emitDidChangeSyncEvent Object.freeze([{
       start: Point(startScreenRow, 0),
       oldExtent: Point(oldRowExtent, 0),
       newExtent: Point(newRowExtent, 0)
@@ -215,6 +215,9 @@ class DisplayLayer
     @notifyObserversIfMarkerScreenPositionsChanged()
 
     foldMarkers.map((marker) -> marker.getRange())
+
+  emitDidChangeSyncEvent: (event) ->
+    @emitter.emit 'did-change-sync', event
 
   onDidChangeSync: (callback) ->
     @emitter.on 'did-change-sync', callback
@@ -265,7 +268,9 @@ class DisplayLayer
         extent = range.getExtent()
         combinedChanges.splice(range.start, extent, extent)
 
-    @emitter.emit 'did-change-sync', Object.freeze(normalizePatchChanges(combinedChanges.getChanges()))
+    # Construct the appropriate `did-change-sync` event and rely on TextBuffer
+    # to dispatch it.
+    Object.freeze(normalizePatchChanges(combinedChanges.getChanges()))
 
   spliceDisplayIndex: (startScreenRow, oldRowExtent, newScreenLines) ->
     deletedSpatialLineIds = @displayIndex.splice(startScreenRow, oldRowExtent, newScreenLines)
@@ -285,7 +290,7 @@ class DisplayLayer
     screenRange = @translateBufferRange(bufferRange)
     @invalidateScreenLines(screenRange)
     extent = screenRange.getExtent()
-    @emitter.emit 'did-change-sync', [{
+    @emitDidChangeSyncEvent [{
       start: screenRange.start,
       oldExtent: extent,
       newExtent: extent
