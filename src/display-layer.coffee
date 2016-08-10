@@ -69,7 +69,6 @@ class DisplayLayer
       destroyInvalidatedMarkers: true
     })
     @foldIdCounter = 1
-    @disposables = @buffer.onDidChange(@bufferDidChange.bind(this))
     @displayIndex = new DisplayIndex
     @spatialTokenIterator = @displayIndex.buildTokenIterator()
     @spatialLineIterator = @displayIndex.buildScreenLineIterator()
@@ -105,7 +104,6 @@ class DisplayLayer
     @buffer.displayLayers[newId] = copy
 
   destroy: ->
-    @disposables.dispose()
     @foldsMarkerLayer.destroy()
     for id, displayMarkerLayer of @displayMarkerLayersById
       displayMarkerLayer.destroy()

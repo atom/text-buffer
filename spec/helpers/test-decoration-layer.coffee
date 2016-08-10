@@ -19,7 +19,7 @@ class TestDecorationLayer
       @markerIndex.insert(markerId, Point.fromObject(rangeStart), Point.fromObject(rangeEnd))
       @tagsByMarkerId[markerId] = tag
 
-    @buffer?.preemptDidChange(@bufferDidChange.bind(this))
+    @buffer?.registerTextDecorationLayer(this)
 
   buildIterator: ->
     new TestDecorationLayerIterator(this)

@@ -124,17 +124,33 @@ describe "TextBuffer", ->
         eventId: 1
       }]
 
-    it "notifies ::onDidChange observers with the relevant details after a change", ->
-      changes = []
-      buffer.onDidChange (change) -> changes.push(change)
+    it "notifies, in order, registered decoration layers, display layers and ::onDidChange observers with the relevant details after a change", ->
+      events = []
+      textDecorationLayer1 = {bufferDidChange: (e) -> events.push({source: textDecorationLayer1, event: e})}
+      textDecorationLayer2 = {bufferDidChange: (e) -> events.push({source: textDecorationLayer2, event: e})}
+      displayLayer1 = buffer.addDisplayLayer()
+      displayLayer2 = buffer.addDisplayLayer()
+      spyOn(displayLayer1, 'bufferDidChange').and.callFake (e) -> events.push({source: displayLayer1, event: e})
+      spyOn(displayLayer2, 'bufferDidChange').and.callFake (e) -> events.push({source: displayLayer2, event: e})
+      buffer.onDidChange (e) -> events.push({source: buffer, event: e})
+      buffer.registerTextDecorationLayer(textDecorationLayer1)
+      buffer.registerTextDecorationLayer(textDecorationLayer1) # insert a duplicate decoration layer
+      buffer.registerTextDecorationLayer(textDecorationLayer2)
+
       buffer.setTextInRange([[0, 2], [2, 3]], "y there\r\ncat\nwhat", normalizeLineEndings: false)
-      expect(changes).toEqual [{
-        oldRange: [[0, 2], [2, 3]]
-        newRange: [[0, 2], [2, 4]]
-        oldText: "llo\nworld\r\nhow"
-        newText: "y there\r\ncat\nwhat"
+      changeEvent = {
+        oldRange: [[0, 2], [2, 3]], newRange: [[0, 2], [2, 4]]
+        oldText: "llo\nworld\r\nhow", newText: "y there\r\ncat\nwhat",
         eventId: 1
-      }]
+      }
+
+      expect(events).toEqual [
+        {source: textDecorationLayer1, event: changeEvent},
+        {source: textDecorationLayer2, event: changeEvent},
+        {source: displayLayer1, event: changeEvent},
+        {source: displayLayer2, event: changeEvent},
+        {source: buffer, event: changeEvent}
+      ]
 
     it "returns the newRange of the change", ->
       expect(buffer.setTextInRange([[0, 2], [2, 3]], "y there\r\ncat\nwhat"), normalizeLineEndings: false).toEqual [[0, 2], [2, 4]]
