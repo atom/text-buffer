@@ -62,7 +62,6 @@ class DisplayLayer
 
   constructor: (@id, @buffer, settings={}) ->
     @displayMarkerLayersById = {}
-    @textDecorationLayer = null
     @foldsMarkerLayer = settings.foldsMarkerLayer ? @buffer.addMarkerLayer({
       maintainHistory: false,
       persistent: true,
@@ -99,8 +98,9 @@ class DisplayLayer
     newId = @buffer.nextDisplayLayerId++
     foldsMarkerLayer = @foldsMarkerLayer.copy()
     copy = new DisplayLayer(newId, @buffer, {
-      foldsMarkerLayer, @tabLength, @invisibles, @showIndentGuides,
-      @softWrapColumn, @softWrapHangingIndent, @ratioForCharacter, @isWrapBoundary
+      foldsMarkerLayer, @invisibles, @tabLength, @softWrapColumn,
+      @softWrapHangingIndent, @showIndentGuides, @ratioForCharacter,
+      @isWrapBoundary, @foldCharacter, @atomicSoftTabs
     })
     @buffer.displayLayers[newId] = copy
 
