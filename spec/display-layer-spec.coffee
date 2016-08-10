@@ -11,6 +11,28 @@ describe "DisplayLayer", ->
   beforeEach ->
     jasmine.addCustomEqualityTester(require("underscore-plus").isEqual)
 
+  describe "::copy()", ->
+    it "creates a new DisplayLayer having the same settings", ->
+      buffer = new TextBuffer(text: SAMPLE_TEXT)
+      displayLayer1 = buffer.addDisplayLayer({
+        invisibles: {eol: 'X'}, tabLength: 3, softWrapColumn: 20,
+        softWrapHangingIndent: 2, showIndentGuides: true, foldCharacter: 'Y',
+        atomicSoftTabs: false, ratioForCharacter: (-> 3.0), isWrapBoundary: (-> false)
+      })
+      displayLayer1.foldBufferRange(Range(Point(0, 1), Point(1, 1)))
+      displayLayer2 = displayLayer1.copy()
+      expect(displayLayer2.getText()).toBe(displayLayer1.getText())
+      expect(displayLayer2.foldsMarkerLayer.getMarkers().length).toBe(displayLayer1.foldsMarkerLayer.getMarkers().length)
+      expect(displayLayer2.invisibles).toEqual(displayLayer1.invisibles)
+      expect(displayLayer2.tabLength).toEqual(displayLayer1.tabLength)
+      expect(displayLayer2.softWrapColumn).toEqual(displayLayer1.softWrapColumn)
+      expect(displayLayer2.softWrapHangingIndent).toEqual(displayLayer1.softWrapHangingIndent)
+      expect(displayLayer2.showIndentGuides).toEqual(displayLayer1.showIndentGuides)
+      expect(displayLayer2.foldCharacter).toEqual(displayLayer1.foldCharacter)
+      expect(displayLayer2.atomicSoftTabs).toEqual(displayLayer1.atomicSoftTabs)
+      expect(displayLayer2.ratioForCharacter).toBe(displayLayer1.ratioForCharacter)
+      expect(displayLayer2.isWrapBoundary).toBe(displayLayer1.isWrapBoundary)
+
   describe "hard tabs", ->
     it "expands hard tabs to their tab stops", ->
       buffer = new TextBuffer(text: '\ta\tbc\tdef\tg\n\th')
