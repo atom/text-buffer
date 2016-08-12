@@ -6,6 +6,7 @@ Range = require '../src/range'
 WORDS = require './helpers/words'
 SAMPLE_TEXT = require './helpers/sample-text'
 TestDecorationLayer = require './helpers/test-decoration-layer'
+DisplayIndex = require 'display-index'
 
 describe "DisplayLayer", ->
   beforeEach ->
@@ -32,6 +33,39 @@ describe "DisplayLayer", ->
       expect(displayLayer2.atomicSoftTabs).toEqual(displayLayer1.atomicSoftTabs)
       expect(displayLayer2.ratioForCharacter).toBe(displayLayer1.ratioForCharacter)
       expect(displayLayer2.isWrapBoundary).toBe(displayLayer1.isWrapBoundary)
+
+  it "does not recompute the display layer's screen lines until they are needed", ->
+    spliceSpy = spyOn(DisplayIndex.prototype, 'splice').and.callThrough()
+    buffer = new TextBuffer(text: '\tif (a) { b; } else { c; }')
+
+    # construction does not force screen line computation
+    displayLayer = buffer.addDisplayLayer(tabLength: 4)
+    expect(spliceSpy.calls.count()).toBe(0)
+
+    # translateBufferPosition forces screen line computation
+    expect(displayLayer.translateBufferPosition(Point(0, 1))).toEqual(Point(0, 4))
+    expect(spliceSpy.calls.count()).toBe(1)
+
+    # translateScreenPosition forces screen line computation
+    displayLayer = buffer.addDisplayLayer(tabLength: 4)
+    expect(displayLayer.translateScreenPosition(Point(0, 4))).toEqual(Point(0, 1))
+
+    # getText forces screen line computation
+    displayLayer = buffer.addDisplayLayer(tabLength: 4)
+    expect(displayLayer.getText()).toBe("    if (a) { b; } else { c; }")
+
+    # getScreenLines forces screen line computation
+    displayLayer = buffer.addDisplayLayer(tabLength: 4)
+    expect(displayLayer.getScreenLines(0, 1).length).toBe(1)
+
+    # clipScreenPosition forces screen line computation
+    displayLayer = buffer.addDisplayLayer(tabLength: 4)
+    expect(displayLayer.clipScreenPosition(Point(0, 0))).toEqual(Point(0, 0))
+
+    # foldBufferRange forces screen line computation
+    displayLayer = buffer.addDisplayLayer(tabLength: 4)
+    fold1 = displayLayer.foldBufferRange(Range(Point(0, 9), Point(0, 13)))
+    expect(displayLayer.getText()).toBe("    if (a) {⋯} else { c; }")
 
   describe "hard tabs", ->
     it "expands hard tabs to their tab stops", ->
