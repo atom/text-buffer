@@ -51,7 +51,7 @@
     "fs-plus": "^2.0.0",
     "grim": "1.5.0",
     "line-length-index": "0.0.2",
-    "marker-index": "4.0.0",
+    "marker-index": "4.0.1",
     "pathwatcher": "6.7.1",
     "serializable": "^1.0.3",
     "span-skip-list": "~0.2.0",
