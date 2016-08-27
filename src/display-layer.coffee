@@ -110,6 +110,7 @@ class DisplayLayer
     delete @buffer.displayLayers[@id]
 
   reset: (params) ->
+    @propertiesHaveChanged = true
     @tabLength = params.tabLength if params.hasOwnProperty('tabLength')
     @invisibles = params.invisibles if params.hasOwnProperty('invisibles')
     @showIndentGuides = params.showIndentGuides if params.hasOwnProperty('showIndentGuides')
@@ -126,6 +127,9 @@ class DisplayLayer
       "\r\n": @invisibles.cr + @invisibles.eol
     }
 
+  recomputeScreenLinesIfNeeded: ->
+    return unless @propertiesHaveChanged
+    @propertiesHaveChanged = false
     {startScreenRow, endScreenRow} = @expandBufferRangeToLineBoundaries(Range(Point.ZERO, Point(@buffer.getLineCount(), 0)))
     newLines = @buildSpatialScreenLines(0, @buffer.getLineCount())
     oldRowExtent = endScreenRow - startScreenRow
@@ -149,6 +153,7 @@ class DisplayLayer
   notifyObserversIfMarkerScreenPositionsChanged: ->
     for id, displayMarkerLayer of @displayMarkerLayersById
       displayMarkerLayer.notifyObserversIfMarkerScreenPositionsChanged()
+    return
 
   setTextDecorationLayer: (layer) ->
     @decorationLayerDisposable?.dispose()
@@ -220,6 +225,7 @@ class DisplayLayer
     @emitter.emit 'did-change-sync', event
 
   onDidChangeSync: (callback) ->
+    @recomputeScreenLinesIfNeeded()
     @emitter.on 'did-change-sync', callback
 
   bufferDidChange: (change) ->
@@ -821,9 +827,11 @@ class DisplayLayer
     excessTokens
 
   getText: ->
+    @recomputeScreenLinesIfNeeded()
     @getScreenLines().map((screenLine) -> screenLine.lineText).join('\n')
 
   getScreenLines: (startRow=0, endRow=@getScreenLineCount()) ->
+    @recomputeScreenLinesIfNeeded()
     global.atom?.assert(
       @lastBufferChangeEventId is @textDecorationLayer.lastBufferChangeEventId,
       'Buffer Change Event Ids are different in getScreenLines',
@@ -1063,6 +1071,7 @@ class DisplayLayer
     containingTags.push(tagsToOpen...)
 
   translateBufferPosition: (bufferPosition, options) ->
+    @recomputeScreenLinesIfNeeded()
     bufferPosition = @buffer.clipPosition(bufferPosition, options)
     clipDirection = options?.clipDirection
 
@@ -1107,6 +1116,7 @@ class DisplayLayer
     Range(start, end)
 
   translateScreenPosition: (screenPosition, options) ->
+    @recomputeScreenLinesIfNeeded()
     screenPosition = Point.fromObject(screenPosition)
     screenPosition = clipNegativePoint(screenPosition)
     clipDirection = options?.clipDirection
@@ -1158,6 +1168,7 @@ class DisplayLayer
     Range(start, end)
 
   clipScreenPosition: (screenPosition, options) ->
+    @recomputeScreenLinesIfNeeded()
     screenPosition = Point.fromObject(screenPosition)
     screenPosition = clipNegativePoint(screenPosition)
     clipDirection = options?.clipDirection
@@ -1212,6 +1223,7 @@ class DisplayLayer
     }
 
   getScreenLineCount: ->
+    @recomputeScreenLinesIfNeeded()
     @displayIndex.getScreenLineCount()
 
   getRightmostScreenPosition: ->
