@@ -89,8 +89,6 @@ class TextBuffer
   #     after initialization.
   #   * `text` The initial {String} text of the buffer.
   constructor: (params) ->
-    @eventIdCounter = 0
-
     text = params if typeof params is 'string'
 
     @emitter = new Emitter
@@ -731,7 +729,7 @@ class TextBuffer
     normalizedNewText += lastLine
 
     newText = normalizedNewText
-    changeEvent = Object.freeze({oldRange, newRange, oldText, newText, eventId: @eventIdCounter++})
+    changeEvent = Object.freeze({oldRange, newRange, oldText, newText})
     @emitter.emit 'will-change', changeEvent
 
     # Update first and last line so replacement preserves existing prefix and suffix of oldRange
