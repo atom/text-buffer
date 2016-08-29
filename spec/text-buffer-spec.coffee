@@ -123,7 +123,6 @@ describe "TextBuffer", ->
           newRange: [[0, 2], [2, 4]]
           oldText: "llo\nworld\r\nhow"
           newText: "y there\r\ncat\nwhat"
-          eventId: 1
         }]
 
     describe "after a change", ->
@@ -152,12 +151,10 @@ describe "TextBuffer", ->
         changeEvent1 = {
           oldRange: [[0, 2], [2, 3]], newRange: [[0, 2], [2, 4]]
           oldText: "llo\nworld\r\nhow", newText: "y there\r\ncat\nwhat",
-          eventId: 1
         }
         changeEvent2 = {
           oldRange: [[1, 1], [1, 2]], newRange: [[1, 1], [1, 4]]
           oldText: "a", newText: "abc",
-          eventId: 2
         }
         expect(events).toEqual [
           {source: textDecorationLayer1, event: changeEvent1},

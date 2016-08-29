@@ -223,23 +223,6 @@ class DisplayLayer
     @emitter.on 'did-change-sync', callback
 
   bufferDidChange: (change) ->
-    if @lastBufferChangeEventId?
-      global.atom?.assert(
-        @lastBufferChangeEventId is change.eventId - 1,
-        'Buffer Change Event Ids are not sequential',
-        (error) =>
-          error.metadata = {
-            displayLayerEventId: @lastBufferChangeEventId,
-            nextDisplayLayerEventId: change.eventId,
-            tokenizedBufferEventId: @textDecorationLayer.lastBufferChangeEventId
-          }
-      )
-    @lastBufferChangeEventId = change.eventId
-    global.atom?.assert(
-      @lastBufferChangeEventId is @textDecorationLayer.lastBufferChangeEventId,
-      'Buffer Change Event Ids are different in buffer.onDidChange event handler',
-      (error) => error.metadata = {displayLayerEventId: @lastBufferChangeEventId, tokenizedBufferEventId: @textDecorationLayer.lastBufferChangeEventId}
-    )
     {oldRange, newRange} = @expandChangeRegionToSurroundingEmptyLines(change.oldRange, change.newRange)
 
     {startScreenRow, endScreenRow, startBufferRow, endBufferRow} = @expandBufferRangeToLineBoundaries(oldRange)
@@ -824,12 +807,6 @@ class DisplayLayer
     @getScreenLines().map((screenLine) -> screenLine.lineText).join('\n')
 
   getScreenLines: (startRow=0, endRow=@getScreenLineCount()) ->
-    global.atom?.assert(
-      @lastBufferChangeEventId is @textDecorationLayer.lastBufferChangeEventId,
-      'Buffer Change Event Ids are different in getScreenLines',
-      (error) => error.metadata = {displayLayerEventId: @lastBufferChangeEventId, tokenizedBufferEventId: @textDecorationLayer.lastBufferChangeEventId}
-    )
-
     decorationIterator = @textDecorationLayer.buildIterator()
     screenLines = []
     @spatialLineIterator.seekToScreenRow(startRow)
@@ -901,8 +878,6 @@ class DisplayLayer
             softWrapHangingIndent: @softWrapHangingIndent,
             foldCount: @foldsMarkerLayer.getMarkerCount(),
             atomicSoftTabs: @atomicSoftTabs,
-            tokenizedBufferEventId: @textDecorationLayer.lastBufferChangeEventId,
-            displayLayerEventId: @lastBufferChangeEventId,
             tokenizedBufferInvalidRows: @textDecorationLayer.invalidRows
           }
           throw error
