@@ -1032,7 +1032,9 @@ class DisplayLayer
             tagsToCloseCounts[mostRecentOpenTag]--
           else
             openTags.unshift(mostRecentOpenTag)
-        closeTags.push(closeTag)
+
+        if mostRecentOpenTag?
+          closeTags.push(closeTag)
 
     openTags.push(tagsToOpen...)
     containingTags.push(tagsToOpen...)

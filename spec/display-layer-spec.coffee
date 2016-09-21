@@ -830,6 +830,23 @@ describe "DisplayLayer", ->
         {text: '', close: ['following-fold', 'surrounding-fold'], open: []}
       ])
 
+    it "skips close tags with no matching open tag", ->
+      buffer = new TextBuffer(text: 'abcde')
+      displayLayer = buffer.addDisplayLayer()
+      boundaries = [
+        {position: Point(0, 0), closeTags: [], openTags: ['a', 'b']},
+        {position: Point(0, 2), closeTags: ['c'], openTags: []}
+      ]
+      iterator = {
+        getOpenTags: -> boundaries[0].openTags
+        getCloseTags: -> boundaries[0].closeTags
+        getPosition: -> boundaries[0]?.position ? Point.INFINITY
+        moveToSuccessor: -> boundaries.shift()
+        seek: -> []
+      }
+      displayLayer.setTextDecorationLayer({buildIterator: -> iterator})
+      expect(displayLayer.getScreenLines(0, 1)[0].tagCodes).toEqual([-1, -3, 2, -4, -2, -1, -3, 3, -4, -2])
+
     it "emits update events from the display layer when text decoration ranges are invalidated", ->
       buffer = new TextBuffer(text: """
         abc
