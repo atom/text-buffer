@@ -20,12 +20,14 @@ for (let sizeInKB of SIZES_IN_KB) {
 
   let t0 = Date.now()
   for (let i = 0; i < TRIAL_COUNT; i++) {
-    new TextBuffer({text})
+    buffer = new TextBuffer({text})
+    buffer.getTextInRange([[0, 0], [50, 0]])
   }
 
   let t1 = Date.now()
   for (let i = 0; i < TRIAL_COUNT; i++) {
-    buffer.addDisplayLayer({})
+    let displayLayer = buffer.addDisplayLayer({})
+    displayLayer.getScreenLines(0, 50)
   }
 
   let t2 = Date.now()
