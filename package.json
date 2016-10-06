@@ -10,7 +10,8 @@
     "compile": "coffee --no-header --output lib --compile src",
     "lint": "coffeelint -r src spec && eslint src spec",
     "test": "jasmine --captureExceptions --forceexit",
-    "ci": "npm run compile && npm run lint && npm run test"
+    "ci": "npm run compile && npm run lint && npm run test && npm run bench",
+    "bench": "node benchmarks/index"
   },
   "repository": {
     "type": "git",
@@ -42,9 +43,9 @@
     "temp": "^0.8.3"
   },
   "dependencies": {
+    "atom-patch": "0.3.0",
     "delegato": "^1.0.0",
     "diff": "^2.2.1",
-    "atom-patch": "0.3.0",
     "display-index": "^0.1.0",
     "emissary": "^1.0.0",
     "event-kit": "^2.1.0",
@@ -53,6 +54,7 @@
     "line-length-index": "0.0.2",
     "marker-index": "4.0.1",
     "pathwatcher": "6.7.1",
+    "regression": "^1.2.1",
     "serializable": "^1.0.3",
     "span-skip-list": "~0.2.0",
     "underscore-plus": "^1.0.0"
