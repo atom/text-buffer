@@ -132,6 +132,7 @@ class DisplayLayer
     @displayIndex.splice(0, Infinity, [])
 
     @emitter.emit('did-reset')
+    @notifyObserversIfMarkerScreenPositionsChanged()
 
   addMarkerLayer: (options) ->
     markerLayer = new DisplayMarkerLayer(this, @buffer.addMarkerLayer(options), true)
