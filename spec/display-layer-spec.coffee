@@ -931,6 +931,67 @@ describe "DisplayLayer", ->
       expect(displayLayer.translateBufferPosition([1, 8], clipDirection: 'closest')).toEqual [0, 8]
       expect(displayLayer.translateBufferPosition([1, 8], clipDirection: 'forward')).toEqual [0, 8]
 
+  describe "approximate screen dimensions APIs", ->
+    describe "getApproximateScreenLineCount()", ->
+      it "estimates the screen line count based on the currently-indexed portion of the buffer", ->
+        buffer = new TextBuffer({
+          text: """
+            111 111
+            222 222
+            3
+            4
+            5
+            6
+            7
+            8
+          """
+        })
+
+        displayLayer = buffer.addDisplayLayer({softWrapColumn: 4})
+
+        # Before indexing any buffer lines, assume that on average, each buffer
+        # line produces one screen line.
+        expect(displayLayer.getApproximateScreenLineCount()).toEqual(buffer.getLineCount())
+
+        # Index the first two buffer lines, which map to four screen lines.
+        # Assume that on average, each buffer line produces two screen lines.
+        expect(displayLayer.translateBufferPosition(Point(0, Infinity))).toEqual(Point(1, 3))
+        expect(displayLayer.indexedBufferRowCount).toBe(2)
+        expect(displayLayer.getApproximateScreenLineCount()).toEqual(buffer.getLineCount() * 4 / 2)
+
+        # Index the first four buffer lines, which map to six screen lines.
+        # Assume that on average, each buffer line produces two screen lines.
+        # console.log displayLayer.getText()
+        expect(displayLayer.translateBufferPosition(Point(2, 1))).toEqual(Point(4, 1))
+        expect(displayLayer.indexedBufferRowCount).toBe(4)
+        expect(displayLayer.getApproximateScreenLineCount()).toEqual(buffer.getLineCount() * 6 / 4)
+
+    describe "getApproximateRightmostScreenPosition()", ->
+      it "returns the rightmost screen position that has been indexed so far", ->
+        buffer = new TextBuffer({
+          text: """
+            111
+            222 222
+            333 333 333
+            444 444
+          """
+        })
+
+        displayLayer = buffer.addDisplayLayer({})
+        expect(displayLayer.getApproximateRightmostScreenPosition()).toEqual(Point.ZERO)
+
+        displayLayer.translateBufferPosition(Point(0, 0))
+        expect(displayLayer.indexedBufferRowCount).toBe(2)
+        expect(displayLayer.getApproximateRightmostScreenPosition()).toEqual(Point(1, 7))
+
+        displayLayer.translateBufferPosition(Point(1, 0))
+        expect(displayLayer.indexedBufferRowCount).toBe(3)
+        expect(displayLayer.getApproximateRightmostScreenPosition()).toEqual(Point(2, 11))
+
+        displayLayer.translateBufferPosition(Point(2, 0))
+        expect(displayLayer.indexedBufferRowCount).toBe(4)
+        expect(displayLayer.getApproximateRightmostScreenPosition()).toEqual(Point(2, 11))
+
   now = Date.now()
   for i in [0...100] by 1
     do ->

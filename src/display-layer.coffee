@@ -1230,3 +1230,12 @@ class DisplayLayer
   lineLengthForScreenRow: (screenRow) ->
     @computeSpatialScreenLinesThroughScreenRow(screenRow)
     @displayIndex.lineLengthForScreenRow(screenRow) or 0
+
+  getApproximateScreenLineCount: ->
+    if @indexedBufferRowCount > 0
+      @buffer.getLineCount() * @displayIndex.getScreenLineCount() / @indexedBufferRowCount
+    else
+      @buffer.getLineCount()
+
+  getApproximateRightmostScreenPosition: ->
+    @displayIndex.getScreenPositionWithMaxLineLength() or Point.ZERO
