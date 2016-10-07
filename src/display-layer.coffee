@@ -79,6 +79,7 @@ class DisplayLayer
     @tagsByCode = new Map
     @nextOpenTagCode = -1
     @indexedBufferRowCount = 0
+    @processingBufferChange = false
     @reset({
       invisibles: settings.invisibles ? {}
       tabLength: settings.tabLength ? 4
@@ -220,6 +221,10 @@ class DisplayLayer
   onDidReset: (callback) ->
     @emitter.on 'did-reset', callback
 
+  bufferWillChange: (change) ->
+    @processingBufferChange = true
+    @computeSpatialScreenLinesThroughBufferRow(change.oldRange.end.row)
+
   bufferDidChange: (change) ->
     {oldRange, newRange} = @expandChangeRegionToSurroundingEmptyLines(change.oldRange, change.newRange)
 
@@ -231,6 +236,7 @@ class DisplayLayer
     newRowExtent = spatialScreenLines.length
     @spliceDisplayIndex(startScreenRow, oldRowExtent, spatialScreenLines)
     @indexedBufferRowCount += change.newRange.end.row - change.oldRange.end.row
+    @processingBufferChange = false
 
     start = Point(startScreenRow, 0)
     oldExtent = Point(oldRowExtent, 0)
