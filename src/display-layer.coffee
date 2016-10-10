@@ -79,7 +79,7 @@ class DisplayLayer
     @tagsByCode = new Map
     @nextOpenTagCode = -1
     @indexedBufferRowCount = 0
-    @processingBufferChange = false
+    @bufferChangeBeingProcessed = null
     @reset({
       invisibles: settings.invisibles ? {}
       tabLength: settings.tabLength ? 4
@@ -150,6 +150,9 @@ class DisplayLayer
     @decorationLayerDisposable?.dispose()
     @textDecorationLayer = layer
     @decorationLayerDisposable = layer.onDidInvalidateRange?(@decorationLayerDidInvalidateRange.bind(this))
+
+  getTextDecorationLayer: ->
+    @textDecorationLayer
 
   bufferRangeForFold: (id) ->
     @foldsMarkerLayer.getMarkerRange(id)
@@ -223,11 +226,12 @@ class DisplayLayer
     @emitter.on 'did-reset', callback
 
   bufferWillChange: (change) ->
-    @computeSpatialScreenLinesThroughBufferRow(change.oldRange.end.row)
-    @processingBufferChange = true
+    change = @expandChangeRegionToSurroundingEmptyLines(change)
+    @computeSpatialScreenLinesThroughBufferRow(change.oldRange.end.row + 1)
+    @bufferChangeBeingProcessed = change
 
-  bufferDidChange: (change) ->
-    {oldRange, newRange} = @expandChangeRegionToSurroundingEmptyLines(change.oldRange, change.newRange)
+  bufferDidChange: ->
+    {oldRange, newRange} = @expandChangeRegionToSurroundingEmptyLines(@bufferChangeBeingProcessed)
 
     {startScreenRow, endScreenRow, startBufferRow, endBufferRow} = @expandBufferRangeToLineBoundaries(oldRange)
     endBufferRow = newRange.end.row + (endBufferRow - oldRange.end.row)
@@ -236,9 +240,8 @@ class DisplayLayer
     {spatialScreenLines} = @buildSpatialScreenLines(startBufferRow, endBufferRow)
     newRowExtent = spatialScreenLines.length
     @spliceDisplayIndex(startScreenRow, oldRowExtent, spatialScreenLines)
-    @indexedBufferRowCount += change.newRange.end.row - change.oldRange.end.row
-    @processingBufferChange = false
-
+    @indexedBufferRowCount += newRange.end.row - oldRange.end.row
+    @bufferChangeBeingProcessed = null
     start = Point(startScreenRow, 0)
     oldExtent = Point(oldRowExtent, 0)
     newExtent = Point(newRowExtent, 0)
@@ -294,7 +297,7 @@ class DisplayLayer
       break unless @spatialLineIterator.moveToSuccessor()
     ids
 
-  expandChangeRegionToSurroundingEmptyLines: (oldRange, newRange) ->
+  expandChangeRegionToSurroundingEmptyLines: ({oldRange, newRange}) ->
     oldRange = oldRange.copy()
     newRange = newRange.copy()
 
@@ -342,7 +345,7 @@ class DisplayLayer
     @computeSpatialScreenLines(Infinity, screenRow + 1)
 
   computeSpatialScreenLines: (endBufferRow, endScreenRow) ->
-    return if @processingBufferChange
+    return if @bufferChangeBeingProcessed?
     if @indexedBufferRowCount < Math.min(endBufferRow, @buffer.getLineCount())
       lastScreenRow = @displayIndex.getScreenLineCount()
       if lastScreenRow < endScreenRow

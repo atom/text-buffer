@@ -998,7 +998,7 @@ describe "DisplayLayer", ->
       seed = now + i
       it "updates the displayed text correctly when the underlying buffer changes: #{seed}", ->
         random = new Random(seed)
-        buffer = new TextBuffer(text: buildRandomLines(random, 10))
+        buffer = new TextBuffer(text: buildRandomLines(random, 20))
         invisibles = {}
         invisibles.space = '•' if random(2) > 0
         invisibles.eol = '¬' if random(2) > 0
@@ -1008,6 +1008,8 @@ describe "DisplayLayer", ->
         displayLayer = buffer.addDisplayLayer({tabLength: 4, invisibles, showIndentGuides, softWrapColumn})
         textDecorationLayer = new TestDecorationLayer([], buffer, random)
         displayLayer.setTextDecorationLayer(textDecorationLayer)
+
+        displayLayer.getText(0, 3)
 
         foldIds = []
         undoableChanges = 0
@@ -1023,74 +1025,95 @@ describe "DisplayLayer", ->
           else if k < 5 and undoableChanges > 0
             undoableChanges--
             redoableChanges++
-            performUndo(random, buffer, displayLayer)
+            performUndo(random, displayLayer)
           else if k < 6 and redoableChanges > 0
             undoableChanges++
             redoableChanges--
-            performRedo(random, buffer, displayLayer)
+            performRedo(random, displayLayer)
           else
             undoableChanges++
-            performRandomChange(random, buffer, displayLayer)
+            performRandomChange(random, displayLayer)
 
-          # incrementally-updated text matches freshly computed text
-          expectedDisplayLayer = buffer.addDisplayLayer({foldsMarkerLayer: displayLayer.foldsMarkerLayer.copy(), tabLength: 4, invisibles, showIndentGuides, softWrapColumn})
-          expect(JSON.stringify(displayLayer.getText())).toBe(JSON.stringify(expectedDisplayLayer.getText()))
+          freshDisplayLayer = displayLayer.copy()
+          freshDisplayLayer.setTextDecorationLayer(displayLayer.getTextDecorationLayer())
+          freshDisplayLayer.getScreenLines()
 
-          verifyPositionTranslations(displayLayer)
-          verifyTokens(displayLayer)
-          verifyRightmostScreenPosition(displayLayer)
-          verifyScreenLineIds(displayLayer, screenLinesById)
+          verifyTokenConsistency(random, displayLayer)
+          verifyText(random, displayLayer, freshDisplayLayer)
+          verifyPositionTranslations(random, displayLayer)
+          verifyRightmostScreenPosition(random, freshDisplayLayer)
+          verifyScreenLineIds(random, displayLayer, screenLinesById)
 
-          expectedDisplayLayer.destroy()
-
-performRandomChange = (random, buffer, displayLayer) ->
-  range = getRandomRange(random, buffer)
-
+performRandomChange = (random, displayLayer) ->
+  text = buildRandomLines(random, 4)
+  range = getRandomBufferRange(random, displayLayer)
+  log "buffer change #{range} #{JSON.stringify(text)}"
   verifyChangeEvent displayLayer, ->
-    text = buildRandomLines(random, 4)
-    buffer.setTextInRange(range, text)
+    displayLayer.buffer.setTextInRange(range, text)
 
-performUndo = (random, buffer, displayLayer) ->
-  verifyChangeEvent displayLayer, -> buffer.undo()
+performUndo = (random, displayLayer) ->
+  log "undo"
+  verifyChangeEvent displayLayer, ->
+    displayLayer.buffer.undo()
 
-performRedo = (random, buffer, displayLayer) ->
-  verifyChangeEvent displayLayer, -> buffer.redo()
+performRedo = (random, displayLayer) ->
+  log "redo"
+  verifyChangeEvent displayLayer, ->
+    displayLayer.buffer.redo()
 
 createRandomFold = (random, displayLayer, foldIds) ->
+  bufferRange = getRandomBufferRange(random, displayLayer)
+  log "fold #{bufferRange}"
   verifyChangeEvent displayLayer, ->
-    bufferRange = getRandomRange(random, displayLayer.buffer)
-    foldId = displayLayer.foldBufferRange(bufferRange)
-    foldIds.push(foldId)
+    foldIds.push(displayLayer.foldBufferRange(bufferRange))
 
 destroyRandomFold = (random, displayLayer, foldIds) ->
+  foldIndex = random(foldIds.length - 1)
+  log "destroy fold #{foldIndex}"
   verifyChangeEvent displayLayer, ->
-    [foldId] = foldIds.splice(random(foldIds.length - 1), 1)
-    displayLayer.destroyFold(foldId)
+    displayLayer.destroyFold(foldIds.splice(foldIndex, 1)[0])
+
+log = (message) ->
+  # console.log(message)
 
 verifyChangeEvent = (displayLayer, fn) ->
-  previousTokenLines = getTokenLines(displayLayer)
+  # Avoid forcing the original display layer to compute spatial screen lines for
+  # the entire buffer. This way, the tests cover scenarios where changes occur
+  # in parts of the buffer that the display layer has not yet indexed.
+  displayLayerCopy = displayLayer.copy()
+  displayLayerCopy.setTextDecorationLayer(displayLayer.getTextDecorationLayer())
+  previousTokenLines = getTokenLines(displayLayerCopy)
+  displayLayerCopy.destroy()
+
   lastChanges = null
   disposable = displayLayer.onDidChangeSync (changes) -> lastChanges = changes
-
   fn()
   disposable.dispose()
-  if lastChanges?
-    expectedTokenLines = getTokenLines(displayLayer)
-    updateTokenLines(previousTokenLines, displayLayer, lastChanges)
 
-    # {diffString} = require 'json-diff'
-    # diff = diffString(expectedTokenLines, previousTokenLines, color: false)
-    # console.log diff
-    # console.log previousTokenLines
-    # console.log expectedTokenLines
-    expect(previousTokenLines).toEqual(expectedTokenLines)
-  else
-    expect(getTokenLines(displayLayer)).toEqual(previousTokenLines)
+  displayLayerCopy = displayLayer.copy()
+  displayLayerCopy.setTextDecorationLayer(displayLayer.getTextDecorationLayer())
+  updateTokenLines(previousTokenLines, displayLayerCopy, lastChanges)
+  expectedTokenLines = getTokenLines(displayLayerCopy)
+  displayLayerCopy.destroy()
 
-verifyTokens = (displayLayer) ->
+  # {diffString} = require 'json-diff'
+  # diff = diffString(expectedTokenLines, previousTokenLines, color: false)
+  # console.log lastChanges
+  # console.log diff
+  # console.log previousTokenLines
+  # console.log expectedTokenLines
+  expect(previousTokenLines).toEqual(expectedTokenLines)
+
+verifyText = (random, displayLayer, freshDisplayLayer) ->
+  rowCount = getRandomScreenRowCount(random, displayLayer)
+  text = displayLayer.getText(0, rowCount)
+  expectedText = freshDisplayLayer.getText(0, rowCount)
+  expect(JSON.stringify(text)).toBe(JSON.stringify(expectedText))
+
+verifyTokenConsistency = (random, displayLayer) ->
   containingTags = []
 
-  for tokens in getTokenLines(displayLayer)
+  for tokens in getTokenLines(displayLayer, 0, getRandomScreenRowCount(random, displayLayer))
     for {closeTags, openTags, text} in tokens
       for tag in closeTags
         mostRecentOpenTag = containingTags.pop()
@@ -1101,11 +1124,12 @@ verifyTokens = (displayLayer) ->
 
   expect(containingTags).toEqual([])
 
-verifyPositionTranslations = (displayLayer) ->
+verifyPositionTranslations = (random, displayLayer) ->
   lineScreenStart = Point.ZERO
   lineBufferStart = Point.ZERO
 
-  for screenLine in displayLayer.buildSpatialScreenLines(0, displayLayer.buffer.getLineCount())
+  rowCount = getRandomScreenRowCount(random, displayLayer)
+  for screenLine in displayLayer.buildSpatialScreenLines(0, Infinity, rowCount)
     tokenScreenStart = lineScreenStart
     tokenBufferStart = lineBufferStart
 
@@ -1140,9 +1164,8 @@ verifyPositionTranslations = (displayLayer) ->
     lineBufferStart = traverse(lineBufferStart, screenLine.bufferExtent)
     lineScreenStart = traverse(lineScreenStart, Point(1, 0))
 
-verifyRightmostScreenPosition = (displayLayer) ->
+verifyRightmostScreenPosition = (random, displayLayer) ->
   screenLines = displayLayer.getText().split('\n')
-  lastScreenRow = screenLines.length - 1
 
   maxLineLength = -1
   longestScreenRows = new Set
@@ -1163,8 +1186,8 @@ verifyRightmostScreenPosition = (displayLayer) ->
   expect(rightmostScreenPosition.column).toBe(maxLineLength)
   expect(longestScreenRows.has(rightmostScreenPosition.row)).toBe(true)
 
-verifyScreenLineIds = (displayLayer, screenLinesById) ->
-  for screenLine in displayLayer.getScreenLines()
+verifyScreenLineIds = (random, displayLayer, screenLinesById) ->
+  for screenLine in displayLayer.getScreenLines(0, getRandomScreenRowCount(random, displayLayer))
     if screenLinesById.has(screenLine.id)
       expect(screenLinesById.get(screenLine.id)).toEqual(screenLine)
     else
@@ -1189,13 +1212,21 @@ buildRandomLine = (random) ->
       line.push(WORDS[random(WORDS.length)])
   line.join('')
 
-getRandomRange = (random, buffer) ->
-  Range(getRandomPoint(random, buffer), getRandomPoint(random, buffer))
+getRandomScreenRowCount = (random, displayLayer) ->
+  if random(10) < 8
+    getComputedScreenLineCount(displayLayer)
+  else
+    getComputedScreenLineCount(displayLayer) + random(10)
 
-getRandomPoint = (random, buffer) ->
-  row = random(buffer.getLineCount())
-  column = random(buffer.lineForRow(row).length + 1)
-  Point(row, column)
+getRandomBufferRange = (random, displayLayer) ->
+  if random(10) < 8
+    endRow = random(displayLayer.buffer.getLineCount())
+  else
+    endRow = random(displayLayer.buffer.getLineCount())
+  startRow = random.intBetween(0, endRow)
+  startColumn = random(displayLayer.buffer.lineForRow(startRow).length + 1)
+  endColumn = random(displayLayer.buffer.lineForRow(endRow).length + 1)
+  Range(Point(startRow, startColumn), Point(endRow, endColumn))
 
 substringForRange = (text, range) ->
   startIndex = characterIndexForPoint(text, range.start)
@@ -1252,7 +1283,7 @@ getTokenLines = (displayLayer, startRow=0, endRow=displayLayer.getScreenLineCoun
   tokenLines
 
 updateTokenLines = (tokenLines, displayLayer, changes) ->
-  for {start, oldExtent, newExtent} in changes
+  for {start, oldExtent, newExtent} in changes ? []
     tokenLines.splice(start.row, oldExtent.row, getTokenLines(displayLayer, start.row, start.row + newExtent.row)...)
 
 logTokens = (displayLayer) ->
@@ -1262,3 +1293,6 @@ logTokens = (displayLayer) ->
       s += "  {text: '#{text}', close: #{JSON.stringify(closeTags)}, open: #{JSON.stringify(openTags)}},\n"
   s += '])'
   console.log s
+
+getComputedScreenLineCount = (displayLayer) ->
+  displayLayer.displayIndex.getScreenLineCount() - 1
