@@ -1020,6 +1020,8 @@ describe "DisplayLayer", ->
           k = random(10)
           if k < 2
             createRandomFold(random, displayLayer, foldIds)
+          else if k < 3 and not hasComputedAllScreenRows(displayLayer)
+            performReadOutsideOfIndexedRegion(random, displayLayer)
           else if k < 4 and foldIds.length > 0
             destroyRandomFold(random, displayLayer, foldIds)
           else if k < 5 and undoableChanges > 0
@@ -1038,11 +1040,11 @@ describe "DisplayLayer", ->
           freshDisplayLayer.setTextDecorationLayer(displayLayer.getTextDecorationLayer())
           freshDisplayLayer.getScreenLines()
 
-          verifyTokenConsistency(random, displayLayer)
-          verifyText(random, displayLayer, freshDisplayLayer)
-          verifyPositionTranslations(random, displayLayer)
-          verifyRightmostScreenPosition(random, freshDisplayLayer)
-          verifyScreenLineIds(random, displayLayer, screenLinesById)
+          verifyTokenConsistency(displayLayer)
+          verifyText(displayLayer, freshDisplayLayer)
+          verifyPositionTranslations(displayLayer)
+          verifyRightmostScreenPosition(freshDisplayLayer)
+          verifyScreenLineIds(displayLayer, screenLinesById)
 
 performRandomChange = (random, displayLayer) ->
   text = buildRandomLines(random, 4)
@@ -1072,6 +1074,12 @@ destroyRandomFold = (random, displayLayer, foldIds) ->
   log "destroy fold #{foldIndex}"
   verifyChangeEvent displayLayer, ->
     displayLayer.destroyFold(foldIds.splice(foldIndex, 1)[0])
+
+performReadOutsideOfIndexedRegion = (random, displayLayer) ->
+  computedRowCount = getComputedScreenLineCount(displayLayer)
+  row = random.intBetween(computedRowCount, computedRowCount + 10)
+  log "new-read #{row}"
+  displayLayer.getScreenLines(0, row)
 
 log = (message) ->
   # console.log(message)
@@ -1104,16 +1112,16 @@ verifyChangeEvent = (displayLayer, fn) ->
   # console.log expectedTokenLines
   expect(previousTokenLines).toEqual(expectedTokenLines)
 
-verifyText = (random, displayLayer, freshDisplayLayer) ->
-  rowCount = getRandomScreenRowCount(random, displayLayer)
+verifyText = (displayLayer, freshDisplayLayer) ->
+  rowCount = getComputedScreenLineCount(displayLayer)
   text = displayLayer.getText(0, rowCount)
   expectedText = freshDisplayLayer.getText(0, rowCount)
   expect(JSON.stringify(text)).toBe(JSON.stringify(expectedText))
 
-verifyTokenConsistency = (random, displayLayer) ->
+verifyTokenConsistency = (displayLayer) ->
   containingTags = []
 
-  for tokens in getTokenBoundaries(displayLayer, 0, getRandomScreenRowCount(random, displayLayer))
+  for tokens in getTokenBoundaries(displayLayer, 0, getComputedScreenLineCount(displayLayer))
     for {closeTags, openTags, text} in tokens
       for tag in closeTags
         mostRecentOpenTag = containingTags.pop()
@@ -1124,11 +1132,11 @@ verifyTokenConsistency = (random, displayLayer) ->
 
   expect(containingTags).toEqual([])
 
-verifyPositionTranslations = (random, displayLayer) ->
+verifyPositionTranslations = (displayLayer) ->
   lineScreenStart = Point.ZERO
   lineBufferStart = Point.ZERO
 
-  rowCount = getRandomScreenRowCount(random, displayLayer)
+  rowCount = getComputedScreenLineCount(displayLayer)
   for screenLine in displayLayer.buildSpatialScreenLines(0, Infinity, rowCount)
     tokenScreenStart = lineScreenStart
     tokenBufferStart = lineBufferStart
@@ -1164,7 +1172,7 @@ verifyPositionTranslations = (random, displayLayer) ->
     lineBufferStart = traverse(lineBufferStart, screenLine.bufferExtent)
     lineScreenStart = traverse(lineScreenStart, Point(1, 0))
 
-verifyRightmostScreenPosition = (random, displayLayer) ->
+verifyRightmostScreenPosition = (displayLayer) ->
   screenLines = displayLayer.getText().split('\n')
 
   maxLineLength = -1
@@ -1186,8 +1194,8 @@ verifyRightmostScreenPosition = (random, displayLayer) ->
   expect(rightmostScreenPosition.column).toBe(maxLineLength)
   expect(longestScreenRows.has(rightmostScreenPosition.row)).toBe(true)
 
-verifyScreenLineIds = (random, displayLayer, screenLinesById) ->
-  for screenLine in displayLayer.getScreenLines(0, getRandomScreenRowCount(random, displayLayer))
+verifyScreenLineIds = (displayLayer, screenLinesById) ->
+  for screenLine in displayLayer.getScreenLines(0, getComputedScreenLineCount(displayLayer))
     if screenLinesById.has(screenLine.id)
       expect(screenLinesById.get(screenLine.id)).toEqual(screenLine)
     else
@@ -1304,6 +1312,9 @@ logTokens = (displayLayer) ->
       s += "  {text: '#{text}', close: #{JSON.stringify(closeTags)}, open: #{JSON.stringify(openTags)}},\n"
   s += '])'
   console.log s
+
+hasComputedAllScreenRows = (displayLayer) ->
+  displayLayer.indexedBufferRowCount is displayLayer.buffer.getLineCount()
 
 getComputedScreenLineCount = (displayLayer) ->
   displayLayer.displayIndex.getScreenLineCount() - 1
