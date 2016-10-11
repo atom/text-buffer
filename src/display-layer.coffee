@@ -226,8 +226,9 @@ class DisplayLayer
     @emitter.on 'did-reset', callback
 
   bufferWillChange: (change) ->
-    change = @expandChangeRegionToSurroundingEmptyLines(change)
-    @computeSpatialScreenLinesThroughBufferRow(change.oldRange.end.row + 1)
+    endRow = change.oldRange.end.row
+    endRow++ while @buffer.lineForRow(endRow + 1)?.length is 0
+    @computeSpatialScreenLinesThroughBufferRow(endRow)
     @bufferChangeBeingProcessed = change
 
   bufferDidChange: ->
