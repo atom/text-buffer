@@ -79,7 +79,7 @@ class DisplayLayer
     @tagsByCode = new Map
     @nextOpenTagCode = -1
     @indexedBufferRowCount = 0
-    @bufferChangeBeingProcessed = null
+    @processingBufferChange = false
     @reset({
       invisibles: settings.invisibles ? {}
       tabLength: settings.tabLength ? 4
@@ -229,10 +229,10 @@ class DisplayLayer
     endRow = change.oldRange.end.row
     endRow++ while @buffer.lineForRow(endRow + 1)?.length is 0
     @computeSpatialScreenLinesThroughBufferRow(endRow)
-    @bufferChangeBeingProcessed = change
+    @processingBufferChange = true
 
-  bufferDidChange: ->
-    {oldRange, newRange} = @expandChangeRegionToSurroundingEmptyLines(@bufferChangeBeingProcessed)
+  bufferDidChange: (change) ->
+    {oldRange, newRange} = @expandChangeRegionToSurroundingEmptyLines(change)
 
     {startScreenRow, endScreenRow, startBufferRow, endBufferRow} = @expandBufferRangeToLineBoundaries(oldRange)
     endBufferRow = newRange.end.row + (endBufferRow - oldRange.end.row)
@@ -242,7 +242,7 @@ class DisplayLayer
     newRowExtent = spatialScreenLines.length
     @spliceDisplayIndex(startScreenRow, oldRowExtent, spatialScreenLines)
     @indexedBufferRowCount += newRange.end.row - oldRange.end.row
-    @bufferChangeBeingProcessed = null
+    @processingBufferChange = false
     start = Point(startScreenRow, 0)
     oldExtent = Point(oldRowExtent, 0)
     newExtent = Point(newRowExtent, 0)
@@ -346,7 +346,7 @@ class DisplayLayer
     @computeSpatialScreenLines(Infinity, screenRow + 1)
 
   computeSpatialScreenLines: (endBufferRow, endScreenRow) ->
-    return if @bufferChangeBeingProcessed?
+    return if @processingBufferChange
     if @indexedBufferRowCount < Math.min(endBufferRow, @buffer.getLineCount())
       lastScreenRow = @displayIndex.getScreenLineCount()
       if lastScreenRow < endScreenRow
