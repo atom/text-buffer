@@ -49,7 +49,7 @@ class TestDecorationLayer
     @invalidatedRanges ?= []
     for i in [0..@random(5)]
       markerId = @nextMarkerId++
-      tag = WORDS[@random(WORDS.length)]
+      tag = String.fromCharCode('a'.charCodeAt(0) + @random(27))
       @tagsByMarkerId[markerId] = tag
       range = @getRandomRangeCloseTo(oldRange.union(newRange))
       @markerIndex.insert(markerId, range.start, range.end)
