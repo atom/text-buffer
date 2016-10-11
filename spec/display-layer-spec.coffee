@@ -40,7 +40,7 @@ describe "DisplayLayer", ->
 
       expect(displayLayer.getText()).toBe('    a   bc  def g\n    h')
 
-      expectTokens(displayLayer, [
+      expectTokenBoundaries(displayLayer, [
         {text: '    ', close: [], open: ["hard-tab leading-whitespace"]},
         {text: 'a', close: ["hard-tab leading-whitespace"], open: []},
         {text: '   ', close: [], open: ["hard-tab"]},
@@ -89,7 +89,7 @@ describe "DisplayLayer", ->
 
       expect(displayLayer.getText()).toBe('••••••••••a\n•••••\n••  ••••    ••')
 
-      expectTokens(displayLayer, [
+      expectTokenBoundaries(displayLayer, [
         {text: '••••', close: [], open: ["invisible-character leading-whitespace"]},
         {text: '••••', close: ["invisible-character leading-whitespace"], open: ["invisible-character leading-whitespace"]},
         {text: '••', close: ["invisible-character leading-whitespace"], open: ["invisible-character leading-whitespace"]},
@@ -362,7 +362,7 @@ describe "DisplayLayer", ->
       buffer = new TextBuffer(text: '     abc de fgh ijk\n  lmnopqrst')
       displayLayer = buffer.addDisplayLayer(softWrapColumn: 9, showIndentGuides: true, tabLength: 2, invisibles: {space: '•'})
       expect(JSON.stringify(displayLayer.getText())).toBe JSON.stringify('•••••abc \n     de \n     fgh \n     ijk\n••lmnopqr\n  st')
-      expectTokens(displayLayer, [
+      expectTokenBoundaries(displayLayer, [
         {close: [], open: ['invisible-character leading-whitespace indent-guide'], text: '••'},
         {close: ['invisible-character leading-whitespace indent-guide'], open: ['invisible-character leading-whitespace indent-guide'], text: '••'},
         {close: ['invisible-character leading-whitespace indent-guide'], open: ['invisible-character leading-whitespace indent-guide'], text: '•'},
@@ -476,7 +476,7 @@ describe "DisplayLayer", ->
       buffer = new TextBuffer(text: '  abc                     ')
       displayLayer = buffer.addDisplayLayer(softWrapColumn: 10)
       expect(JSON.stringify(displayLayer.getText())).toBe JSON.stringify('  abc     \n          \n          ')
-      expectTokens(displayLayer, [
+      expectTokenBoundaries(displayLayer, [
         {text: '  ', close: [], open: ['leading-whitespace']},
         {text: 'abc', close: ['leading-whitespace'], open: []},
         {text: '     ', close: [], open: ['trailing-whitespace']},
@@ -514,7 +514,7 @@ describe "DisplayLayer", ->
         •   •e
       """)
 
-      expectTokens(displayLayer, [
+      expectTokenBoundaries(displayLayer, [
         {text: 'az', close: [], open: []},
         {text: '••', close: [], open: ["invisible-character leading-whitespace"]},
         {text: 'b c', close: ["invisible-character leading-whitespace"], open: []},
@@ -531,7 +531,7 @@ describe "DisplayLayer", ->
       displayLayer = buffer.addDisplayLayer({tabLength: 4, invisibles: {space: '•'}})
 
       expect(displayLayer.getText()).toEqual("abcd\n•••••••\nefgh   jkl\nmno  pqr•••\nst  uvw••   ••")
-      expectTokens(displayLayer, [
+      expectTokenBoundaries(displayLayer, [
         {text: 'abcd', close: [], open: []},
         {text: '••••', close: [], open: ["invisible-character trailing-whitespace"]},
         {text: '•••', close: ["invisible-character trailing-whitespace"], open: ["invisible-character trailing-whitespace"]},
@@ -552,7 +552,7 @@ describe "DisplayLayer", ->
       displayLayer = buffer.addDisplayLayer({tabLength: 4})
 
       expect(displayLayer.getText()).toEqual("     a  b    \n  ")
-      expectTokens(displayLayer, [
+      expectTokenBoundaries(displayLayer, [
         {text: ' ', close: [], open: ["leading-whitespace"]},
         {text: '   ', close: ["leading-whitespace"], open: ["hard-tab leading-whitespace"]},
         {text: ' ', close: ["hard-tab leading-whitespace"], open: ["leading-whitespace"]},
@@ -575,7 +575,7 @@ describe "DisplayLayer", ->
       displayLayer.foldBufferRange([[2, 4], [3, 0]])
       expect(displayLayer.getText()).toBe("••⋯••\n••⋯••⋯d")
 
-      expectTokens(displayLayer, [
+      expectTokenBoundaries(displayLayer, [
         {text: '••', close: [], open: ["invisible-character leading-whitespace"]},
         {text: '⋯', close: ["invisible-character leading-whitespace"], open: ["fold-marker"]},
         {text: '••', close: ["fold-marker"], open: ["invisible-character trailing-whitespace"]},
@@ -592,7 +592,7 @@ describe "DisplayLayer", ->
       displayLayer = buffer.addDisplayLayer({tabLength: 4, invisibles: {tab: '»', space: '•'}})
 
       expect(displayLayer.getText()).toBe("a»  b»  \n•»  •d••»   ••")
-      expectTokens(displayLayer, [
+      expectTokenBoundaries(displayLayer, [
         {text: 'a', close: [], open: []},
         {text: '»  ', close: [], open: ["invisible-character hard-tab"]},
         {text: 'b', close: ["invisible-character hard-tab"], open: []},
@@ -613,7 +613,7 @@ describe "DisplayLayer", ->
       displayLayer = buffer.addDisplayLayer({tabLength: 4, invisibles: {cr: '¤', eol: '¬'}})
 
       expect(displayLayer.getText()).toBe("a¬\nb¬\n¬\nd e f¤¬\ngh¤\nij¬\n¤¬\n")
-      expectTokens(displayLayer, [
+      expectTokenBoundaries(displayLayer, [
         {text: 'a', close: [], open: []},
         {text: '¬', close: [], open: ["invisible-character eol"]},
         {text: '', close: ["invisible-character eol"], open: []},
@@ -652,7 +652,7 @@ describe "DisplayLayer", ->
       displayLayer = buffer.addDisplayLayer({showIndentGuides: true, tabLength: 4})
 
       expect(displayLayer.getText()).toBe("         a            \n         b\n        ")
-      expectTokens(displayLayer, [
+      expectTokenBoundaries(displayLayer, [
         {text: '    ', close: [], open: ["leading-whitespace indent-guide"]},
         {text: '    ', close: ["leading-whitespace indent-guide"], open: ["leading-whitespace indent-guide"]},
         {text: ' ', close: ["leading-whitespace indent-guide"], open: ["leading-whitespace indent-guide"]},
@@ -677,7 +677,7 @@ describe "DisplayLayer", ->
       displayLayer = buffer.addDisplayLayer({showIndentGuides: true, tabLength: 4, invisibles: {eol: '¬'}})
 
       expect(displayLayer.getText()).toBe("¬         \n¬         \n          a¬\n¬         \n         b¬\n¬        \n¬        \n         ")
-      expectTokens(displayLayer, [
+      expectTokenBoundaries(displayLayer, [
         {text: '', close: [], open: []},
         {text: '¬', close: [], open: ["invisible-character eol indent-guide"]},
         {text: '   ', close: ["invisible-character eol indent-guide"], open: []},
@@ -753,7 +753,7 @@ describe "DisplayLayer", ->
       displayLayer = buffer.addDisplayLayer({showIndentGuides: true, tabLength: 4})
 
       expect(JSON.stringify(displayLayer.getText())).toBe(JSON.stringify("a\n\nb\n  c\n  \n  "))
-      expectTokens(displayLayer, [
+      expectTokenBoundaries(displayLayer, [
         {text: 'a', close: [], open: []},
         {text: '', close: [], open: []},
         {text: 'b', close: [], open: []},
@@ -784,7 +784,7 @@ describe "DisplayLayer", ->
         ['ae', [[2, 3], [2, 5]]]
       ]))
 
-      expectTokens(displayLayer, [
+      expectTokenBoundaries(displayLayer, [
         {text: 'a', close: [], open: []},
         {text: 'b', close: [], open: ['aa']},
         {text: 'c', close: [], open: ['ab']},
@@ -820,7 +820,7 @@ describe "DisplayLayer", ->
         ['surrounding-fold', [[0, 1], [2, 5]]]
       ]))
 
-      expectTokens(displayLayer, [
+      expectTokenBoundaries(displayLayer, [
         {text: 'a', close: [], open: []},
         {text: 'b', close: [], open: ['preceding-fold', 'ending-at-fold-start', 'overlapping-fold-start', 'surrounding-fold']},
         {text: 'c', close: ['surrounding-fold', 'overlapping-fold-start', 'ending-at-fold-start', 'preceding-fold'], open: ['ending-at-fold-start', 'overlapping-fold-start', 'surrounding-fold']},
@@ -879,7 +879,7 @@ describe "DisplayLayer", ->
 
       exception = null
       try
-        getTokenLines(displayLayer)
+        getTokenBoundaries(displayLayer)
       catch e
         exception = e
 
@@ -1082,7 +1082,7 @@ verifyChangeEvent = (displayLayer, fn) ->
   # in parts of the buffer that the display layer has not yet indexed.
   displayLayerCopy = displayLayer.copy()
   displayLayerCopy.setTextDecorationLayer(displayLayer.getTextDecorationLayer())
-  previousTokenLines = getTokenLines(displayLayerCopy)
+  previousTokenLines = getTokens(displayLayerCopy)
   displayLayerCopy.destroy()
 
   lastChanges = null
@@ -1092,8 +1092,8 @@ verifyChangeEvent = (displayLayer, fn) ->
 
   displayLayerCopy = displayLayer.copy()
   displayLayerCopy.setTextDecorationLayer(displayLayer.getTextDecorationLayer())
+  expectedTokenLines = getTokens(displayLayerCopy)
   updateTokenLines(previousTokenLines, displayLayerCopy, lastChanges)
-  expectedTokenLines = getTokenLines(displayLayerCopy)
   displayLayerCopy.destroy()
 
   # {diffString} = require 'json-diff'
@@ -1113,7 +1113,7 @@ verifyText = (random, displayLayer, freshDisplayLayer) ->
 verifyTokenConsistency = (random, displayLayer) ->
   containingTags = []
 
-  for tokens in getTokenLines(displayLayer, 0, getRandomScreenRowCount(random, displayLayer))
+  for tokens in getTokenBoundaries(displayLayer, 0, getRandomScreenRowCount(random, displayLayer))
     for {closeTags, openTags, text} in tokens
       for tag in closeTags
         mostRecentOpenTag = containingTags.pop()
@@ -1246,8 +1246,8 @@ expectPositionTranslations = (displayLayer, tranlations) ->
       expect(displayLayer.translateScreenPosition(screenPosition)).toEqual(bufferPosition)
       expect(displayLayer.translateBufferPosition(bufferPosition)).toEqual(screenPosition)
 
-expectTokens = (displayLayer, expectedTokens) ->
-  tokenLines = getTokenLines(displayLayer)
+expectTokenBoundaries = (displayLayer, expectedTokens) ->
+  tokenLines = getTokenBoundaries(displayLayer)
   for tokens, screenRow in tokenLines
     screenColumn = 0
     for token in tokens
@@ -1258,7 +1258,17 @@ expectTokens = (displayLayer, expectedTokens) ->
       expect(token.openTags).toEqual(open, "Open tags of token with start position: #{Point(screenRow, screenColumn)}")
       screenColumn += token.text.length
 
-getTokenLines = (displayLayer, startRow=0, endRow=displayLayer.getScreenLineCount()) ->
+getTokens = (displayLayer, startRow=0, endRow=displayLayer.getScreenLineCount()) ->
+  containingTags = []
+  for line in getTokenBoundaries(displayLayer, startRow, endRow)
+    for {closeTags, openTags, text} in line
+      for closeTag in closeTags
+        containingTags.pop()
+      for openTag in openTags
+        containingTags.push(openTag)
+      {tags: containingTags.slice().sort(), text}
+
+getTokenBoundaries = (displayLayer, startRow=0, endRow=displayLayer.getScreenLineCount()) ->
   tokenLines = []
   for {lineText, tagCodes} in displayLayer.getScreenLines(startRow, endRow)
     tokens = []
@@ -1284,11 +1294,12 @@ getTokenLines = (displayLayer, startRow=0, endRow=displayLayer.getScreenLineCoun
 
 updateTokenLines = (tokenLines, displayLayer, changes) ->
   for {start, oldExtent, newExtent} in changes ? []
-    tokenLines.splice(start.row, oldExtent.row, getTokenLines(displayLayer, start.row, start.row + newExtent.row)...)
+    newTokenLines = getTokens(displayLayer, start.row, start.row + newExtent.row)
+    tokenLines.splice(start.row, oldExtent.row, newTokenLines...)
 
 logTokens = (displayLayer) ->
-  s = 'expectTokens(displayLayer, [\n'
-  for tokens in getTokenLines(displayLayer)
+  s = 'expectTokenBoundaries(displayLayer, [\n'
+  for tokens in getTokenBoundaries(displayLayer)
     for {text, closeTags, openTags} in tokens
       s += "  {text: '#{text}', close: #{JSON.stringify(closeTags)}, open: #{JSON.stringify(openTags)}},\n"
   s += '])'
