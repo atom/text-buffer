@@ -855,7 +855,7 @@ class DisplayLayer
     decorationIterator = @textDecorationLayer.buildIterator()
     screenLines = []
     @computeSpatialScreenLinesThroughScreenRow(endRow)
-    @spatialLineIterator.seekToScreenRow(startRow)
+    return screenLines unless @spatialLineIterator.seekToScreenRow(startRow)
     containingTags = decorationIterator.seek(@spatialLineIterator.getBufferStart())
     previousLineWasCached = false
 
