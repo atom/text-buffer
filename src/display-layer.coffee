@@ -216,6 +216,9 @@ class DisplayLayer
 
     foldMarkers.map((marker) -> marker.getRange())
 
+  doBackgroundWork: (deadline) ->
+    @computeSpatialScreenLines(Infinity, Infinity, deadline)
+
   emitDidChangeSyncEvent: (event) ->
     @emitter.emit 'did-change-sync', event
 
@@ -345,20 +348,23 @@ class DisplayLayer
   computeSpatialScreenLinesThroughScreenRow: (screenRow) ->
     @computeSpatialScreenLines(Infinity, screenRow + 1)
 
-  computeSpatialScreenLines: (endBufferRow, endScreenRow) ->
-    return if @processingBufferChange
-    if @indexedBufferRowCount < Math.min(endBufferRow, @buffer.getLineCount())
+  computeSpatialScreenLines: (endBufferRow, endScreenRow, deadline) ->
+    lineCount = @buffer.getLineCount()
+    if not @processingBufferChange and @indexedBufferRowCount < Math.min(endBufferRow, lineCount)
       lastScreenRow = @displayIndex.getScreenLineCount()
       if lastScreenRow < endScreenRow
         {spatialScreenLines, endBufferRow} = @buildSpatialScreenLines(
           @indexedBufferRowCount,
           endBufferRow,
-          endScreenRow - lastScreenRow
+          endScreenRow - lastScreenRow,
+          deadline
         )
         @spliceDisplayIndex(lastScreenRow, Infinity, spatialScreenLines)
         @indexedBufferRowCount = endBufferRow
+        return @indexedBufferRowCount < lineCount
+    false
 
-  buildSpatialScreenLines: (startBufferRow, endBufferRow, screenLineCount = Infinity) ->
+  buildSpatialScreenLines: (startBufferRow, endBufferRow, screenLineCount = Infinity, deadline = NullDeadline) ->
     {startBufferRow, endBufferRow, folds} = @computeFoldsInBufferRowRange(startBufferRow, endBufferRow)
 
     spatialScreenLines = []
@@ -367,7 +373,9 @@ class DisplayLayer
     screenColumn = 0
     screenLineWidth = 0
 
-    while bufferRow < endBufferRow and spatialScreenLines.length < screenLineCount
+    while bufferRow < endBufferRow and
+          spatialScreenLines.length < screenLineCount and
+          deadline.timeRemaining() > 10.0
       tokens = []
       tokensScreenExtent = 0
       screenLineBufferStart = Point(bufferRow, 0)
@@ -1250,3 +1258,8 @@ class DisplayLayer
 
   getApproximateRightmostScreenPosition: ->
     @displayIndex.getScreenPositionWithMaxLineLength() or Point.ZERO
+
+NullDeadline = {
+  timeRemaining: -> Infinity
+  didTimeout: false
+}

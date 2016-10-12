@@ -992,6 +992,20 @@ describe "DisplayLayer", ->
         expect(displayLayer.indexedBufferRowCount).toBe(4)
         expect(displayLayer.getApproximateRightmostScreenPosition()).toEqual(Point(2, 11))
 
+    describe "doBackgroundWork(deadline)", ->
+      fakeDeadline = (timeRemaining) -> {timeRemaining: -> timeRemaining--}
+
+      it "computes additional screen lines, returning true or false", ->
+        buffer = new TextBuffer({text: "yo\n".repeat(100)})
+        displayLayer = buffer.addDisplayLayer({})
+
+        expect(displayLayer.doBackgroundWork(fakeDeadline(11))).toBe true
+        expect(displayLayer.indexedBufferRowCount).toBeGreaterThan 0
+        expect(displayLayer.indexedBufferRowCount).toBeLessThan buffer.getLineCount()
+
+        expect(displayLayer.doBackgroundWork(fakeDeadline(1000))).toBe false
+        expect(displayLayer.indexedBufferRowCount).toBe buffer.getLineCount()
+
   now = Date.now()
   for i in [0...100] by 1
     do ->
