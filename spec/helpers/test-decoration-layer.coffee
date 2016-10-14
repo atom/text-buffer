@@ -43,25 +43,37 @@ class TestDecorationLayer
     overlap.forEach (id) => @invalidatedRanges.push(@markerIndex.getRange(id))
     inside.forEach (id) => @invalidatedRanges.push(@markerIndex.getRange(id))
 
-    @insertRandomDecorations()
+    @insertRandomDecorations(oldRange, newRange)
 
-  insertRandomDecorations: ->
+  insertRandomDecorations: (oldRange, newRange) ->
     @invalidatedRanges ?= []
     for i in [0..@random(5)]
       markerId = @nextMarkerId++
-      tag = WORDS[@random(WORDS.length)]
+      tag = String.fromCharCode('a'.charCodeAt(0) + @random(27))
       @tagsByMarkerId[markerId] = tag
-      range = @getRandomRange()
+      range = @getRandomRangeCloseTo(oldRange.union(newRange))
       @markerIndex.insert(markerId, range.start, range.end)
       @invalidatedRanges.push(range)
 
-  getRandomRange: ->
-    Range(@getRandomPoint(), @getRandomPoint())
+  getRandomRangeCloseTo: (range) ->
+    if @random(10) < 7
+      minRow = @constrainRow(range.start.row + @random.intBetween(-20, 20))
+    else
+      minRow = 0
 
-  getRandomPoint: ->
-    row = @random(@buffer.getLineCount())
-    column = @random(@buffer.lineForRow(row).length + 1)
-    Point(row, column)
+    if @random(10) < 7
+      maxRow = @constrainRow(range.end.row + @random.intBetween(-20, 20))
+    else
+      maxRow = @buffer.getLastRow()
+
+    startRow = @random.intBetween(minRow, maxRow)
+    endRow = @random.intBetween(startRow, maxRow)
+    startColumn = @random(@buffer.lineForRow(startRow).length + 1)
+    endColumn = @random(@buffer.lineForRow(endRow).length + 1)
+    Range(Point(startRow, startColumn), Point(endRow, endColumn))
+
+  constrainRow: (row) ->
+    Math.max(0, Math.min(@buffer.getLastRow(), row))
 
 class TestDecorationLayerIterator
   constructor: (@layer) ->

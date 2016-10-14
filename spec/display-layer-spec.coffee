@@ -40,7 +40,7 @@ describe "DisplayLayer", ->
 
       expect(displayLayer.getText()).toBe('    a   bc  def g\n    h')
 
-      expectTokens(displayLayer, [
+      expectTokenBoundaries(displayLayer, [
         {text: '    ', close: [], open: ["hard-tab leading-whitespace"]},
         {text: 'a', close: ["hard-tab leading-whitespace"], open: []},
         {text: '   ', close: [], open: ["hard-tab"]},
@@ -89,7 +89,7 @@ describe "DisplayLayer", ->
 
       expect(displayLayer.getText()).toBe('••••••••••a\n•••••\n••  ••••    ••')
 
-      expectTokens(displayLayer, [
+      expectTokenBoundaries(displayLayer, [
         {text: '••••', close: [], open: ["invisible-character leading-whitespace"]},
         {text: '••••', close: ["invisible-character leading-whitespace"], open: ["invisible-character leading-whitespace"]},
         {text: '••', close: ["invisible-character leading-whitespace"], open: ["invisible-character leading-whitespace"]},
@@ -362,7 +362,7 @@ describe "DisplayLayer", ->
       buffer = new TextBuffer(text: '     abc de fgh ijk\n  lmnopqrst')
       displayLayer = buffer.addDisplayLayer(softWrapColumn: 9, showIndentGuides: true, tabLength: 2, invisibles: {space: '•'})
       expect(JSON.stringify(displayLayer.getText())).toBe JSON.stringify('•••••abc \n     de \n     fgh \n     ijk\n••lmnopqr\n  st')
-      expectTokens(displayLayer, [
+      expectTokenBoundaries(displayLayer, [
         {close: [], open: ['invisible-character leading-whitespace indent-guide'], text: '••'},
         {close: ['invisible-character leading-whitespace indent-guide'], open: ['invisible-character leading-whitespace indent-guide'], text: '••'},
         {close: ['invisible-character leading-whitespace indent-guide'], open: ['invisible-character leading-whitespace indent-guide'], text: '•'},
@@ -476,7 +476,7 @@ describe "DisplayLayer", ->
       buffer = new TextBuffer(text: '  abc                     ')
       displayLayer = buffer.addDisplayLayer(softWrapColumn: 10)
       expect(JSON.stringify(displayLayer.getText())).toBe JSON.stringify('  abc     \n          \n          ')
-      expectTokens(displayLayer, [
+      expectTokenBoundaries(displayLayer, [
         {text: '  ', close: [], open: ['leading-whitespace']},
         {text: 'abc', close: ['leading-whitespace'], open: []},
         {text: '     ', close: [], open: ['trailing-whitespace']},
@@ -514,7 +514,7 @@ describe "DisplayLayer", ->
         •   •e
       """)
 
-      expectTokens(displayLayer, [
+      expectTokenBoundaries(displayLayer, [
         {text: 'az', close: [], open: []},
         {text: '••', close: [], open: ["invisible-character leading-whitespace"]},
         {text: 'b c', close: ["invisible-character leading-whitespace"], open: []},
@@ -531,7 +531,7 @@ describe "DisplayLayer", ->
       displayLayer = buffer.addDisplayLayer({tabLength: 4, invisibles: {space: '•'}})
 
       expect(displayLayer.getText()).toEqual("abcd\n•••••••\nefgh   jkl\nmno  pqr•••\nst  uvw••   ••")
-      expectTokens(displayLayer, [
+      expectTokenBoundaries(displayLayer, [
         {text: 'abcd', close: [], open: []},
         {text: '••••', close: [], open: ["invisible-character trailing-whitespace"]},
         {text: '•••', close: ["invisible-character trailing-whitespace"], open: ["invisible-character trailing-whitespace"]},
@@ -552,7 +552,7 @@ describe "DisplayLayer", ->
       displayLayer = buffer.addDisplayLayer({tabLength: 4})
 
       expect(displayLayer.getText()).toEqual("     a  b    \n  ")
-      expectTokens(displayLayer, [
+      expectTokenBoundaries(displayLayer, [
         {text: ' ', close: [], open: ["leading-whitespace"]},
         {text: '   ', close: ["leading-whitespace"], open: ["hard-tab leading-whitespace"]},
         {text: ' ', close: ["hard-tab leading-whitespace"], open: ["leading-whitespace"]},
@@ -575,7 +575,7 @@ describe "DisplayLayer", ->
       displayLayer.foldBufferRange([[2, 4], [3, 0]])
       expect(displayLayer.getText()).toBe("••⋯••\n••⋯••⋯d")
 
-      expectTokens(displayLayer, [
+      expectTokenBoundaries(displayLayer, [
         {text: '••', close: [], open: ["invisible-character leading-whitespace"]},
         {text: '⋯', close: ["invisible-character leading-whitespace"], open: ["fold-marker"]},
         {text: '••', close: ["fold-marker"], open: ["invisible-character trailing-whitespace"]},
@@ -592,7 +592,7 @@ describe "DisplayLayer", ->
       displayLayer = buffer.addDisplayLayer({tabLength: 4, invisibles: {tab: '»', space: '•'}})
 
       expect(displayLayer.getText()).toBe("a»  b»  \n•»  •d••»   ••")
-      expectTokens(displayLayer, [
+      expectTokenBoundaries(displayLayer, [
         {text: 'a', close: [], open: []},
         {text: '»  ', close: [], open: ["invisible-character hard-tab"]},
         {text: 'b', close: ["invisible-character hard-tab"], open: []},
@@ -613,7 +613,7 @@ describe "DisplayLayer", ->
       displayLayer = buffer.addDisplayLayer({tabLength: 4, invisibles: {cr: '¤', eol: '¬'}})
 
       expect(displayLayer.getText()).toBe("a¬\nb¬\n¬\nd e f¤¬\ngh¤\nij¬\n¤¬\n")
-      expectTokens(displayLayer, [
+      expectTokenBoundaries(displayLayer, [
         {text: 'a', close: [], open: []},
         {text: '¬', close: [], open: ["invisible-character eol"]},
         {text: '', close: ["invisible-character eol"], open: []},
@@ -652,7 +652,7 @@ describe "DisplayLayer", ->
       displayLayer = buffer.addDisplayLayer({showIndentGuides: true, tabLength: 4})
 
       expect(displayLayer.getText()).toBe("         a            \n         b\n        ")
-      expectTokens(displayLayer, [
+      expectTokenBoundaries(displayLayer, [
         {text: '    ', close: [], open: ["leading-whitespace indent-guide"]},
         {text: '    ', close: ["leading-whitespace indent-guide"], open: ["leading-whitespace indent-guide"]},
         {text: ' ', close: ["leading-whitespace indent-guide"], open: ["leading-whitespace indent-guide"]},
@@ -677,7 +677,7 @@ describe "DisplayLayer", ->
       displayLayer = buffer.addDisplayLayer({showIndentGuides: true, tabLength: 4, invisibles: {eol: '¬'}})
 
       expect(displayLayer.getText()).toBe("¬         \n¬         \n          a¬\n¬         \n         b¬\n¬        \n¬        \n         ")
-      expectTokens(displayLayer, [
+      expectTokenBoundaries(displayLayer, [
         {text: '', close: [], open: []},
         {text: '¬', close: [], open: ["invisible-character eol indent-guide"]},
         {text: '   ', close: ["invisible-character eol indent-guide"], open: []},
@@ -753,7 +753,7 @@ describe "DisplayLayer", ->
       displayLayer = buffer.addDisplayLayer({showIndentGuides: true, tabLength: 4})
 
       expect(JSON.stringify(displayLayer.getText())).toBe(JSON.stringify("a\n\nb\n  c\n  \n  "))
-      expectTokens(displayLayer, [
+      expectTokenBoundaries(displayLayer, [
         {text: 'a', close: [], open: []},
         {text: '', close: [], open: []},
         {text: 'b', close: [], open: []},
@@ -784,7 +784,7 @@ describe "DisplayLayer", ->
         ['ae', [[2, 3], [2, 5]]]
       ]))
 
-      expectTokens(displayLayer, [
+      expectTokenBoundaries(displayLayer, [
         {text: 'a', close: [], open: []},
         {text: 'b', close: [], open: ['aa']},
         {text: 'c', close: [], open: ['ab']},
@@ -820,7 +820,7 @@ describe "DisplayLayer", ->
         ['surrounding-fold', [[0, 1], [2, 5]]]
       ]))
 
-      expectTokens(displayLayer, [
+      expectTokenBoundaries(displayLayer, [
         {text: 'a', close: [], open: []},
         {text: 'b', close: [], open: ['preceding-fold', 'ending-at-fold-start', 'overlapping-fold-start', 'surrounding-fold']},
         {text: 'c', close: ['surrounding-fold', 'overlapping-fold-start', 'ending-at-fold-start', 'preceding-fold'], open: ['ending-at-fold-start', 'overlapping-fold-start', 'surrounding-fold']},
@@ -879,7 +879,7 @@ describe "DisplayLayer", ->
 
       exception = null
       try
-        getTokenLines(displayLayer)
+        getTokenBoundaries(displayLayer)
       catch e
         exception = e
 
@@ -931,13 +931,93 @@ describe "DisplayLayer", ->
       expect(displayLayer.translateBufferPosition([1, 8], clipDirection: 'closest')).toEqual [0, 8]
       expect(displayLayer.translateBufferPosition([1, 8], clipDirection: 'forward')).toEqual [0, 8]
 
+  describe ".getApproximateScreenLineCount()", ->
+    it "estimates the screen line count based on the currently-indexed portion of the buffer", ->
+      buffer = new TextBuffer({
+        text: """
+          111 111
+          222 222
+          3
+          4
+          5
+          6
+          7
+          8
+        """
+      })
+
+      displayLayer = buffer.addDisplayLayer({softWrapColumn: 4})
+
+      # Before indexing any buffer lines, assume that on average, each buffer
+      # line produces one screen line.
+      expect(displayLayer.getApproximateScreenLineCount()).toEqual(buffer.getLineCount())
+
+      # Index the first two buffer lines, which map to four screen lines.
+      # Assume that on average, each buffer line produces two screen lines.
+      expect(displayLayer.translateBufferPosition(Point(0, Infinity))).toEqual(Point(1, 3))
+      expect(displayLayer.indexedBufferRowCount).toBe(2)
+      expect(displayLayer.getApproximateScreenLineCount()).toEqual(buffer.getLineCount() * 4 / 2)
+
+      # Index the first four buffer lines, which map to six screen lines.
+      # Assume that on average, each buffer line produces two screen lines.
+      # console.log displayLayer.getText()
+      expect(displayLayer.translateBufferPosition(Point(2, 1))).toEqual(Point(4, 1))
+      expect(displayLayer.indexedBufferRowCount).toBe(4)
+      expect(displayLayer.getApproximateScreenLineCount()).toEqual(buffer.getLineCount() * 6 / 4)
+
+  describe ".getApproximateRightmostScreenPosition()", ->
+    it "returns the rightmost screen position that has been indexed so far", ->
+      buffer = new TextBuffer({
+        text: """
+          111
+          222 222
+          333 333 333
+          444 444
+        """
+      })
+
+      displayLayer = buffer.addDisplayLayer({})
+      expect(displayLayer.getApproximateRightmostScreenPosition()).toEqual(Point.ZERO)
+
+      displayLayer.translateBufferPosition(Point(0, 0))
+      expect(displayLayer.indexedBufferRowCount).toBe(2)
+      expect(displayLayer.getApproximateRightmostScreenPosition()).toEqual(Point(1, 7))
+
+      displayLayer.translateBufferPosition(Point(1, 0))
+      expect(displayLayer.indexedBufferRowCount).toBe(3)
+      expect(displayLayer.getApproximateRightmostScreenPosition()).toEqual(Point(2, 11))
+
+      displayLayer.translateBufferPosition(Point(2, 0))
+      expect(displayLayer.indexedBufferRowCount).toBe(4)
+      expect(displayLayer.getApproximateRightmostScreenPosition()).toEqual(Point(2, 11))
+
+  describe ".doBackgroundWork(deadline)", ->
+    fakeDeadline = (timeRemaining) -> {timeRemaining: -> timeRemaining--}
+
+    it "computes additional screen lines, returning true or false", ->
+      buffer = new TextBuffer({text: "yo\n".repeat(100)})
+      displayLayer = buffer.addDisplayLayer({})
+
+      expect(displayLayer.doBackgroundWork(fakeDeadline(11))).toBe true
+      expect(displayLayer.indexedBufferRowCount).toBeGreaterThan 0
+      expect(displayLayer.indexedBufferRowCount).toBeLessThan buffer.getLineCount()
+
+      expect(displayLayer.doBackgroundWork(fakeDeadline(1000))).toBe false
+      expect(displayLayer.indexedBufferRowCount).toBe buffer.getLineCount()
+
+  describe ".getScreenLines(startRow, endRow)", ->
+    it "returns an empty array when the given start row is greater than the screen line count", ->
+      buffer = new TextBuffer(text: 'hello')
+      displayLayer = buffer.addDisplayLayer({})
+      expect(displayLayer.getScreenLines(1, 2)).toEqual([])
+
   now = Date.now()
   for i in [0...100] by 1
     do ->
       seed = now + i
       it "updates the displayed text correctly when the underlying buffer changes: #{seed}", ->
         random = new Random(seed)
-        buffer = new TextBuffer(text: buildRandomLines(random, 10))
+        buffer = new TextBuffer(text: buildRandomLines(random, 20))
         invisibles = {}
         invisibles.space = '•' if random(2) > 0
         invisibles.eol = '¬' if random(2) > 0
@@ -948,6 +1028,8 @@ describe "DisplayLayer", ->
         textDecorationLayer = new TestDecorationLayer([], buffer, random)
         displayLayer.setTextDecorationLayer(textDecorationLayer)
 
+        displayLayer.getText(0, 3)
+
         foldIds = []
         undoableChanges = 0
         redoableChanges = 0
@@ -957,79 +1039,108 @@ describe "DisplayLayer", ->
           k = random(10)
           if k < 2
             createRandomFold(random, displayLayer, foldIds)
+          else if k < 3 and not hasComputedAllScreenRows(displayLayer)
+            performReadOutsideOfIndexedRegion(random, displayLayer)
           else if k < 4 and foldIds.length > 0
             destroyRandomFold(random, displayLayer, foldIds)
           else if k < 5 and undoableChanges > 0
             undoableChanges--
             redoableChanges++
-            performUndo(random, buffer, displayLayer)
+            performUndo(random, displayLayer)
           else if k < 6 and redoableChanges > 0
             undoableChanges++
             redoableChanges--
-            performRedo(random, buffer, displayLayer)
+            performRedo(random, displayLayer)
           else
             undoableChanges++
-            performRandomChange(random, buffer, displayLayer)
+            performRandomChange(random, displayLayer)
 
-          # incrementally-updated text matches freshly computed text
-          expectedDisplayLayer = buffer.addDisplayLayer({foldsMarkerLayer: displayLayer.foldsMarkerLayer.copy(), tabLength: 4, invisibles, showIndentGuides, softWrapColumn})
-          expect(JSON.stringify(displayLayer.getText())).toBe(JSON.stringify(expectedDisplayLayer.getText()))
+          freshDisplayLayer = displayLayer.copy()
+          freshDisplayLayer.setTextDecorationLayer(displayLayer.getTextDecorationLayer())
+          freshDisplayLayer.getScreenLines()
 
+          verifyTokenConsistency(displayLayer)
+          verifyText(displayLayer, freshDisplayLayer)
           verifyPositionTranslations(displayLayer)
-          verifyTokens(displayLayer)
-          verifyRightmostScreenPosition(displayLayer)
+          verifyRightmostScreenPosition(freshDisplayLayer)
           verifyScreenLineIds(displayLayer, screenLinesById)
 
-          expectedDisplayLayer.destroy()
-
-performRandomChange = (random, buffer, displayLayer) ->
-  range = getRandomRange(random, buffer)
-
+performRandomChange = (random, displayLayer) ->
+  text = buildRandomLines(random, 4)
+  range = getRandomBufferRange(random, displayLayer)
+  log "buffer change #{range} #{JSON.stringify(text)}"
   verifyChangeEvent displayLayer, ->
-    text = buildRandomLines(random, 4)
-    buffer.setTextInRange(range, text)
+    displayLayer.buffer.setTextInRange(range, text)
 
-performUndo = (random, buffer, displayLayer) ->
-  verifyChangeEvent displayLayer, -> buffer.undo()
+performUndo = (random, displayLayer) ->
+  log "undo"
+  verifyChangeEvent displayLayer, ->
+    displayLayer.buffer.undo()
 
-performRedo = (random, buffer, displayLayer) ->
-  verifyChangeEvent displayLayer, -> buffer.redo()
+performRedo = (random, displayLayer) ->
+  log "redo"
+  verifyChangeEvent displayLayer, ->
+    displayLayer.buffer.redo()
 
 createRandomFold = (random, displayLayer, foldIds) ->
+  bufferRange = getRandomBufferRange(random, displayLayer)
+  log "fold #{bufferRange}"
   verifyChangeEvent displayLayer, ->
-    bufferRange = getRandomRange(random, displayLayer.buffer)
-    foldId = displayLayer.foldBufferRange(bufferRange)
-    foldIds.push(foldId)
+    foldIds.push(displayLayer.foldBufferRange(bufferRange))
 
 destroyRandomFold = (random, displayLayer, foldIds) ->
+  foldIndex = random(foldIds.length - 1)
+  log "destroy fold #{foldIndex}"
   verifyChangeEvent displayLayer, ->
-    [foldId] = foldIds.splice(random(foldIds.length - 1), 1)
-    displayLayer.destroyFold(foldId)
+    displayLayer.destroyFold(foldIds.splice(foldIndex, 1)[0])
+
+performReadOutsideOfIndexedRegion = (random, displayLayer) ->
+  computedRowCount = getComputedScreenLineCount(displayLayer)
+  row = random.intBetween(computedRowCount, computedRowCount + 10)
+  log "new-read #{row}"
+  displayLayer.getScreenLines(0, row)
+
+log = (message) ->
+  # console.log(message)
 
 verifyChangeEvent = (displayLayer, fn) ->
-  previousTokenLines = getTokenLines(displayLayer)
+  # Avoid forcing the original display layer to compute spatial screen lines for
+  # the entire buffer. This way, the tests cover scenarios where changes occur
+  # in parts of the buffer that the display layer has not yet indexed.
+  displayLayerCopy = displayLayer.copy()
+  displayLayerCopy.setTextDecorationLayer(displayLayer.getTextDecorationLayer())
+  previousTokenLines = getTokens(displayLayerCopy)
+  displayLayerCopy.destroy()
+
   lastChanges = null
   disposable = displayLayer.onDidChangeSync (changes) -> lastChanges = changes
-
   fn()
   disposable.dispose()
-  if lastChanges?
-    expectedTokenLines = getTokenLines(displayLayer)
-    updateTokenLines(previousTokenLines, displayLayer, lastChanges)
 
-    # {diffString} = require 'json-diff'
-    # diff = diffString(expectedTokenLines, previousTokenLines, color: false)
-    # console.log diff
-    # console.log previousTokenLines
-    # console.log expectedTokenLines
-    expect(previousTokenLines).toEqual(expectedTokenLines)
-  else
-    expect(getTokenLines(displayLayer)).toEqual(previousTokenLines)
+  displayLayerCopy = displayLayer.copy()
+  displayLayerCopy.setTextDecorationLayer(displayLayer.getTextDecorationLayer())
+  expectedTokenLines = getTokens(displayLayerCopy)
+  updateTokenLines(previousTokenLines, displayLayerCopy, lastChanges)
+  displayLayerCopy.destroy()
 
-verifyTokens = (displayLayer) ->
+  # {diffString} = require 'json-diff'
+  # diff = diffString(expectedTokenLines, previousTokenLines, color: false)
+  # console.log lastChanges
+  # console.log diff
+  # console.log previousTokenLines
+  # console.log expectedTokenLines
+  expect(previousTokenLines).toEqual(expectedTokenLines)
+
+verifyText = (displayLayer, freshDisplayLayer) ->
+  rowCount = getComputedScreenLineCount(displayLayer)
+  text = displayLayer.getText(0, rowCount)
+  expectedText = freshDisplayLayer.getText(0, rowCount)
+  expect(JSON.stringify(text)).toBe(JSON.stringify(expectedText))
+
+verifyTokenConsistency = (displayLayer) ->
   containingTags = []
 
-  for tokens in getTokenLines(displayLayer)
+  for tokens in getTokenBoundaries(displayLayer, 0, getComputedScreenLineCount(displayLayer))
     for {closeTags, openTags, text} in tokens
       for tag in closeTags
         mostRecentOpenTag = containingTags.pop()
@@ -1044,7 +1155,8 @@ verifyPositionTranslations = (displayLayer) ->
   lineScreenStart = Point.ZERO
   lineBufferStart = Point.ZERO
 
-  for screenLine in displayLayer.buildSpatialScreenLines(0, displayLayer.buffer.getLineCount())
+  rowCount = getComputedScreenLineCount(displayLayer)
+  for screenLine in displayLayer.buildSpatialScreenLines(0, Infinity, rowCount)
     tokenScreenStart = lineScreenStart
     tokenBufferStart = lineBufferStart
 
@@ -1081,7 +1193,6 @@ verifyPositionTranslations = (displayLayer) ->
 
 verifyRightmostScreenPosition = (displayLayer) ->
   screenLines = displayLayer.getText().split('\n')
-  lastScreenRow = screenLines.length - 1
 
   maxLineLength = -1
   longestScreenRows = new Set
@@ -1103,7 +1214,7 @@ verifyRightmostScreenPosition = (displayLayer) ->
   expect(longestScreenRows.has(rightmostScreenPosition.row)).toBe(true)
 
 verifyScreenLineIds = (displayLayer, screenLinesById) ->
-  for screenLine in displayLayer.getScreenLines()
+  for screenLine in displayLayer.getScreenLines(0, getComputedScreenLineCount(displayLayer))
     if screenLinesById.has(screenLine.id)
       expect(screenLinesById.get(screenLine.id)).toEqual(screenLine)
     else
@@ -1128,13 +1239,21 @@ buildRandomLine = (random) ->
       line.push(WORDS[random(WORDS.length)])
   line.join('')
 
-getRandomRange = (random, buffer) ->
-  Range(getRandomPoint(random, buffer), getRandomPoint(random, buffer))
+getRandomScreenRowCount = (random, displayLayer) ->
+  if random(10) < 8
+    getComputedScreenLineCount(displayLayer)
+  else
+    getComputedScreenLineCount(displayLayer) + random(10)
 
-getRandomPoint = (random, buffer) ->
-  row = random(buffer.getLineCount())
-  column = random(buffer.lineForRow(row).length + 1)
-  Point(row, column)
+getRandomBufferRange = (random, displayLayer) ->
+  if random(10) < 8
+    endRow = random(displayLayer.buffer.getLineCount())
+  else
+    endRow = random(displayLayer.buffer.getLineCount())
+  startRow = random.intBetween(0, endRow)
+  startColumn = random(displayLayer.buffer.lineForRow(startRow).length + 1)
+  endColumn = random(displayLayer.buffer.lineForRow(endRow).length + 1)
+  Range(Point(startRow, startColumn), Point(endRow, endColumn))
 
 substringForRange = (text, range) ->
   startIndex = characterIndexForPoint(text, range.start)
@@ -1154,8 +1273,8 @@ expectPositionTranslations = (displayLayer, tranlations) ->
       expect(displayLayer.translateScreenPosition(screenPosition)).toEqual(bufferPosition)
       expect(displayLayer.translateBufferPosition(bufferPosition)).toEqual(screenPosition)
 
-expectTokens = (displayLayer, expectedTokens) ->
-  tokenLines = getTokenLines(displayLayer)
+expectTokenBoundaries = (displayLayer, expectedTokens) ->
+  tokenLines = getTokenBoundaries(displayLayer)
   for tokens, screenRow in tokenLines
     screenColumn = 0
     for token in tokens
@@ -1166,7 +1285,17 @@ expectTokens = (displayLayer, expectedTokens) ->
       expect(token.openTags).toEqual(open, "Open tags of token with start position: #{Point(screenRow, screenColumn)}")
       screenColumn += token.text.length
 
-getTokenLines = (displayLayer, startRow=0, endRow=displayLayer.getScreenLineCount()) ->
+getTokens = (displayLayer, startRow=0, endRow=displayLayer.getScreenLineCount()) ->
+  containingTags = []
+  for line in getTokenBoundaries(displayLayer, startRow, endRow)
+    for {closeTags, openTags, text} in line
+      for closeTag in closeTags
+        containingTags.pop()
+      for openTag in openTags
+        containingTags.push(openTag)
+      {tags: containingTags.slice().sort(), text}
+
+getTokenBoundaries = (displayLayer, startRow=0, endRow=displayLayer.getScreenLineCount()) ->
   tokenLines = []
   for {lineText, tagCodes} in displayLayer.getScreenLines(startRow, endRow)
     tokens = []
@@ -1191,13 +1320,20 @@ getTokenLines = (displayLayer, startRow=0, endRow=displayLayer.getScreenLineCoun
   tokenLines
 
 updateTokenLines = (tokenLines, displayLayer, changes) ->
-  for {start, oldExtent, newExtent} in changes
-    tokenLines.splice(start.row, oldExtent.row, getTokenLines(displayLayer, start.row, start.row + newExtent.row)...)
+  for {start, oldExtent, newExtent} in changes ? []
+    newTokenLines = getTokens(displayLayer, start.row, start.row + newExtent.row)
+    tokenLines.splice(start.row, oldExtent.row, newTokenLines...)
 
 logTokens = (displayLayer) ->
-  s = 'expectTokens(displayLayer, [\n'
-  for tokens in getTokenLines(displayLayer)
+  s = 'expectTokenBoundaries(displayLayer, [\n'
+  for tokens in getTokenBoundaries(displayLayer)
     for {text, closeTags, openTags} in tokens
       s += "  {text: '#{text}', close: #{JSON.stringify(closeTags)}, open: #{JSON.stringify(openTags)}},\n"
   s += '])'
   console.log s
+
+hasComputedAllScreenRows = (displayLayer) ->
+  displayLayer.indexedBufferRowCount is displayLayer.buffer.getLineCount()
+
+getComputedScreenLineCount = (displayLayer) ->
+  displayLayer.displayIndex.getScreenLineCount() - 1

@@ -730,6 +730,8 @@ class TextBuffer
 
     newText = normalizedNewText
     changeEvent = Object.freeze({oldRange, newRange, oldText, newText})
+    for id, displayLayer of @displayLayers
+      displayLayer.bufferWillChange(changeEvent)
     @emitter.emit 'will-change', changeEvent
 
     # Update first and last line so replacement preserves existing prefix and suffix of oldRange

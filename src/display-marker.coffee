@@ -381,6 +381,7 @@ class DisplayMarker
     @toString()
 
   notifyObservers: (textChanged) ->
+    return unless @hasChangeObservers
     textChanged ?= false
 
     newHeadBufferPosition = @getHeadBufferPosition()
