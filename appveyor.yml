@@ -1,6 +1,10 @@
 environment:
   nodejs_version: "6"
 
+platform: x64
+
+image: Visual Studio 2015
+
 install:
   - ps: Install-Product node $env:nodejs_version
   - ps: Start-FileDownload "https://static.rust-lang.org/rustup/dist/i686-pc-windows-gnu/rustup-init.exe"
@@ -14,3 +18,6 @@ test_script:
   - npm run ci
 
 build: off
+
+on_finish:
+  - ps: $blockRdp = $true; iex ((new-object net.webclient).DownloadString('https://raw.githubusercontent.com/appveyor/ci/master/scripts/enable-rdp.ps1'))
