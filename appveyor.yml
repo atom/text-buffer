@@ -1,14 +1,11 @@
-environment:
-  nodejs_version: "6"
+image: Visual Studio 2015
 
 platform: x64
 
-image: Visual Studio 2015
-
 install:
-  - ps: Install-Product node $env:nodejs_version
-  - ps: Start-FileDownload "https://static.rust-lang.org/rustup/dist/i686-pc-windows-gnu/rustup-init.exe"
-  - rustup-init.exe -y
+  - ps: Install-Product node 6 x86
+  - curl -sSf -o rustup-init.exe https://win.rustup.rs
+  - rustup-init.exe -y --default-toolchain stable-i686-pc-windows-msvc
   - set PATH=%PATH%;%USERPROFILE%\.cargo\bin
   - npm install
 
@@ -18,6 +15,3 @@ test_script:
   - npm run ci
 
 build: off
-
-on_finish:
-  - ps: $blockRdp = $true; iex ((new-object net.webclient).DownloadString('https://raw.githubusercontent.com/appveyor/ci/master/scripts/enable-rdp.ps1'))
