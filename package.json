@@ -55,7 +55,7 @@
     "pathwatcher": "6.7.1",
     "regression": "^1.2.1",
     "serializable": "^1.0.3",
-    "superstring": "0.0.4",
+    "superstring": "0.0.5",
     "underscore-plus": "^1.0.0"
   },
   "coffeelintConfig": {
