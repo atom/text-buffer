@@ -1518,13 +1518,17 @@ class TextBuffer
       if modified
         @updateCachedDiskContents()
       else
-        @destroy()
+        @unsubscribeFromFile()
 
     @fileSubscriptions.add @file.onDidRename =>
       @emitter.emit 'did-change-path', @getPath()
 
     @fileSubscriptions.add @file.onWillThrowWatchError (errorObject) =>
       @emitter.emit 'will-throw-watch-error', errorObject
+
+  unsubscribeFromFile: ->
+    @fileSubscriptions?.dispose()
+    @file = null
 
   createMarkerSnapshot: ->
     snapshot = {}
