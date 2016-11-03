@@ -47,7 +47,7 @@ class Backwards
 
       # If the match occurs at the beginning of the chunk, expand the chunk
       # in case the match could have started earlier.
-      break if matchStartIndex == @chunkStartIndex > @startIndex
+      break if matchStartIndex is @chunkStartIndex > @startIndex
       break if matchStartIndex >= @chunkEndIndex
 
       if matchEndIndex > @chunkEndIndex
