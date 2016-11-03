@@ -440,7 +440,7 @@ class DisplayLayer
               })
               tokensScreenExtent = screenColumn
 
-          if inTrailingWhitespace && screenColumn > tokensScreenExtent
+          if inTrailingWhitespace and screenColumn > tokensScreenExtent
             if trailingWhitespaceStartScreenColumn > tokensScreenExtent
               behindCount = trailingWhitespaceStartScreenColumn - tokensScreenExtent
               tokens.push({

@@ -16,7 +16,7 @@ DisplayLayer = require './display-layer'
 {spliceArray, newlineRegex, normalizePatchChanges} = require './helpers'
 
 class SearchCallbackArgument
-  Object.defineProperty @::, "range",
+  Object.defineProperty SearchCallbackArgument.prototype, "range",
     get: ->
       return @computedRange if @computedRange?
 
@@ -381,7 +381,7 @@ class TextBuffer
       return false unless @loaded
 
       if @file.existsSync()
-        @getText() != @cachedDiskContents
+        @getText() isnt @cachedDiskContents
       else
         @wasModifiedBeforeRemove ? not @isEmpty()
     else
@@ -403,7 +403,7 @@ class TextBuffer
   #
   # * `filePath` A {String} representing the new file path
   setPath: (filePath) ->
-    return if filePath == @getPath()
+    return if filePath is @getPath()
 
     if filePath
       @file = new File(filePath)
@@ -558,7 +558,7 @@ class TextBuffer
   #
   # Returns a {Number} or `null` if there's no preceding non-blank row.
   previousNonBlankRow: (startRow) ->
-    return null if startRow == 0
+    return null if startRow is 0
 
     startRow = Math.min(startRow, @getLastRow())
     for row in [(startRow - 1)..0]
@@ -595,7 +595,7 @@ class TextBuffer
   # * `text` A {String} containing the new buffer contents.
   setTextViaDiff: (text) ->
     currentText = @getText()
-    return if currentText == text
+    return if currentText is text
 
     endsWithNewline = (str) ->
       /[\r\n]+$/g.test(str)
@@ -604,7 +604,7 @@ class TextBuffer
       newlineIndex = Math.max(str.lastIndexOf('\n'), str.lastIndexOf('\r'))
       if endsWithNewline(str)
         0
-      else if newlineIndex == -1
+      else if newlineIndex is -1
         str.length
       else
         str.length - newlineIndex - 1
@@ -757,7 +757,7 @@ class TextBuffer
       for id, markerLayer of @markerLayers
         markerLayer.splice(oldRange.start, oldExtent, newExtent)
 
-    @conflict = false if @conflict and !@isModified()
+    @conflict = false if @conflict and not @isModified()
 
     @changeCount++
     @emitDidChangeEvent(changeEvent)
@@ -1198,7 +1198,7 @@ class TextBuffer
   #
   # Returns a {Number} representing the number of replacements made.
   replace: (regex, replacementText) ->
-    doSave = !@isModified()
+    doSave = not @isModified()
     replacements = 0
 
     @transact =>
@@ -1491,7 +1491,7 @@ class TextBuffer
       # contents updated asynchrounously multiple `conflict` events could trigger for the same disk
       # contents.
       @updateCachedDiskContentsSync()
-      return if previousContents == @cachedDiskContents
+      return if previousContents is @cachedDiskContents
 
       if @conflict
         @emitter.emit 'did-conflict'
@@ -1499,7 +1499,7 @@ class TextBuffer
         @reload()
 
     @fileSubscriptions.add @file.onDidDelete =>
-      modified = @getText() != @cachedDiskContents
+      modified = @getText() isnt @cachedDiskContents
       @wasModifiedBeforeRemove = modified
       @emitter.emit 'did-delete'
       if modified
@@ -1560,7 +1560,7 @@ class TextBuffer
     @previousModifiedStatus = modifiedStatus
     @emitter.emit 'did-change-modified', modifiedStatus
 
-  logLines: (start=0, end=@getLastRow())->
+  logLines: (start = 0, end = @getLastRow()) ->
     for row in [start..end]
       line = @lineForRow(row)
       console.log row, line, line.length
