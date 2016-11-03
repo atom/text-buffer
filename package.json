@@ -35,7 +35,7 @@
     "regression": "^1.2.1",
     "serializable": "^1.0.3",
     "underscore-plus": "^1.0.0"
-  }
+  },
   "devDependencies": {
     "eslint": "2.2.0",
     "eslint-config-standard": "5.1.0",
