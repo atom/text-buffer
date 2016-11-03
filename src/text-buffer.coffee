@@ -16,7 +16,7 @@ DisplayLayer = require './display-layer'
 {spliceArray, newlineRegex, normalizePatchChanges} = require './helpers'
 
 class SearchCallbackArgument
-  Object.defineProperty @::, "range",
+  Object.defineProperty SearchCallbackArgument.prototype, "range",
     get: ->
       return @computedRange if @computedRange?
 
@@ -1560,7 +1560,7 @@ class TextBuffer
     @previousModifiedStatus = modifiedStatus
     @emitter.emit 'did-change-modified', modifiedStatus
 
-  logLines: (start=0, end=@getLastRow())->
+  logLines: (start = 0, end = @getLastRow()) ->
     for row in [start..end]
       line = @lineForRow(row)
       console.log row, line, line.length
