@@ -118,7 +118,12 @@ class Marker
   # * `range` A {Range} or range-compatible {Array}. The range will be clipped
   #   before it is assigned.
   # * `params` (optional) An {Object} with the following keys:
-  #   * `reversed`  {Boolean} If true, the marker will to be in a reversed orientation.
+  #   * `reversed`  {Boolean} indicating the marker will to be in a reversed
+  #      orientation.
+  #   * `exclusive` {Boolean} indicating that changes occurring at either end of
+  #     the marker will be considered *outside* the marker rather than inside.
+  #     This defaults to `false` unless the marker's invalidation strategy is
+  #     `inside` or the marker has no tail, in which case it defaults to `true`.
   setRange: (range, params) ->
     params ?= {}
     @update(@getRange(), {reversed: params.reversed, tailed: true, range: Range.fromObject(range, true), exclusive: params.exclusive})
@@ -250,6 +255,7 @@ class Marker
     @invalidate is other.invalidate and
       @tailed is other.tailed and
       @reversed is other.reversed and
+      @exclusive is other.exclusive and
       isEqual(@properties, other.properties) and
       @getRange().isEqual(other.getRange())
 
