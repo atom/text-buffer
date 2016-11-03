@@ -1,6 +1,6 @@
 {Emitter, CompositeDisposable, Disposable} = require 'event-kit'
 {File} = require 'pathwatcher'
-SpanSkipList = require 'span-skip-list'
+BufferOffsetIndex = require 'buffer-offset-index'
 diff = require 'diff'
 _ = require 'underscore-plus'
 fs = require 'fs-plus'
@@ -97,7 +97,7 @@ class TextBuffer
     @id = params?.id ? crypto.randomBytes(16).toString('hex')
     @lines = ['']
     @lineEndings = ['']
-    @offsetIndex = new SpanSkipList('rows', 'characters')
+    @offsetIndex = new BufferOffsetIndex()
     @textDecorationLayers = new Set()
     @setTextInRange([[0, 0], [0, 0]], text ? params?.text ? '', normalizeLineEndings: false)
     maxUndoEntries = params?.maxUndoEntries ? @defaultMaxUndoEntries
@@ -749,9 +749,7 @@ class TextBuffer
     spliceArray(@lineEndings, startRow, rowCount, lineEndings)
 
     # Update the offset index for position <-> character offset translation
-    offsets = lines.map (line, index) ->
-      {rows: 1, characters: line.length + lineEndings[index].length}
-    @offsetIndex.spliceArray('rows', startRow, rowCount, offsets)
+    @offsetIndex.splice(startRow, rowCount, lines.map((line, i) -> line.length + lineEndings[i].length))
 
     if @markerLayers?
       oldExtent = oldRange.getExtent()
@@ -1252,7 +1250,7 @@ class TextBuffer
   #
   # Returns a {Number}.
   getMaxCharacterIndex: ->
-    @offsetIndex.totalTo(Infinity, 'rows').characters
+    @characterIndexForPosition(Point.INFINITY)
 
   # Public: Get the range for the given row
   #
@@ -1280,13 +1278,8 @@ class TextBuffer
   #
   # Returns a {Number}.
   characterIndexForPosition: (position) ->
-    {row, column} = @clipPosition(Point.fromObject(position))
-
-    if row < 0 or row > @getLastRow() or column < 0 or column > @lineLengthForRow(row)
-      throw new Error("Position #{position} is invalid")
-
-    {characters} = @offsetIndex.totalTo(row, 'rows')
-    characters + column
+    position = @clipPosition(Point.fromObject(position))
+    @offsetIndex.characterIndexForPosition(position)
 
   # Public: Convert an absolute character offset, inclusive of newlines, to a
   # position in the buffer in row/column coordinates.
@@ -1297,14 +1290,8 @@ class TextBuffer
   #
   # Returns a {Point}.
   positionForCharacterIndex: (offset) ->
-    offset = Math.max(0, offset)
-    offset = Math.min(@getMaxCharacterIndex(), offset)
-
-    {rows, characters} = @offsetIndex.totalTo(offset, 'characters')
-    if rows > @getLastRow()
-      @getEndPosition()
-    else
-      new Point(rows, offset - characters)
+    position = @offsetIndex.positionForCharacterIndex(Math.max(0, offset))
+    new Point(position.row, position.column)
 
   # Public: Clip the given range so it starts and ends at valid positions.
   #
