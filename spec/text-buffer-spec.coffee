@@ -1992,7 +1992,7 @@ describe "TextBuffer", ->
         expect(buffer.getTextInRange(range)).toBe "    if (items.length <= 1) return items;\n"
 
         lineLength = buffer.lineForRow(2).length
-        range = [[2,10], [4,10]]
+        range = [[2, 10], [4, 10]]
         expect(buffer.getTextInRange(range)).toBe "ems.length <= 1) return items;\n    var pivot = items.shift(), current, left = [], right = [];\n    while("
 
     describe "when the range starts before the start of the buffer", ->
