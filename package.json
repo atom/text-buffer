@@ -1,6 +1,6 @@
 {
   "name": "text-buffer",
-  "version": "9.4.0",
+  "version": "9.4.1",
   "description": "A container for large mutable strings with annotated regions",
   "main": "./lib/text-buffer",
   "scripts": {
@@ -21,8 +21,9 @@
     "url": "https://github.com/atom/text-buffer/issues"
   },
   "license": "MIT",
-    "dependencies": {
+  "dependencies": {
     "atom-patch": "0.3.0",
+    "buffer-offset-index": "0.0.1",
     "delegato": "^1.0.0",
     "diff": "^2.2.1",
     "display-index": "^0.1.0",
@@ -30,12 +31,10 @@
     "event-kit": "^2.1.0",
     "fs-plus": "^2.0.0",
     "grim": "1.5.0",
-    "line-length-index": "0.0.2",
     "marker-index": "4.0.1",
     "pathwatcher": "6.7.1",
     "regression": "^1.2.1",
     "serializable": "^1.0.3",
-    "span-skip-list": "~0.2.0",
     "underscore-plus": "^1.0.0"
   },
   "devDependencies": {
