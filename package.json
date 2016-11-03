@@ -20,7 +20,6 @@
   "bugs": {
     "url": "https://github.com/atom/text-buffer/issues"
   },
-  "license": "MIT",
   "dependencies": {
     "atom-patch": "0.3.0",
     "buffer-offset-index": "0.0.1",
@@ -36,7 +35,7 @@
     "regression": "^1.2.1",
     "serializable": "^1.0.3",
     "underscore-plus": "^1.0.0"
-  },
+  }
   "devDependencies": {
     "eslint": "2.2.0",
     "eslint-config-standard": "5.1.0",
@@ -56,36 +55,5 @@
     "random-seed": "^0.2.0",
     "rimraf": "~2.2.2",
     "temp": "^0.8.3"
-<<<<<<<
-
-=======
-  },
-  "dependencies": {
-    "atom-patch": "0.3.0",
-    "buffer-offset-index": "0.0.1",
-    "delegato": "^1.0.0",
-    "diff": "^2.2.1",
-    "display-index": "^0.1.0",
-    "emissary": "^1.0.0",
-    "event-kit": "^2.1.0",
-    "fs-plus": "^2.0.0",
-    "grim": "1.5.0",
-    "marker-index": "4.0.1",
-    "pathwatcher": "6.7.1",
-    "regression": "^1.2.1",
-    "serializable": "^1.0.3",
-    "underscore-plus": "^1.0.0"
-  },
-  "coffeelintConfig": {
-    "no_empty_param_list": {
-      "level": "error"
-    },
-    "max_line_length": {
-      "level": "ignore"
-    },
-    "indentation": {
-      "level": "ignore"
-    }
->>>>>>>
   }
 }
