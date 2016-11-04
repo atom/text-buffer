@@ -61,7 +61,7 @@ describe('DisplayLayer', () => {
         tabLength: 4
       })
 
-      // expect(displayLayer.getText()).toBe('    a   bc  def g\n    h')
+      expect(displayLayer.getText()).toBe('    a   bc  def g\nh       i')
 
       // expectTokenBoundaries(displayLayer, [
       //   {

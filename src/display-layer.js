@@ -187,12 +187,43 @@ class DisplayLayer {
     return screenPosition
   }
 
-  getScreenLines (start, end) {
-
+  getText () {
+    return this.getScreenLines().map((line) => line.lineText).join('\n')
   }
 
-  getText () {
+  getLastScreenRow () {
+    return this.screenLineLengths.length - 1
+  }
 
+  getScreenLines (screenStartRow = 0, screenEndRow = this.getLastScreenRow() + 1) {
+    let screenLines = []
+    let screenRow = screenStartRow
+    let {row: bufferRow} = this.translateScreenPosition(Point(screenStartRow, 0))
+    while (screenRow < screenEndRow) {
+      let screenLine = ''
+      let screenColumn = 0
+      let bufferLine = this.buffer.lineForRow(bufferRow)
+      let bufferColumn = 0
+
+      while (bufferColumn < bufferLine.length) {
+        const character = bufferLine[bufferColumn]
+        if (character === '\t') {
+          const distanceToNextTabStop = this.tabLength - (screenColumn % this.tabLength)
+          screenLine += ' '.repeat(distanceToNextTabStop)
+          screenColumn += distanceToNextTabStop
+        } else {
+          screenLine += character
+          screenColumn += 1
+        }
+        bufferColumn++
+      }
+
+      screenLines.push({lineText: screenLine})
+      screenRow++
+      bufferRow++
+    }
+
+    return screenLines
   }
 
   populateSpatialIndex () {
