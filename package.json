@@ -42,7 +42,8 @@
     "json-diff": "^0.3.1",
     "random-seed": "^0.2.0",
     "rimraf": "~2.2.2",
-    "temp": "^0.8.3"
+    "temp": "^0.8.3",
+    "yargs": "^6.3.0"
   },
   "dependencies": {
     "atom-patch": "0.3.0",
