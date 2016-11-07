@@ -218,9 +218,13 @@ class DisplayLayer {
   }
 
   getScreenLines (screenStartRow = 0, screenEndRow = this.getLastScreenRow() + 1) {
+    const screenStart = Point(screenStartRow, 0)
+    const screenEnd = Point(screenEndRow, 0)
     let screenLines = []
     let screenRow = screenStartRow
-    let {row: bufferRow} = this.translateScreenPosition(Point(screenStartRow, 0))
+    let {row: bufferRow} = this.translateScreenPosition(screenStart)
+    let hunkIndex = 0
+    const hunks = this.spatialIndex.getHunksInNewRange(screenStart, screenEnd)
     while (screenRow < screenEndRow) {
       let screenLine = ''
       let screenColumn = 0
@@ -228,6 +232,20 @@ class DisplayLayer {
       let bufferColumn = 0
 
       while (bufferColumn < bufferLine.length) {
+        // Handle soft wraps at the current position
+        {
+          const nextHunk = hunks[hunkIndex]
+          if (nextHunk && nextHunk.oldStart.row === bufferRow && nextHunk.oldStart.column === bufferColumn) {
+            if (isEqual(nextHunk.oldStart, nextHunk.oldEnd)) {
+              screenLines.push({lineText: screenLine})
+              screenRow++
+              screenColumn = nextHunk.newEnd.column
+              screenLine = " ".repeat(screenColumn)
+            }
+            hunkIndex++
+          }
+        }
+
         const character = bufferLine[bufferColumn]
         if (character === '\t') {
           const distanceToNextTabStop = this.tabLength - (screenColumn % this.tabLength)

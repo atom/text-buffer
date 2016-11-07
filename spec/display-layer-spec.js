@@ -727,7 +727,7 @@ describe('DisplayLayer', () => {
       expect(JSON.stringify(displayLayer.getText())).toBe(JSON.stringify('          \nhey'))
     })
 
-    fit('translates points correctly on soft-wrapped lines', () => {
+    it('translates points correctly on soft-wrapped lines', () => {
       const buffer = new TextBuffer({
         text: '   abc defgh'
       })
@@ -737,9 +737,7 @@ describe('DisplayLayer', () => {
         softWrapHangingIndent: 2
       })
 
-      // console.log(displayLayer.spatialIndex.getHunks().map(h => h.toString()))
-
-      // expect(JSON.stringify(displayLayer.getText())).toBe(JSON.stringify('   abc \n     def\n     gh'))
+      expect(JSON.stringify(displayLayer.getText())).toBe(JSON.stringify('   abc \n     def\n     gh'))
 
       expectPositionTranslations(displayLayer, [
         [Point(0, 0), Point(0, 0)],
