@@ -82,12 +82,14 @@ class DisplayLayer {
 
   translateScreenPosition (screenPosition, options) {
     const clipDirection = options && options.clipDirection || 'closest'
+    const skipSoftWrapIndentation = options && options.skipSoftWrapIndentation
     screenPosition = this.constrainScreenPosition(screenPosition, options)
     let hunk = this.spatialIndex.hunkForNewPosition(screenPosition)
     if (hunk) {
       if (comparePoints(screenPosition, hunk.newEnd) < 0) {
         if (comparePoints(hunk.oldStart, hunk.oldEnd) === 0) { // Soft wrap
-          if (clipDirection === 'backward' || clipDirection === 'closest' && isEqual(hunk.newStart, screenPosition)) {
+          if (clipDirection === 'backward' && !skipSoftWrapIndentation ||
+              clipDirection === 'closest' && isEqual(hunk.newStart, screenPosition)) {
             return traverse(hunk.oldStart, Point(0, -1))
           } else {
             return Point.fromObject(hunk.oldStart)
@@ -137,11 +139,13 @@ class DisplayLayer {
 
   clipScreenPosition (screenPosition, options) {
     const clipDirection = options && options.clipDirection || 'closest'
+    const skipSoftWrapIndentation = options && options.skipSoftWrapIndentation
     screenPosition = this.constrainScreenPosition(screenPosition, options)
     let hunk = this.spatialIndex.hunkForNewPosition(screenPosition)
     if (hunk) {
       if (comparePoints(hunk.oldStart, hunk.oldEnd) === 0) { // Soft wrap
-        if (clipDirection === 'backward' || clipDirection === 'closest' && isEqual(hunk.newStart, screenPosition)) {
+        if (clipDirection === 'backward' && !skipSoftWrapIndentation ||
+            clipDirection === 'closest' && isEqual(hunk.newStart, screenPosition)) {
           return traverse(hunk.newStart, Point(0, -1))
         } else {
           return Point.fromObject(hunk.newEnd)
