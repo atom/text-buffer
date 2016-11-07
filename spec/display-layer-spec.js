@@ -52,7 +52,7 @@ describe('DisplayLayer', () => {
   })
 
   describe('hard tabs', () => {
-    fit('expands hard tabs to their tab stops', () => {
+    it('expands hard tabs to their tab stops', () => {
       const buffer = new TextBuffer({
         text: '\ta\tbc\tdef\tg\nh\t\ti'
       })
@@ -64,47 +64,18 @@ describe('DisplayLayer', () => {
       expect(displayLayer.getText()).toBe('    a   bc  def g\nh       i')
 
       // expectTokenBoundaries(displayLayer, [
-      //   {
-      //     text: '    ',
-      //     close: [],
-      //     open: ['hard-tab leading-whitespace']
-      //   }, {
-      //     text: 'a',
-      //     close: ['hard-tab leading-whitespace'],
-      //     open: []
-      //   }, {
-      //     text: '   ',
-      //     close: [],
-      //     open: ['hard-tab']
-      //   }, {
-      //     text: 'bc',
-      //     close: ['hard-tab'],
-      //     open: []
-      //   }, {
-      //     text: '  ',
-      //     close: [],
-      //     open: ['hard-tab']
-      //   }, {
-      //     text: 'def',
-      //     close: ['hard-tab'],
-      //     open: []
-      //   }, {
-      //     text: ' ',
-      //     close: [],
-      //     open: ['hard-tab']
-      //   }, {
-      //     text: 'g',
-      //     close: ['hard-tab'],
-      //     open: []
-      //   }, {
-      //     text: '    ',
-      //     close: [],
-      //     open: ['hard-tab leading-whitespace']
-      //   }, {
-      //     text: 'h',
-      //     close: ['hard-tab leading-whitespace'],
-      //     open: []
-      //   }
+      //   {text: '    ', close: [], open: ['hard-tab leading-whitespace']},
+      //   {text: 'a', close: ['hard-tab leading-whitespace'], open: []},
+      //   {text: '   ', close: [], open: ['hard-tab']},
+      //   {text: 'bc', close: ['hard-tab'], open: []},
+      //   {text: '  ', close: [], open: ['hard-tab']},
+      //   {text: 'def', close: ['hard-tab'], open: []},
+      //   {text: ' ', close: [], open: ['hard-tab']},
+      //   {text: 'g', close: ['hard-tab'], open: []},
+      //   {text: 'h', close: [], open: []},
+      //   {text: '   ', close: ['hard-tab'], open: []},
+      //   {text: '    ', close: ['hard-tab'], open: ['hard-tab']},
+      //   {text: 'i', close: ['hard-tab'], open: []}
       // ])
 
       expectPositionTranslations(displayLayer, [
@@ -756,7 +727,7 @@ describe('DisplayLayer', () => {
       expect(JSON.stringify(displayLayer.getText())).toBe(JSON.stringify('          \nhey'))
     })
 
-    it('translates points correctly on soft-wrapped lines', () => {
+    fit('translates points correctly on soft-wrapped lines', () => {
       const buffer = new TextBuffer({
         text: '   abc defgh'
       })
@@ -766,7 +737,9 @@ describe('DisplayLayer', () => {
         softWrapHangingIndent: 2
       })
 
-      expect(JSON.stringify(displayLayer.getText())).toBe(JSON.stringify('   abc \n     def\n     gh'))
+      // console.log(displayLayer.spatialIndex.getHunks().map(h => h.toString()))
+
+      // expect(JSON.stringify(displayLayer.getText())).toBe(JSON.stringify('   abc \n     def\n     gh'))
 
       expectPositionTranslations(displayLayer, [
         [Point(0, 0), Point(0, 0)],
@@ -2397,27 +2370,27 @@ function expectPositionTranslations (displayLayer, tranlations) {
 
       expect(displayLayer.translateScreenPosition(screenPosition, {
         clipDirection: 'backward'
-      })).toEqual(backwardBufferPosition)
+      })).toEqual(backwardBufferPosition, `translateScreenPosition(Point${screenPosition}, {clipDirection: 'backward'})`)
 
       expect(displayLayer.translateScreenPosition(screenPosition, {
         clipDirection: 'forward'
-      })).toEqual(forwardBufferPosition)
+      })).toEqual(forwardBufferPosition, `translateScreenPosition(Point${screenPosition}, {clipDirection: 'forward'})`)
 
       expect(displayLayer.clipScreenPosition(screenPosition, {
         clipDirection: 'backward'
       })).toEqual(displayLayer.translateBufferPosition(backwardBufferPosition, {
         clipDirection: 'backward'
-      }))
+      }), `clipScreenPosition(Point${screenPosition}, {clipDirection: 'backward'})`)
 
       expect(displayLayer.clipScreenPosition(screenPosition, {
         clipDirection: 'forward'
       })).toEqual(displayLayer.translateBufferPosition(forwardBufferPosition, {
         clipDirection: 'forward'
-      }))
+      }), `clipScreenPosition(Point${screenPosition}, {clipDirection: 'forward'})`)
     } else {
       const bufferPosition = bufferPositions
-      expect(displayLayer.translateScreenPosition(screenPosition)).toEqual(bufferPosition)
-      expect(displayLayer.translateBufferPosition(bufferPosition)).toEqual(screenPosition)
+      expect(displayLayer.translateScreenPosition(screenPosition)).toEqual(bufferPosition, `translateScreenPosition(Point${screenPosition})`)
+      expect(displayLayer.translateBufferPosition(bufferPosition)).toEqual(screenPosition, `translateScreenPosition(Point${bufferPosition})`)
     }
   }
 }
