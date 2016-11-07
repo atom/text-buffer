@@ -33,7 +33,7 @@ class DisplayLayer {
     if (params.hasOwnProperty('tabLength')) this.tabLength = params.tabLength
     if (params.hasOwnProperty('invisibles')) this.invisibles = params.invisibles
     if (params.hasOwnProperty('showIndentGuides')) this.showIndentGuides = params.showIndentGuides
-    if (params.hasOwnProperty('softWrapColumn')) this.softWrapColumn = params.softWrapColumn
+    if (params.hasOwnProperty('softWrapColumn')) this.softWrapColumn = Math.max(1, params.softWrapColumn)
     if (params.hasOwnProperty('softWrapHangingIndent')) this.softWrapHangingIndent = params.softWrapHangingIndent
     if (params.hasOwnProperty('ratioForCharacter')) this.ratioForCharacter = params.ratioForCharacter
     if (params.hasOwnProperty('isWrapBoundary')) this.isWrapBoundary = params.isWrapBoundary
