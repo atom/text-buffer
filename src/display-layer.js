@@ -308,8 +308,10 @@ class DisplayLayer {
         if (character === '\t') {
           const distanceToNextTabStop = this.tabLength - (screenColumn % this.tabLength)
           characterWidth = this.ratioForCharacter(' ') * distanceToNextTabStop
-        } else {
+        } else if (character) {
           characterWidth = this.ratioForCharacter(character)
+        } else {
+          characterWidth = 0
         }
 
         // Insert a soft line break if necessary
