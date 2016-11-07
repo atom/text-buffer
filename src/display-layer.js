@@ -12,7 +12,7 @@ class DisplayLayer {
     this.id = id
     this.buffer = buffer
     this.foldIdCounter = 1
-    this.spatialIndex = new Patch()
+    this.spatialIndex = new Patch({mergeAdjacentHunks: false})
     this.screenLineLengths = []
     this.textDecorationLayer = new EmptyDecorationLayer()
     this.emitter = new Emitter()
@@ -33,7 +33,7 @@ class DisplayLayer {
     if (params.hasOwnProperty('tabLength')) this.tabLength = params.tabLength
     if (params.hasOwnProperty('invisibles')) this.invisibles = params.invisibles
     if (params.hasOwnProperty('showIndentGuides')) this.showIndentGuides = params.showIndentGuides
-    if (params.hasOwnProperty('softWrapColumn')) this.softWrapColumn = Math.max(1, params.softWrapColumn)
+    if (params.hasOwnProperty('softWrapColumn')) this.softWrapColumn = params.softWrapColumn
     if (params.hasOwnProperty('softWrapHangingIndent')) this.softWrapHangingIndent = params.softWrapHangingIndent
     if (params.hasOwnProperty('ratioForCharacter')) this.ratioForCharacter = params.ratioForCharacter
     if (params.hasOwnProperty('isWrapBoundary')) this.isWrapBoundary = params.isWrapBoundary
@@ -277,30 +277,44 @@ class DisplayLayer {
     let screenRow = 0
     let bufferColumn = 0
     let screenColumn = 0
-    let tabSequenceLength = 0
-    let tabSequenceStartScreenColumn = -1
-    let screenLineWidth = 0
-    let lastWrapBoundaryScreenColumn = 0
-    let lastWrapBoundaryScreenLineWidth = 0
-    let firstNonWhitespaceScreenColumn
 
     while (bufferRow < endBufferRow) {
       const bufferLine = this.buffer.lineForRow(bufferRow)
       const bufferLineLength = bufferLine.length
+      let tabSequenceLength = 0
+      let tabSequenceStartScreenColumn = -1
+      let screenLineWidth = 0
+      let lastWrapBoundaryScreenColumn = 0
+      let lastWrapBoundaryScreenLineWidth = 0
+      let firstNonWhitespaceScreenColumn = -1
 
       while (bufferColumn <= bufferLineLength) {
         const previousCharacter = bufferLine[bufferColumn - 1]
         const character = bufferLine[bufferColumn]
 
-        // Assign indentation level for line if necessary
-        if (firstNonWhitespaceScreenColumn == null && character !== ' ' && character !== '\t') {
-          firstNonWhitespaceScreenColumn = screenColumn
+        // Terminate any pending tab sequence if we've reached a non-tab
+        if (tabSequenceLength > 0 && character !== '\t') {
+          this.spatialIndex.splice(
+            Point(screenRow, tabSequenceStartScreenColumn),
+            Point(0, tabSequenceLength),
+            Point(0, screenColumn - tabSequenceStartScreenColumn)
+          )
+          tabSequenceLength = 0
+          tabSequenceStartScreenColumn = -1
         }
 
-        // Record this position if it is a viable soft wrap boundary
-        if (this.isWrapBoundary(previousCharacter, character)) {
-          lastWrapBoundaryScreenColumn = screenColumn
-          lastWrapBoundaryScreenLineWidth = screenLineWidth
+        // Are we in leading whitespace? If yes, record the *end* of the leading
+        // whitespace if we've reached a non whitespace character. If no, record
+        // the current column if it is a viable soft wrap boundary.
+        if (firstNonWhitespaceScreenColumn < 0) {
+          if (character !== ' ' && character !== '\t') {
+            firstNonWhitespaceScreenColumn = screenColumn
+          }
+        } else {
+          if (this.isWrapBoundary(previousCharacter, character)) {
+            lastWrapBoundaryScreenColumn = screenColumn
+            lastWrapBoundaryScreenLineWidth = screenLineWidth
+          }
         }
 
         // Determine the on-screen width of the character for soft-wrap calculations
@@ -315,8 +329,15 @@ class DisplayLayer {
         }
 
         // Insert a soft line break if necessary
-        if (screenLineWidth + characterWidth > this.softWrapColumn) {
-          const indentLength = firstNonWhitespaceScreenColumn + this.softWrapHangingIndent
+        if (screenLineWidth > 0 && characterWidth > 0 &&
+            screenLineWidth + characterWidth > this.softWrapColumn) {
+          let indentLength = (firstNonWhitespaceScreenColumn < this.softWrapColumn)
+            ? Math.max(0, firstNonWhitespaceScreenColumn)
+            : 0
+          if (indentLength + this.softWrapHangingIndent < this.softWrapColumn) {
+            indentLength += this.softWrapHangingIndent
+          }
+
           const wrapColumn = lastWrapBoundaryScreenColumn || screenColumn
           const wrapWidth = lastWrapBoundaryScreenLineWidth || screenLineWidth
           this.spatialIndex.splice(
@@ -341,20 +362,9 @@ class DisplayLayer {
           tabSequenceLength++
           const distanceToNextTabStop = this.tabLength - (screenColumn % this.tabLength)
           screenColumn += distanceToNextTabStop
-          screenLineWidth += this.ratioForCharacter(' ') * distanceToNextTabStop
         } else {
-          if (tabSequenceLength > 0) {
-            this.spatialIndex.splice(
-              Point(screenRow, tabSequenceStartScreenColumn),
-              Point(0, tabSequenceLength),
-              Point(0, screenColumn - tabSequenceStartScreenColumn)
-            )
-            tabSequenceLength = 0
-            tabSequenceStartScreenColumn = -1
-          }
           screenColumn++
         }
-
         bufferColumn++
       }
 
