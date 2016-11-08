@@ -393,10 +393,25 @@ class TextBuffer
   # Returns a {Boolean}.
   isInConflict: -> @conflict
 
-  # Public: Get the path of the associated file.
+  # Public: Get the realpath resolved path of the associated file.
   #
   # Returns a {String}.
   getPath: ->
+    fullPath = @getUnresolvedPath()
+    return unless fullPath
+    try
+      fullPath = fs.realpathSync(fullPath)
+    catch e
+      # nothing
+    path.normalize(fullPath)
+
+  # Public: Get the path of the associated file.
+  #
+  # The returned path might contain symlinks. If you want a realpath revolved
+  # path, call {::getPath} instead.
+  #
+  # Returns a {String}.
+  getUnresolvedPath: ->
     @file?.getPath()
 
   # Public: Set the path for the buffer's associated file.
