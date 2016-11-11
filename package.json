@@ -9,7 +9,7 @@
     "clean": "grunt clean",
     "compile": "coffee --no-header --output lib --compile src",
     "lint": "coffeelint -r src spec && eslint src spec",
-    "test": "script/test",
+    "test": "node script/test",
     "ci": "npm run compile && npm run lint && npm run test && npm run bench",
     "bench": "node benchmarks/index"
   },
