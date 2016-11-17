@@ -3,15 +3,20 @@ const {Emitter} = require('event-kit')
 const Point = require('./point')
 const Range = require('./range')
 const EmptyDecorationLayer = require('./empty-decoration-layer')
-const {traverse, traversal, compare: comparePoints, isEqual} = require('./point-helpers')
+const {traverse, traversal, compare, isEqual} = require('./point-helpers')
 // const {normalizePatchChanges} = require('./helpers')
 
 module.exports =
 class DisplayLayer {
-  constructor (id, buffer, settings) {
+  constructor (id, buffer, params = {}) {
     this.id = id
     this.buffer = buffer
     this.foldIdCounter = 1
+    this.foldsMarkerLayer = params.foldsMarkerLayer || buffer.addMarkerLayer({
+      maintainHistory: false,
+      persistent: true,
+      destroyInvalidatedMarkers: true
+    })
     this.spatialIndex = new Patch({mergeAdjacentHunks: false})
     this.screenLineLengths = []
     this.textDecorationLayer = new EmptyDecorationLayer()
@@ -26,7 +31,7 @@ class DisplayLayer {
     this.isWrapBoundary = isWordStart
     this.foldCharacter = '⋯'
     this.atomicSoftTabs = true
-    this.reset(settings)
+    this.reset(params)
   }
 
   reset (params) {
@@ -48,22 +53,41 @@ class DisplayLayer {
 
     this.emitter.emit('did-reset')
 
-    this.populateSpatialIndex()
+    this.updateSpatialIndex(0, 0, this.buffer.getLineCount())
+  }
+
+  foldBufferRange (bufferRange) {
+    bufferRange = Range.fromObject(bufferRange)
+    const foldId = this.foldsMarkerLayer.markRange(bufferRange).id
+    const foldStartRow = bufferRange.start.row
+    const foldEndRow = bufferRange.end.row + 1
+    this.updateSpatialIndex(foldStartRow, foldEndRow, foldEndRow)
+    return foldId
+  }
+
+  destroyFold (foldId) {
+    const foldMarker = this.foldsMarkerLayer.getMarker(foldId)
+    if (foldMarker) {
+      const foldStartRow = foldMarker.getStartPosition().row
+      const foldEndRow = foldMarker.getEndPosition().row + 1
+      foldMarker.destroy()
+      this.updateSpatialIndex(foldStartRow, foldEndRow, foldEndRow)
+    }
   }
 
   translateBufferPosition (bufferPosition, options) {
     bufferPosition = this.buffer.clipPosition(bufferPosition)
     let hunk = this.spatialIndex.hunkForOldPosition(bufferPosition)
     if (hunk) {
-      if (comparePoints(bufferPosition, hunk.oldEnd) < 0) {
-        if (comparePoints(hunk.oldStart, hunk.oldEnd) === 0) { // Soft wrap
+      if (compare(bufferPosition, hunk.oldEnd) < 0) {
+        if (compare(hunk.oldStart, hunk.oldEnd) === 0) { // Soft wrap
           if (options && options.clipDirection === 'forward') {
             return Point.fromObject(hunk.newEnd)
           } else {
             return Point.fromObject(hunk.newStart).traverse(Point(0, -1))
           }
         } else { // Hard tab sequence
-          if (comparePoints(hunk.oldStart, bufferPosition) === 0) {
+          if (compare(hunk.oldStart, bufferPosition) === 0) {
             return Point.fromObject(hunk.newStart)
           } else {
             const tabStopBeforeHunk = hunk.newStart.column - hunk.newStart.column % this.tabLength
@@ -86,8 +110,8 @@ class DisplayLayer {
     screenPosition = this.constrainScreenPosition(screenPosition, options)
     let hunk = this.spatialIndex.hunkForNewPosition(screenPosition)
     if (hunk) {
-      if (comparePoints(screenPosition, hunk.newEnd) < 0) {
-        if (comparePoints(hunk.oldStart, hunk.oldEnd) === 0) { // Soft wrap
+      if (compare(screenPosition, hunk.newEnd) < 0) {
+        if (compare(hunk.oldStart, hunk.oldEnd) === 0) { // Soft wrap
           if (clipDirection === 'backward' && !skipSoftWrapIndentation ||
               clipDirection === 'closest' && isEqual(hunk.newStart, screenPosition)) {
             return traverse(hunk.oldStart, Point(0, -1))
@@ -95,7 +119,7 @@ class DisplayLayer {
             return Point.fromObject(hunk.oldStart)
           }
         } else { // Hard tab sequence
-          if (comparePoints(hunk.newStart, screenPosition) === 0) {
+          if (compare(hunk.newStart, screenPosition) === 0) {
             return Point.fromObject(hunk.oldStart)
           }
 
@@ -143,7 +167,7 @@ class DisplayLayer {
     screenPosition = this.constrainScreenPosition(screenPosition, options)
     let hunk = this.spatialIndex.hunkForNewPosition(screenPosition)
     if (hunk) {
-      if (comparePoints(hunk.oldStart, hunk.oldEnd) === 0) { // Soft wrap
+      if (compare(hunk.oldStart, hunk.oldEnd) === 0) { // Soft wrap
         if (clipDirection === 'backward' && !skipSoftWrapIndentation ||
             clipDirection === 'closest' && isEqual(hunk.newStart, screenPosition)) {
           return traverse(hunk.newStart, Point(0, -1))
@@ -151,8 +175,8 @@ class DisplayLayer {
           return Point.fromObject(hunk.newEnd)
         }
       } else { // Hard tab
-        if (comparePoints(hunk.newStart, screenPosition) < 0 &&
-            comparePoints(screenPosition, hunk.newEnd) < 0) {
+        if (compare(hunk.newStart, screenPosition) < 0 &&
+            compare(screenPosition, hunk.newEnd) < 0) {
           const column = screenPosition.column
           const tabStopBeforeColumn = column - column % this.tabLength
           const tabStopAfterColumn = tabStopBeforeColumn + this.tabLength
@@ -235,20 +259,40 @@ class DisplayLayer {
       let bufferLine = this.buffer.lineForRow(bufferRow)
       let bufferColumn = 0
 
-      while (bufferColumn < bufferLine.length) {
-        // Handle soft wraps at the current position
+      while (bufferColumn <= bufferLine.length) {
+        // Handle folds or soft wraps at the current position. The extra block
+        // scope ensures we don't accidentally refer to nextHunk later in the
+        // method.
         {
           const nextHunk = hunks[hunkIndex]
           if (nextHunk && nextHunk.oldStart.row === bufferRow && nextHunk.oldStart.column === bufferColumn) {
+            // Does a fold hunk start here? Jump to the end of the fold and
+            // continue to the next iteration of the loop.
+            if (nextHunk.newText === this.foldCharacter) {
+              screenLine += this.foldCharacter
+              screenColumn++
+              bufferRow = nextHunk.oldEnd.row
+              bufferColumn = nextHunk.oldEnd.column
+              bufferLine = this.buffer.lineForRow(bufferRow)
+              hunkIndex++
+              continue
+            }
+
+            // If the oldExtent of the hunk is zero, this is a soft line break.
             if (isEqual(nextHunk.oldStart, nextHunk.oldEnd)) {
               screenLines.push({lineText: screenLine})
               screenRow++
               screenColumn = nextHunk.newEnd.column
-              screenLine = " ".repeat(screenColumn)
+              screenLine = ' '.repeat(screenColumn)
             }
             hunkIndex++
           }
         }
+
+        // We loop up to the end of the buffer line in case a fold starts there,
+        // but at this point we haven't found a fold, so we can stop if we have
+        // reached the end of the line.
+        if (bufferColumn === bufferLine.length) break
 
         const character = bufferLine[bufferColumn]
         if (character === '\t') {
@@ -257,7 +301,7 @@ class DisplayLayer {
           screenColumn += distanceToNextTabStop
         } else {
           screenLine += character
-          screenColumn += 1
+          screenColumn++
         }
         bufferColumn++
       }
@@ -270,17 +314,26 @@ class DisplayLayer {
     return screenLines
   }
 
-  populateSpatialIndex () {
-    const endBufferRow = this.buffer.getLineCount()
+  updateSpatialIndex (startBufferRow, oldEndBufferRow, newEndBufferRow) {
+    const startScreenRow = this.translateBufferPosition({row: startBufferRow, column: 0}).row
+    const oldEndScreenRow = this.translateBufferPosition({row: oldEndBufferRow, column: 0}).row
+    this.spatialIndex.spliceOld(
+      {row: startBufferRow, column: 0},
+      {row: oldEndBufferRow - startBufferRow, column: 0},
+      {row: newEndBufferRow - startBufferRow, column: 0}
+    )
 
-    let bufferRow = 0
-    let screenRow = 0
+    const folds = this.computeFoldsInBufferRowRange(startBufferRow, newEndBufferRow)
+
+    const newScreenLineLengths = []
+    let bufferRow = startBufferRow
+    let screenRow = startScreenRow
     let bufferColumn = 0
     let screenColumn = 0
 
-    while (bufferRow < endBufferRow) {
-      const bufferLine = this.buffer.lineForRow(bufferRow)
-      const bufferLineLength = bufferLine.length
+    while (bufferRow < newEndBufferRow) {
+      let bufferLine = this.buffer.lineForRow(bufferRow)
+      let bufferLineLength = bufferLine.length
       let tabSequenceLength = 0
       let tabSequenceStartScreenColumn = -1
       let screenLineWidth = 0
@@ -289,8 +342,9 @@ class DisplayLayer {
       let firstNonWhitespaceScreenColumn = -1
 
       while (bufferColumn <= bufferLineLength) {
+        const foldEnd = folds[bufferRow] && folds[bufferRow][bufferColumn]
         const previousCharacter = bufferLine[bufferColumn - 1]
-        const character = bufferLine[bufferColumn]
+        const character = foldEnd ? this.foldCharacter : bufferLine[bufferColumn]
 
         // Terminate any pending tab sequence if we've reached a non-tab
         if (tabSequenceLength > 0 && character !== '\t') {
@@ -345,7 +399,7 @@ class DisplayLayer {
             Point.ZERO,
             Point(1, indentLength)
           )
-          this.screenLineLengths.push(wrapColumn)
+          newScreenLineLengths.push(wrapColumn)
           screenRow++
           screenColumn = indentLength + (screenColumn - wrapColumn)
           screenLineWidth = (indentLength * this.ratioForCharacter(' ')) + (screenLineWidth - wrapWidth)
@@ -355,20 +409,38 @@ class DisplayLayer {
 
         screenLineWidth += characterWidth
 
-        if (character === '\t') {
-          if (tabSequenceLength === 0) {
-            tabSequenceStartScreenColumn = screenColumn
-          }
-          tabSequenceLength++
-          const distanceToNextTabStop = this.tabLength - (screenColumn % this.tabLength)
-          screenColumn += distanceToNextTabStop
-        } else {
+        // If there is a fold at this position, splice it into the spatial index
+        // and jump to the end of the fold.
+        if (foldEnd) {
+          this.spatialIndex.splice(
+            {row: screenRow, column: screenColumn},
+            traversal(foldEnd, {row: bufferRow, column: bufferColumn}),
+            {row: 0, column: 1},
+            this.foldCharacter
+          )
           screenColumn++
+          bufferRow = foldEnd.row
+          bufferColumn = foldEnd.column
+          bufferLine = this.buffer.lineForRow(bufferRow)
+          bufferLineLength = bufferLine.length
+        } else {
+          // If there is no fold at this position, check if we need to handle
+          // a hard tab at this position and advance by a single buffer column.
+          if (character === '\t') {
+            if (tabSequenceLength === 0) {
+              tabSequenceStartScreenColumn = screenColumn
+            }
+            tabSequenceLength++
+            const distanceToNextTabStop = this.tabLength - (screenColumn % this.tabLength)
+            screenColumn += distanceToNextTabStop
+          } else {
+            screenColumn++
+          }
+          bufferColumn++
         }
-        bufferColumn++
       }
 
-      this.screenLineLengths.push(screenColumn - 1)
+      newScreenLineLengths.push(screenColumn - 1)
 
       bufferRow++
       bufferColumn = 0
@@ -376,8 +448,50 @@ class DisplayLayer {
       screenRow++
       screenColumn = 0
     }
+
+    this.screenLineLengths.splice(
+      startScreenRow,
+      oldEndScreenRow - startScreenRow,
+      ...newScreenLineLengths
+    )
+  }
+
+  // Returns a map describing fold starts and ends, structured as
+  // fold start row -> fold start column -> fold end point
+  computeFoldsInBufferRowRange (startBufferRow, endBufferRow) {
+    const folds = {}
+    const foldMarkers = this.foldsMarkerLayer.findMarkers({
+      intersectsRowRange: [startBufferRow, endBufferRow - 1]
+    })
+
+    for (let i = 0; i < foldMarkers.length; i++) {
+      const foldStart = foldMarkers[i].getStartPosition()
+      let foldEnd = foldMarkers[i].getEndPosition()
+
+      // Merge overlapping folds
+      while (i < foldMarkers.length - 1) {
+        const nextFoldMarker = foldMarkers[i + 1]
+        if (compare(nextFoldMarker.getStartPosition(), foldEnd) <= 0) {
+          if (compare(foldEnd, nextFoldMarker.getEndPosition()) < 0) {
+            foldEnd = nextFoldMarker.getEndPosition()
+          }
+          i++
+        } else {
+          break
+        }
+      }
+
+      // Add non-empty folds to the returned result
+      if (compare(foldStart, foldEnd) < 0) {
+        if (!folds[foldStart.row]) folds[foldStart.row] = {}
+        folds[foldStart.row][foldStart.column] = foldEnd
+      }
+    }
+
+    return folds
   }
 }
+
 
 function isWordStart (previousCharacter, character) {
   return (previousCharacter === ' ' || previousCharacter === '\t') &&
