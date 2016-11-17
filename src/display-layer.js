@@ -58,25 +58,34 @@ class DisplayLayer {
 
   foldBufferRange (bufferRange) {
     bufferRange = Range.fromObject(bufferRange)
+    const containingFoldMarkers = this.foldsMarkerLayer.findMarkers({containsRange: bufferRange})
     const foldId = this.foldsMarkerLayer.markRange(bufferRange).id
-    const foldStartRow = bufferRange.start.row
-    const foldEndRow = bufferRange.end.row + 1
-    this.updateSpatialIndex(foldStartRow, foldEndRow, foldEndRow)
+    if (containingFoldMarkers.length === 0) {
+      const foldStartRow = bufferRange.start.row
+      const foldEndRow = bufferRange.end.row + 1
+      this.updateSpatialIndex(foldStartRow, foldEndRow, foldEndRow)
+    }
     return foldId
   }
 
   destroyFold (foldId) {
     const foldMarker = this.foldsMarkerLayer.getMarker(foldId)
     if (foldMarker) {
-      const foldStartRow = foldMarker.getStartPosition().row
-      const foldEndRow = foldMarker.getEndPosition().row + 1
+      const foldRange = foldMarker.getRange()
       foldMarker.destroy()
-      this.updateSpatialIndex(foldStartRow, foldEndRow, foldEndRow)
+      const containingFoldMarkers = this.foldsMarkerLayer.findMarkers({containsRange: foldRange})
+      if (containingFoldMarkers.length === 0) {
+        const foldStartRow = foldRange.start.row
+        const foldEndRow = foldMarker.getEndPosition().row + 1
+        this.updateSpatialIndex(foldStartRow, foldEndRow, foldEndRow)
+      }
     }
   }
 
   translateBufferPosition (bufferPosition, options) {
-    bufferPosition = this.buffer.clipPosition(bufferPosition)
+    if (!options || options.clip) {
+      bufferPosition = this.buffer.clipPosition(bufferPosition)
+    }
     let hunk = this.spatialIndex.hunkForOldPosition(bufferPosition)
     if (hunk) {
       if (compare(bufferPosition, hunk.oldEnd) < 0) {
@@ -316,7 +325,7 @@ class DisplayLayer {
 
   updateSpatialIndex (startBufferRow, oldEndBufferRow, newEndBufferRow) {
     const startScreenRow = this.translateBufferPosition({row: startBufferRow, column: 0}).row
-    const oldEndScreenRow = this.translateBufferPosition({row: oldEndBufferRow, column: 0}).row
+    const oldEndScreenRow = this.translateBufferPosition({row: oldEndBufferRow, column: 0}, {clip: false}).row
     this.spatialIndex.spliceOld(
       {row: startBufferRow, column: 0},
       {row: oldEndBufferRow - startBufferRow, column: 0},
