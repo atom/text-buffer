@@ -56,6 +56,24 @@ class DisplayLayer {
     this.updateSpatialIndex(0, 0, this.buffer.getLineCount())
   }
 
+  copy () {
+    const copyId = this.buffer.nextDisplayLayerId++
+    const copy = new DisplayLayer(copyId, this.buffer, {
+      foldsMarkerLayer: this.foldsMarkerLayer.copy(),
+      invisibles: this.invisibles,
+      tabLength: this.tabLength,
+      softWrapColumn: this.softWrapColumn,
+      softWrapHangingIndent: this.softWrapHangingIndent,
+      showIndentGuides: this.showIndentGuides,
+      ratioForCharacter: this.ratioForCharacter,
+      isWrapBoundary: this.isWrapBoundary,
+      foldCharacter: this.foldCharacter,
+      atomicSoftTabs: this.atomicSoftTabs
+    })
+    this.buffer.displayLayers[copyId] = copy
+    return copy
+  }
+
   foldBufferRange (bufferRange) {
     bufferRange = Range.fromObject(bufferRange)
     const containingFoldMarkers = this.foldsMarkerLayer.findMarkers({containsRange: bufferRange})
