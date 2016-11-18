@@ -480,7 +480,7 @@ class DisplayLayer {
       // Merge overlapping folds
       while (i < foldMarkers.length - 1) {
         const nextFoldMarker = foldMarkers[i + 1]
-        if (compare(nextFoldMarker.getStartPosition(), foldEnd) <= 0) {
+        if (compare(nextFoldMarker.getStartPosition(), foldEnd) < 0) {
           if (compare(foldEnd, nextFoldMarker.getEndPosition()) < 0) {
             foldEnd = nextFoldMarker.getEndPosition()
           }
