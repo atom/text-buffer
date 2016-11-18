@@ -369,10 +369,27 @@ class DisplayLayer {
     return screenLines
   }
 
+  bufferWillChange () {
+
+  }
+
+  bufferDidChange (change) {
+    this.updateSpatialIndex(
+      change.oldRange.start.row,
+      change.oldRange.end.row + 1,
+      change.newRange.end.row + 1
+    )
+  }
+
+  emitDidChangeSyncEvent () {
+
+  }
+
   updateSpatialIndex (startBufferRow, oldEndBufferRow, newEndBufferRow) {
+    const originalOldEndBufferRow = oldEndBufferRow
     startBufferRow = this.findBoundaryPrecedingBufferRow(startBufferRow)
     oldEndBufferRow = this.findBoundaryFollowingBufferRow(oldEndBufferRow)
-    // newEndBufferRow += (oldEndBufferRow - startBufferRow) - deletedRowExtent
+    newEndBufferRow += (oldEndBufferRow - originalOldEndBufferRow)
 
     const startScreenRow = this.translateBufferPosition({row: startBufferRow, column: 0}).row
     const oldEndScreenRow = this.translateBufferPosition({row: oldEndBufferRow, column: 0}, {clip: false}).row
