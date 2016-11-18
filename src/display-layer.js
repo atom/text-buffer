@@ -3,7 +3,7 @@ const {Emitter} = require('event-kit')
 const Point = require('./point')
 const Range = require('./range')
 const EmptyDecorationLayer = require('./empty-decoration-layer')
-const {traverse, traversal, compare, isEqual} = require('./point-helpers')
+const {traverse, traversal, compare, max, isEqual} = require('./point-helpers')
 // const {normalizePatchChanges} = require('./helpers')
 
 module.exports =
@@ -71,15 +71,33 @@ class DisplayLayer {
   destroyFold (foldId) {
     const foldMarker = this.foldsMarkerLayer.getMarker(foldId)
     if (foldMarker) {
-      const foldRange = foldMarker.getRange()
-      foldMarker.destroy()
-      const containingFoldMarkers = this.foldsMarkerLayer.findMarkers({containsRange: foldRange})
-      if (containingFoldMarkers.length === 0) {
-        const foldStartRow = foldRange.start.row
-        const foldEndRow = foldMarker.getEndPosition().row + 1
-        this.updateSpatialIndex(foldStartRow, foldEndRow, foldEndRow)
-      }
+      this.destroyFoldMarkers([foldMarker])
     }
+  }
+
+  destroyFoldsIntersectingBufferRange (bufferRange) {
+    return this.destroyFoldMarkers(
+      this.foldsMarkerLayer.findMarkers({
+        intersectsRange: this.buffer.clipRange(bufferRange)
+      })
+    )
+  }
+
+  destroyFoldMarkers (foldMarkers) {
+    const foldedRanges = []
+    if (foldMarkers.length === 0) return foldedRanges
+
+    const combinedRangeStart = foldMarkers[0].getStartPosition()
+    let combinedRangeEnd = combinedRangeStart
+    for (const foldMarker of foldMarkers) {
+      const foldedRange = foldMarker.getRange()
+      foldedRanges.push(foldedRange)
+      combinedRangeEnd = max(combinedRangeEnd, foldedRange.end)
+      foldMarker.destroy()
+    }
+
+    this.updateSpatialIndex(combinedRangeStart.row, combinedRangeEnd.row, combinedRangeEnd.row)
+    return foldedRanges
   }
 
   translateBufferPosition (bufferPosition, options) {
