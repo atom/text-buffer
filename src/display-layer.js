@@ -324,6 +324,10 @@ class DisplayLayer {
   }
 
   updateSpatialIndex (startBufferRow, oldEndBufferRow, newEndBufferRow) {
+    startBufferRow = this.findBoundaryPrecedingBufferRow(startBufferRow)
+    oldEndBufferRow = this.findBoundaryFollowingBufferRow(oldEndBufferRow)
+    // newEndBufferRow += (oldEndBufferRow - startBufferRow) - deletedRowExtent
+
     const startScreenRow = this.translateBufferPosition({row: startBufferRow, column: 0}).row
     const oldEndScreenRow = this.translateBufferPosition({row: oldEndBufferRow, column: 0}, {clip: false}).row
     this.spatialIndex.spliceOld(
@@ -463,6 +467,38 @@ class DisplayLayer {
       oldEndScreenRow - startScreenRow,
       ...newScreenLineLengths
     )
+  }
+
+  findBoundaryPrecedingBufferRow (bufferRow) {
+    while (true) {
+      let screenPosition = this.translateBufferPosition(Point(bufferRow, 0))
+      if (screenPosition.column === 0) {
+        return bufferRow
+      } else {
+        let bufferPosition = this.translateScreenPosition(Point(screenPosition.row, 0))
+        if (bufferPosition.column === 0) {
+          return bufferPosition.row
+        } else {
+          bufferRow = bufferPosition.row
+        }
+      }
+    }
+  }
+
+  findBoundaryFollowingBufferRow (bufferRow) {
+    while (true) {
+      if (bufferRow === this.buffer.getLineCount()) return bufferRow
+      let screenPosition = this.translateBufferPosition(Point(bufferRow, 0))
+      if (screenPosition.column === 0) {
+        return bufferRow
+      } else {
+        const endOfScreenRow = Point(
+          screenPosition.row,
+          this.screenLineLengths[screenPosition.row]
+        )
+        bufferRow = this.translateScreenPosition(endOfScreenRow).row + 1
+      }
+    }
   }
 
   // Returns a map describing fold starts and ends, structured as

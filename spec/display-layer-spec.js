@@ -312,8 +312,13 @@ describe('DisplayLayer', () => {
       })
 
       const displayLayer = buffer.addDisplayLayer()
+
       displayLayer.foldBufferRange([[0, 1], [1, 1]])
+      expect(displayLayer.getText()).toBe('a⋯ef\nghi\nj')
+
       displayLayer.foldBufferRange([[1, 2], [2, 1]])
+      expect(displayLayer.getText()).toBe('a⋯e⋯hi\nj')
+
       displayLayer.foldBufferRange([[2, 2], [3, 0]])
       expect(displayLayer.getText()).toBe('a⋯e⋯h⋯j')
     })
