@@ -93,6 +93,10 @@ class DisplayLayer {
     }
   }
 
+  destroyAllFolds () {
+    return this.destroyFoldMarkers(this.foldsMarkerLayer.getMarkers())
+  }
+
   destroyFoldsIntersectingBufferRange (bufferRange) {
     return this.destroyFoldMarkers(
       this.foldsMarkerLayer.findMarkers({
