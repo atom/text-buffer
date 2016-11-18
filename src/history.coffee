@@ -1,4 +1,4 @@
-Patch = require 'atom-patch'
+Patch = require 'atom-patch/dist/patch'
 MarkerLayer = require './marker-layer'
 
 SerializationVersion = 5
