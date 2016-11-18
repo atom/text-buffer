@@ -6,6 +6,11 @@ const EmptyDecorationLayer = require('./empty-decoration-layer')
 const {traverse, traversal, compare, max, isEqual} = require('./point-helpers')
 // const {normalizePatchChanges} = require('./helpers')
 
+const HARD_TAB = 1 << 0
+const LEADING_WHITESPACE = 1 << 2
+
+const basicTagCache = new Map
+
 module.exports =
 class DisplayLayer {
   constructor (id, buffer, params = {}) {
@@ -19,6 +24,9 @@ class DisplayLayer {
     })
     this.spatialIndex = new Patch({mergeAdjacentHunks: false})
     this.screenLineLengths = []
+    this.tagsByCode = new Map()
+    this.codesByTag = new Map()
+    this.nextOpenTagCode = -1
     this.textDecorationLayer = new EmptyDecorationLayer()
     this.emitter = new Emitter()
 
@@ -300,6 +308,10 @@ class DisplayLayer {
     return this.screenLineLengths.length - 1
   }
 
+  getScreenLineCount () {
+    return this.screenLineLengths.length
+  }
+
   getScreenLines (screenStartRow = 0, screenEndRow = this.getLastScreenRow() + 1) {
     const screenStart = Point(screenStartRow, 0)
     const screenEnd = Point(screenEndRow, 0)
@@ -310,14 +322,38 @@ class DisplayLayer {
     const hunks = this.spatialIndex.getHunksInNewRange(screenStart, screenEnd)
     while (screenRow < screenEndRow) {
       let screenLine = ''
+      let tagCodes = []
+      let currentTokenLength = 0
       let screenColumn = 0
       let bufferLine = this.buffer.lineForRow(bufferRow)
       let bufferColumn = 0
+      let inLeadingWhitespace = true
 
       while (bufferColumn <= bufferLine.length) {
-        // Handle folds or soft wraps at the current position. The extra block
-        // scope ensures we don't accidentally refer to nextHunk later in the
-        // method.
+        const previousCharacter = bufferLine[bufferColumn - 1]
+        const nextCharacter = bufferLine[bufferColumn]
+
+        // Insert close tag describing basic properties such as hard tabs,
+        // leading and trailing whitespace, etc...
+        {
+          let tagBitfield = 0
+          if (previousCharacter === '\t') {
+            tagBitfield |= HARD_TAB
+            if (inLeadingWhitespace && bufferColumn > 0) tagBitfield |= LEADING_WHITESPACE
+          }
+          if (inLeadingWhitespace) {
+            if (nextCharacter !== ' ' && nextCharacter !== '\t') {
+              if (bufferColumn > 0) tagBitfield |= LEADING_WHITESPACE
+              inLeadingWhitespace = false
+            }
+          }
+          if (tagBitfield > 0) {
+            this.pushCloseTag(tagCodes, currentTokenLength, this.getBasicTag(tagBitfield))
+            currentTokenLength = 0
+          }
+        }
+
+        // Handle folds or soft wraps at the current position.
         {
           const nextHunk = hunks[hunkIndex]
           if (nextHunk && nextHunk.oldStart.row === bufferRow && nextHunk.oldStart.column === bufferColumn) {
@@ -326,6 +362,7 @@ class DisplayLayer {
             if (nextHunk.newText === this.foldCharacter) {
               screenLine += this.foldCharacter
               screenColumn++
+              currentTokenLength++
               bufferRow = nextHunk.oldEnd.row
               bufferColumn = nextHunk.oldEnd.column
               bufferLine = this.buffer.lineForRow(bufferRow)
@@ -335,9 +372,11 @@ class DisplayLayer {
 
             // If the oldExtent of the hunk is zero, this is a soft line break.
             if (isEqual(nextHunk.oldStart, nextHunk.oldEnd)) {
-              screenLines.push({lineText: screenLine})
+              screenLines.push({lineText: screenLine, tagCodes})
               screenRow++
               screenColumn = nextHunk.newEnd.column
+              tagCodes = []
+              currentTokenLength = screenColumn
               screenLine = ' '.repeat(screenColumn)
             }
             hunkIndex++
@@ -349,24 +388,98 @@ class DisplayLayer {
         // reached the end of the line.
         if (bufferColumn === bufferLine.length) break
 
-        const character = bufferLine[bufferColumn]
-        if (character === '\t') {
+        // Insert open tag describing basic properties such as hard tabs,
+        // leading and trailing whitespace, etc...
+        {
+          let tagBitfield = 0
+          if (nextCharacter === '\t') {
+            tagBitfield |= HARD_TAB
+            if (inLeadingWhitespace) tagBitfield |= LEADING_WHITESPACE
+          }
+          if (inLeadingWhitespace && previousCharacter !== ' ') {
+            tagBitfield |= LEADING_WHITESPACE
+          }
+          if (tagBitfield > 0) {
+            this.pushOpenTag(tagCodes, currentTokenLength, this.getBasicTag(tagBitfield))
+            currentTokenLength = 0
+          }
+        }
+
+        if (nextCharacter === '\t') {
+          currentTokenLength = 0
           const distanceToNextTabStop = this.tabLength - (screenColumn % this.tabLength)
           screenLine += ' '.repeat(distanceToNextTabStop)
           screenColumn += distanceToNextTabStop
+          currentTokenLength += distanceToNextTabStop
         } else {
-          screenLine += character
+          screenLine += nextCharacter
           screenColumn++
+          currentTokenLength++
         }
         bufferColumn++
       }
 
-      screenLines.push({lineText: screenLine})
+      if (currentTokenLength > 0) tagCodes.push(currentTokenLength)
+
+      screenLines.push({lineText: screenLine, tagCodes})
       screenRow++
       bufferRow++
     }
 
     return screenLines
+  }
+
+  pushCloseTag (tagCodes, currentTokenLength, closeTag) {
+    if (currentTokenLength > 0) tagCodes.push(currentTokenLength)
+    tagCodes.push(this.codeForCloseTag(closeTag))
+  }
+
+  pushOpenTag (tagCodes, currentTokenLength, openTag) {
+    if (currentTokenLength > 0) tagCodes.push(currentTokenLength)
+    tagCodes.push(this.codeForOpenTag(openTag))
+  }
+
+  tagForCode (tagCode) {
+    if (this.isCloseTagCode(tagCode)) tagCode++
+    return this.tagsByCode.get(tagCode)
+  }
+
+  codeForOpenTag (tag) {
+    if (this.codesByTag.has(tag)) {
+      return this.codesByTag.get(tag)
+    } else {
+      const tagCode = this.nextOpenTagCode
+      this.codesByTag.set(tag, tagCode)
+      this.tagsByCode.set(tagCode, tag)
+      this.nextOpenTagCode -= 2
+      return tagCode
+    }
+  }
+
+  codeForCloseTag (tag) {
+    return this.codeForOpenTag(tag) - 1
+  }
+
+  isOpenTagCode (tagCode) {
+    return tagCode < 0 && tagCode % 2 === -1
+  }
+
+  isCloseTagCode (tagCode) {
+    return tagCode < 0 && tagCode % 2 === 0
+  }
+
+  getBasicTag (bitfield) {
+    let tag = basicTagCache.get(bitfield)
+    if (tag) {
+      return tag
+    } else {
+      let tag = ''
+      if (bitfield & HARD_TAB) tag += 'hard-tab '
+      if (bitfield & LEADING_WHITESPACE) tag += 'leading-whitespace '
+      tag = tag.trim()
+      basicTagCache.set(bitfield, tag)
+      return tag
+    }
   }
 
   bufferWillChange () {

@@ -63,20 +63,20 @@ describe('DisplayLayer', () => {
 
       expect(displayLayer.getText()).toBe('    a   bc  def g\nh       i')
 
-      // expectTokenBoundaries(displayLayer, [
-      //   {text: '    ', close: [], open: ['hard-tab leading-whitespace']},
-      //   {text: 'a', close: ['hard-tab leading-whitespace'], open: []},
-      //   {text: '   ', close: [], open: ['hard-tab']},
-      //   {text: 'bc', close: ['hard-tab'], open: []},
-      //   {text: '  ', close: [], open: ['hard-tab']},
-      //   {text: 'def', close: ['hard-tab'], open: []},
-      //   {text: ' ', close: [], open: ['hard-tab']},
-      //   {text: 'g', close: ['hard-tab'], open: []},
-      //   {text: 'h', close: [], open: []},
-      //   {text: '   ', close: ['hard-tab'], open: []},
-      //   {text: '    ', close: ['hard-tab'], open: ['hard-tab']},
-      //   {text: 'i', close: ['hard-tab'], open: []}
-      // ])
+      expectTokenBoundaries(displayLayer, [
+        {text: '    ', close: [], open: ['hard-tab leading-whitespace']},
+        {text: 'a', close: ['hard-tab leading-whitespace'], open: []},
+        {text: '   ', close: [], open: ['hard-tab']},
+        {text: 'bc', close: ['hard-tab'], open: []},
+        {text: '  ', close: [], open: ['hard-tab']},
+        {text: 'def', close: ['hard-tab'], open: []},
+        {text: ' ', close: [], open: ['hard-tab']},
+        {text: 'g', close: ['hard-tab'], open: []},
+        {text: 'h', close: [], open: []},
+        {text: '   ', close: [], open: ['hard-tab']},
+        {text: '    ', close: ['hard-tab'], open: ['hard-tab']},
+        {text: 'i', close: ['hard-tab'], open: []}
+      ])
 
       expectPositionTranslations(displayLayer, [
         [Point(0, 0), Point(0, 0)],
