@@ -122,6 +122,12 @@ class DisplayLayer {
     return foldedRanges
   }
 
+  foldsIntersectingBufferRange (bufferRange) {
+    return this.foldsMarkerLayer.findMarkers({
+      intersectsRange: this.buffer.clipRange(bufferRange)
+    }).map((marker) => marker.id)
+  }
+
   translateBufferPosition (bufferPosition, options) {
     if (!options || options.clip) {
       bufferPosition = this.buffer.clipPosition(bufferPosition)
