@@ -527,8 +527,7 @@ class DisplayLayer {
 
   findBoundaryFollowingBufferRow (bufferRow) {
     while (true) {
-      if (bufferRow === this.buffer.getLineCount()) return bufferRow
-      let screenPosition = this.translateBufferPosition(Point(bufferRow, 0))
+      let screenPosition = this.translateBufferPosition(Point(bufferRow, 0), {clip: false})
       if (screenPosition.column === 0) {
         return bufferRow
       } else {
