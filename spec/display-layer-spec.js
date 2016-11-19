@@ -992,12 +992,8 @@ describe('DisplayLayer', () => {
         close: [],
         open: []
       }, {
-        text: '••••',
+        text: '•••••••',
         close: [],
-        open: ['invisible-character trailing-whitespace']
-      }, {
-        text: '•••',
-        close: ['invisible-character trailing-whitespace'],
         open: ['invisible-character trailing-whitespace']
       }, {
         text: '',
@@ -1276,11 +1272,6 @@ describe('DisplayLayer', () => {
           open: []
         },
         {
-          text: '',
-          close: [],
-          open: []
-        },
-        {
           text: '¬',
           close: [],
           open: ['invisible-character eol']
@@ -1333,11 +1324,6 @@ describe('DisplayLayer', () => {
         {
           text: '',
           close: ['invisible-character eol'],
-          open: []
-        },
-        {
-          text: '',
-          close: [],
           open: []
         },
         {
