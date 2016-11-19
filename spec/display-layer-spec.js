@@ -2411,7 +2411,10 @@ function expectTokenBoundaries (displayLayer, expectedTokens) {
 
       const {text, open, close} = expectedTokens.shift()
 
-      expect(token.text).toEqual(text)
+      expect(token.text).toEqual(
+        text,
+        ('Text of token with start position ' + (Point(screenRow, screenColumn)))
+      )
 
       expect(token.closeTags).toEqual(
         close,
