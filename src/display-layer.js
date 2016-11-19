@@ -8,8 +8,9 @@ const {traverse, traversal, compare, max, isEqual} = require('./point-helpers')
 
 const HARD_TAB = 1 << 0
 const LEADING_WHITESPACE = 1 << 2
+const INVISIBLE_CHARACTER = 1 << 3
 
-const basicTagCache = new Map
+const basicTagCache = new Map()
 
 module.exports =
 class DisplayLayer {
@@ -324,32 +325,42 @@ class DisplayLayer {
       let screenLine = ''
       let tagCodes = []
       let currentTokenLength = 0
+      let currentTokenFlags = 0
       let screenColumn = 0
       let bufferLine = this.buffer.lineForRow(bufferRow)
       let bufferColumn = 0
       let inLeadingWhitespace = true
 
       while (bufferColumn <= bufferLine.length) {
+        let forceTokenBoundary = false
+        const previousTokenFlags = currentTokenFlags
         const previousCharacter = bufferLine[bufferColumn - 1]
         const nextCharacter = bufferLine[bufferColumn]
 
-        // Insert close tag describing basic properties such as hard tabs,
-        // leading and trailing whitespace, etc...
+        // Compute the flags for the current token describing how it should be
+        // decorated. If these flags differ from the previous token flags, emit
+        // a close tag for those flags. Also emit a close tag at a forced token
+        // boundary, such as between two hard tabs.
         {
-          let tagBitfield = 0
-          if (previousCharacter === '\t') {
-            tagBitfield |= HARD_TAB
-            if (inLeadingWhitespace && bufferColumn > 0) tagBitfield |= LEADING_WHITESPACE
+          currentTokenFlags = 0
+          if (nextCharacter === '\t') {
+            currentTokenFlags |= HARD_TAB
+            if (inLeadingWhitespace) currentTokenFlags |= LEADING_WHITESPACE
+            forceTokenBoundary = true
           }
           if (inLeadingWhitespace) {
-            if (nextCharacter !== ' ' && nextCharacter !== '\t') {
-              if (bufferColumn > 0) tagBitfield |= LEADING_WHITESPACE
+            if (nextCharacter === ' ') {
+              currentTokenFlags |= LEADING_WHITESPACE
+              if (this.invisibles.space) currentTokenFlags |= INVISIBLE_CHARACTER
+            } else if (nextCharacter === '\t') {
+              currentTokenFlags |= LEADING_WHITESPACE
+            } else {
               inLeadingWhitespace = false
             }
           }
-          if (tagBitfield > 0) {
-            this.pushCloseTag(tagCodes, currentTokenLength, this.getBasicTag(tagBitfield))
-            currentTokenLength = 0
+
+          if (bufferColumn > 0 && (currentTokenFlags !== previousTokenFlags || forceTokenBoundary)) {
+            this.pushCloseTag(tagCodes, currentTokenLength, this.getBasicTag(previousTokenFlags))
           }
         }
 
@@ -388,21 +399,8 @@ class DisplayLayer {
         // reached the end of the line.
         if (bufferColumn === bufferLine.length) break
 
-        // Insert open tag describing basic properties such as hard tabs,
-        // leading and trailing whitespace, etc...
-        {
-          let tagBitfield = 0
-          if (nextCharacter === '\t') {
-            tagBitfield |= HARD_TAB
-            if (inLeadingWhitespace) tagBitfield |= LEADING_WHITESPACE
-          }
-          if (inLeadingWhitespace && previousCharacter !== ' ') {
-            tagBitfield |= LEADING_WHITESPACE
-          }
-          if (tagBitfield > 0) {
-            this.pushOpenTag(tagCodes, currentTokenLength, this.getBasicTag(tagBitfield))
-            currentTokenLength = 0
-          }
+        if (currentTokenFlags !== previousTokenFlags || forceTokenBoundary) {
+          this.pushOpenTag(tagCodes, currentTokenLength, this.getBasicTag(currentTokenFlags))
         }
 
         if (nextCharacter === '\t') {
@@ -412,7 +410,11 @@ class DisplayLayer {
           screenColumn += distanceToNextTabStop
           currentTokenLength += distanceToNextTabStop
         } else {
-          screenLine += nextCharacter
+          if (inLeadingWhitespace && nextCharacter === ' ') {
+            screenLine += this.invisibles.space
+          } else {
+            screenLine += nextCharacter
+          }
           screenColumn++
           currentTokenLength++
         }
@@ -474,6 +476,7 @@ class DisplayLayer {
       return tag
     } else {
       let tag = ''
+      if (bitfield & INVISIBLE_CHARACTER) tag += 'invisible-character '
       if (bitfield & HARD_TAB) tag += 'hard-tab '
       if (bitfield & LEADING_WHITESPACE) tag += 'leading-whitespace '
       tag = tag.trim()
