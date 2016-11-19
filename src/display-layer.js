@@ -8,7 +8,9 @@ const {traverse, traversal, compare, max, isEqual} = require('./point-helpers')
 
 const HARD_TAB = 1 << 0
 const LEADING_WHITESPACE = 1 << 2
-const INVISIBLE_CHARACTER = 1 << 3
+const TRAILING_WHITESPACE = 1 << 3
+const INVISIBLE_CHARACTER = 1 << 4
+const LINE_ENDING = 1 << 5
 
 const basicTagCache = new Map()
 
@@ -328,40 +330,52 @@ class DisplayLayer {
       let currentTokenFlags = 0
       let screenColumn = 0
       let bufferLine = this.buffer.lineForRow(bufferRow)
+      let lineEnding = this.buffer.lineEndingForRow(bufferRow)
       let bufferColumn = 0
+      const trailingWhitespaceStartColumn = this.findTrailingWhitespaceStartColumn(bufferLine)
       let inLeadingWhitespace = true
+      let inTrailingWhitespace = false
 
       while (bufferColumn <= bufferLine.length) {
         let forceTokenBoundary = false
         const previousTokenFlags = currentTokenFlags
-        const previousCharacter = bufferLine[bufferColumn - 1]
         const nextCharacter = bufferLine[bufferColumn]
+        if (bufferColumn >= trailingWhitespaceStartColumn) {
+          inTrailingWhitespace = true
+          inLeadingWhitespace = false
+        }
 
         // Compute the flags for the current token describing how it should be
         // decorated. If these flags differ from the previous token flags, emit
         // a close tag for those flags. Also emit a close tag at a forced token
         // boundary, such as between two hard tabs.
-        {
-          currentTokenFlags = 0
-          if (nextCharacter === '\t') {
-            currentTokenFlags |= HARD_TAB
-            if (inLeadingWhitespace) currentTokenFlags |= LEADING_WHITESPACE
-            forceTokenBoundary = true
+        currentTokenFlags = 0
+        if (nextCharacter === '\t') {
+          currentTokenFlags |= HARD_TAB
+          if (this.invisibles.tab) currentTokenFlags |= INVISIBLE_CHARACTER
+          forceTokenBoundary = true
+        }
+        if (inLeadingWhitespace) {
+          if (nextCharacter === ' ') {
+            currentTokenFlags |= LEADING_WHITESPACE
+            if (this.invisibles.space) currentTokenFlags |= INVISIBLE_CHARACTER
+          } else if (nextCharacter === '\t') {
+            currentTokenFlags |= LEADING_WHITESPACE
+          } else {
+            inLeadingWhitespace = false
           }
-          if (inLeadingWhitespace) {
-            if (nextCharacter === ' ') {
-              currentTokenFlags |= LEADING_WHITESPACE
-              if (this.invisibles.space) currentTokenFlags |= INVISIBLE_CHARACTER
-            } else if (nextCharacter === '\t') {
-              currentTokenFlags |= LEADING_WHITESPACE
-            } else {
-              inLeadingWhitespace = false
-            }
+        }
+        if (inTrailingWhitespace) {
+          currentTokenFlags |= TRAILING_WHITESPACE
+          if (nextCharacter === ' ' && this.invisibles.space) {
+            currentTokenFlags |= INVISIBLE_CHARACTER
           }
-
-          if (bufferColumn > 0 && (currentTokenFlags !== previousTokenFlags || forceTokenBoundary)) {
-            this.pushCloseTag(tagCodes, currentTokenLength, this.getBasicTag(previousTokenFlags))
-          }
+        }
+        if (bufferColumn > 0 &&
+            previousTokenFlags > 0 &&
+            (currentTokenFlags !== previousTokenFlags || forceTokenBoundary)) {
+          this.pushCloseTag(tagCodes, currentTokenLength, this.getBasicTag(previousTokenFlags))
+          currentTokenLength = 0
         }
 
         // Handle folds or soft wraps at the current position.
@@ -396,21 +410,59 @@ class DisplayLayer {
 
         // We loop up to the end of the buffer line in case a fold starts there,
         // but at this point we haven't found a fold, so we can stop if we have
-        // reached the end of the line.
-        if (bufferColumn === bufferLine.length) break
+        // reached the end of the line. We need to close any open tags and
+        // append the line ending invisible if it is enabled, then break the
+        // loop to proceed to the next line.
+        if (bufferColumn === bufferLine.length) {
+          if (currentTokenLength > 0) {
+            if (previousTokenFlags > 0) {
+              this.pushCloseTag(tagCodes, currentTokenLength, this.getBasicTag(previousTokenFlags))
+            } else if (currentTokenLength > 0) {
+              tagCodes.push(currentTokenLength)
+            }
+            currentTokenLength = 0
+          }
 
-        if (currentTokenFlags !== previousTokenFlags || forceTokenBoundary) {
-          this.pushOpenTag(tagCodes, currentTokenLength, this.getBasicTag(currentTokenFlags))
+          const eolInvisible = this.eolInvisibles[lineEnding]
+          if (eolInvisible) {
+            screenLine += eolInvisible
+            const eolTag = this.getBasicTag(INVISIBLE_CHARACTER | LINE_ENDING)
+            this.pushOpenTag(tagCodes, 0, eolTag)
+            this.pushCloseTag(tagCodes, eolInvisible.length, eolTag)
+          }
+
+          break
         }
 
+        // At this point we know we aren't at the end of the line, so we proceed
+        // to process the next character.
+
+        // If the current token's flags differ from the previous iteration or
+        // we are forcing a token boundary (for example between two hard tabs),
+        // push an open tag based on the new flags.
+        if (currentTokenFlags > 0 &&
+            currentTokenFlags !== previousTokenFlags || forceTokenBoundary) {
+          this.pushOpenTag(tagCodes, currentTokenLength, this.getBasicTag(currentTokenFlags))
+          currentTokenLength = 0
+        }
+
+        // Handle tabs and leading / trailing whitespace invisibles specially.
+        // Otherwise just append the next character to the screen line.
         if (nextCharacter === '\t') {
           currentTokenLength = 0
           const distanceToNextTabStop = this.tabLength - (screenColumn % this.tabLength)
-          screenLine += ' '.repeat(distanceToNextTabStop)
+          if (this.invisibles.tab) {
+            screenLine += this.invisibles.tab
+            screenLine += ' '.repeat(distanceToNextTabStop - 1)
+          } else {
+            screenLine += ' '.repeat(distanceToNextTabStop)
+          }
+
           screenColumn += distanceToNextTabStop
           currentTokenLength += distanceToNextTabStop
         } else {
-          if (inLeadingWhitespace && nextCharacter === ' ') {
+          if ((inLeadingWhitespace || inTrailingWhitespace) &&
+              nextCharacter === ' ' && this.invisibles.space) {
             screenLine += this.invisibles.space
           } else {
             screenLine += nextCharacter
@@ -421,14 +473,23 @@ class DisplayLayer {
         bufferColumn++
       }
 
-      if (currentTokenLength > 0) tagCodes.push(currentTokenLength)
-
       screenLines.push({lineText: screenLine, tagCodes})
       screenRow++
       bufferRow++
     }
 
     return screenLines
+  }
+
+  findTrailingWhitespaceStartColumn (lineText) {
+    let column
+    for (column = lineText.length; column >= 0; column--) {
+      const previousCharacter = lineText[column - 1]
+      if (previousCharacter !== ' ' && previousCharacter !== '\t') {
+        break
+      }
+    }
+    return column
   }
 
   pushCloseTag (tagCodes, currentTokenLength, closeTag) {
@@ -470,17 +531,19 @@ class DisplayLayer {
     return tagCode < 0 && tagCode % 2 === 0
   }
 
-  getBasicTag (bitfield) {
-    let tag = basicTagCache.get(bitfield)
+  getBasicTag (flags) {
+    let tag = basicTagCache.get(flags)
     if (tag) {
       return tag
     } else {
       let tag = ''
-      if (bitfield & INVISIBLE_CHARACTER) tag += 'invisible-character '
-      if (bitfield & HARD_TAB) tag += 'hard-tab '
-      if (bitfield & LEADING_WHITESPACE) tag += 'leading-whitespace '
+      if (flags & INVISIBLE_CHARACTER) tag += 'invisible-character '
+      if (flags & HARD_TAB) tag += 'hard-tab '
+      if (flags & LEADING_WHITESPACE) tag += 'leading-whitespace '
+      if (flags & TRAILING_WHITESPACE) tag += 'trailing-whitespace '
+      if (flags & LINE_ENDING) tag += 'eol '
       tag = tag.trim()
-      basicTagCache.set(bitfield, tag)
+      basicTagCache.set(flags, tag)
       return tag
     }
   }
