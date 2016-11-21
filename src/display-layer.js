@@ -11,6 +11,7 @@ const LEADING_WHITESPACE = 1 << 2
 const TRAILING_WHITESPACE = 1 << 3
 const INVISIBLE_CHARACTER = 1 << 4
 const LINE_ENDING = 1 << 5
+const FOLD = 1 << 6
 
 const basicTagCache = new Map()
 
@@ -332,7 +333,7 @@ class DisplayLayer {
       let bufferLine = this.buffer.lineForRow(bufferRow)
       let lineEnding = this.buffer.lineEndingForRow(bufferRow)
       let bufferColumn = 0
-      const trailingWhitespaceStartColumn = this.findTrailingWhitespaceStartColumn(bufferLine)
+      let trailingWhitespaceStartColumn = this.findTrailingWhitespaceStartColumn(bufferLine)
       let inLeadingWhitespace = true
       let inTrailingWhitespace = false
 
@@ -371,8 +372,7 @@ class DisplayLayer {
             currentTokenFlags |= INVISIBLE_CHARACTER
           }
         }
-        if (bufferColumn > 0 &&
-            previousTokenFlags > 0 &&
+        if (previousTokenFlags > 0 &&
             (currentTokenFlags !== previousTokenFlags || forceTokenBoundary)) {
           this.pushCloseTag(tagCodes, currentTokenLength, this.getBasicTag(previousTokenFlags))
           currentTokenLength = 0
@@ -385,12 +385,22 @@ class DisplayLayer {
             // Does a fold hunk start here? Jump to the end of the fold and
             // continue to the next iteration of the loop.
             if (nextHunk.newText === this.foldCharacter) {
+              if (previousTokenFlags > 0) {
+                this.pushCloseTag(tagCodes, currentTokenLength, this.getBasicTag(previousTokenFlags))
+              } else if (currentTokenLength > 0) {
+                tagCodes.push(currentTokenLength)
+              }
+
               screenLine += this.foldCharacter
               screenColumn++
-              currentTokenLength++
+              this.pushOpenTag(tagCodes, 0, this.getBasicTag(FOLD))
+              currentTokenLength = 1
+              currentTokenFlags = FOLD
               bufferRow = nextHunk.oldEnd.row
               bufferColumn = nextHunk.oldEnd.column
               bufferLine = this.buffer.lineForRow(bufferRow)
+              inTrailingWhitespace = false
+              trailingWhitespaceStartColumn = this.findTrailingWhitespaceStartColumn(bufferLine)
               hunkIndex++
               continue
             }
@@ -542,6 +552,7 @@ class DisplayLayer {
       if (flags & LEADING_WHITESPACE) tag += 'leading-whitespace '
       if (flags & TRAILING_WHITESPACE) tag += 'trailing-whitespace '
       if (flags & LINE_ENDING) tag += 'eol '
+      if (flags & FOLD) tag += 'fold-marker '
       tag = tag.trim()
       basicTagCache.set(flags, tag)
       return tag
