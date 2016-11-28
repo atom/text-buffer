@@ -10,8 +10,9 @@ const HARD_TAB = 1 << 0
 const LEADING_WHITESPACE = 1 << 2
 const TRAILING_WHITESPACE = 1 << 3
 const INVISIBLE_CHARACTER = 1 << 4
-const LINE_ENDING = 1 << 5
-const FOLD = 1 << 6
+const INDENT_GUIDE = 1 << 5
+const LINE_ENDING = 1 << 6
+const FOLD = 1 << 7
 
 const basicTagCache = new Map()
 
@@ -409,29 +410,36 @@ class DisplayLayer {
         // Compute the flags for the current token describing how it should be
         // decorated. If these flags differ from the previous token flags, emit
         // a close tag for those flags. Also emit a close tag at a forced token
-        // boundary, such as between two hard tabs.
+        // boundary, such as between two hard tabs or where we want to show
+        // an indent guide between spaces.
         currentTokenFlags = 0
-        if (nextCharacter === '\t') {
-          currentTokenFlags |= HARD_TAB
-          if (this.invisibles.tab) currentTokenFlags |= INVISIBLE_CHARACTER
-          forceTokenBoundary = true
-        }
-        if (inLeadingWhitespace) {
+        if (nextCharacter === ' ' || nextCharacter === '\t') {
+          const showIndentGuides = this.showIndentGuides && (inLeadingWhitespace || trailingWhitespaceStartColumn === 0)
+          if (inLeadingWhitespace) currentTokenFlags |= LEADING_WHITESPACE
+          if (inTrailingWhitespace) currentTokenFlags |= TRAILING_WHITESPACE
+
           if (nextCharacter === ' ') {
-            currentTokenFlags |= LEADING_WHITESPACE
-            if (this.invisibles.space) currentTokenFlags |= INVISIBLE_CHARACTER
-          } else if (nextCharacter === '\t') {
-            currentTokenFlags |= LEADING_WHITESPACE
-          } else {
-            inLeadingWhitespace = false
+            if ((inLeadingWhitespace || inTrailingWhitespace) && this.invisibles.space) {
+              currentTokenFlags |= INVISIBLE_CHARACTER
+            }
+
+            if (showIndentGuides) {
+              currentTokenFlags |= INDENT_GUIDE
+              if (screenColumn % this.tabLength === 0) forceTokenBoundary = true
+            }
+          } else { // nextCharacter === \t
+            currentTokenFlags |= HARD_TAB
+            if (this.invisibles.tab) currentTokenFlags |= INVISIBLE_CHARACTER
+            if (showIndentGuides && screenColumn % this.tabLength === 0) {
+              currentTokenFlags |= INDENT_GUIDE
+            }
+
+            forceTokenBoundary = true
           }
+        } else {
+          inLeadingWhitespace = false
         }
-        if (inTrailingWhitespace) {
-          currentTokenFlags |= TRAILING_WHITESPACE
-          if (nextCharacter === ' ' && this.invisibles.space) {
-            currentTokenFlags |= INVISIBLE_CHARACTER
-          }
-        }
+
         if (previousTokenFlags > 0 &&
             (currentTokenFlags !== previousTokenFlags || forceTokenBoundary)) {
           this.pushCloseTag(tagCodes, currentTokenLength, this.getBasicTag(previousTokenFlags))
@@ -611,6 +619,7 @@ class DisplayLayer {
       if (flags & HARD_TAB) tag += 'hard-tab '
       if (flags & LEADING_WHITESPACE) tag += 'leading-whitespace '
       if (flags & TRAILING_WHITESPACE) tag += 'trailing-whitespace '
+      if (flags & INDENT_GUIDE) tag += 'indent-guide '
       if (flags & LINE_ENDING) tag += 'eol '
       if (flags & FOLD) tag += 'fold-marker '
       tag = tag.trim()
