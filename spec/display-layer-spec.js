@@ -118,7 +118,7 @@ describe('DisplayLayer', () => {
   describe('soft tabs', () => {
     it('breaks leading whitespace into atomic units corresponding to the tab length', () => {
       const buffer = new TextBuffer({
-        text: '          a\n     \n  \t    \t  '
+        text: '          a\n     \n      \t  '
       })
 
       const displayLayer = buffer.addDisplayLayer({
@@ -129,68 +129,23 @@ describe('DisplayLayer', () => {
         }
       })
 
-      expect(displayLayer.getText()).toBe('••••••••••a\n•••••\n••  ••••    ••')
-
-      expectTokenBoundaries(displayLayer, [{
-        text: '••••',
-        close: [],
-        open: ['invisible-character leading-whitespace']
-      }, {
-        text: '••••',
-        close: ['invisible-character leading-whitespace'],
-        open: ['invisible-character leading-whitespace']
-      }, {
-        text: '••',
-        close: ['invisible-character leading-whitespace'],
-        open: ['invisible-character leading-whitespace']
-      }, {
-        text: 'a',
-        close: ['invisible-character leading-whitespace'],
-        open: []
-      }, {
-        text: '••••',
-        close: [],
-        open: ['invisible-character trailing-whitespace']
-      }, {
-        text: '•',
-        close: ['invisible-character trailing-whitespace'],
-        open: ['invisible-character trailing-whitespace']
-      }, {
-        text: '',
-        close: ['invisible-character trailing-whitespace'],
-        open: []
-      }, {
-        text: '••',
-        close: [],
-        open: ['invisible-character trailing-whitespace']
-      }, {
-        text: '  ',
-        close: ['invisible-character trailing-whitespace'],
-        open: ['hard-tab trailing-whitespace']
-      }, {
-        text: '••••',
-        close: ['hard-tab trailing-whitespace'],
-        open: ['invisible-character trailing-whitespace']
-      }, {
-        text: '    ',
-        close: ['invisible-character trailing-whitespace'],
-        open: ['hard-tab trailing-whitespace']
-      }, {
-        text: '••',
-        close: ['hard-tab trailing-whitespace'],
-        open: ['invisible-character trailing-whitespace']
-      }, {
-        text: '',
-        close: ['invisible-character trailing-whitespace'],
-        open: []
-      }])
+      expect(displayLayer.getText()).toBe('••••••••••a\n•••••\n••••••  ••')
 
       expect(displayLayer.clipScreenPosition([0, 2])).toEqual([0, 0])
       expect(displayLayer.clipScreenPosition([0, 6])).toEqual([0, 4])
       expect(displayLayer.clipScreenPosition([0, 9])).toEqual([0, 9])
-      expect(displayLayer.clipScreenPosition([2, 1])).toEqual([2, 1])
-      expect(displayLayer.clipScreenPosition([2, 6])).toEqual([2, 4])
-      expect(displayLayer.clipScreenPosition([2, 13])).toEqual([2, 13])
+      expect(displayLayer.clipScreenPosition([2, 1])).toEqual([2, 0])
+      expect(displayLayer.clipScreenPosition([2, 3])).toEqual([2, 4])
+      expect(displayLayer.clipScreenPosition([2, 5])).toEqual([2, 5])
+      expect(displayLayer.clipScreenPosition([2, 9])).toEqual([2, 9])
+
+      expect(displayLayer.translateBufferPosition([0, 2])).toEqual([0, 0])
+      expect(displayLayer.translateBufferPosition([0, 6])).toEqual([0, 4])
+      expect(displayLayer.translateBufferPosition([0, 9])).toEqual([0, 9])
+      expect(displayLayer.translateBufferPosition([2, 1])).toEqual([2, 0])
+      expect(displayLayer.translateBufferPosition([2, 3])).toEqual([2, 4])
+      expect(displayLayer.translateBufferPosition([2, 5])).toEqual([2, 5])
+      expect(displayLayer.translateBufferPosition([2, 8])).toEqual([2, 9])
     })
 
     it('does not treat soft tabs as atomic if the atomicSoftTabs option is false', () => {
@@ -205,6 +160,9 @@ describe('DisplayLayer', () => {
 
       expect(displayLayer.clipScreenPosition([0, 2])).toEqual([0, 2])
       expect(displayLayer.clipScreenPosition([1, 6])).toEqual([1, 6])
+
+      expect(displayLayer.translateBufferPosition([0, 2])).toEqual([0, 2])
+      expect(displayLayer.translateBufferPosition([1, 6])).toEqual([1, 6])
     })
   })
 

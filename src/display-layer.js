@@ -144,30 +144,30 @@ class DisplayLayer {
     if (!options || options.clip) {
       bufferPosition = this.buffer.clipPosition(bufferPosition)
     }
+    let screenPosition
     let hunk = this.spatialIndex.hunkForOldPosition(bufferPosition)
     if (hunk) {
       if (compare(bufferPosition, hunk.oldEnd) < 0) {
-        if (compare(hunk.oldStart, hunk.oldEnd) === 0) { // Soft wrap
-          if (options && options.clipDirection === 'forward') {
-            return Point.fromObject(hunk.newEnd)
-          } else {
-            return Point.fromObject(hunk.newStart).traverse(Point(0, -1))
-          }
-        } else { // Hard tab sequence
-          if (compare(hunk.oldStart, bufferPosition) === 0) {
-            return Point.fromObject(hunk.newStart)
-          } else {
-            const tabStopBeforeHunk = hunk.newStart.column - hunk.newStart.column % this.tabLength
-            const tabCount = bufferPosition.column - hunk.oldStart.column
-            const screenColumn = tabStopBeforeHunk + tabCount * this.tabLength
-            return Point(hunk.newStart.row, screenColumn)
-          }
+        if (compare(hunk.oldStart, bufferPosition) === 0) {
+          return Point.fromObject(hunk.newStart)
+        } else {
+          const tabStopBeforeHunk = hunk.newStart.column - hunk.newStart.column % this.tabLength
+          const tabCount = bufferPosition.column - hunk.oldStart.column
+          const screenColumn = tabStopBeforeHunk + tabCount * this.tabLength
+          return Point(hunk.newStart.row, screenColumn)
         }
       } else {
-        return traverse(hunk.newEnd, traversal(bufferPosition, hunk.oldEnd))
+        screenPosition = traverse(hunk.newEnd, traversal(bufferPosition, hunk.oldEnd))
       }
     } else {
-      return Point.fromObject(bufferPosition)
+      screenPosition = Point.fromObject(bufferPosition)
+    }
+
+    if (this.atomicSoftTabs) {
+      const clipDirection = options && options.clipDirection || 'closest'
+      return this.clipAtomicSoftTabs(bufferPosition, screenPosition, clipDirection)
+    } else {
+      return screenPosition
     }
   }
 
@@ -232,47 +232,62 @@ class DisplayLayer {
     const clipDirection = options && options.clipDirection || 'closest'
     const skipSoftWrapIndentation = options && options.skipSoftWrapIndentation
     screenPosition = this.constrainScreenPosition(screenPosition, options)
+    let bufferPosition
     let hunk = this.spatialIndex.hunkForNewPosition(screenPosition)
     if (hunk) {
-      if (compare(hunk.oldStart, hunk.oldEnd) === 0) { // Soft wrap
+      if (compare(hunk.oldStart, hunk.oldEnd) === 0) {
+        // hunk is a soft wrap
+
         if (clipDirection === 'backward' && !skipSoftWrapIndentation ||
             clipDirection === 'closest' && isEqual(hunk.newStart, screenPosition)) {
           return traverse(hunk.newStart, Point(0, -1))
         } else {
           return Point.fromObject(hunk.newEnd)
         }
-      } else { // Hard tab
-        if (compare(hunk.newStart, screenPosition) < 0 &&
-            compare(screenPosition, hunk.newEnd) < 0) {
-          const column = screenPosition.column
-          const tabStopBeforeColumn = column - column % this.tabLength
-          const tabStopAfterColumn = tabStopBeforeColumn + this.tabLength
+      } else if (compare(hunk.newStart, screenPosition) < 0 && compare(screenPosition, hunk.newEnd) < 0) {
+        // clipped screen position is inside a hard tab
 
-          let clippedColumn
-          if (column === tabStopBeforeColumn) {
-            clippedColumn = tabStopBeforeColumn
-          } else {
-            switch (options && options.clipDirection) {
-              case 'backward':
-                clippedColumn = Math.max(tabStopBeforeColumn, hunk.newStart.column)
-                break
-              case 'forward':
-                clippedColumn = tabStopAfterColumn
-                break
-              default:
-                clippedColumn =
-                  (column - tabStopBeforeColumn > tabStopAfterColumn - column)
-                    ? tabStopAfterColumn
-                    : Math.max(tabStopBeforeColumn, hunk.newStart.column)
-                break
-            }
+        const column = screenPosition.column
+        const tabStopBeforeColumn = column - column % this.tabLength
+        const tabStopAfterColumn = tabStopBeforeColumn + this.tabLength
+
+        let clippedColumn
+        if (column === tabStopBeforeColumn) {
+          clippedColumn = tabStopBeforeColumn
+        } else {
+          switch (options && options.clipDirection) {
+            case 'backward':
+              clippedColumn = Math.max(tabStopBeforeColumn, hunk.newStart.column)
+              break
+            case 'forward':
+              clippedColumn = tabStopAfterColumn
+              break
+            default:
+              clippedColumn =
+                (column - tabStopBeforeColumn > tabStopAfterColumn - column)
+                  ? tabStopAfterColumn
+                  : Math.max(tabStopBeforeColumn, hunk.newStart.column)
+              break
           }
-
-          return Point(hunk.newStart.row, clippedColumn)
         }
+        return Point(hunk.newStart.row, clippedColumn)
+      } else if (compare(screenPosition, hunk.newEnd) > 0) {
+        // clipped screen position follows a hunk; compute relative position
+        bufferPosition = traverse(hunk.oldEnd, traversal(screenPosition, hunk.newEnd))
+      } else {
+        // clipped screen position is at the start of the hunk
+        bufferPosition = hunk.oldStart
       }
+    } else {
+      // No hunks proceed this screen position
+      bufferPosition = Point.fromObject(screenPosition)
     }
-    return Point.fromObject(screenPosition)
+
+    if (this.atomicSoftTabs) {
+      return this.clipAtomicSoftTabs(bufferPosition, Point.fromObject(screenPosition), clipDirection)
+    } else {
+      return Point.fromObject(screenPosition)
+    }
   }
 
   constrainScreenPosition (screenPosition, options) {
@@ -302,6 +317,51 @@ class DisplayLayer {
     }
 
     return screenPosition
+  }
+
+  clipAtomicSoftTabs (bufferPosition, screenPosition, clipDirection) {
+    const bufferLine = this.buffer.lineForRow(bufferPosition.row)
+    let bufferColumn = bufferPosition.column
+    let screenColumn = screenPosition.column
+    let inLeadingWhitespace = true
+
+    while (bufferColumn > 0) {
+      const character = bufferLine[bufferColumn]
+      if (character === ' ') {
+        bufferColumn--
+        screenColumn--
+      } else {
+        inLeadingWhitespace = false
+        break
+      }
+    }
+
+    if (inLeadingWhitespace && screenColumn === 0) {
+      const previousTabStop = screenPosition.column - (screenPosition.column % this.tabLength)
+      const nextTabStop = previousTabStop + this.tabLength
+
+      // If there is a non-whitespace character before the next tab stop,
+      // don't this whitespace as a soft tab
+      for (let bufferColumn = bufferPosition.column; bufferColumn < nextTabStop; bufferColumn++) {
+        if (bufferLine[bufferColumn] !== ' ') {
+          return screenPosition
+        }
+      }
+
+      if (clipDirection === 'closest') {
+        if (screenPosition.column - previousTabStop > this.tabLength / 2) {
+          return Point(screenPosition.row, nextTabStop)
+        } else {
+          return Point(screenPosition.row, previousTabStop)
+        }
+      } else if (clipDirection === 'backward') {
+        return Point(screenPosition.row, previousTabStop)
+      } else if (clipDirection === 'forward') {
+        return Point(screenPosition.row, nextTabStop)
+      }
+    } else {
+      return screenPosition
+    }
   }
 
   getText () {
