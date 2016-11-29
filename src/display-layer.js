@@ -445,7 +445,7 @@ class DisplayLayer {
       } else {
         while (bufferColumn <= bufferLine.length) {
           let forceTokenBoundary = false
-          const previousTokenFlags = currentTokenFlags
+          let previousTokenFlags = currentTokenFlags
           const nextCharacter = bufferLine[bufferColumn]
           if (bufferColumn >= trailingWhitespaceStartColumn) {
             inTrailingWhitespace = true
@@ -522,9 +522,11 @@ class DisplayLayer {
               if (isEqual(nextHunk.oldStart, nextHunk.oldEnd)) {
                 if (currentTokenFlags > 0) {
                   this.pushCloseTag(tagCodes, currentTokenLength, this.getBasicTag(currentTokenFlags))
+                  previousTokenFlags = 0
                 } else if (currentTokenLength > 0) {
                   tagCodes.push(currentTokenLength)
                 }
+                currentTokenLength = 0
 
                 screenLines.push({lineText: screenLine, tagCodes})
                 screenRow++
@@ -536,7 +538,6 @@ class DisplayLayer {
                 tagCodes = []
                 if (this.showIndentGuides && indentLength > 0) {
                   screenColumn = 0
-                  currentTokenLength = 0
                   while (screenColumn < indentLength) {
                     if (screenColumn % this.tabLength === 0) {
                       if (currentTokenLength > 0) {
