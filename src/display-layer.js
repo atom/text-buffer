@@ -4,6 +4,7 @@ const Point = require('./point')
 const Range = require('./range')
 const EmptyDecorationLayer = require('./empty-decoration-layer')
 const {traverse, traversal, compare, max, isEqual} = require('./point-helpers')
+const isCharacterPair = require('./is-character-pair')
 // const {normalizePatchChanges} = require('./helpers')
 
 const HARD_TAB = 1 << 0
@@ -163,9 +164,12 @@ class DisplayLayer {
       screenPosition = Point.fromObject(bufferPosition)
     }
 
-    if (clip && this.atomicSoftTabs) {
+    if (clip) {
       const clipDirection = options && options.clipDirection || 'closest'
-      screenPosition.column += this.getAtomicSoftTabColumnDelta(bufferPosition, clipDirection)
+      const columnDelta = this.getClipColumnDelta(bufferPosition, clipDirection)
+      if (columnDelta !== 0) {
+        return Point(screenPosition.row, screenPosition.column + columnDelta)
+      }
     }
     return screenPosition
   }
@@ -227,10 +231,12 @@ class DisplayLayer {
       bufferPosition = Point.fromObject(screenPosition)
     }
 
-    if (this.atomicSoftTabs) {
-      bufferPosition.column += this.getAtomicSoftTabColumnDelta(bufferPosition, clipDirection)
+    const columnDelta = this.getClipColumnDelta(bufferPosition, clipDirection)
+    if (columnDelta !== 0) {
+      return Point(bufferPosition.row, bufferPosition.column + columnDelta)
+    } else {
+      return bufferPosition
     }
-    return bufferPosition
   }
 
   clipScreenPosition (screenPosition, options) {
@@ -288,13 +294,12 @@ class DisplayLayer {
       bufferPosition = Point.fromObject(screenPosition)
     }
 
-    if (this.atomicSoftTabs) {
-      const delta = this.getAtomicSoftTabColumnDelta(bufferPosition, clipDirection)
-      if (delta !== 0) {
-        return Point(screenPosition.row, screenPosition.column + delta)
-      }
+    const columnDelta = this.getClipColumnDelta(bufferPosition, clipDirection)
+    if (columnDelta !== 0) {
+      return Point(screenPosition.row, screenPosition.column + columnDelta)
+    } else {
+      return screenPosition
     }
-    return screenPosition
   }
 
   constrainScreenPosition (screenPosition, options) {
@@ -326,28 +331,44 @@ class DisplayLayer {
     return screenPosition
   }
 
-  getAtomicSoftTabColumnDelta (bufferPosition, clipDirection) {
-    if (bufferPosition.column * this.ratioForCharacter(' ') > this.softWrapColumn) {
+  getClipColumnDelta (bufferPosition, clipDirection) {
+    const {row: bufferRow, column: bufferColumn} = bufferPosition
+    const bufferLine = this.buffer.lineForRow(bufferRow)
+
+    // Treat paired unicode characters as atomic...
+
+    if (isCharacterPair(bufferLine[bufferColumn - 1], bufferLine[bufferColumn])) {
+      if (clipDirection === 'closest' || clipDirection === 'backward') {
+        return -1
+      } else {
+        return 1
+      }
+    }
+
+    // Clip atomic soft tabs...
+
+    if (!this.atomicSoftTabs) return 0
+
+    if (bufferColumn * this.ratioForCharacter(' ') > this.softWrapColumn) {
       return 0
     }
 
-    const bufferLine = this.buffer.lineForRow(bufferPosition.row)
-    for (let column = bufferPosition.column; column > 0; column--) {
+    for (let column = bufferColumn; column > 0; column--) {
       if (bufferLine[column] !== ' ') return 0
     }
 
-    const previousTabStop = bufferPosition.column - (bufferPosition.column % this.tabLength)
+    const previousTabStop = bufferColumn - (bufferColumn % this.tabLength)
     const nextTabStop = previousTabStop + this.tabLength
 
     // If there is a non-whitespace character before the next tab stop,
     // don't this whitespace as a soft tab
-    for (let column = bufferPosition.column; column < nextTabStop; column++) {
+    for (let column = bufferColumn; column < nextTabStop; column++) {
       if (bufferLine[column] !== ' ') return 0
     }
 
     let clippedColumn
     if (clipDirection === 'closest') {
-      if (bufferPosition.column - previousTabStop > this.tabLength / 2) {
+      if (bufferColumn - previousTabStop > this.tabLength / 2) {
         clippedColumn = nextTabStop
       } else {
         clippedColumn = previousTabStop
@@ -358,7 +379,7 @@ class DisplayLayer {
       clippedColumn = nextTabStop
     }
 
-    return clippedColumn - bufferPosition.column
+    return clippedColumn - bufferColumn
   }
 
   getText () {
@@ -831,7 +852,8 @@ class DisplayLayer {
 
         // Insert a soft line break if necessary
         if (screenLineWidth > 0 && characterWidth > 0 &&
-            screenLineWidth + characterWidth > this.softWrapColumn) {
+            screenLineWidth + characterWidth > this.softWrapColumn &&
+            !isCharacterPair(previousCharacter, character)) {
           let indentLength = (firstNonWhitespaceScreenColumn < this.softWrapColumn)
             ? Math.max(0, firstNonWhitespaceScreenColumn)
             : 0
