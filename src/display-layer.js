@@ -142,9 +142,8 @@ class DisplayLayer {
   }
 
   translateBufferPosition (bufferPosition, options) {
-    if (!options || options.clip) {
-      bufferPosition = this.buffer.clipPosition(bufferPosition)
-    }
+    const clip = !options || options.clip
+    if (clip) bufferPosition = this.buffer.clipPosition(bufferPosition)
     let screenPosition
     let hunk = this.spatialIndex.hunkForOldPosition(bufferPosition)
     if (hunk) {
@@ -164,7 +163,7 @@ class DisplayLayer {
       screenPosition = Point.fromObject(bufferPosition)
     }
 
-    if (this.atomicSoftTabs) {
+    if (clip && this.atomicSoftTabs) {
       const clipDirection = options && options.clipDirection || 'closest'
       return this.clipAtomicSoftTabs(bufferPosition, screenPosition, clipDirection)
     } else {
