@@ -410,7 +410,8 @@ class DisplayLayer {
     return this.screenLineLengths.length
   }
 
-  getScreenLines (screenStartRow = 0, screenEndRow = this.getLastScreenRow() + 1) {
+  getScreenLines (screenStartRow = 0, screenEndRow = this.getScreenLineCount()) {
+    screenEndRow = Math.min(screenEndRow, this.getScreenLineCount())
     const screenStart = Point(screenStartRow, 0)
     const screenEnd = Point(screenEndRow, 0)
     let screenLines = []
