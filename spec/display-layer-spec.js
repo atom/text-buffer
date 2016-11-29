@@ -139,6 +139,14 @@ describe('DisplayLayer', () => {
       expect(displayLayer.clipScreenPosition([2, 5])).toEqual([2, 5])
       expect(displayLayer.clipScreenPosition([2, 9])).toEqual([2, 9])
 
+      expect(displayLayer.translateScreenPosition([0, 2])).toEqual([0, 0])
+      expect(displayLayer.translateScreenPosition([0, 6])).toEqual([0, 4])
+      expect(displayLayer.translateScreenPosition([0, 9])).toEqual([0, 9])
+      expect(displayLayer.translateScreenPosition([2, 1])).toEqual([2, 0])
+      expect(displayLayer.translateScreenPosition([2, 3])).toEqual([2, 4])
+      expect(displayLayer.translateScreenPosition([2, 5])).toEqual([2, 5])
+      expect(displayLayer.translateScreenPosition([2, 9])).toEqual([2, 8])
+
       expect(displayLayer.translateBufferPosition([0, 2])).toEqual([0, 0])
       expect(displayLayer.translateBufferPosition([0, 6])).toEqual([0, 4])
       expect(displayLayer.translateBufferPosition([0, 9])).toEqual([0, 9])

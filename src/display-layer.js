@@ -165,7 +165,7 @@ class DisplayLayer {
 
     if (clip && this.atomicSoftTabs) {
       const clipDirection = options && options.clipDirection || 'closest'
-      screenPosition.column += this.getAtomicSoftTabColumnDelta(bufferPosition, screenPosition, clipDirection)
+      screenPosition.column += this.getAtomicSoftTabColumnDelta(bufferPosition, clipDirection)
     }
     return screenPosition
   }
@@ -228,7 +228,7 @@ class DisplayLayer {
     }
 
     if (this.atomicSoftTabs) {
-      bufferPosition.column += this.getAtomicSoftTabColumnDelta(bufferPosition, screenPosition, clipDirection)
+      bufferPosition.column += this.getAtomicSoftTabColumnDelta(bufferPosition, clipDirection)
     }
     return bufferPosition
   }
@@ -289,7 +289,7 @@ class DisplayLayer {
     }
 
     if (this.atomicSoftTabs) {
-      const delta = this.getAtomicSoftTabColumnDelta(bufferPosition, Point.fromObject(screenPosition), clipDirection)
+      const delta = this.getAtomicSoftTabColumnDelta(bufferPosition, clipDirection)
       if (delta !== 0) {
         return Point(screenPosition.row, screenPosition.column + delta)
       }
@@ -326,49 +326,39 @@ class DisplayLayer {
     return screenPosition
   }
 
-  getAtomicSoftTabColumnDelta (bufferPosition, screenPosition, clipDirection) {
-    const bufferLine = this.buffer.lineForRow(bufferPosition.row)
-    let bufferColumn = bufferPosition.column
-    let screenColumn = screenPosition.column
-    let inLeadingWhitespace = true
-
-    while (bufferColumn > 0) {
-      const character = bufferLine[bufferColumn]
-      if (character === ' ') {
-        bufferColumn--
-        screenColumn--
-      } else {
-        inLeadingWhitespace = false
-        break
-      }
-    }
-
-    if (inLeadingWhitespace && screenColumn === 0) {
-      const previousTabStop = screenPosition.column - (screenPosition.column % this.tabLength)
-      const nextTabStop = previousTabStop + this.tabLength
-
-      // If there is a non-whitespace character before the next tab stop,
-      // don't this whitespace as a soft tab
-      for (let bufferColumn = bufferPosition.column; bufferColumn < nextTabStop; bufferColumn++) {
-        if (bufferLine[bufferColumn] !== ' ') {
-          return 0
-        }
-      }
-
-      if (clipDirection === 'closest') {
-        if (screenPosition.column - previousTabStop > this.tabLength / 2) {
-          return nextTabStop - screenPosition.column
-        } else {
-          return previousTabStop - screenPosition.column
-        }
-      } else if (clipDirection === 'backward') {
-        return previousTabStop - screenPosition.column
-      } else if (clipDirection === 'forward') {
-        return nextTabStop - screenPosition.column
-      }
-    } else {
+  getAtomicSoftTabColumnDelta (bufferPosition, clipDirection) {
+    if (bufferPosition.column * this.ratioForCharacter(' ') > this.softWrapColumn) {
       return 0
     }
+
+    const bufferLine = this.buffer.lineForRow(bufferPosition.row)
+    for (let column = bufferPosition.column; column > 0; column--) {
+      if (bufferLine[column] !== ' ') return 0
+    }
+
+    const previousTabStop = bufferPosition.column - (bufferPosition.column % this.tabLength)
+    const nextTabStop = previousTabStop + this.tabLength
+
+    // If there is a non-whitespace character before the next tab stop,
+    // don't this whitespace as a soft tab
+    for (let column = bufferPosition.column; column < nextTabStop; column++) {
+      if (bufferLine[column] !== ' ') return 0
+    }
+
+    let clippedColumn
+    if (clipDirection === 'closest') {
+      if (bufferPosition.column - previousTabStop > this.tabLength / 2) {
+        clippedColumn = nextTabStop
+      } else {
+        clippedColumn = previousTabStop
+      }
+    } else if (clipDirection === 'backward') {
+      clippedColumn = previousTabStop
+    } else if (clipDirection === 'forward') {
+      clippedColumn = nextTabStop
+    }
+
+    return clippedColumn - bufferPosition.column
   }
 
   getText () {
