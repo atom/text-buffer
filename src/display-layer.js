@@ -3,6 +3,7 @@ const {Emitter} = require('event-kit')
 const Point = require('./point')
 const Range = require('./range')
 const EmptyDecorationLayer = require('./empty-decoration-layer')
+const DisplayMarkerLayer = require('./display-marker-layer')
 const {traverse, traversal, compare, max, isEqual} = require('./point-helpers')
 const isCharacterPair = require('./is-character-pair')
 // const {normalizePatchChanges} = require('./helpers')
@@ -34,6 +35,7 @@ class DisplayLayer {
     this.codesByTag = new Map()
     this.nextOpenTagCode = -1
     this.textDecorationLayer = new EmptyDecorationLayer()
+    this.displayMarkerLayersById = new Map()
     this.emitter = new Emitter()
 
     this.invisibles = {}
@@ -65,9 +67,9 @@ class DisplayLayer {
       '\r\n': this.invisibles.cr + this.invisibles.eol
     }
 
-    this.emitter.emit('did-reset')
-
     this.updateSpatialIndex(0, 0, this.buffer.getLineCount())
+    this.emitter.emit('did-reset')
+    this.notifyObserversIfMarkerScreenPositionsChanged()
   }
 
   copy () {
@@ -92,6 +94,7 @@ class DisplayLayer {
     this.spatialIndex = null
     this.screenLineLengths = null
     this.foldsMarkerLayer.destroy()
+    this.displayMarkerLayersById.forEach((layer) => layer.destroy())
     delete this.buffer.displayLayers[this.id]
   }
 
@@ -101,6 +104,29 @@ class DisplayLayer {
 
   setTextDecorationLayer (textDecorationLayer) {
     this.textDecorationLayer = textDecorationLayer
+  }
+
+  addMarkerLayer (options) {
+    const markerLayer = new DisplayMarkerLayer(this, this.buffer.addMarkerLayer(options), true)
+    this.displayMarkerLayersById.set(markerLayer.id, markerLayer)
+    return markerLayer
+  }
+
+  getMarkerLayer (id) {
+    if (this.displayMarkerLayersById.has(id)) {
+      return this.displayMarkerLayersById.get(id)
+    } else {
+      const bufferMarkerLayer = this.buffer.getMarkerLayer(id)
+      if (bufferMarkerLayer) {
+        const displayMarkerLayer = new DisplayMarkerLayer(this, bufferMarkerLayer, false)
+        this.displayMarkerLayersById.set(id, displayMarkerLayer)
+        return displayMarkerLayer
+      }
+    }
+  }
+
+  didDestroyMarkerLayer (id) {
+    this.displayMarkerLayersById.delete(id)
   }
 
   onDidChangeSync (callback) {
@@ -114,7 +140,10 @@ class DisplayLayer {
     if (containingFoldMarkers.length === 0) {
       const foldStartRow = bufferRange.start.row
       const foldEndRow = bufferRange.end.row + 1
-      this.updateSpatialIndex(foldStartRow, foldEndRow, foldEndRow)
+      this.emitDidChangeSyncEvent([
+        this.updateSpatialIndex(foldStartRow, foldEndRow, foldEndRow)
+      ])
+      this.notifyObserversIfMarkerScreenPositionsChanged()
     }
     return foldId
   }
@@ -156,6 +185,7 @@ class DisplayLayer {
       combinedRangeEnd.row,
       combinedRangeEnd.row
     )])
+    this.notifyObserversIfMarkerScreenPositionsChanged()
 
     return foldedRanges
   }
@@ -212,6 +242,14 @@ class DisplayLayer {
       }
     }
     return screenPosition
+  }
+
+  translateBufferRange (bufferRange, options) {
+    bufferRange = Range.fromObject(bufferRange)
+    return Range(
+      this.translateBufferPosition(bufferRange.start, options),
+      this.translateBufferPosition(bufferRange.end, options)
+    )
   }
 
   translateScreenPosition (screenPosition, options) {
@@ -277,6 +315,14 @@ class DisplayLayer {
     } else {
       return bufferPosition
     }
+  }
+
+  translateScreenRange (screenRange, options) {
+    screenRange = Range.fromObject(screenRange)
+    return Range(
+      this.translateScreenPosition(screenRange.start, options),
+      this.translateScreenPosition(screenRange.end, options)
+    )
   }
 
   clipScreenPosition (screenPosition, options) {
@@ -818,6 +864,12 @@ class DisplayLayer {
     this.emitter.emit('did-change-sync', event)
   }
 
+  notifyObserversIfMarkerScreenPositionsChanged () {
+    this.displayMarkerLayersById.forEach((layer) => {
+      layer.notifyObserversIfMarkerScreenPositionsChanged()
+    })
+  }
+
   updateSpatialIndex (startBufferRow, oldEndBufferRow, newEndBufferRow) {
     const originalOldEndBufferRow = oldEndBufferRow
     startBufferRow = this.findBoundaryPrecedingBufferRow(startBufferRow)
@@ -1039,7 +1091,6 @@ class DisplayLayer {
     return folds
   }
 }
-
 
 function isWordStart (previousCharacter, character) {
   return (previousCharacter === ' ' || previousCharacter === '\t') &&
