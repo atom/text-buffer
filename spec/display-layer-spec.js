@@ -516,11 +516,6 @@ describe('DisplayLayer', () => {
         },
         {
           close: [],
-          open: [],
-          text: ''
-        },
-        {
-          close: [],
           open: ['indent-guide'],
           text: '  '
         },
@@ -541,11 +536,6 @@ describe('DisplayLayer', () => {
         },
         {
           close: [],
-          open: [],
-          text: ''
-        },
-        {
-          close: [],
           open: ['indent-guide'],
           text: '  '
         },
@@ -563,11 +553,6 @@ describe('DisplayLayer', () => {
           close: ['indent-guide'],
           open: [],
           text: 'fgh '
-        },
-        {
-          close: [],
-          open: [],
-          text: ''
         },
         {
           close: [],
@@ -598,11 +583,6 @@ describe('DisplayLayer', () => {
           close: ['invisible-character leading-whitespace indent-guide'],
           open: [],
           text: 'lmnopqr'
-        },
-        {
-          close: [],
-          open: [],
-          text: ''
         },
         {
           close: [],

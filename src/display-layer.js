@@ -528,10 +528,36 @@ class DisplayLayer {
 
                 screenLines.push({lineText: screenLine, tagCodes})
                 screenRow++
-                screenColumn = nextHunk.newEnd.column
+
+                // Make indent of soft-wrapped segment match the indent of the
+                // original line, rendering indent guides if necessary.
+                const indentLength = nextHunk.newEnd.column
+                screenLine = ' '.repeat(indentLength)
                 tagCodes = []
-                currentTokenLength = screenColumn
-                screenLine = ' '.repeat(screenColumn)
+                if (this.showIndentGuides && indentLength > 0) {
+                  screenColumn = 0
+                  currentTokenLength = 0
+                  while (screenColumn < indentLength) {
+                    if (screenColumn % this.tabLength === 0) {
+                      if (currentTokenLength > 0) {
+                        tagCodes.push(currentTokenLength)
+                        tagCodes.push(this.codeForCloseTag(this.getBasicTag(INDENT_GUIDE)))
+                        currentTokenLength = 0
+                      }
+                      this.pushOpenTag(tagCodes, 0, this.getBasicTag(INDENT_GUIDE))
+                    }
+                    screenColumn++
+                    currentTokenLength++
+                  }
+                  if (currentTokenLength > 0) {
+                    tagCodes.push(currentTokenLength)
+                    tagCodes.push(this.codeForCloseTag(this.getBasicTag(INDENT_GUIDE)))
+                    currentTokenLength = 0
+                  }
+                } else {
+                  screenColumn = indentLength
+                  currentTokenLength = indentLength
+                }
               }
               hunkIndex++
             }
