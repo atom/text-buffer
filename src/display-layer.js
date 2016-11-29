@@ -143,14 +143,31 @@ class DisplayLayer {
   }
 
   translateBufferPosition (bufferPosition, options) {
-    const clip = !options || options.clip
+    bufferPosition = Point.fromObject(bufferPosition)
+    const clip = (options && options.clip != null) ? options.clip : true
+    const clipDirection = options && options.clipDirection || 'closest'
     if (clip) bufferPosition = this.buffer.clipPosition(bufferPosition)
+
     let screenPosition
     let hunk = this.spatialIndex.hunkForOldPosition(bufferPosition)
     if (hunk) {
       if (compare(bufferPosition, hunk.oldEnd) < 0) {
         if (compare(hunk.oldStart, bufferPosition) === 0) {
           return Point.fromObject(hunk.newStart)
+        } else if (hunk.newText === this.foldCharacter) {
+          if (clipDirection === 'backward') {
+            screenPosition = Point.fromObject(hunk.newStart)
+          } else if (clipDirection === 'forward') {
+            screenPosition = Point.fromObject(hunk.newEnd)
+          } else {
+            const distanceFromFoldStart = traversal(bufferPosition, hunk.oldStart)
+            const distanceToFoldEnd = traversal(hunk.oldEnd, bufferPosition)
+            if (compare(distanceFromFoldStart, distanceToFoldEnd) <= 0) {
+              screenPosition = Point.fromObject(hunk.newStart)
+            } else {
+              screenPosition = Point.fromObject(hunk.newEnd)
+            }
+          }
         } else {
           const tabStopBeforeHunk = hunk.newStart.column - hunk.newStart.column % this.tabLength
           const tabCount = bufferPosition.column - hunk.oldStart.column
@@ -165,7 +182,6 @@ class DisplayLayer {
     }
 
     if (clip) {
-      const clipDirection = options && options.clipDirection || 'closest'
       const columnDelta = this.getClipColumnDelta(bufferPosition, clipDirection)
       if (columnDelta !== 0) {
         return Point(screenPosition.row, screenPosition.column + columnDelta)
