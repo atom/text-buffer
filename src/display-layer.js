@@ -88,6 +88,25 @@ class DisplayLayer {
     return copy
   }
 
+  destroy () {
+    this.spatialIndex = null
+    this.screenLineLengths = null
+    this.foldsMarkerLayer.destroy()
+    delete this.buffer.displayLayers[this.id]
+  }
+
+  getTextDecorationLayer () {
+    return this.textDecorationLayer
+  }
+
+  setTextDecorationLayer (textDecorationLayer) {
+    this.textDecorationLayer = textDecorationLayer
+  }
+
+  onDidChangeSync (callback) {
+    return this.emitter.on('did-change-sync', callback)
+  }
+
   foldBufferRange (bufferRange) {
     bufferRange = Range.fromObject(bufferRange)
     const containingFoldMarkers = this.foldsMarkerLayer.findMarkers({containsRange: bufferRange})
@@ -132,7 +151,12 @@ class DisplayLayer {
       foldMarker.destroy()
     }
 
-    this.updateSpatialIndex(combinedRangeStart.row, combinedRangeEnd.row, combinedRangeEnd.row)
+    this.emitDidChangeSyncEvent([this.updateSpatialIndex(
+      combinedRangeStart.row,
+      combinedRangeEnd.row,
+      combinedRangeEnd.row
+    )])
+
     return foldedRanges
   }
 
@@ -783,15 +807,15 @@ class DisplayLayer {
   }
 
   bufferDidChange (change) {
-    this.updateSpatialIndex(
+    return this.updateSpatialIndex(
       change.oldRange.start.row,
       change.oldRange.end.row + 1,
       change.newRange.end.row + 1
     )
   }
 
-  emitDidChangeSyncEvent () {
-
+  emitDidChangeSyncEvent (event) {
+    this.emitter.emit('did-change-sync', event)
   }
 
   updateSpatialIndex (startBufferRow, oldEndBufferRow, newEndBufferRow) {
@@ -935,11 +959,18 @@ class DisplayLayer {
       screenColumn = 0
     }
 
+    const oldScreenRowCount = oldEndScreenRow - startScreenRow
     this.screenLineLengths.splice(
       startScreenRow,
-      oldEndScreenRow - startScreenRow,
+      oldScreenRowCount,
       ...newScreenLineLengths
     )
+
+    return {
+      start: Point(startScreenRow, 0),
+      oldExtent: Point(oldScreenRowCount, 0),
+      newExtent: Point(newScreenLineLengths.length, 0)
+    }
   }
 
   findBoundaryPrecedingBufferRow (bufferRow) {
