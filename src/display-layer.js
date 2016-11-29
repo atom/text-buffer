@@ -520,6 +520,12 @@ class DisplayLayer {
 
               // If the oldExtent of the hunk is zero, this is a soft line break.
               if (isEqual(nextHunk.oldStart, nextHunk.oldEnd)) {
+                if (currentTokenFlags > 0) {
+                  this.pushCloseTag(tagCodes, currentTokenLength, this.getBasicTag(currentTokenFlags))
+                } else if (currentTokenLength > 0) {
+                  tagCodes.push(currentTokenLength)
+                }
+
                 screenLines.push({lineText: screenLine, tagCodes})
                 screenRow++
                 screenColumn = nextHunk.newEnd.column
