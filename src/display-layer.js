@@ -182,8 +182,8 @@ class DisplayLayer {
 
     this.emitDidChangeSyncEvent([this.updateSpatialIndex(
       combinedRangeStart.row,
-      combinedRangeEnd.row,
-      combinedRangeEnd.row
+      combinedRangeEnd.row + 1,
+      combinedRangeEnd.row + 1
     )])
     this.notifyObserversIfMarkerScreenPositionsChanged()
 
