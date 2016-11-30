@@ -422,8 +422,9 @@ class DisplayLayer {
     const bufferLine = this.buffer.lineForRow(bufferRow)
 
     // Treat paired unicode characters as atomic...
-
-    if (isCharacterPair(bufferLine[bufferColumn - 1], bufferLine[bufferColumn])) {
+    const previousCharacter = bufferLine[bufferColumn - 1]
+    const character = bufferLine[bufferColumn]
+    if (previousCharacter && character && isCharacterPair(previousCharacter, character)) {
       if (clipDirection === 'closest' || clipDirection === 'backward') {
         return -1
       } else {
@@ -924,7 +925,9 @@ class DisplayLayer {
             firstNonWhitespaceScreenColumn = screenColumn
           }
         } else {
-          if (this.isWrapBoundary(previousCharacter, character)) {
+          if (previousCharacter &&
+              character &&
+              this.isWrapBoundary(previousCharacter, character)) {
             lastWrapBoundaryScreenColumn = screenColumn
             lastWrapBoundaryScreenLineWidth = screenLineWidth
           }
@@ -944,6 +947,7 @@ class DisplayLayer {
         // Insert a soft line break if necessary
         if (screenLineWidth > 0 && characterWidth > 0 &&
             screenLineWidth + characterWidth > this.softWrapColumn &&
+            previousCharacter && character &&
             !isCharacterPair(previousCharacter, character)) {
           let indentLength = (firstNonWhitespaceScreenColumn < this.softWrapColumn)
             ? Math.max(0, firstNonWhitespaceScreenColumn)

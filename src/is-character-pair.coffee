@@ -1,12 +1,9 @@
 module.exports = (character1, character2) ->
-  if character1? and character2?
-    charCodeA = character1.charCodeAt(0)
-    charCodeB = character2.charCodeAt(0)
-    isSurrogatePair(charCodeA, charCodeB) or
-      isVariationSequence(charCodeA, charCodeB) or
-      isCombinedCharacter(charCodeA, charCodeB)
-  else
-    false
+  charCodeA = character1.charCodeAt(0)
+  charCodeB = character2.charCodeAt(0)
+  isSurrogatePair(charCodeA, charCodeB) or
+    isVariationSequence(charCodeA, charCodeB) or
+    isCombinedCharacter(charCodeA, charCodeB)
 
 isCombinedCharacter = (charCodeA, charCodeB) ->
   not isCombiningCharacter(charCodeA) and isCombiningCharacter(charCodeB)
