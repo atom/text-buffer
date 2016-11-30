@@ -2163,19 +2163,18 @@ function verifyPositionTranslations (displayLayer) {
 }
 
 function verifyRightmostScreenPosition (displayLayer) {
-  const screenLines = displayLayer.getText().split('\n')
   let maxLineLength = -1
   const longestScreenRows = new Set()
 
-  for (const [row, screenLine] of screenLines.entries()) {
-    expect(displayLayer.lineLengthForScreenRow(row)).toBe(screenLine.length, ('Screen line length differs for row ' + (row) + '.'))
+  for (let row = 0, rowCount = displayLayer.getScreenLineCount(); row < rowCount; row++) {
+    const length = displayLayer.lineLengthForScreenRow(row)
 
-    if (screenLine.length > maxLineLength) {
+    if (length > maxLineLength) {
       longestScreenRows.clear()
-      maxLineLength = screenLine.length
+      maxLineLength = length
     }
 
-    if (screenLine.length >= maxLineLength) {
+    if (length >= maxLineLength) {
       longestScreenRows.add(row)
     }
   }
