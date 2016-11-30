@@ -1001,7 +1001,6 @@ class DisplayLayer {
         }
 
         if (insertSoftLineBreak) {
-          if (tabSequenceLength > 0) debugger
           let indentLength = (firstNonWhitespaceScreenColumn < this.softWrapColumn)
             ? Math.max(0, firstNonWhitespaceScreenColumn)
             : 0
