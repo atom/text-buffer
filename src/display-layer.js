@@ -50,6 +50,18 @@ class DisplayLayer {
     this.reset(params)
   }
 
+  static deserialize (buffer, params) {
+    const foldsMarkerLayer = buffer.getMarkerLayer(params.foldsMarkerLayerId)
+    return new DisplayLayer(params.id, buffer, {foldsMarkerLayer})
+  }
+
+  serialize () {
+    return {
+      id: this.id,
+      foldsMarkerLayerId: this.foldsMarkerLayer.id
+    }
+  }
+
   reset (params) {
     if (params.hasOwnProperty('tabLength')) this.tabLength = params.tabLength
     if (params.hasOwnProperty('invisibles')) this.invisibles = params.invisibles
@@ -98,6 +110,9 @@ class DisplayLayer {
     delete this.buffer.displayLayers[this.id]
   }
 
+  doBackgroundWork () {
+  }
+
   getTextDecorationLayer () {
     return this.textDecorationLayer
   }
@@ -131,6 +146,10 @@ class DisplayLayer {
 
   onDidChangeSync (callback) {
     return this.emitter.on('did-change-sync', callback)
+  }
+
+  onDidReset (callback) {
+    return this.emitter.on('did-reset', callback)
   }
 
   foldBufferRange (bufferRange) {
@@ -473,12 +492,35 @@ class DisplayLayer {
     return this.getScreenLines().map((line) => line.lineText).join('\n')
   }
 
+  lineLengthForScreenRow (screenRow) {
+    return this.screenLineLengths[screenRow]
+  }
+
   getLastScreenRow () {
     return this.screenLineLengths.length - 1
   }
 
   getScreenLineCount () {
     return this.screenLineLengths.length
+  }
+
+  getApproximateScreenLineCount () {
+    return this.getScreenLineCount()
+  }
+
+  getRightmostScreenPosition () {
+    let result = Point(0, 0)
+    for (let row = 0, rowCount = this.screenLineLengths.length; row < rowCount; row++) {
+      if (this.screenLineLengths[row] > result.column) {
+        result.row = row
+        result.column = this.screenLineLengths[row]
+      }
+    }
+    return result
+  }
+
+  getApproximateRightmostScreenPosition () {
+    return this.getRightmostScreenPosition()
   }
 
   getScreenLines (screenStartRow = 0, screenEndRow = this.getScreenLineCount()) {
@@ -852,11 +894,11 @@ class DisplayLayer {
   }
 
   bufferDidChange (change) {
-    return this.updateSpatialIndex(
+    return [this.updateSpatialIndex(
       change.oldRange.start.row,
       change.oldRange.end.row + 1,
       change.newRange.end.row + 1
-    )
+    )]
   }
 
   emitDidChangeSyncEvent (event) {
