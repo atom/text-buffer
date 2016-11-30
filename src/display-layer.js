@@ -949,17 +949,6 @@ class DisplayLayer {
         const previousCharacter = bufferLine[bufferColumn - 1]
         const character = foldEnd ? this.foldCharacter : bufferLine[bufferColumn]
 
-        // Terminate any pending tab sequence if we've reached a non-tab
-        if (tabSequenceLength > 0 && character !== '\t') {
-          this.spatialIndex.splice(
-            Point(screenRow, tabSequenceStartScreenColumn),
-            Point(0, tabSequenceLength),
-            Point(0, screenColumn - tabSequenceStartScreenColumn)
-          )
-          tabSequenceLength = 0
-          tabSequenceStartScreenColumn = -1
-        }
-
         // Are we in leading whitespace? If yes, record the *end* of the leading
         // whitespace if we've reached a non whitespace character. If no, record
         // the current column if it is a viable soft wrap boundary.
@@ -987,11 +976,25 @@ class DisplayLayer {
           characterWidth = 0
         }
 
-        // Insert a soft line break if necessary
-        if (screenLineWidth > 0 && characterWidth > 0 &&
-            screenLineWidth + characterWidth > this.softWrapColumn &&
-            previousCharacter && character &&
-            !isCharacterPair(previousCharacter, character)) {
+        const insertSoftLineBreak =
+          screenLineWidth > 0 && characterWidth > 0 &&
+          screenLineWidth + characterWidth > this.softWrapColumn &&
+          previousCharacter && character &&
+          !isCharacterPair(previousCharacter, character)
+
+        // Terminate any pending tab sequence if we've reached a non-tab
+        if (tabSequenceLength > 0 && (character !== '\t' || insertSoftLineBreak)) {
+          this.spatialIndex.splice(
+            Point(screenRow, tabSequenceStartScreenColumn),
+            Point(0, tabSequenceLength),
+            Point(0, screenColumn - tabSequenceStartScreenColumn)
+          )
+          tabSequenceLength = 0
+          tabSequenceStartScreenColumn = -1
+        }
+
+        if (insertSoftLineBreak) {
+          if (tabSequenceLength > 0) debugger
           let indentLength = (firstNonWhitespaceScreenColumn < this.softWrapColumn)
             ? Math.max(0, firstNonWhitespaceScreenColumn)
             : 0
