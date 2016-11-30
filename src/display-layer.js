@@ -901,12 +901,27 @@ class DisplayLayer {
 
   }
 
-  bufferDidChange (change) {
-    return [this.updateSpatialIndex(
-      change.oldRange.start.row,
-      change.oldRange.end.row + 1,
-      change.newRange.end.row + 1
-    )]
+  bufferDidChange ({oldRange, newRange}) {
+    let startRow = oldRange.start.row
+    let oldEndRow = oldRange.end.row
+    let newEndRow = newRange.end.row
+
+    // Indent guides on sequences of blank lines are affected by the content of
+    // adjacent lines.
+    if (this.showIndentGuides) {
+      while (startRow > 0) {
+        if (this.buffer.lineLengthForRow(startRow - 1) > 0) break
+        startRow--
+      }
+
+      while (newEndRow < this.buffer.getLastRow()) {
+        if (this.buffer.lineLengthForRow(newEndRow + 1) > 0) break
+        oldEndRow++
+        newEndRow++
+      }
+    }
+
+    return [this.updateSpatialIndex(startRow, oldEndRow + 1, newEndRow + 1)]
   }
 
   emitDidChangeSyncEvent (event) {
