@@ -32,7 +32,7 @@ class DisplayLayer {
       destroyInvalidatedMarkers: true
     })
     this.spatialIndex = new Patch({mergeAdjacentHunks: false})
-    this.screenLineLengths = []
+    this.screenLineLengths = [0]
     this.tagsByCode = new Map()
     this.codesByTag = new Map()
     this.nextOpenTagCode = -1
@@ -87,7 +87,7 @@ class DisplayLayer {
       '\r\n': this.invisibles.cr + this.invisibles.eol
     }
 
-    this.updateSpatialIndex(0, 0, this.buffer.getLineCount())
+    this.updateSpatialIndex(0, this.buffer.getLineCount(), this.buffer.getLineCount())
     this.emitter.emit('did-reset')
     this.notifyObserversIfMarkerScreenPositionsChanged()
   }
@@ -1083,7 +1083,7 @@ class DisplayLayer {
     while (true) {
       let screenPosition = this.translateBufferPositionWithoutBufferClipping(Point(bufferRow, 0), 'backward')
       if (screenPosition.column === 0) {
-        return bufferRow
+        return this.translateScreenPositionWithoutBufferClipping(screenPosition, 'backward').row
       } else {
         let bufferPosition = this.translateScreenPositionWithoutBufferClipping(Point(screenPosition.row, 0), 'backward', false)
         if (bufferPosition.column === 0) {
