@@ -491,7 +491,7 @@ class DisplayLayer {
     let hunkIndex = 0
     const hunks = this.spatialIndex.getHunksInNewRange(screenStart, screenEnd)
     while (screenRow < screenEndRow) {
-      let screenLine = ''
+      let screenLineText = ''
       let tagCodes = []
       let currentTokenLength = 0
       let currentTokenFlags = 0
@@ -505,236 +505,234 @@ class DisplayLayer {
 
       // If the buffer line is empty, indent guides may extend beyond the line-ending
       // invisible, requiring this separate code path.
-      if (bufferLine.length === 0) {
-        const eolInvisible = this.eolInvisibles[lineEnding]
-        if (eolInvisible) {
-          screenLine += eolInvisible
-          currentTokenFlags |= INVISIBLE_CHARACTER | LINE_ENDING
-          if (this.showIndentGuides) currentTokenFlags |= INDENT_GUIDE
-          this.pushOpenTag(tagCodes, 0, this.getBasicTag(currentTokenFlags))
-          this.pushCloseTag(tagCodes, eolInvisible.length, this.getBasicTag(currentTokenFlags))
-          screenColumn += eolInvisible.length
+      while (bufferColumn <= bufferLine.length) {
+        let forceTokenBoundary = false
+        let previousTokenFlags = currentTokenFlags
+        const nextCharacter = bufferLine[bufferColumn]
+        if (bufferColumn >= trailingWhitespaceStartColumn) {
+          inTrailingWhitespace = true
+          inLeadingWhitespace = false
         }
 
-        if (this.showIndentGuides) {
-          currentTokenFlags = 0
+        // Compute the flags for the current token describing how it should be
+        // decorated. If these flags differ from the previous token flags, emit
+        // a close tag for those flags. Also emit a close tag at a forced token
+        // boundary, such as between two hard tabs or where we want to show
+        // an indent guide between spaces.
+        currentTokenFlags = 0
+        if (nextCharacter === ' ' || nextCharacter === '\t') {
+          const showIndentGuides = this.showIndentGuides && (inLeadingWhitespace || trailingWhitespaceStartColumn === 0)
+          if (inLeadingWhitespace) currentTokenFlags |= LEADING_WHITESPACE
+          if (inTrailingWhitespace) currentTokenFlags |= TRAILING_WHITESPACE
+
+          if (nextCharacter === ' ') {
+            if ((inLeadingWhitespace || inTrailingWhitespace) && this.invisibles.space) {
+              currentTokenFlags |= INVISIBLE_CHARACTER
+            }
+
+            if (showIndentGuides) {
+              currentTokenFlags |= INDENT_GUIDE
+              if (screenColumn % this.tabLength === 0) forceTokenBoundary = true
+            }
+          } else { // nextCharacter === \t
+            currentTokenFlags |= HARD_TAB
+            if (this.invisibles.tab) currentTokenFlags |= INVISIBLE_CHARACTER
+            if (showIndentGuides && screenColumn % this.tabLength === 0) {
+              currentTokenFlags |= INDENT_GUIDE
+            }
+
+            forceTokenBoundary = true
+          }
+        } else {
+          inLeadingWhitespace = false
+        }
+
+        if (previousTokenFlags > 0 &&
+            (currentTokenFlags !== previousTokenFlags || forceTokenBoundary)) {
+          this.pushCloseTag(tagCodes, currentTokenLength, this.getBasicTag(previousTokenFlags))
           currentTokenLength = 0
-          let whitespaceLength = this.leadingWhitespaceLengthForSurroundingLines(bufferRow)
-          while (screenColumn < whitespaceLength) {
-            if (screenColumn % this.tabLength === 0) {
-              if (currentTokenLength > 0) {
-                tagCodes.push(currentTokenLength)
-              }
-
-              if (currentTokenFlags !== 0) {
-                tagCodes.push(this.codeForCloseTag(this.getBasicTag(currentTokenFlags)))
-              }
-
-              currentTokenLength = 0
-              currentTokenFlags = INDENT_GUIDE
-              this.pushOpenTag(tagCodes, 0, this.getBasicTag(currentTokenFlags))
-            }
-            screenLine += ' '
-            screenColumn++
-            currentTokenLength++
-          }
-          if (currentTokenLength > 0) {
-            this.pushCloseTag(tagCodes, currentTokenLength, this.getBasicTag(currentTokenFlags))
-          }
         }
 
-        // Ensure empty lines have at least one empty token to make it easier on
-        // the caller
-        if (tagCodes.length === 0) tagCodes.push(0)
-      } else {
-        while (bufferColumn <= bufferLine.length) {
-          let forceTokenBoundary = false
-          let previousTokenFlags = currentTokenFlags
-          const nextCharacter = bufferLine[bufferColumn]
-          if (bufferColumn >= trailingWhitespaceStartColumn) {
-            inTrailingWhitespace = true
-            inLeadingWhitespace = false
+        // Handle folds or soft wraps at the current position.
+        {
+          let nextHunk = hunks[hunkIndex]
+          while (nextHunk && nextHunk.oldStart.row < bufferRow) {
+            hunkIndex++
+            nextHunk = hunks[hunkIndex]
           }
 
-          // Compute the flags for the current token describing how it should be
-          // decorated. If these flags differ from the previous token flags, emit
-          // a close tag for those flags. Also emit a close tag at a forced token
-          // boundary, such as between two hard tabs or where we want to show
-          // an indent guide between spaces.
-          currentTokenFlags = 0
-          if (nextCharacter === ' ' || nextCharacter === '\t') {
-            const showIndentGuides = this.showIndentGuides && (inLeadingWhitespace || trailingWhitespaceStartColumn === 0)
-            if (inLeadingWhitespace) currentTokenFlags |= LEADING_WHITESPACE
-            if (inTrailingWhitespace) currentTokenFlags |= TRAILING_WHITESPACE
-
-            if (nextCharacter === ' ') {
-              if ((inLeadingWhitespace || inTrailingWhitespace) && this.invisibles.space) {
-                currentTokenFlags |= INVISIBLE_CHARACTER
-              }
-
-              if (showIndentGuides) {
-                currentTokenFlags |= INDENT_GUIDE
-                if (screenColumn % this.tabLength === 0) forceTokenBoundary = true
-              }
-            } else { // nextCharacter === \t
-              currentTokenFlags |= HARD_TAB
-              if (this.invisibles.tab) currentTokenFlags |= INVISIBLE_CHARACTER
-              if (showIndentGuides && screenColumn % this.tabLength === 0) {
-                currentTokenFlags |= INDENT_GUIDE
-              }
-
-              forceTokenBoundary = true
-            }
-          } else {
-            inLeadingWhitespace = false
-          }
-
-          if (previousTokenFlags > 0 &&
-              (currentTokenFlags !== previousTokenFlags || forceTokenBoundary)) {
-            this.pushCloseTag(tagCodes, currentTokenLength, this.getBasicTag(previousTokenFlags))
-            currentTokenLength = 0
-          }
-
-          // Handle folds or soft wraps at the current position.
-          {
-            const nextHunk = hunks[hunkIndex]
-            if (nextHunk && nextHunk.oldStart.row === bufferRow && nextHunk.oldStart.column === bufferColumn) {
-              // Does a fold hunk start here? Jump to the end of the fold and
-              // continue to the next iteration of the loop.
-              if (nextHunk.newText === this.foldCharacter) {
-                if (previousTokenFlags > 0) {
-                  this.pushCloseTag(tagCodes, currentTokenLength, this.getBasicTag(previousTokenFlags))
-                } else if (currentTokenLength > 0) {
-                  tagCodes.push(currentTokenLength)
-                }
-
-                screenLine += this.foldCharacter
-                screenColumn++
-                this.pushOpenTag(tagCodes, 0, this.getBasicTag(FOLD))
-                currentTokenLength = 1
-                currentTokenFlags = FOLD
-                bufferRow = nextHunk.oldEnd.row
-                bufferColumn = nextHunk.oldEnd.column
-                bufferLine = this.buffer.lineForRow(bufferRow)
-                inTrailingWhitespace = false
-                trailingWhitespaceStartColumn = this.findTrailingWhitespaceStartColumn(bufferLine)
-                hunkIndex++
-                continue
-              }
-
-              // If the oldExtent of the hunk is zero, this is a soft line break.
-              if (isEqual(nextHunk.oldStart, nextHunk.oldEnd)) {
-                if (currentTokenFlags > 0) {
-                  this.pushCloseTag(tagCodes, currentTokenLength, this.getBasicTag(currentTokenFlags))
-                  previousTokenFlags = 0
-                } else if (currentTokenLength > 0) {
-                  tagCodes.push(currentTokenLength)
-                }
-                currentTokenLength = 0
-
-                screenLines.push({lineText: screenLine, tagCodes})
-                screenRow++
-
-                // Make indent of soft-wrapped segment match the indent of the
-                // original line, rendering indent guides if necessary.
-                const indentLength = nextHunk.newEnd.column
-                screenLine = ' '.repeat(indentLength)
-                tagCodes = []
-                if (this.showIndentGuides && indentLength > 0) {
-                  screenColumn = 0
-                  while (screenColumn < indentLength) {
-                    if (screenColumn % this.tabLength === 0) {
-                      if (currentTokenLength > 0) {
-                        tagCodes.push(currentTokenLength)
-                        tagCodes.push(this.codeForCloseTag(this.getBasicTag(INDENT_GUIDE)))
-                        currentTokenLength = 0
-                      }
-                      this.pushOpenTag(tagCodes, 0, this.getBasicTag(INDENT_GUIDE))
-                    }
-                    screenColumn++
-                    currentTokenLength++
-                  }
-                  if (currentTokenLength > 0) {
-                    tagCodes.push(currentTokenLength)
-                    tagCodes.push(this.codeForCloseTag(this.getBasicTag(INDENT_GUIDE)))
-                    currentTokenLength = 0
-                  }
-                } else {
-                  screenColumn = indentLength
-                  currentTokenLength = indentLength
-                }
-              }
-              hunkIndex++
-            }
-          }
-
-          // We loop up to the end of the buffer line in case a fold starts there,
-          // but at this point we haven't found a fold, so we can stop if we have
-          // reached the end of the line. We need to close any open tags and
-          // append the line ending invisible if it is enabled, then break the
-          // loop to proceed to the next line.
-          if (bufferColumn === bufferLine.length) {
-            if (currentTokenLength > 0) {
+          if (nextHunk && nextHunk.oldStart.row === bufferRow && nextHunk.oldStart.column === bufferColumn) {
+            // Does a fold hunk start here? Jump to the end of the fold and
+            // continue to the next iteration of the loop.
+            if (nextHunk.newText === this.foldCharacter) {
               if (previousTokenFlags > 0) {
                 this.pushCloseTag(tagCodes, currentTokenLength, this.getBasicTag(previousTokenFlags))
               } else if (currentTokenLength > 0) {
                 tagCodes.push(currentTokenLength)
               }
+
+              screenLineText += this.foldCharacter
+              screenColumn++
+              this.pushOpenTag(tagCodes, 0, this.getBasicTag(FOLD))
+              currentTokenLength = 1
+              currentTokenFlags = FOLD
+              bufferRow = nextHunk.oldEnd.row
+              bufferColumn = nextHunk.oldEnd.column
+              bufferLine = this.buffer.lineForRow(bufferRow)
+              inTrailingWhitespace = false
+              trailingWhitespaceStartColumn = this.findTrailingWhitespaceStartColumn(bufferLine)
+              hunkIndex++
+              continue
+            }
+
+            // If the oldExtent of the hunk is zero, this is a soft line break.
+            if (isEqual(nextHunk.oldStart, nextHunk.oldEnd)) {
+              if (currentTokenFlags > 0) {
+                this.pushCloseTag(tagCodes, currentTokenLength, this.getBasicTag(currentTokenFlags))
+                previousTokenFlags = 0
+              } else if (currentTokenLength > 0) {
+                tagCodes.push(currentTokenLength)
+              }
               currentTokenLength = 0
-            }
 
-            const eolInvisible = this.eolInvisibles[lineEnding]
-            if (eolInvisible) {
-              screenLine += eolInvisible
-              const eolTag = this.getBasicTag(INVISIBLE_CHARACTER | LINE_ENDING)
-              this.pushOpenTag(tagCodes, 0, eolTag)
-              this.pushCloseTag(tagCodes, eolInvisible.length, eolTag)
-            }
+              const screenLine = {id: nextScreenLineId++, lineText: screenLineText, tagCodes}
+              screenLines.push(screenLine)
+              screenRow++
 
-            break
+              // Make indent of soft-wrapped segment match the indent of the
+              // original line, rendering indent guides if necessary.
+              const indentLength = nextHunk.newEnd.column
+              screenLineText = ' '.repeat(indentLength)
+              tagCodes = []
+              if (this.showIndentGuides && indentLength > 0) {
+                screenColumn = 0
+                while (screenColumn < indentLength) {
+                  if (screenColumn % this.tabLength === 0) {
+                    if (currentTokenLength > 0) {
+                      tagCodes.push(currentTokenLength)
+                      tagCodes.push(this.codeForCloseTag(this.getBasicTag(INDENT_GUIDE)))
+                      currentTokenLength = 0
+                    }
+                    this.pushOpenTag(tagCodes, 0, this.getBasicTag(INDENT_GUIDE))
+                  }
+                  screenColumn++
+                  currentTokenLength++
+                }
+                if (currentTokenLength > 0) {
+                  tagCodes.push(currentTokenLength)
+                  tagCodes.push(this.codeForCloseTag(this.getBasicTag(INDENT_GUIDE)))
+                  currentTokenLength = 0
+                }
+              } else {
+                screenColumn = indentLength
+                currentTokenLength = indentLength
+              }
+            }
+            hunkIndex++
           }
-
-          // At this point we know we aren't at the end of the line, so we proceed
-          // to process the next character.
-
-          // If the current token's flags differ from the previous iteration or
-          // we are forcing a token boundary (for example between two hard tabs),
-          // push an open tag based on the new flags.
-          if (currentTokenFlags > 0 &&
-              currentTokenFlags !== previousTokenFlags || forceTokenBoundary) {
-            this.pushOpenTag(tagCodes, currentTokenLength, this.getBasicTag(currentTokenFlags))
-            currentTokenLength = 0
-          }
-
-          // Handle tabs and leading / trailing whitespace invisibles specially.
-          // Otherwise just append the next character to the screen line.
-          if (nextCharacter === '\t') {
-            currentTokenLength = 0
-            const distanceToNextTabStop = this.tabLength - (screenColumn % this.tabLength)
-            if (this.invisibles.tab) {
-              screenLine += this.invisibles.tab
-              screenLine += ' '.repeat(distanceToNextTabStop - 1)
-            } else {
-              screenLine += ' '.repeat(distanceToNextTabStop)
-            }
-
-            screenColumn += distanceToNextTabStop
-            currentTokenLength += distanceToNextTabStop
-          } else {
-            if ((inLeadingWhitespace || inTrailingWhitespace) &&
-                nextCharacter === ' ' && this.invisibles.space) {
-              screenLine += this.invisibles.space
-            } else {
-              screenLine += nextCharacter
-            }
-            screenColumn++
-            currentTokenLength++
-          }
-          bufferColumn++
         }
+
+        // We loop up to the end of the buffer line in case a fold starts there,
+        // but at this point we haven't found a fold, so we can stop if we have
+        // reached the end of the line. We need to close any open tags and
+        // append the line ending invisible if it is enabled, then break the
+        // loop to proceed to the next line. If the line is empty, we may need
+        // to render indent guides that extend beyond the length of the line.
+        if (bufferColumn === bufferLine.length) {
+          if (currentTokenLength > 0) {
+            if (previousTokenFlags > 0) {
+              this.pushCloseTag(tagCodes, currentTokenLength, this.getBasicTag(previousTokenFlags))
+            } else {
+              tagCodes.push(currentTokenLength)
+            }
+            currentTokenLength = 0
+          }
+
+          const eolInvisible = this.eolInvisibles[lineEnding]
+          if (eolInvisible) {
+            screenLineText += eolInvisible
+            currentTokenFlags |= INVISIBLE_CHARACTER | LINE_ENDING
+            if (bufferLine.length === 0 && this.showIndentGuides) currentTokenFlags |= INDENT_GUIDE
+            this.pushOpenTag(tagCodes, 0, this.getBasicTag(currentTokenFlags))
+            this.pushCloseTag(tagCodes, eolInvisible.length, this.getBasicTag(currentTokenFlags))
+            screenColumn += eolInvisible.length
+          }
+
+          if (bufferLine.length === 0 && this.showIndentGuides) {
+            currentTokenFlags = 0
+            currentTokenLength = 0
+            let whitespaceLength = this.leadingWhitespaceLengthForSurroundingLines(bufferRow)
+            while (screenColumn < whitespaceLength) {
+              if (screenColumn % this.tabLength === 0) {
+                if (currentTokenLength > 0) {
+                  tagCodes.push(currentTokenLength)
+                }
+
+                if (currentTokenFlags !== 0) {
+                  tagCodes.push(this.codeForCloseTag(this.getBasicTag(currentTokenFlags)))
+                }
+
+                currentTokenLength = 0
+                currentTokenFlags = INDENT_GUIDE
+                this.pushOpenTag(tagCodes, 0, this.getBasicTag(currentTokenFlags))
+              }
+              screenLineText += ' '
+              screenColumn++
+              currentTokenLength++
+            }
+            if (currentTokenLength > 0) {
+              this.pushCloseTag(tagCodes, currentTokenLength, this.getBasicTag(currentTokenFlags))
+            }
+          }
+
+          // Ensure empty lines have at least one empty token to make it easier on
+          // the caller
+          if (tagCodes.length === 0) tagCodes.push(0)
+
+          break
+        }
+
+        // At this point we know we aren't at the end of the line, so we proceed
+        // to process the next character.
+
+        // If the current token's flags differ from the previous iteration or
+        // we are forcing a token boundary (for example between two hard tabs),
+        // push an open tag based on the new flags.
+        if (currentTokenFlags > 0 &&
+            currentTokenFlags !== previousTokenFlags || forceTokenBoundary) {
+          this.pushOpenTag(tagCodes, currentTokenLength, this.getBasicTag(currentTokenFlags))
+          currentTokenLength = 0
+        }
+
+        // Handle tabs and leading / trailing whitespace invisibles specially.
+        // Otherwise just append the next character to the screen line.
+        if (nextCharacter === '\t') {
+          currentTokenLength = 0
+          const distanceToNextTabStop = this.tabLength - (screenColumn % this.tabLength)
+          if (this.invisibles.tab) {
+            screenLineText += this.invisibles.tab
+            screenLineText += ' '.repeat(distanceToNextTabStop - 1)
+          } else {
+            screenLineText += ' '.repeat(distanceToNextTabStop)
+          }
+
+          screenColumn += distanceToNextTabStop
+          currentTokenLength += distanceToNextTabStop
+        } else {
+          if ((inLeadingWhitespace || inTrailingWhitespace) &&
+              nextCharacter === ' ' && this.invisibles.space) {
+            screenLineText += this.invisibles.space
+          } else {
+            screenLineText += nextCharacter
+          }
+          screenColumn++
+          currentTokenLength++
+        }
+        bufferColumn++
       }
 
-      screenLines.push({lineText: screenLine, tagCodes})
+      const screenLine = {id: nextScreenLineId++, lineText: screenLineText, tagCodes}
+      screenLines.push(screenLine)
       screenRow++
       bufferRow++
     }
