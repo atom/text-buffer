@@ -2373,7 +2373,7 @@ function getTokenBoundaries (displayLayer, startRow = 0, endRow = displayLayer.g
 }
 
 function updateTokenLines (tokenLines, displayLayer, changes) {
-  for (const {start, oldExtent, newExtent} of typeof changes !== 'undefined' && changes !== null ? changes : []) {
+  for (const {start, oldExtent, newExtent} of changes || []) {
     const newTokenLines = getTokens(displayLayer, start.row, start.row + newExtent.row)
     tokenLines.splice(start.row, oldExtent.row, ...newTokenLines)
   }
