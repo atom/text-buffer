@@ -1013,8 +1013,6 @@ class DisplayLayer {
           lastWrapBoundaryScreenLineWidth = 0
         }
 
-        screenLineWidth += characterWidth
-
         // If there is a fold at this position, splice it into the spatial index
         // and jump to the end of the fold.
         if (foldEnd) {
@@ -1039,8 +1037,10 @@ class DisplayLayer {
             tabSequenceLength++
             const distanceToNextTabStop = this.tabLength - (screenColumn % this.tabLength)
             screenColumn += distanceToNextTabStop
+            screenLineWidth += distanceToNextTabStop * this.ratioForCharacter(' ')
           } else {
             screenColumn++
+            screenLineWidth += characterWidth
           }
           bufferColumn++
         }
