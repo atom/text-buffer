@@ -454,7 +454,7 @@ class DisplayLayer
               spaceCount = screenColumn - tokensScreenExtent
               metadata = TRAILING_WHITESPACE
               metadata |= INVISIBLE_CHARACTER if @invisibles.space?
-              metadata |= ATOMIC if atSoftTabBoundary
+              metadata |= ATOMIC if atSoftTabBoundary and @atomicSoftTabs
               metadata |= SHOW_INDENT_GUIDE if @showIndentGuides and isBlankLine and (tokensScreenExtent % @tabLength) is 0
               tokens.push({
                 screenExtent: spaceCount,
