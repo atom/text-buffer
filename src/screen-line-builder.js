@@ -78,21 +78,8 @@ class ScreenLineBuilder {
           this.emitCloseTag(this.getBasicTag(previousTokenFlags))
         }
 
-        // We loop up to the end of the buffer line in case a fold starts there,
-        // but at this point we haven't found a fold, so we can terminate the
-        // screen line if we have reached the end of the buffer line.
         if (this.bufferColumn === this.bufferLine.length) {
-          this.emitCloseTag(this.getBasicTag(this.currentTokenFlags))
-          this.emitEOLInvisible()
-          if (this.bufferLine.length === 0 && this.displayLayer.showIndentGuides) {
-            let whitespaceLength = this.displayLayer.leadingWhitespaceLengthForSurroundingLines(this.bufferRow)
-            this.emitIndentWhitespace(whitespaceLength)
-          }
-          // Ensure empty lines have at least one empty token to make it easier on
-          // the caller
-          if (this.currentScreenLineTagCodes.length === 0) this.currentScreenLineTagCodes.push(0)
-          this.emitNewline()
-          this.bufferRow++
+          this.emitLineEnding()
           break
         }
 
@@ -192,6 +179,20 @@ class ScreenLineBuilder {
     if (openTag.length > 0) {
       this.currentScreenLineTagCodes.push(this.displayLayer.codeForOpenTag(openTag))
     }
+  }
+
+  emitLineEnding () {
+    this.emitCloseTag(this.getBasicTag(this.currentTokenFlags))
+    this.emitEOLInvisible()
+    if (this.bufferLine.length === 0 && this.displayLayer.showIndentGuides) {
+      let whitespaceLength = this.displayLayer.leadingWhitespaceLengthForSurroundingLines(this.bufferRow)
+      this.emitIndentWhitespace(whitespaceLength)
+    }
+    // Ensure empty lines have at least one empty token to make it easier on
+    // the caller
+    if (this.currentScreenLineTagCodes.length === 0) this.currentScreenLineTagCodes.push(0)
+    this.emitNewline()
+    this.bufferRow++
   }
 
   emitNewline () {
