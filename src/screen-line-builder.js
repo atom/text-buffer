@@ -24,7 +24,7 @@ class ScreenLineBuilder {
     const screenEnd = Point(screenEndRow, 0)
     this.screenLines = []
     this.screenRow = screenStartRow
-    let {row: bufferRow} = this.displayLayer.translateScreenPosition(screenStart)
+    this.bufferRow = this.displayLayer.translateScreenPosition(screenStart).row
 
     let hunkIndex = 0
     const hunks = this.displayLayer.spatialIndex.getHunksInNewRange(screenStart, screenEnd)
@@ -34,24 +34,23 @@ class ScreenLineBuilder {
       this.currentTokenLength = 0
       this.screenColumn = 0
       let currentTokenFlags = 0
-      let bufferLine = this.displayLayer.buffer.lineForRow(bufferRow)
-      let lineEnding = this.displayLayer.buffer.lineEndingForRow(bufferRow)
+      this.bufferLine = this.displayLayer.buffer.lineForRow(this.bufferRow)
       let bufferColumn = 0
-      let trailingWhitespaceStartColumn = this.displayLayer.findTrailingWhitespaceStartColumn(bufferLine)
+      let trailingWhitespaceStartColumn = this.displayLayer.findTrailingWhitespaceStartColumn(this.bufferLine)
       let inLeadingWhitespace = true
       let inTrailingWhitespace = false
 
       // If the buffer line is empty, indent guides may extend beyond the line-ending
       // invisible, requiring this separate code path.
-      while (bufferColumn <= bufferLine.length) {
+      while (bufferColumn <= this.bufferLine.length) {
         // Handle folds or soft wraps at the current position.
         let nextHunk = hunks[hunkIndex]
-        while (nextHunk && nextHunk.oldStart.row < bufferRow) {
+        while (nextHunk && nextHunk.oldStart.row < this.bufferRow) {
           hunkIndex++
           nextHunk = hunks[hunkIndex]
         }
 
-        while (nextHunk && nextHunk.oldStart.row === bufferRow && nextHunk.oldStart.column === bufferColumn) {
+        while (nextHunk && nextHunk.oldStart.row === this.bufferRow && nextHunk.oldStart.column === bufferColumn) {
           // Does a fold hunk start here? Jump to the end of the fold and
           // continue to the next iteration of the loop.
           if (nextHunk.newText === this.displayLayer.foldCharacter) {
@@ -62,11 +61,11 @@ class ScreenLineBuilder {
             this.emitText(this.displayLayer.foldCharacter)
             this.emitCloseTag(this.getBasicTag(FOLD))
 
-            bufferRow = nextHunk.oldEnd.row
+            this.bufferRow = nextHunk.oldEnd.row
             bufferColumn = nextHunk.oldEnd.column
-            bufferLine = this.displayLayer.buffer.lineForRow(bufferRow)
+            this.bufferLine = this.displayLayer.buffer.lineForRow(this.bufferRow)
             inTrailingWhitespace = false
-            trailingWhitespaceStartColumn = this.displayLayer.findTrailingWhitespaceStartColumn(bufferLine)
+            trailingWhitespaceStartColumn = this.displayLayer.findTrailingWhitespaceStartColumn(this.bufferLine)
 
           // If the oldExtent of the hunk is zero, this is a soft line break.
           } else if (isEqual(nextHunk.oldStart, nextHunk.oldEnd)) {
@@ -98,7 +97,7 @@ class ScreenLineBuilder {
           nextHunk = hunks[hunkIndex]
         }
 
-        const nextCharacter = bufferLine[bufferColumn]
+        const nextCharacter = this.bufferLine[bufferColumn]
         if (bufferColumn >= trailingWhitespaceStartColumn) {
           inTrailingWhitespace = true
           inLeadingWhitespace = false
@@ -151,20 +150,13 @@ class ScreenLineBuilder {
         // append the line ending invisible if it is enabled, then break the
         // loop to proceed to the next line. If the line is empty, we may need
         // to render indent guides that extend beyond the length of the line.
-        if (bufferColumn === bufferLine.length) {
+        if (bufferColumn === this.bufferLine.length) {
           this.emitCloseTag(this.getBasicTag(currentTokenFlags))
 
-          const eolInvisible = this.displayLayer.eolInvisibles[lineEnding]
-          if (eolInvisible) {
-            let eolFlags = INVISIBLE_CHARACTER | LINE_ENDING
-            if (bufferLine.length === 0 && this.displayLayer.showIndentGuides) eolFlags |= INDENT_GUIDE
-            this.emitOpenTag(this.getBasicTag(eolFlags))
-            this.emitText(eolInvisible)
-            this.emitCloseTag(this.getBasicTag(eolFlags))
-          }
+          this.emitEOLInvisible()
 
-          if (bufferLine.length === 0 && this.displayLayer.showIndentGuides) {
-            let whitespaceLength = this.displayLayer.leadingWhitespaceLengthForSurroundingLines(bufferRow)
+          if (this.bufferLine.length === 0 && this.displayLayer.showIndentGuides) {
+            let whitespaceLength = this.displayLayer.leadingWhitespaceLengthForSurroundingLines(this.bufferRow)
             let openedIndentGuide = false
             while (this.screenColumn < whitespaceLength) {
               if (this.screenColumn % this.displayLayer.tabLength === 0) {
@@ -222,7 +214,7 @@ class ScreenLineBuilder {
       }
 
       this.emitNewline()
-      bufferRow++
+      this.bufferRow++
     }
 
     return this.screenLines
@@ -285,5 +277,17 @@ class ScreenLineBuilder {
     this.currentScreenLineText = ''
     this.currentScreenLineTagCodes = []
     this.screenColumn = 0
+  }
+
+  emitEOLInvisible () {
+    let lineEnding = this.displayLayer.buffer.lineEndingForRow(this.bufferRow)
+    const eolInvisible = this.displayLayer.eolInvisibles[lineEnding]
+    if (eolInvisible) {
+      let eolFlags = INVISIBLE_CHARACTER | LINE_ENDING
+      if (this.bufferLine.length === 0 && this.displayLayer.showIndentGuides) eolFlags |= INDENT_GUIDE
+      this.emitOpenTag(this.getBasicTag(eolFlags))
+      this.emitText(eolInvisible)
+      this.emitCloseTag(this.getBasicTag(eolFlags))
+    }
   }
 }
