@@ -33,12 +33,12 @@ class ScreenLineBuilder {
       this.currentScreenLineTagCodes = []
       this.currentTokenLength = 0
       this.screenColumn = 0
-      let currentTokenFlags = 0
+      this.currentTokenFlags = 0
       this.bufferLine = this.displayLayer.buffer.lineForRow(this.bufferRow)
       let bufferColumn = 0
-      let trailingWhitespaceStartColumn = this.displayLayer.findTrailingWhitespaceStartColumn(this.bufferLine)
-      let inLeadingWhitespace = true
-      let inTrailingWhitespace = false
+      this.trailingWhitespaceStartColumn = this.displayLayer.findTrailingWhitespaceStartColumn(this.bufferLine)
+      this.inLeadingWhitespace = true
+      this.inTrailingWhitespace = false
 
       // If the buffer line is empty, indent guides may extend beyond the line-ending
       // invisible, requiring this separate code path.
@@ -54,8 +54,8 @@ class ScreenLineBuilder {
           // Does a fold hunk start here? Jump to the end of the fold and
           // continue to the next iteration of the loop.
           if (nextHunk.newText === this.displayLayer.foldCharacter) {
-            this.emitCloseTag(this.getBasicTag(currentTokenFlags))
-            currentTokenFlags = 0
+            this.emitCloseTag(this.getBasicTag(this.currentTokenFlags))
+            this.currentTokenFlags = 0
 
             this.emitOpenTag(this.getBasicTag(FOLD))
             this.emitText(this.displayLayer.foldCharacter)
@@ -64,12 +64,12 @@ class ScreenLineBuilder {
             this.bufferRow = nextHunk.oldEnd.row
             bufferColumn = nextHunk.oldEnd.column
             this.bufferLine = this.displayLayer.buffer.lineForRow(this.bufferRow)
-            trailingWhitespaceStartColumn = this.displayLayer.findTrailingWhitespaceStartColumn(this.bufferLine)
+            this.trailingWhitespaceStartColumn = this.displayLayer.findTrailingWhitespaceStartColumn(this.bufferLine)
 
           // If the oldExtent of the hunk is zero, this is a soft line break.
           } else if (isEqual(nextHunk.oldStart, nextHunk.oldEnd)) {
-            this.emitCloseTag(this.getBasicTag(currentTokenFlags))
-            currentTokenFlags = 0
+            this.emitCloseTag(this.getBasicTag(this.currentTokenFlags))
+            this.currentTokenFlags = 0
             this.emitNewline()
             this.emitIndentWhitespace(nextHunk.newEnd.column)
           }
@@ -79,9 +79,9 @@ class ScreenLineBuilder {
         }
 
         const nextCharacter = this.bufferLine[bufferColumn]
-        if (bufferColumn >= trailingWhitespaceStartColumn) {
-          inTrailingWhitespace = true
-          inLeadingWhitespace = false
+        if (bufferColumn >= this.trailingWhitespaceStartColumn) {
+          this.inTrailingWhitespace = true
+          this.inLeadingWhitespace = false
         }
 
         // Compute the flags for the current token describing how it should be
@@ -89,39 +89,17 @@ class ScreenLineBuilder {
         // a close tag for those flags. Also emit a close tag at a forced token
         // boundary, such as between two hard tabs or where we want to show
         // an indent guide between spaces.
-        let forceTokenBoundary = false
-        let previousTokenFlags = currentTokenFlags
-        currentTokenFlags = 0
-
+        let previousTokenFlags = this.currentTokenFlags
+        this.currentTokenFlags = 0
+        this.forceTokenBoundary = false
         if (nextCharacter === ' ' || nextCharacter === '\t') {
-          const showIndentGuides = this.displayLayer.showIndentGuides && (inLeadingWhitespace || trailingWhitespaceStartColumn === 0)
-          if (inLeadingWhitespace) currentTokenFlags |= LEADING_WHITESPACE
-          if (inTrailingWhitespace) currentTokenFlags |= TRAILING_WHITESPACE
-
-          if (nextCharacter === ' ') {
-            if ((inLeadingWhitespace || inTrailingWhitespace) && this.displayLayer.invisibles.space) {
-              currentTokenFlags |= INVISIBLE_CHARACTER
-            }
-
-            if (showIndentGuides) {
-              currentTokenFlags |= INDENT_GUIDE
-              if (this.screenColumn % this.displayLayer.tabLength === 0) forceTokenBoundary = true
-            }
-          } else { // nextCharacter === \t
-            currentTokenFlags |= HARD_TAB
-            if (this.displayLayer.invisibles.tab) currentTokenFlags |= INVISIBLE_CHARACTER
-            if (showIndentGuides && this.screenColumn % this.displayLayer.tabLength === 0) {
-              currentTokenFlags |= INDENT_GUIDE
-            }
-
-            forceTokenBoundary = true
-          }
+          this.updateCurrentTokenFlags(nextCharacter)
         } else {
-          inLeadingWhitespace = false
+          this.inLeadingWhitespace = false
         }
 
         if (previousTokenFlags > 0 &&
-            (currentTokenFlags !== previousTokenFlags || forceTokenBoundary)) {
+            (this.currentTokenFlags !== previousTokenFlags || this.forceTokenBoundary)) {
           this.emitCloseTag(this.getBasicTag(previousTokenFlags))
         }
 
@@ -129,7 +107,7 @@ class ScreenLineBuilder {
         // but at this point we haven't found a fold, so we can terminate the
         // screen line if we have reached the end of the buffer line.
         if (bufferColumn === this.bufferLine.length) {
-          this.emitCloseTag(this.getBasicTag(currentTokenFlags))
+          this.emitCloseTag(this.getBasicTag(this.currentTokenFlags))
           this.emitEOLInvisible()
           if (this.bufferLine.length === 0 && this.displayLayer.showIndentGuides) {
             let whitespaceLength = this.displayLayer.leadingWhitespaceLengthForSurroundingLines(this.bufferRow)
@@ -143,16 +121,16 @@ class ScreenLineBuilder {
           break
         }
 
-        if (currentTokenFlags > 0 &&
-            currentTokenFlags !== previousTokenFlags || forceTokenBoundary) {
-          this.emitOpenTag(this.getBasicTag(currentTokenFlags))
+        if (this.currentTokenFlags > 0 &&
+            this.currentTokenFlags !== previousTokenFlags || this.forceTokenBoundary) {
+          this.emitOpenTag(this.getBasicTag(this.currentTokenFlags))
         }
 
         // Handle tabs and leading / trailing whitespace invisibles specially.
         // Otherwise just append the next character to the screen line.
         if (nextCharacter === '\t') {
           this.emitHardTab()
-        } else if ((inLeadingWhitespace || inTrailingWhitespace) &&
+        } else if ((this.inLeadingWhitespace || this.inTrailingWhitespace) &&
                     nextCharacter === ' ' && this.displayLayer.invisibles.space) {
           this.emitText(this.displayLayer.invisibles.space)
         } else {
@@ -181,6 +159,31 @@ class ScreenLineBuilder {
       tag = tag.trim()
       basicTagCache.set(flags, tag)
       return tag
+    }
+  }
+
+  updateCurrentTokenFlags (nextCharacter) {
+    const showIndentGuides = this.displayLayer.showIndentGuides && (this.inLeadingWhitespace || this.trailingWhitespaceStartColumn === 0)
+    if (this.inLeadingWhitespace) this.currentTokenFlags |= LEADING_WHITESPACE
+    if (this.inTrailingWhitespace) this.currentTokenFlags |= TRAILING_WHITESPACE
+
+    if (nextCharacter === ' ') {
+      if ((this.inLeadingWhitespace || this.inTrailingWhitespace) && this.displayLayer.invisibles.space) {
+        this.currentTokenFlags |= INVISIBLE_CHARACTER
+      }
+
+      if (showIndentGuides) {
+        this.currentTokenFlags |= INDENT_GUIDE
+        if (this.screenColumn % this.displayLayer.tabLength === 0) this.forceTokenBoundary = true
+      }
+    } else { // nextCharacter === \t
+      this.currentTokenFlags |= HARD_TAB
+      if (this.displayLayer.invisibles.tab) this.currentTokenFlags |= INVISIBLE_CHARACTER
+      if (showIndentGuides && this.screenColumn % this.displayLayer.tabLength === 0) {
+        this.currentTokenFlags |= INDENT_GUIDE
+      }
+
+      this.forceTokenBoundary = true
     }
   }
 
