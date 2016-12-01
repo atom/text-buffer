@@ -126,11 +126,8 @@ class ScreenLineBuilder {
         }
 
         // We loop up to the end of the buffer line in case a fold starts there,
-        // but at this point we haven't found a fold, so we can stop if we have
-        // reached the end of the line. We need to close any open tags and
-        // append the line ending invisible if it is enabled, then break the
-        // loop to proceed to the next line. If the line is empty, we may need
-        // to render indent guides that extend beyond the length of the line.
+        // but at this point we haven't found a fold, so we can terminate the
+        // screen line if we have reached the end of the buffer line.
         if (bufferColumn === this.bufferLine.length) {
           this.emitCloseTag(this.getBasicTag(currentTokenFlags))
           this.emitEOLInvisible()
@@ -146,12 +143,6 @@ class ScreenLineBuilder {
           break
         }
 
-        // At this point we know we aren't at the end of the line, so we proceed
-        // to process the next character.
-
-        // If the current token's flags differ from the previous iteration or
-        // we are forcing a token boundary (for example between two hard tabs),
-        // push an open tag based on the new flags.
         if (currentTokenFlags > 0 &&
             currentTokenFlags !== previousTokenFlags || forceTokenBoundary) {
           this.emitOpenTag(this.getBasicTag(currentTokenFlags))
@@ -161,13 +152,11 @@ class ScreenLineBuilder {
         // Otherwise just append the next character to the screen line.
         if (nextCharacter === '\t') {
           this.emitHardTab()
+        } else if ((inLeadingWhitespace || inTrailingWhitespace) &&
+                    nextCharacter === ' ' && this.displayLayer.invisibles.space) {
+          this.emitText(this.displayLayer.invisibles.space)
         } else {
-          if ((inLeadingWhitespace || inTrailingWhitespace) &&
-              nextCharacter === ' ' && this.displayLayer.invisibles.space) {
-            this.emitText(this.displayLayer.invisibles.space)
-          } else {
-            this.emitText(nextCharacter)
-          }
+          this.emitText(nextCharacter)
         }
         bufferColumn++
       }
