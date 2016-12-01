@@ -35,14 +35,14 @@ class ScreenLineBuilder {
       this.screenColumn = 0
       this.currentTokenFlags = 0
       this.bufferLine = this.displayLayer.buffer.lineForRow(this.bufferRow)
-      let bufferColumn = 0
+      this.bufferColumn = 0
       this.trailingWhitespaceStartColumn = this.displayLayer.findTrailingWhitespaceStartColumn(this.bufferLine)
       this.inLeadingWhitespace = true
       this.inTrailingWhitespace = false
 
       // If the buffer line is empty, indent guides may extend beyond the line-ending
       // invisible, requiring this separate code path.
-      while (bufferColumn <= this.bufferLine.length) {
+      while (this.bufferColumn <= this.bufferLine.length) {
         // Handle folds or soft wraps at the current position.
         let nextHunk = hunks[hunkIndex]
         while (nextHunk && nextHunk.oldStart.row < this.bufferRow) {
@@ -50,36 +50,20 @@ class ScreenLineBuilder {
           nextHunk = hunks[hunkIndex]
         }
 
-        while (nextHunk && nextHunk.oldStart.row === this.bufferRow && nextHunk.oldStart.column === bufferColumn) {
-          // Does a fold hunk start here? Jump to the end of the fold and
-          // continue to the next iteration of the loop.
+        while (nextHunk && nextHunk.oldStart.row === this.bufferRow && nextHunk.oldStart.column === this.bufferColumn) {
           if (nextHunk.newText === this.displayLayer.foldCharacter) {
-            this.emitCloseTag(this.getBasicTag(this.currentTokenFlags))
-            this.currentTokenFlags = 0
-
-            this.emitOpenTag(this.getBasicTag(FOLD))
-            this.emitText(this.displayLayer.foldCharacter)
-            this.emitCloseTag(this.getBasicTag(FOLD))
-
-            this.bufferRow = nextHunk.oldEnd.row
-            bufferColumn = nextHunk.oldEnd.column
-            this.bufferLine = this.displayLayer.buffer.lineForRow(this.bufferRow)
-            this.trailingWhitespaceStartColumn = this.displayLayer.findTrailingWhitespaceStartColumn(this.bufferLine)
-
+            this.emitFold(nextHunk)
           // If the oldExtent of the hunk is zero, this is a soft line break.
           } else if (isEqual(nextHunk.oldStart, nextHunk.oldEnd)) {
-            this.emitCloseTag(this.getBasicTag(this.currentTokenFlags))
-            this.currentTokenFlags = 0
-            this.emitNewline()
-            this.emitIndentWhitespace(nextHunk.newEnd.column)
+            this.emitSoftWrap(nextHunk)
           }
 
           hunkIndex++
           nextHunk = hunks[hunkIndex]
         }
 
-        const nextCharacter = this.bufferLine[bufferColumn]
-        if (bufferColumn >= this.trailingWhitespaceStartColumn) {
+        const nextCharacter = this.bufferLine[this.bufferColumn]
+        if (this.bufferColumn >= this.trailingWhitespaceStartColumn) {
           this.inTrailingWhitespace = true
           this.inLeadingWhitespace = false
         }
@@ -106,7 +90,7 @@ class ScreenLineBuilder {
         // We loop up to the end of the buffer line in case a fold starts there,
         // but at this point we haven't found a fold, so we can terminate the
         // screen line if we have reached the end of the buffer line.
-        if (bufferColumn === this.bufferLine.length) {
+        if (this.bufferColumn === this.bufferLine.length) {
           this.emitCloseTag(this.getBasicTag(this.currentTokenFlags))
           this.emitEOLInvisible()
           if (this.bufferLine.length === 0 && this.displayLayer.showIndentGuides) {
@@ -136,7 +120,7 @@ class ScreenLineBuilder {
         } else {
           this.emitText(nextCharacter)
         }
-        bufferColumn++
+        this.bufferColumn++
       }
     }
 
@@ -268,5 +252,26 @@ class ScreenLineBuilder {
     } else {
       this.emitText(' '.repeat(distanceToNextTabStop))
     }
+  }
+
+  emitFold (nextHunk) {
+    this.emitCloseTag(this.getBasicTag(this.currentTokenFlags))
+    this.currentTokenFlags = 0
+
+    this.emitOpenTag(this.getBasicTag(FOLD))
+    this.emitText(this.displayLayer.foldCharacter)
+    this.emitCloseTag(this.getBasicTag(FOLD))
+
+    this.bufferRow = nextHunk.oldEnd.row
+    this.bufferColumn = nextHunk.oldEnd.column
+    this.bufferLine = this.displayLayer.buffer.lineForRow(this.bufferRow)
+    this.trailingWhitespaceStartColumn = this.displayLayer.findTrailingWhitespaceStartColumn(this.bufferLine)
+  }
+
+  emitSoftWrap (nextHunk) {
+    this.emitCloseTag(this.getBasicTag(this.currentTokenFlags))
+    this.currentTokenFlags = 0
+    this.emitNewline()
+    this.emitIndentWhitespace(nextHunk.newEnd.column)
   }
 }
