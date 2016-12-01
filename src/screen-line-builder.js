@@ -37,7 +37,7 @@ class ScreenLineBuilder {
       this.currentScreenLineTagCodes = []
       this.currentTokenLength = 0
       this.screenColumn = 0
-      this.currentTokenFlags = 0
+      this.currentBuiltInTagFlags = 0
       this.bufferLine = this.displayLayer.buffer.lineForRow(this.bufferRow)
       this.bufferColumn = 0
       this.trailingWhitespaceStartColumn = this.displayLayer.findTrailingWhitespaceStartColumn(this.bufferLine)
@@ -76,11 +76,11 @@ class ScreenLineBuilder {
 
         // Compute a token flags describing built-in decorations for the token
         // containing the next character
-        const previousTokenFlags = this.currentTokenFlags
+        const previousBuiltInTagFlags = this.currentBuiltInTagFlags
         this.updateCurrentTokenFlags(nextCharacter)
 
         if (this.emitBuiltInTagBoundary) {
-          this.emitCloseTag(this.getBuiltInTag(previousTokenFlags))
+          this.emitCloseTag(this.getBuiltInTag(previousBuiltInTagFlags))
         }
 
         // Are we at the end of the line?
@@ -90,7 +90,7 @@ class ScreenLineBuilder {
         }
 
         if (this.emitBuiltInTagBoundary) {
-          this.emitOpenTag(this.getBuiltInTag(this.currentTokenFlags))
+          this.emitOpenTag(this.getBuiltInTag(this.currentBuiltInTagFlags))
         }
 
         // Emit the next character, handling hard tabs whitespace invisibles
@@ -130,29 +130,29 @@ class ScreenLineBuilder {
   }
 
   updateCurrentTokenFlags (nextCharacter) {
-    const previousTokenFlags = this.currentTokenFlags
-    this.currentTokenFlags = 0
+    const previousBuiltInTagFlags = this.currentBuiltInTagFlags
+    this.currentBuiltInTagFlags = 0
     this.emitBuiltInTagBoundary = false
 
     if (nextCharacter === ' ' || nextCharacter === '\t') {
       const showIndentGuides = this.displayLayer.showIndentGuides && (this.inLeadingWhitespace || this.trailingWhitespaceStartColumn === 0)
-      if (this.inLeadingWhitespace) this.currentTokenFlags |= LEADING_WHITESPACE
-      if (this.inTrailingWhitespace) this.currentTokenFlags |= TRAILING_WHITESPACE
+      if (this.inLeadingWhitespace) this.currentBuiltInTagFlags |= LEADING_WHITESPACE
+      if (this.inTrailingWhitespace) this.currentBuiltInTagFlags |= TRAILING_WHITESPACE
 
       if (nextCharacter === ' ') {
         if ((this.inLeadingWhitespace || this.inTrailingWhitespace) && this.displayLayer.invisibles.space) {
-          this.currentTokenFlags |= INVISIBLE_CHARACTER
+          this.currentBuiltInTagFlags |= INVISIBLE_CHARACTER
         }
 
         if (showIndentGuides) {
-          this.currentTokenFlags |= INDENT_GUIDE
+          this.currentBuiltInTagFlags |= INDENT_GUIDE
           if (this.screenColumn % this.displayLayer.tabLength === 0) this.emitBuiltInTagBoundary = true
         }
       } else { // nextCharacter === \t
-        this.currentTokenFlags |= HARD_TAB
-        if (this.displayLayer.invisibles.tab) this.currentTokenFlags |= INVISIBLE_CHARACTER
+        this.currentBuiltInTagFlags |= HARD_TAB
+        if (this.displayLayer.invisibles.tab) this.currentBuiltInTagFlags |= INVISIBLE_CHARACTER
         if (showIndentGuides && this.screenColumn % this.displayLayer.tabLength === 0) {
-          this.currentTokenFlags |= INDENT_GUIDE
+          this.currentBuiltInTagFlags |= INDENT_GUIDE
         }
 
         this.emitBuiltInTagBoundary = true
@@ -160,13 +160,13 @@ class ScreenLineBuilder {
     }
 
     if (!this.emitBuiltInTagBoundary) {
-      this.emitBuiltInTagBoundary = this.currentTokenFlags !== previousTokenFlags
+      this.emitBuiltInTagBoundary = this.currentBuiltInTagFlags !== previousBuiltInTagFlags
     }
   }
 
   emitFold (nextHunk) {
-    this.emitCloseTag(this.getBuiltInTag(this.currentTokenFlags))
-    this.currentTokenFlags = 0
+    this.emitCloseTag(this.getBuiltInTag(this.currentBuiltInTagFlags))
+    this.currentBuiltInTagFlags = 0
 
     this.emitOpenTag(this.getBuiltInTag(FOLD))
     this.emitText(this.displayLayer.foldCharacter)
@@ -179,14 +179,14 @@ class ScreenLineBuilder {
   }
 
   emitSoftWrap (nextHunk) {
-    this.emitCloseTag(this.getBuiltInTag(this.currentTokenFlags))
-    this.currentTokenFlags = 0
+    this.emitCloseTag(this.getBuiltInTag(this.currentBuiltInTagFlags))
+    this.currentBuiltInTagFlags = 0
     this.emitNewline()
     this.emitIndentWhitespace(nextHunk.newEnd.column)
   }
 
   emitLineEnding () {
-    this.emitCloseTag(this.getBuiltInTag(this.currentTokenFlags))
+    this.emitCloseTag(this.getBuiltInTag(this.currentBuiltInTagFlags))
 
     let lineEnding = this.displayLayer.buffer.lineEndingForRow(this.bufferRow)
     const eolInvisible = this.displayLayer.eolInvisibles[lineEnding]
