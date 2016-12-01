@@ -20,6 +20,7 @@ class DisplayLayer {
       persistent: true,
       destroyInvalidatedMarkers: true
     })
+    this.screenLineBuilder = new ScreenLineBuilder(this)
     this.spatialIndex = new Patch({mergeAdjacentHunks: false})
     this.screenLineLengths = [0]
     this.tagsByCode = new Map()
@@ -522,7 +523,7 @@ class DisplayLayer {
   }
 
   getScreenLines (screenStartRow = 0, screenEndRow = this.getScreenLineCount()) {
-    return new ScreenLineBuilder(this).buildScreenLines(screenStartRow, screenEndRow)
+    return this.screenLineBuilder.buildScreenLines(screenStartRow, screenEndRow)
   }
 
   leadingWhitespaceLengthForSurroundingLines (startBufferRow) {
