@@ -71,26 +71,8 @@ class ScreenLineBuilder {
           } else if (isEqual(nextHunk.oldStart, nextHunk.oldEnd)) {
             this.emitCloseTag(this.getBasicTag(currentTokenFlags))
             currentTokenFlags = 0
-
             this.emitNewline()
-
-            // Make indent of soft-wrapped segment match the indent of the
-            // original line, rendering indent guides if necessary.
-            const indentLength = nextHunk.newEnd.column
-            if (this.displayLayer.showIndentGuides) {
-              let openedIndentGuide = false
-              while (this.screenColumn < indentLength) {
-                if (this.screenColumn % this.displayLayer.tabLength === 0) {
-                  if (openedIndentGuide) this.emitCloseTag(this.getBasicTag(INDENT_GUIDE))
-                  this.emitOpenTag(this.getBasicTag(INDENT_GUIDE))
-                  openedIndentGuide = true
-                }
-                this.emitText(' ')
-              }
-              if (openedIndentGuide) this.emitCloseTag(this.getBasicTag(INDENT_GUIDE))
-            } else {
-              this.emitText(' '.repeat(indentLength))
-            }
+            this.emitIndentWhitespace(nextHunk.newEnd.column)
           }
 
           hunkIndex++
@@ -157,20 +139,7 @@ class ScreenLineBuilder {
 
           if (this.bufferLine.length === 0 && this.displayLayer.showIndentGuides) {
             let whitespaceLength = this.displayLayer.leadingWhitespaceLengthForSurroundingLines(this.bufferRow)
-            let openedIndentGuide = false
-            while (this.screenColumn < whitespaceLength) {
-              if (this.screenColumn % this.displayLayer.tabLength === 0) {
-                if (openedIndentGuide) {
-                  this.emitCloseTag(this.getBasicTag(INDENT_GUIDE))
-                }
-
-                this.emitOpenTag(this.getBasicTag(INDENT_GUIDE))
-                openedIndentGuide = true
-              }
-              this.emitText(' ')
-            }
-
-            if (openedIndentGuide) this.emitCloseTag(this.getBasicTag(INDENT_GUIDE))
+            this.emitIndentWhitespace(whitespaceLength)
           }
 
           // Ensure empty lines have at least one empty token to make it easier on
@@ -288,6 +257,27 @@ class ScreenLineBuilder {
       this.emitOpenTag(this.getBasicTag(eolFlags))
       this.emitText(eolInvisible)
       this.emitCloseTag(this.getBasicTag(eolFlags))
+    }
+  }
+
+  emitIndentWhitespace (endColumn) {
+    if (this.displayLayer.showIndentGuides) {
+      let openedIndentGuide = false
+      while (this.screenColumn < endColumn) {
+        if (this.screenColumn % this.displayLayer.tabLength === 0) {
+          if (openedIndentGuide) {
+            this.emitCloseTag(this.getBasicTag(INDENT_GUIDE))
+          }
+
+          this.emitOpenTag(this.getBasicTag(INDENT_GUIDE))
+          openedIndentGuide = true
+        }
+        this.emitText(' ')
+      }
+
+      if (openedIndentGuide) this.emitCloseTag(this.getBasicTag(INDENT_GUIDE))
+    } else {
+      this.emitText(' '.repeat(endColumn - this.screenColumn))
     }
   }
 }
