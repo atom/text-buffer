@@ -76,12 +76,8 @@ class ScreenLineBuilder {
 
           // If the oldExtent of the hunk is zero, this is a soft line break.
           } else if (isEqual(nextHunk.oldStart, nextHunk.oldEnd)) {
-            if (previousTokenFlags > 0) {
-              this.emitCloseTag(this.getBasicTag(previousTokenFlags))
-              previousTokenFlags = 0
-            } else {
-              this.emitTokenBoundary()
-            }
+            this.emitCloseTag(this.getBasicTag(previousTokenFlags))
+            previousTokenFlags = 0
 
             const screenLine = {id: nextScreenLineId++, lineText: screenLineText, tagCodes: this.tagCodes}
             screenLines.push(screenLine)
@@ -165,11 +161,7 @@ class ScreenLineBuilder {
         // to render indent guides that extend beyond the length of the line.
         if (bufferColumn === bufferLine.length) {
           if (this.currentTokenLength > 0) {
-            if (previousTokenFlags > 0) {
-              this.emitCloseTag(this.getBasicTag(previousTokenFlags))
-            } else {
-              this.emitTokenBoundary()
-            }
+            this.emitCloseTag(this.getBasicTag(previousTokenFlags))
           }
 
           const eolInvisible = this.displayLayer.eolInvisibles[lineEnding]
@@ -291,11 +283,15 @@ class ScreenLineBuilder {
 
   emitCloseTag (closeTag) {
     this.emitTokenBoundary()
-    this.tagCodes.push(this.displayLayer.codeForCloseTag(closeTag))
+    if (closeTag.length > 0) {
+      this.tagCodes.push(this.displayLayer.codeForCloseTag(closeTag))
+    }
   }
 
   emitOpenTag (openTag) {
     this.emitTokenBoundary()
-    this.tagCodes.push(this.displayLayer.codeForOpenTag(openTag))
+    if (openTag.length > 0) {
+      this.tagCodes.push(this.displayLayer.codeForOpenTag(openTag))
+    }
   }
 }
