@@ -40,20 +40,18 @@ class ScreenLineBuilder {
       this.inLeadingWhitespace = true
       this.inTrailingWhitespace = false
 
-      // If the buffer line is empty, indent guides may extend beyond the line-ending
-      // invisible, requiring this separate code path.
       while (this.bufferColumn <= this.bufferLine.length) {
-        // Handle folds or soft wraps at the current position.
+        // Discard hunks starting before the current row
         let nextHunk = hunks[hunkIndex]
         while (nextHunk && nextHunk.oldStart.row < this.bufferRow) {
           hunkIndex++
           nextHunk = hunks[hunkIndex]
         }
 
+        // Handle folds or soft wraps at the current position.
         while (nextHunk && nextHunk.oldStart.row === this.bufferRow && nextHunk.oldStart.column === this.bufferColumn) {
           if (nextHunk.newText === this.displayLayer.foldCharacter) {
             this.emitFold(nextHunk)
-          // If the oldExtent of the hunk is zero, this is a soft line break.
           } else if (isEqual(nextHunk.oldStart, nextHunk.oldEnd)) {
             this.emitSoftWrap(nextHunk)
           }
@@ -66,21 +64,14 @@ class ScreenLineBuilder {
         if (this.bufferColumn >= this.trailingWhitespaceStartColumn) {
           this.inTrailingWhitespace = true
           this.inLeadingWhitespace = false
+        } else if (nextCharacter !== ' ' && nextCharacter !== '\t') {
+          this.inLeadingWhitespace = false
         }
 
         // Compute the flags for the current token describing how it should be
-        // decorated. If these flags differ from the previous token flags, emit
-        // a close tag for those flags. Also emit a close tag at a forced token
-        // boundary, such as between two hard tabs or where we want to show
-        // an indent guide between spaces.
+        // decorated.
         let previousTokenFlags = this.currentTokenFlags
-        this.currentTokenFlags = 0
-        this.forceTokenBoundary = false
-        if (nextCharacter === ' ' || nextCharacter === '\t') {
-          this.updateCurrentTokenFlags(nextCharacter)
-        } else {
-          this.inLeadingWhitespace = false
-        }
+        this.updateCurrentTokenFlags(nextCharacter)
 
         if (previousTokenFlags > 0 &&
             (this.currentTokenFlags !== previousTokenFlags || this.forceTokenBoundary)) {
@@ -147,6 +138,10 @@ class ScreenLineBuilder {
   }
 
   updateCurrentTokenFlags (nextCharacter) {
+    this.currentTokenFlags = 0
+    this.forceTokenBoundary = false
+    if (nextCharacter !== ' ' && nextCharacter !== '\t') return
+
     const showIndentGuides = this.displayLayer.showIndentGuides && (this.inLeadingWhitespace || this.trailingWhitespaceStartColumn === 0)
     if (this.inLeadingWhitespace) this.currentTokenFlags |= LEADING_WHITESPACE
     if (this.inTrailingWhitespace) this.currentTokenFlags |= TRAILING_WHITESPACE
