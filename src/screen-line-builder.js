@@ -160,13 +160,7 @@ class ScreenLineBuilder {
         // Handle tabs and leading / trailing whitespace invisibles specially.
         // Otherwise just append the next character to the screen line.
         if (nextCharacter === '\t') {
-          const distanceToNextTabStop = this.displayLayer.tabLength - (this.screenColumn % this.displayLayer.tabLength)
-          if (this.displayLayer.invisibles.tab) {
-            this.emitText(this.displayLayer.invisibles.tab)
-            this.emitText(' '.repeat(distanceToNextTabStop - 1))
-          } else {
-            this.emitText(' '.repeat(distanceToNextTabStop))
-          }
+          this.emitHardTab()
         } else {
           if ((inLeadingWhitespace || inTrailingWhitespace) &&
               nextCharacter === ' ' && this.displayLayer.invisibles.space) {
@@ -271,6 +265,16 @@ class ScreenLineBuilder {
       if (openedIndentGuide) this.emitCloseTag(this.getBasicTag(INDENT_GUIDE))
     } else {
       this.emitText(' '.repeat(endColumn - this.screenColumn))
+    }
+  }
+
+  emitHardTab () {
+    const distanceToNextTabStop = this.displayLayer.tabLength - (this.screenColumn % this.displayLayer.tabLength)
+    if (this.displayLayer.invisibles.tab) {
+      this.emitText(this.displayLayer.invisibles.tab)
+      this.emitText(' '.repeat(distanceToNextTabStop - 1))
+    } else {
+      this.emitText(' '.repeat(distanceToNextTabStop))
     }
   }
 }
