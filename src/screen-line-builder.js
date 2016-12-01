@@ -29,11 +29,11 @@ class ScreenLineBuilder {
     let hunkIndex = 0
     const hunks = this.displayLayer.spatialIndex.getHunksInNewRange(screenStart, screenEnd)
     while (screenRow < screenEndRow) {
-      let screenLineText = ''
-      this.tagCodes = []
+      this.currentScreenLineText = ''
+      this.currentScreenLineTagCodes = []
       this.currentTokenLength = 0
+      this.screenColumn = 0
       let currentTokenFlags = 0
-      let screenColumn = 0
       let bufferLine = this.displayLayer.buffer.lineForRow(bufferRow)
       let lineEnding = this.displayLayer.buffer.lineEndingForRow(bufferRow)
       let bufferColumn = 0
@@ -58,11 +58,8 @@ class ScreenLineBuilder {
             this.emitCloseTag(this.getBasicTag(currentTokenFlags))
             currentTokenFlags = 0
 
-            const foldCharacter = this.displayLayer.foldCharacter
             this.emitOpenTag(this.getBasicTag(FOLD))
-            screenLineText += foldCharacter
-            screenColumn += foldCharacter.length
-            this.currentTokenLength = foldCharacter.length
+            this.emitText(this.displayLayer.foldCharacter)
             this.emitCloseTag(this.getBasicTag(FOLD))
 
             bufferRow = nextHunk.oldEnd.row
@@ -76,29 +73,29 @@ class ScreenLineBuilder {
             this.emitCloseTag(this.getBasicTag(currentTokenFlags))
             currentTokenFlags = 0
 
-            const screenLine = {id: nextScreenLineId++, lineText: screenLineText, tagCodes: this.tagCodes}
+            const screenLine = {id: nextScreenLineId++, lineText: this.currentScreenLineText, tagCodes: this.currentScreenLineTagCodes}
             screenLines.push(screenLine)
             screenRow++
+            this.currentScreenLineText = ''
+            this.currentScreenLineTagCodes = []
+            this.screenColumn = 0
 
             // Make indent of soft-wrapped segment match the indent of the
             // original line, rendering indent guides if necessary.
             const indentLength = nextHunk.newEnd.column
-            screenLineText = ' '.repeat(indentLength)
-            this.tagCodes = []
-            if (this.displayLayer.showIndentGuides && indentLength > 0) {
-              screenColumn = 0
-              while (screenColumn < indentLength) {
-                if (screenColumn % this.displayLayer.tabLength === 0) {
-                  if (this.currentTokenLength > 0) this.emitCloseTag(this.getBasicTag(INDENT_GUIDE))
+            if (this.displayLayer.showIndentGuides) {
+              let openedIndentGuide = false
+              while (this.screenColumn < indentLength) {
+                if (this.screenColumn % this.displayLayer.tabLength === 0) {
+                  if (openedIndentGuide) this.emitCloseTag(this.getBasicTag(INDENT_GUIDE))
                   this.emitOpenTag(this.getBasicTag(INDENT_GUIDE))
+                  openedIndentGuide = true
                 }
-                screenColumn++
-                this.currentTokenLength++
+                this.emitText(' ')
               }
-              this.emitCloseTag(this.getBasicTag(INDENT_GUIDE))
+              if (openedIndentGuide) this.emitCloseTag(this.getBasicTag(INDENT_GUIDE))
             } else {
-              screenColumn = indentLength
-              this.currentTokenLength = indentLength
+              this.emitText(' '.repeat(indentLength))
             }
           }
 
@@ -106,7 +103,6 @@ class ScreenLineBuilder {
           nextHunk = hunks[hunkIndex]
         }
 
-        let forceTokenBoundary = false
         const nextCharacter = bufferLine[bufferColumn]
         if (bufferColumn >= trailingWhitespaceStartColumn) {
           inTrailingWhitespace = true
@@ -118,6 +114,7 @@ class ScreenLineBuilder {
         // a close tag for those flags. Also emit a close tag at a forced token
         // boundary, such as between two hard tabs or where we want to show
         // an indent guide between spaces.
+        let forceTokenBoundary = false
         let previousTokenFlags = currentTokenFlags
         currentTokenFlags = 0
 
@@ -133,12 +130,12 @@ class ScreenLineBuilder {
 
             if (showIndentGuides) {
               currentTokenFlags |= INDENT_GUIDE
-              if (screenColumn % this.displayLayer.tabLength === 0) forceTokenBoundary = true
+              if (this.screenColumn % this.displayLayer.tabLength === 0) forceTokenBoundary = true
             }
           } else { // nextCharacter === \t
             currentTokenFlags |= HARD_TAB
             if (this.displayLayer.invisibles.tab) currentTokenFlags |= INVISIBLE_CHARACTER
-            if (showIndentGuides && screenColumn % this.displayLayer.tabLength === 0) {
+            if (showIndentGuides && this.screenColumn % this.displayLayer.tabLength === 0) {
               currentTokenFlags |= INDENT_GUIDE
             }
 
@@ -160,50 +157,38 @@ class ScreenLineBuilder {
         // loop to proceed to the next line. If the line is empty, we may need
         // to render indent guides that extend beyond the length of the line.
         if (bufferColumn === bufferLine.length) {
-          if (this.currentTokenLength > 0) {
-            this.emitCloseTag(this.getBasicTag(previousTokenFlags))
-          }
+          this.emitCloseTag(this.getBasicTag(currentTokenFlags))
 
           const eolInvisible = this.displayLayer.eolInvisibles[lineEnding]
           if (eolInvisible) {
-            screenLineText += eolInvisible
-            currentTokenFlags |= INVISIBLE_CHARACTER | LINE_ENDING
-            if (bufferLine.length === 0 && this.displayLayer.showIndentGuides) currentTokenFlags |= INDENT_GUIDE
-            this.emitOpenTag(this.getBasicTag(currentTokenFlags))
-            this.currentTokenLength = eolInvisible.length
-            this.emitCloseTag(this.getBasicTag(currentTokenFlags))
-            screenColumn += eolInvisible.length
+            let eolFlags = INVISIBLE_CHARACTER | LINE_ENDING
+            if (bufferLine.length === 0 && this.displayLayer.showIndentGuides) eolFlags |= INDENT_GUIDE
+            this.emitOpenTag(this.getBasicTag(eolFlags))
+            this.emitText(eolInvisible)
+            this.emitCloseTag(this.getBasicTag(eolFlags))
           }
 
           if (bufferLine.length === 0 && this.displayLayer.showIndentGuides) {
-            currentTokenFlags = 0
-            this.currentTokenLength = 0
             let whitespaceLength = this.displayLayer.leadingWhitespaceLengthForSurroundingLines(bufferRow)
-            while (screenColumn < whitespaceLength) {
-              if (screenColumn % this.displayLayer.tabLength === 0) {
-                if (this.currentTokenLength > 0) {
-                  this.tagCodes.push(this.currentTokenLength)
+            let openedIndentGuide = false
+            while (this.screenColumn < whitespaceLength) {
+              if (this.screenColumn % this.displayLayer.tabLength === 0) {
+                if (openedIndentGuide) {
+                  this.emitCloseTag(this.getBasicTag(INDENT_GUIDE))
                 }
 
-                if (currentTokenFlags !== 0) {
-                  this.tagCodes.push(this.displayLayer.codeForCloseTag(this.getBasicTag(currentTokenFlags)))
-                }
-
-                currentTokenFlags = INDENT_GUIDE
-                this.currentTokenLength = 0
-                this.emitOpenTag(this.getBasicTag(currentTokenFlags))
+                this.emitOpenTag(this.getBasicTag(INDENT_GUIDE))
+                openedIndentGuide = true
               }
-              screenLineText += ' '
-              screenColumn++
-              this.currentTokenLength++
+              this.emitText(' ')
             }
-            if (this.currentTokenLength > 0) this.tagCodes.push(this.currentTokenLength)
-            if (currentTokenFlags) this.tagCodes.push(this.displayLayer.codeForCloseTag(this.getBasicTag(currentTokenFlags)))
+
+            if (openedIndentGuide) this.emitCloseTag(this.getBasicTag(INDENT_GUIDE))
           }
 
           // Ensure empty lines have at least one empty token to make it easier on
           // the caller
-          if (this.tagCodes.length === 0) this.tagCodes.push(0)
+          if (this.currentScreenLineTagCodes.length === 0) this.currentScreenLineTagCodes.push(0)
 
           break
         }
@@ -223,30 +208,25 @@ class ScreenLineBuilder {
         // Otherwise just append the next character to the screen line.
         if (nextCharacter === '\t') {
           this.currentTokenLength = 0
-          const distanceToNextTabStop = this.displayLayer.tabLength - (screenColumn % this.displayLayer.tabLength)
+          const distanceToNextTabStop = this.displayLayer.tabLength - (this.screenColumn % this.displayLayer.tabLength)
           if (this.displayLayer.invisibles.tab) {
-            screenLineText += this.displayLayer.invisibles.tab
-            screenLineText += ' '.repeat(distanceToNextTabStop - 1)
+            this.emitText(this.displayLayer.invisibles.tab)
+            this.emitText(' '.repeat(distanceToNextTabStop - 1))
           } else {
-            screenLineText += ' '.repeat(distanceToNextTabStop)
+            this.emitText(' '.repeat(distanceToNextTabStop))
           }
-
-          screenColumn += distanceToNextTabStop
-          this.currentTokenLength += distanceToNextTabStop
         } else {
           if ((inLeadingWhitespace || inTrailingWhitespace) &&
               nextCharacter === ' ' && this.displayLayer.invisibles.space) {
-            screenLineText += this.displayLayer.invisibles.space
+            this.emitText(this.displayLayer.invisibles.space)
           } else {
-            screenLineText += nextCharacter
+            this.emitText(nextCharacter)
           }
-          screenColumn++
-          this.currentTokenLength++
         }
         bufferColumn++
       }
 
-      const screenLine = {id: nextScreenLineId++, lineText: screenLineText, tagCodes: this.tagCodes}
+      const screenLine = {id: nextScreenLineId++, lineText: this.currentScreenLineText, tagCodes: this.currentScreenLineTagCodes}
       screenLines.push(screenLine)
       screenRow++
       bufferRow++
@@ -274,9 +254,16 @@ class ScreenLineBuilder {
     }
   }
 
+  emitText (text) {
+    this.currentScreenLineText += text
+    const length = text.length
+    this.screenColumn += length
+    this.currentTokenLength += length
+  }
+
   emitTokenBoundary () {
     if (this.currentTokenLength > 0) {
-      this.tagCodes.push(this.currentTokenLength)
+      this.currentScreenLineTagCodes.push(this.currentTokenLength)
       this.currentTokenLength = 0
     }
   }
@@ -284,14 +271,14 @@ class ScreenLineBuilder {
   emitCloseTag (closeTag) {
     this.emitTokenBoundary()
     if (closeTag.length > 0) {
-      this.tagCodes.push(this.displayLayer.codeForCloseTag(closeTag))
+      this.currentScreenLineTagCodes.push(this.displayLayer.codeForCloseTag(closeTag))
     }
   }
 
   emitOpenTag (openTag) {
     this.emitTokenBoundary()
     if (openTag.length > 0) {
-      this.tagCodes.push(this.displayLayer.codeForOpenTag(openTag))
+      this.currentScreenLineTagCodes.push(this.displayLayer.codeForOpenTag(openTag))
     }
   }
 }
