@@ -59,17 +59,15 @@ class ScreenLineBuilder {
           // continue to the next iteration of the loop.
           if (nextHunk.newText === this.displayLayer.foldCharacter) {
             if (previousTokenFlags > 0) {
-              this.pushCloseTag(this.getBasicTag(previousTokenFlags))
-            } else if (this.currentTokenLength > 0) {
-              this.tagCodes.push(this.currentTokenLength)
+              this.emitCloseTag(this.getBasicTag(previousTokenFlags))
             }
-            this.currentTokenLength = 0
 
-            screenLineText += this.displayLayer.foldCharacter
-            screenColumn++
-            this.pushOpenTag(this.getBasicTag(FOLD))
+            const foldCharacter = this.displayLayer.foldCharacter
+            screenLineText += foldCharacter
+            screenColumn += foldCharacter.length
+            this.emitOpenTag(this.getBasicTag(FOLD))
             previousTokenFlags = FOLD
-            this.currentTokenLength = this.displayLayer.foldCharacter.length
+            this.currentTokenLength = foldCharacter.length
             bufferRow = nextHunk.oldEnd.row
             bufferColumn = nextHunk.oldEnd.column
             bufferLine = this.displayLayer.buffer.lineForRow(bufferRow)
@@ -79,12 +77,11 @@ class ScreenLineBuilder {
           // If the oldExtent of the hunk is zero, this is a soft line break.
           } else if (isEqual(nextHunk.oldStart, nextHunk.oldEnd)) {
             if (previousTokenFlags > 0) {
-              this.pushCloseTag(this.getBasicTag(previousTokenFlags))
+              this.emitCloseTag(this.getBasicTag(previousTokenFlags))
               previousTokenFlags = 0
-            } else if (this.currentTokenLength > 0) {
-              this.tagCodes.push(this.currentTokenLength)
+            } else {
+              this.emitTokenBoundary()
             }
-            this.currentTokenLength = 0
 
             const screenLine = {id: nextScreenLineId++, lineText: screenLineText, tagCodes: this.tagCodes}
             screenLines.push(screenLine)
@@ -99,22 +96,13 @@ class ScreenLineBuilder {
               screenColumn = 0
               while (screenColumn < indentLength) {
                 if (screenColumn % this.displayLayer.tabLength === 0) {
-                  if (this.currentTokenLength > 0) {
-                    this.tagCodes.push(this.currentTokenLength)
-                    this.tagCodes.push(this.displayLayer.codeForCloseTag(this.getBasicTag(INDENT_GUIDE)))
-                    this.currentTokenLength = 0
-                  }
-                  this.currentTokenLength = 0
-                  this.pushOpenTag(this.getBasicTag(INDENT_GUIDE))
+                  if (this.currentTokenLength > 0) this.emitCloseTag(this.getBasicTag(INDENT_GUIDE))
+                  this.emitOpenTag(this.getBasicTag(INDENT_GUIDE))
                 }
                 screenColumn++
                 this.currentTokenLength++
               }
-              if (this.currentTokenLength > 0) {
-                this.tagCodes.push(this.currentTokenLength)
-                this.tagCodes.push(this.displayLayer.codeForCloseTag(this.getBasicTag(INDENT_GUIDE)))
-                this.currentTokenLength = 0
-              }
+              this.emitCloseTag(this.getBasicTag(INDENT_GUIDE))
             } else {
               screenColumn = indentLength
               this.currentTokenLength = indentLength
@@ -166,8 +154,7 @@ class ScreenLineBuilder {
 
         if (previousTokenFlags > 0 &&
             (currentTokenFlags !== previousTokenFlags || forceTokenBoundary)) {
-          this.pushCloseTag(this.getBasicTag(previousTokenFlags))
-          this.currentTokenLength = 0
+          this.emitCloseTag(this.getBasicTag(previousTokenFlags))
         }
 
         // We loop up to the end of the buffer line in case a fold starts there,
@@ -179,11 +166,10 @@ class ScreenLineBuilder {
         if (bufferColumn === bufferLine.length) {
           if (this.currentTokenLength > 0) {
             if (previousTokenFlags > 0) {
-              this.pushCloseTag(this.getBasicTag(previousTokenFlags))
+              this.emitCloseTag(this.getBasicTag(previousTokenFlags))
             } else {
-              this.tagCodes.push(this.currentTokenLength)
+              this.emitTokenBoundary()
             }
-            this.currentTokenLength = 0
           }
 
           const eolInvisible = this.displayLayer.eolInvisibles[lineEnding]
@@ -191,9 +177,9 @@ class ScreenLineBuilder {
             screenLineText += eolInvisible
             currentTokenFlags |= INVISIBLE_CHARACTER | LINE_ENDING
             if (bufferLine.length === 0 && this.displayLayer.showIndentGuides) currentTokenFlags |= INDENT_GUIDE
-            this.pushOpenTag(this.getBasicTag(currentTokenFlags))
+            this.emitOpenTag(this.getBasicTag(currentTokenFlags))
             this.currentTokenLength = eolInvisible.length
-            this.pushCloseTag(this.getBasicTag(currentTokenFlags))
+            this.emitCloseTag(this.getBasicTag(currentTokenFlags))
             screenColumn += eolInvisible.length
           }
 
@@ -213,7 +199,7 @@ class ScreenLineBuilder {
 
                 currentTokenFlags = INDENT_GUIDE
                 this.currentTokenLength = 0
-                this.pushOpenTag(this.getBasicTag(currentTokenFlags))
+                this.emitOpenTag(this.getBasicTag(currentTokenFlags))
               }
               screenLineText += ' '
               screenColumn++
@@ -238,8 +224,7 @@ class ScreenLineBuilder {
         // push an open tag based on the new flags.
         if (currentTokenFlags > 0 &&
             currentTokenFlags !== previousTokenFlags || forceTokenBoundary) {
-          this.pushOpenTag(this.getBasicTag(currentTokenFlags))
-          this.currentTokenLength = 0
+          this.emitOpenTag(this.getBasicTag(currentTokenFlags))
         }
 
         // Handle tabs and leading / trailing whitespace invisibles specially.
@@ -297,13 +282,20 @@ class ScreenLineBuilder {
     }
   }
 
-  pushCloseTag (closeTag) {
-    if (this.currentTokenLength > 0) this.tagCodes.push(this.currentTokenLength)
+  emitTokenBoundary () {
+    if (this.currentTokenLength > 0) {
+      this.tagCodes.push(this.currentTokenLength)
+      this.currentTokenLength = 0
+    }
+  }
+
+  emitCloseTag (closeTag) {
+    this.emitTokenBoundary()
     this.tagCodes.push(this.displayLayer.codeForCloseTag(closeTag))
   }
 
-  pushOpenTag (openTag) {
-    if (this.currentTokenLength > 0) this.tagCodes.push(this.currentTokenLength)
+  emitOpenTag (openTag) {
+    this.emitTokenBoundary()
     this.tagCodes.push(this.displayLayer.codeForOpenTag(openTag))
   }
 }
