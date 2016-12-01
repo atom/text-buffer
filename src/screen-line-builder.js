@@ -1,5 +1,5 @@
 const Point = require('./point')
-const {traverse, traversal, compare, max, isEqual} = require('./point-helpers')
+const {isEqual} = require('./point-helpers')
 
 const HARD_TAB = 1 << 0
 const LEADING_WHITESPACE = 1 << 2
@@ -164,37 +164,40 @@ class ScreenLineBuilder {
     }
   }
 
-  emitText (text) {
-    this.currentScreenLineText += text
-    const length = text.length
-    this.screenColumn += length
-    this.currentTokenLength += length
+  emitFold (nextHunk) {
+    this.emitCloseTag(this.getBuiltInTag(this.currentTokenFlags))
+    this.currentTokenFlags = 0
+
+    this.emitOpenTag(this.getBuiltInTag(FOLD))
+    this.emitText(this.displayLayer.foldCharacter)
+    this.emitCloseTag(this.getBuiltInTag(FOLD))
+
+    this.bufferRow = nextHunk.oldEnd.row
+    this.bufferColumn = nextHunk.oldEnd.column
+    this.bufferLine = this.displayLayer.buffer.lineForRow(this.bufferRow)
+    this.trailingWhitespaceStartColumn = this.displayLayer.findTrailingWhitespaceStartColumn(this.bufferLine)
   }
 
-  emitTokenBoundary () {
-    if (this.currentTokenLength > 0) {
-      this.currentScreenLineTagCodes.push(this.currentTokenLength)
-      this.currentTokenLength = 0
-    }
-  }
-
-  emitCloseTag (closeTag) {
-    this.emitTokenBoundary()
-    if (closeTag.length > 0) {
-      this.currentScreenLineTagCodes.push(this.displayLayer.codeForCloseTag(closeTag))
-    }
-  }
-
-  emitOpenTag (openTag) {
-    this.emitTokenBoundary()
-    if (openTag.length > 0) {
-      this.currentScreenLineTagCodes.push(this.displayLayer.codeForOpenTag(openTag))
-    }
+  emitSoftWrap (nextHunk) {
+    this.emitCloseTag(this.getBuiltInTag(this.currentTokenFlags))
+    this.currentTokenFlags = 0
+    this.emitNewline()
+    this.emitIndentWhitespace(nextHunk.newEnd.column)
   }
 
   emitLineEnding () {
     this.emitCloseTag(this.getBuiltInTag(this.currentTokenFlags))
-    this.emitEOLInvisible()
+
+    let lineEnding = this.displayLayer.buffer.lineEndingForRow(this.bufferRow)
+    const eolInvisible = this.displayLayer.eolInvisibles[lineEnding]
+    if (eolInvisible) {
+      let eolFlags = INVISIBLE_CHARACTER | LINE_ENDING
+      if (this.bufferLine.length === 0 && this.displayLayer.showIndentGuides) eolFlags |= INDENT_GUIDE
+      this.emitOpenTag(this.getBuiltInTag(eolFlags))
+      this.emitText(eolInvisible)
+      this.emitCloseTag(this.getBuiltInTag(eolFlags))
+    }
+
     if (this.bufferLine.length === 0 && this.displayLayer.showIndentGuides) {
       let whitespaceLength = this.displayLayer.leadingWhitespaceLengthForSurroundingLines(this.bufferRow)
       this.emitIndentWhitespace(whitespaceLength)
@@ -216,18 +219,6 @@ class ScreenLineBuilder {
     this.currentScreenLineText = ''
     this.currentScreenLineTagCodes = []
     this.screenColumn = 0
-  }
-
-  emitEOLInvisible () {
-    let lineEnding = this.displayLayer.buffer.lineEndingForRow(this.bufferRow)
-    const eolInvisible = this.displayLayer.eolInvisibles[lineEnding]
-    if (eolInvisible) {
-      let eolFlags = INVISIBLE_CHARACTER | LINE_ENDING
-      if (this.bufferLine.length === 0 && this.displayLayer.showIndentGuides) eolFlags |= INDENT_GUIDE
-      this.emitOpenTag(this.getBuiltInTag(eolFlags))
-      this.emitText(eolInvisible)
-      this.emitCloseTag(this.getBuiltInTag(eolFlags))
-    }
   }
 
   emitIndentWhitespace (endColumn) {
@@ -261,24 +252,31 @@ class ScreenLineBuilder {
     }
   }
 
-  emitFold (nextHunk) {
-    this.emitCloseTag(this.getBuiltInTag(this.currentTokenFlags))
-    this.currentTokenFlags = 0
-
-    this.emitOpenTag(this.getBuiltInTag(FOLD))
-    this.emitText(this.displayLayer.foldCharacter)
-    this.emitCloseTag(this.getBuiltInTag(FOLD))
-
-    this.bufferRow = nextHunk.oldEnd.row
-    this.bufferColumn = nextHunk.oldEnd.column
-    this.bufferLine = this.displayLayer.buffer.lineForRow(this.bufferRow)
-    this.trailingWhitespaceStartColumn = this.displayLayer.findTrailingWhitespaceStartColumn(this.bufferLine)
+  emitText (text) {
+    this.currentScreenLineText += text
+    const length = text.length
+    this.screenColumn += length
+    this.currentTokenLength += length
   }
 
-  emitSoftWrap (nextHunk) {
-    this.emitCloseTag(this.getBuiltInTag(this.currentTokenFlags))
-    this.currentTokenFlags = 0
-    this.emitNewline()
-    this.emitIndentWhitespace(nextHunk.newEnd.column)
+  emitTokenBoundary () {
+    if (this.currentTokenLength > 0) {
+      this.currentScreenLineTagCodes.push(this.currentTokenLength)
+      this.currentTokenLength = 0
+    }
+  }
+
+  emitCloseTag (closeTag) {
+    this.emitTokenBoundary()
+    if (closeTag.length > 0) {
+      this.currentScreenLineTagCodes.push(this.displayLayer.codeForCloseTag(closeTag))
+    }
+  }
+
+  emitOpenTag (openTag) {
+    this.emitTokenBoundary()
+    if (openTag.length > 0) {
+      this.currentScreenLineTagCodes.push(this.displayLayer.codeForOpenTag(openTag))
+    }
   }
 }
