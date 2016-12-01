@@ -64,7 +64,6 @@ class ScreenLineBuilder {
             this.bufferRow = nextHunk.oldEnd.row
             bufferColumn = nextHunk.oldEnd.column
             this.bufferLine = this.displayLayer.buffer.lineForRow(this.bufferRow)
-            inTrailingWhitespace = false
             trailingWhitespaceStartColumn = this.displayLayer.findTrailingWhitespaceStartColumn(this.bufferLine)
 
           // If the oldExtent of the hunk is zero, this is a soft line break.
@@ -134,18 +133,16 @@ class ScreenLineBuilder {
         // to render indent guides that extend beyond the length of the line.
         if (bufferColumn === this.bufferLine.length) {
           this.emitCloseTag(this.getBasicTag(currentTokenFlags))
-
           this.emitEOLInvisible()
-
           if (this.bufferLine.length === 0 && this.displayLayer.showIndentGuides) {
             let whitespaceLength = this.displayLayer.leadingWhitespaceLengthForSurroundingLines(this.bufferRow)
             this.emitIndentWhitespace(whitespaceLength)
           }
-
           // Ensure empty lines have at least one empty token to make it easier on
           // the caller
           if (this.currentScreenLineTagCodes.length === 0) this.currentScreenLineTagCodes.push(0)
-
+          this.emitNewline()
+          this.bufferRow++
           break
         }
 
@@ -163,7 +160,6 @@ class ScreenLineBuilder {
         // Handle tabs and leading / trailing whitespace invisibles specially.
         // Otherwise just append the next character to the screen line.
         if (nextCharacter === '\t') {
-          this.currentTokenLength = 0
           const distanceToNextTabStop = this.displayLayer.tabLength - (this.screenColumn % this.displayLayer.tabLength)
           if (this.displayLayer.invisibles.tab) {
             this.emitText(this.displayLayer.invisibles.tab)
@@ -181,9 +177,6 @@ class ScreenLineBuilder {
         }
         bufferColumn++
       }
-
-      this.emitNewline()
-      this.bufferRow++
     }
 
     return this.screenLines
