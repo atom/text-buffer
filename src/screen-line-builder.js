@@ -44,9 +44,6 @@ class ScreenLineBuilder {
       // If the buffer line is empty, indent guides may extend beyond the line-ending
       // invisible, requiring this separate code path.
       while (bufferColumn <= bufferLine.length) {
-        let previousTokenFlags = currentTokenFlags
-        currentTokenFlags = 0
-
         // Handle folds or soft wraps at the current position.
         let nextHunk = hunks[hunkIndex]
         while (nextHunk && nextHunk.oldStart.row < bufferRow) {
@@ -58,16 +55,16 @@ class ScreenLineBuilder {
           // Does a fold hunk start here? Jump to the end of the fold and
           // continue to the next iteration of the loop.
           if (nextHunk.newText === this.displayLayer.foldCharacter) {
-            if (previousTokenFlags > 0) {
-              this.emitCloseTag(this.getBasicTag(previousTokenFlags))
-            }
+            this.emitCloseTag(this.getBasicTag(currentTokenFlags))
+            currentTokenFlags = 0
 
             const foldCharacter = this.displayLayer.foldCharacter
+            this.emitOpenTag(this.getBasicTag(FOLD))
             screenLineText += foldCharacter
             screenColumn += foldCharacter.length
-            this.emitOpenTag(this.getBasicTag(FOLD))
-            previousTokenFlags = FOLD
             this.currentTokenLength = foldCharacter.length
+            this.emitCloseTag(this.getBasicTag(FOLD))
+
             bufferRow = nextHunk.oldEnd.row
             bufferColumn = nextHunk.oldEnd.column
             bufferLine = this.displayLayer.buffer.lineForRow(bufferRow)
@@ -76,8 +73,8 @@ class ScreenLineBuilder {
 
           // If the oldExtent of the hunk is zero, this is a soft line break.
           } else if (isEqual(nextHunk.oldStart, nextHunk.oldEnd)) {
-            this.emitCloseTag(this.getBasicTag(previousTokenFlags))
-            previousTokenFlags = 0
+            this.emitCloseTag(this.getBasicTag(currentTokenFlags))
+            currentTokenFlags = 0
 
             const screenLine = {id: nextScreenLineId++, lineText: screenLineText, tagCodes: this.tagCodes}
             screenLines.push(screenLine)
@@ -121,6 +118,9 @@ class ScreenLineBuilder {
         // a close tag for those flags. Also emit a close tag at a forced token
         // boundary, such as between two hard tabs or where we want to show
         // an indent guide between spaces.
+        let previousTokenFlags = currentTokenFlags
+        currentTokenFlags = 0
+
         if (nextCharacter === ' ' || nextCharacter === '\t') {
           const showIndentGuides = this.displayLayer.showIndentGuides && (inLeadingWhitespace || trailingWhitespaceStartColumn === 0)
           if (inLeadingWhitespace) currentTokenFlags |= LEADING_WHITESPACE
