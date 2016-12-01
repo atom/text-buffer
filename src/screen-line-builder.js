@@ -22,13 +22,13 @@ class ScreenLineBuilder {
     screenEndRow = Math.min(screenEndRow, this.displayLayer.getScreenLineCount())
     const screenStart = Point(screenStartRow, 0)
     const screenEnd = Point(screenEndRow, 0)
-    let screenLines = []
-    let screenRow = screenStartRow
+    this.screenLines = []
+    this.screenRow = screenStartRow
     let {row: bufferRow} = this.displayLayer.translateScreenPosition(screenStart)
 
     let hunkIndex = 0
     const hunks = this.displayLayer.spatialIndex.getHunksInNewRange(screenStart, screenEnd)
-    while (screenRow < screenEndRow) {
+    while (this.screenRow < screenEndRow) {
       this.currentScreenLineText = ''
       this.currentScreenLineTagCodes = []
       this.currentTokenLength = 0
@@ -73,12 +73,7 @@ class ScreenLineBuilder {
             this.emitCloseTag(this.getBasicTag(currentTokenFlags))
             currentTokenFlags = 0
 
-            const screenLine = {id: nextScreenLineId++, lineText: this.currentScreenLineText, tagCodes: this.currentScreenLineTagCodes}
-            screenLines.push(screenLine)
-            screenRow++
-            this.currentScreenLineText = ''
-            this.currentScreenLineTagCodes = []
-            this.screenColumn = 0
+            this.emitNewline()
 
             // Make indent of soft-wrapped segment match the indent of the
             // original line, rendering indent guides if necessary.
@@ -226,13 +221,11 @@ class ScreenLineBuilder {
         bufferColumn++
       }
 
-      const screenLine = {id: nextScreenLineId++, lineText: this.currentScreenLineText, tagCodes: this.currentScreenLineTagCodes}
-      screenLines.push(screenLine)
-      screenRow++
+      this.emitNewline()
       bufferRow++
     }
 
-    return screenLines
+    return this.screenLines
   }
 
   getBasicTag (flags) {
@@ -280,5 +273,17 @@ class ScreenLineBuilder {
     if (openTag.length > 0) {
       this.currentScreenLineTagCodes.push(this.displayLayer.codeForOpenTag(openTag))
     }
+  }
+
+  emitNewline () {
+    this.screenLines.push({
+      id: nextScreenLineId++,
+      lineText: this.currentScreenLineText,
+      tagCodes: this.currentScreenLineTagCodes
+    })
+    this.screenRow++
+    this.currentScreenLineText = ''
+    this.currentScreenLineTagCodes = []
+    this.screenColumn = 0
   }
 }
