@@ -9,7 +9,7 @@ const INDENT_GUIDE = 1 << 5
 const LINE_ENDING = 1 << 6
 const FOLD = 1 << 7
 
-const basicTagCache = new Map()
+const builtInTagCache = new Map()
 let nextScreenLineId = 1
 
 module.exports =
@@ -22,12 +22,16 @@ class ScreenLineBuilder {
     screenEndRow = Math.min(screenEndRow, this.displayLayer.getScreenLineCount())
     const screenStart = Point(screenStartRow, 0)
     const screenEnd = Point(screenEndRow, 0)
+    const hunks = this.displayLayer.spatialIndex.getHunksInNewRange(screenStart, screenEnd)
+    let hunkIndex = 0
+
     this.screenLines = []
     this.screenRow = screenStartRow
     this.bufferRow = this.displayLayer.translateScreenPosition(screenStart).row
 
-    let hunkIndex = 0
-    const hunks = this.displayLayer.spatialIndex.getHunksInNewRange(screenStart, screenEnd)
+    // Loop through all characters spanning the given screen row range, building
+    // up screen lines based on the contents of the spatial index and the
+    // buffer.
     while (this.screenRow < screenEndRow) {
       this.currentScreenLineText = ''
       this.currentScreenLineTagCodes = []
@@ -40,6 +44,8 @@ class ScreenLineBuilder {
       this.inLeadingWhitespace = true
       this.inTrailingWhitespace = false
 
+      // This loop may visit multiple buffer rows if there are folds and
+      // multiple screen rows if there are soft wraps.
       while (this.bufferColumn <= this.bufferLine.length) {
         // Discard hunks starting before the current row
         let nextHunk = hunks[hunkIndex]
@@ -68,28 +74,27 @@ class ScreenLineBuilder {
           this.inLeadingWhitespace = false
         }
 
-        // Compute the flags for the current token describing how it should be
-        // decorated.
-        let previousTokenFlags = this.currentTokenFlags
+        // Compute a token flags describing built-in decorations for the token
+        // containing the next character
+        const previousTokenFlags = this.currentTokenFlags
         this.updateCurrentTokenFlags(nextCharacter)
 
-        if (previousTokenFlags > 0 &&
-            (this.currentTokenFlags !== previousTokenFlags || this.forceTokenBoundary)) {
-          this.emitCloseTag(this.getBasicTag(previousTokenFlags))
+        if (this.emitBuiltInTagBoundary) {
+          this.emitCloseTag(this.getBuiltInTag(previousTokenFlags))
         }
 
+        // Are we at the end of the line?
         if (this.bufferColumn === this.bufferLine.length) {
           this.emitLineEnding()
           break
         }
 
-        if (this.currentTokenFlags > 0 &&
-            this.currentTokenFlags !== previousTokenFlags || this.forceTokenBoundary) {
-          this.emitOpenTag(this.getBasicTag(this.currentTokenFlags))
+        if (this.emitBuiltInTagBoundary) {
+          this.emitOpenTag(this.getBuiltInTag(this.currentTokenFlags))
         }
 
-        // Handle tabs and leading / trailing whitespace invisibles specially.
-        // Otherwise just append the next character to the screen line.
+        // Emit the next character, handling hard tabs whitespace invisibles
+        // specially.
         if (nextCharacter === '\t') {
           this.emitHardTab()
         } else if ((this.inLeadingWhitespace || this.inTrailingWhitespace) &&
@@ -105,8 +110,8 @@ class ScreenLineBuilder {
     return this.screenLines
   }
 
-  getBasicTag (flags) {
-    let tag = basicTagCache.get(flags)
+  getBuiltInTag (flags) {
+    let tag = builtInTagCache.get(flags)
     if (tag) {
       return tag
     } else {
@@ -119,37 +124,43 @@ class ScreenLineBuilder {
       if (flags & INDENT_GUIDE) tag += 'indent-guide '
       if (flags & FOLD) tag += 'fold-marker '
       tag = tag.trim()
-      basicTagCache.set(flags, tag)
+      builtInTagCache.set(flags, tag)
       return tag
     }
   }
 
   updateCurrentTokenFlags (nextCharacter) {
+    const previousTokenFlags = this.currentTokenFlags
     this.currentTokenFlags = 0
-    this.forceTokenBoundary = false
-    if (nextCharacter !== ' ' && nextCharacter !== '\t') return
+    this.emitBuiltInTagBoundary = false
 
-    const showIndentGuides = this.displayLayer.showIndentGuides && (this.inLeadingWhitespace || this.trailingWhitespaceStartColumn === 0)
-    if (this.inLeadingWhitespace) this.currentTokenFlags |= LEADING_WHITESPACE
-    if (this.inTrailingWhitespace) this.currentTokenFlags |= TRAILING_WHITESPACE
+    if (nextCharacter === ' ' || nextCharacter === '\t') {
+      const showIndentGuides = this.displayLayer.showIndentGuides && (this.inLeadingWhitespace || this.trailingWhitespaceStartColumn === 0)
+      if (this.inLeadingWhitespace) this.currentTokenFlags |= LEADING_WHITESPACE
+      if (this.inTrailingWhitespace) this.currentTokenFlags |= TRAILING_WHITESPACE
 
-    if (nextCharacter === ' ') {
-      if ((this.inLeadingWhitespace || this.inTrailingWhitespace) && this.displayLayer.invisibles.space) {
-        this.currentTokenFlags |= INVISIBLE_CHARACTER
+      if (nextCharacter === ' ') {
+        if ((this.inLeadingWhitespace || this.inTrailingWhitespace) && this.displayLayer.invisibles.space) {
+          this.currentTokenFlags |= INVISIBLE_CHARACTER
+        }
+
+        if (showIndentGuides) {
+          this.currentTokenFlags |= INDENT_GUIDE
+          if (this.screenColumn % this.displayLayer.tabLength === 0) this.emitBuiltInTagBoundary = true
+        }
+      } else { // nextCharacter === \t
+        this.currentTokenFlags |= HARD_TAB
+        if (this.displayLayer.invisibles.tab) this.currentTokenFlags |= INVISIBLE_CHARACTER
+        if (showIndentGuides && this.screenColumn % this.displayLayer.tabLength === 0) {
+          this.currentTokenFlags |= INDENT_GUIDE
+        }
+
+        this.emitBuiltInTagBoundary = true
       }
+    }
 
-      if (showIndentGuides) {
-        this.currentTokenFlags |= INDENT_GUIDE
-        if (this.screenColumn % this.displayLayer.tabLength === 0) this.forceTokenBoundary = true
-      }
-    } else { // nextCharacter === \t
-      this.currentTokenFlags |= HARD_TAB
-      if (this.displayLayer.invisibles.tab) this.currentTokenFlags |= INVISIBLE_CHARACTER
-      if (showIndentGuides && this.screenColumn % this.displayLayer.tabLength === 0) {
-        this.currentTokenFlags |= INDENT_GUIDE
-      }
-
-      this.forceTokenBoundary = true
+    if (!this.emitBuiltInTagBoundary) {
+      this.emitBuiltInTagBoundary = this.currentTokenFlags !== previousTokenFlags
     }
   }
 
@@ -182,7 +193,7 @@ class ScreenLineBuilder {
   }
 
   emitLineEnding () {
-    this.emitCloseTag(this.getBasicTag(this.currentTokenFlags))
+    this.emitCloseTag(this.getBuiltInTag(this.currentTokenFlags))
     this.emitEOLInvisible()
     if (this.bufferLine.length === 0 && this.displayLayer.showIndentGuides) {
       let whitespaceLength = this.displayLayer.leadingWhitespaceLengthForSurroundingLines(this.bufferRow)
@@ -213,9 +224,9 @@ class ScreenLineBuilder {
     if (eolInvisible) {
       let eolFlags = INVISIBLE_CHARACTER | LINE_ENDING
       if (this.bufferLine.length === 0 && this.displayLayer.showIndentGuides) eolFlags |= INDENT_GUIDE
-      this.emitOpenTag(this.getBasicTag(eolFlags))
+      this.emitOpenTag(this.getBuiltInTag(eolFlags))
       this.emitText(eolInvisible)
-      this.emitCloseTag(this.getBasicTag(eolFlags))
+      this.emitCloseTag(this.getBuiltInTag(eolFlags))
     }
   }
 
@@ -225,16 +236,16 @@ class ScreenLineBuilder {
       while (this.screenColumn < endColumn) {
         if (this.screenColumn % this.displayLayer.tabLength === 0) {
           if (openedIndentGuide) {
-            this.emitCloseTag(this.getBasicTag(INDENT_GUIDE))
+            this.emitCloseTag(this.getBuiltInTag(INDENT_GUIDE))
           }
 
-          this.emitOpenTag(this.getBasicTag(INDENT_GUIDE))
+          this.emitOpenTag(this.getBuiltInTag(INDENT_GUIDE))
           openedIndentGuide = true
         }
         this.emitText(' ')
       }
 
-      if (openedIndentGuide) this.emitCloseTag(this.getBasicTag(INDENT_GUIDE))
+      if (openedIndentGuide) this.emitCloseTag(this.getBuiltInTag(INDENT_GUIDE))
     } else {
       this.emitText(' '.repeat(endColumn - this.screenColumn))
     }
@@ -251,12 +262,12 @@ class ScreenLineBuilder {
   }
 
   emitFold (nextHunk) {
-    this.emitCloseTag(this.getBasicTag(this.currentTokenFlags))
+    this.emitCloseTag(this.getBuiltInTag(this.currentTokenFlags))
     this.currentTokenFlags = 0
 
-    this.emitOpenTag(this.getBasicTag(FOLD))
+    this.emitOpenTag(this.getBuiltInTag(FOLD))
     this.emitText(this.displayLayer.foldCharacter)
-    this.emitCloseTag(this.getBasicTag(FOLD))
+    this.emitCloseTag(this.getBuiltInTag(FOLD))
 
     this.bufferRow = nextHunk.oldEnd.row
     this.bufferColumn = nextHunk.oldEnd.column
@@ -265,7 +276,7 @@ class ScreenLineBuilder {
   }
 
   emitSoftWrap (nextHunk) {
-    this.emitCloseTag(this.getBasicTag(this.currentTokenFlags))
+    this.emitCloseTag(this.getBuiltInTag(this.currentTokenFlags))
     this.currentTokenFlags = 0
     this.emitNewline()
     this.emitIndentWhitespace(nextHunk.newEnd.column)
