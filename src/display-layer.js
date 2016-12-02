@@ -80,6 +80,7 @@ class DisplayLayer {
     }
 
     this.updateSpatialIndex(0, this.buffer.getLineCount(), this.buffer.getLineCount())
+    this.spatialIndex.rebalance()
     this.emitter.emit('did-reset')
     this.notifyObserversIfMarkerScreenPositionsChanged()
   }
