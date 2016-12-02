@@ -1905,7 +1905,7 @@ describe('DisplayLayer', () => {
   const now = Date.now()
 
   for (let i = 0; i < 100; i++) {
-    const seed = now + i
+    let seed = now + i
 
     it('updates the displayed text correctly when the underlying buffer changes: ' + seed, () => {
       const random = new Random(seed)

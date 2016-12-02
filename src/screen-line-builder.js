@@ -32,7 +32,34 @@ class ScreenLineBuilder {
     // Loop through all characters spanning the given screen row range, building
     // up screen lines based on the contents of the spatial index and the
     // buffer.
+    screenRowLoop:
     while (this.screenRow < screenEndRow) {
+      const cachedScreenLine = this.displayLayer.cachedScreenLines[this.screenRow]
+      if (cachedScreenLine) {
+        this.screenLines.push(cachedScreenLine)
+
+        let nextHunk = hunks[hunkIndex]
+        while (nextHunk && nextHunk.newStart.row <= this.screenRow) {
+          if (nextHunk.newStart.row == this.screenRow) {
+            if (nextHunk.newEnd.row > nextHunk.newStart.row) {
+              this.screenRow++
+              continue screenRowLoop
+            } else {
+              this.bufferRow = nextHunk.oldEnd.row
+            }
+          }
+
+          hunkIndex++
+          nextHunk = hunks[hunkIndex]
+        }
+
+        this.screenRow++
+        this.bufferRow++
+        this.screenColumn = 0
+        this.bufferColumn = 0
+        continue
+      }
+
       this.currentScreenLineText = ''
       this.currentScreenLineTagCodes = []
       this.currentTokenLength = 0
@@ -47,14 +74,8 @@ class ScreenLineBuilder {
       // This loop may visit multiple buffer rows if there are folds and
       // multiple screen rows if there are soft wraps.
       while (this.bufferColumn <= this.bufferLine.length) {
-        // Discard hunks starting before the current row
-        let nextHunk = hunks[hunkIndex]
-        while (nextHunk && nextHunk.oldStart.row < this.bufferRow) {
-          hunkIndex++
-          nextHunk = hunks[hunkIndex]
-        }
-
         // Handle folds or soft wraps at the current position.
+        let nextHunk = hunks[hunkIndex]
         while (nextHunk && nextHunk.oldStart.row === this.bufferRow && nextHunk.oldStart.column === this.bufferColumn) {
           if (nextHunk.newText === this.displayLayer.foldCharacter) {
             this.emitFold(nextHunk)
@@ -210,11 +231,13 @@ class ScreenLineBuilder {
   }
 
   emitNewline () {
-    this.screenLines.push({
+    const screenLine = {
       id: nextScreenLineId++,
       lineText: this.currentScreenLineText,
       tagCodes: this.currentScreenLineTagCodes
-    })
+    }
+    this.screenLines.push(screenLine)
+    this.displayLayer.cachedScreenLines[this.screenRow] = screenLine
     this.screenRow++
     this.currentScreenLineText = ''
     this.currentScreenLineTagCodes = []

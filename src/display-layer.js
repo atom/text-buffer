@@ -7,7 +7,7 @@ const DisplayMarkerLayer = require('./display-marker-layer')
 const {traverse, traversal, compare, max, isEqual} = require('./point-helpers')
 const isCharacterPair = require('./is-character-pair')
 const ScreenLineBuilder = require('./screen-line-builder')
-// const {normalizePatchChanges} = require('./helpers')
+const {spliceArray} = require('./helpers')
 
 module.exports =
 class DisplayLayer {
@@ -22,7 +22,9 @@ class DisplayLayer {
     })
     this.screenLineBuilder = new ScreenLineBuilder(this)
     this.spatialIndex = new Patch({mergeAdjacentHunks: false})
+    this.rightmostScreenPosition = Point(0, 0)
     this.screenLineLengths = [0]
+    this.cachedScreenLines = []
     this.tagsByCode = new Map()
     this.codesByTag = new Map()
     this.nextOpenTagCode = -1
@@ -508,14 +510,7 @@ class DisplayLayer {
   }
 
   getRightmostScreenPosition () {
-    let result = Point(0, 0)
-    for (let row = 0, rowCount = this.screenLineLengths.length; row < rowCount; row++) {
-      if (this.screenLineLengths[row] > result.column) {
-        result.row = row
-        result.column = this.screenLineLengths[row]
-      }
-    }
-    return result
+    return this.rightmostScreenPosition
   }
 
   getApproximateRightmostScreenPosition () {
@@ -656,7 +651,8 @@ class DisplayLayer {
 
     const folds = this.computeFoldsInBufferRowRange(startBufferRow, newEndBufferRow)
 
-    const newScreenLineLengths = []
+    const insertedScreenLineLengths = []
+    let rightmostInsertedScreenPosition = Point(0, -1)
     let bufferRow = startBufferRow
     let screenRow = startScreenRow
     let bufferColumn = 0
@@ -736,7 +732,11 @@ class DisplayLayer {
             Point.ZERO,
             Point(1, indentLength)
           )
-          newScreenLineLengths.push(wrapColumn)
+          insertedScreenLineLengths.push(wrapColumn)
+          if (wrapColumn > rightmostInsertedScreenPosition.column) {
+            rightmostInsertedScreenPosition.row = screenRow
+            rightmostInsertedScreenPosition.column = wrapColumn
+          }
           screenRow++
           screenColumn = indentLength + (screenColumn - wrapColumn)
           screenLineWidth = (indentLength * this.ratioForCharacter(' ')) + (screenLineWidth - wrapWidth)
@@ -777,7 +777,12 @@ class DisplayLayer {
         }
       }
 
-      newScreenLineLengths.push(screenColumn - 1)
+      screenColumn--
+      insertedScreenLineLengths.push(screenColumn)
+      if (screenColumn > rightmostInsertedScreenPosition.column) {
+        rightmostInsertedScreenPosition.row = screenRow
+        rightmostInsertedScreenPosition.column = screenColumn
+      }
 
       bufferRow++
       bufferColumn = 0
@@ -787,16 +792,39 @@ class DisplayLayer {
     }
 
     const oldScreenRowCount = oldEndScreenRow - startScreenRow
-    this.screenLineLengths.splice(
+    spliceArray(
+      this.screenLineLengths,
       startScreenRow,
       oldScreenRowCount,
-      ...newScreenLineLengths
+      insertedScreenLineLengths
+    )
+
+    const lastRemovedScreenRow = startScreenRow + oldScreenRowCount
+    if (rightmostInsertedScreenPosition.column > this.rightmostScreenPosition.column) {
+      this.rightmostScreenPosition = rightmostInsertedScreenPosition
+    } else if (lastRemovedScreenRow < this.rightmostScreenPosition.row) {
+      this.rightmostScreenPosition.row += insertedScreenLineLengths.length - oldScreenRowCount
+    } else if (startScreenRow <= this.rightmostScreenPosition.row) {
+      this.rightmostScreenPosition = Point(0, 0)
+      for (let row = 0, rowCount = this.screenLineLengths.length; row < rowCount; row++) {
+        if (this.screenLineLengths[row] > this.rightmostScreenPosition.column) {
+          this.rightmostScreenPosition.row = row
+          this.rightmostScreenPosition.column = this.screenLineLengths[row]
+        }
+      }
+    }
+
+    spliceArray(
+      this.cachedScreenLines,
+      startScreenRow,
+      oldScreenRowCount,
+      new Array(insertedScreenLineLengths.length)
     )
 
     return {
       start: Point(startScreenRow, 0),
       oldExtent: Point(oldScreenRowCount, 0),
-      newExtent: Point(newScreenLineLengths.length, 0)
+      newExtent: Point(insertedScreenLineLengths.length, 0)
     }
   }
 
