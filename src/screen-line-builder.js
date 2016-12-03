@@ -19,15 +19,19 @@ class ScreenLineBuilder {
   }
 
   buildScreenLines (screenStartRow, screenEndRow) {
+    let decorationIterator
     screenEndRow = Math.min(screenEndRow, this.displayLayer.getScreenLineCount())
     const screenStart = Point(screenStartRow, 0)
     const screenEnd = Point(screenEndRow, 0)
     const hunks = this.displayLayer.spatialIndex.getHunksInNewRange(screenStart, screenEnd)
     let hunkIndex = 0
 
+    this.containingTags = []
+    this.tagsToReopen = []
     this.screenLines = []
     this.screenRow = screenStartRow
     this.bufferRow = this.displayLayer.translateScreenPosition(screenStart).row
+    this.beginLine()
 
     // Loop through all characters spanning the given screen row range, building
     // up screen lines based on the contents of the spatial index and the
@@ -60,10 +64,6 @@ class ScreenLineBuilder {
         continue
       }
 
-      this.currentScreenLineText = ''
-      this.currentScreenLineTagCodes = []
-      this.currentTokenLength = 0
-      this.screenColumn = 0
       this.currentBuiltInTagFlags = 0
       this.bufferLine = this.displayLayer.buffer.lineForRow(this.bufferRow)
       this.bufferColumn = 0
@@ -78,7 +78,7 @@ class ScreenLineBuilder {
         let nextHunk = hunks[hunkIndex]
         while (nextHunk && nextHunk.oldStart.row === this.bufferRow && nextHunk.oldStart.column === this.bufferColumn) {
           if (nextHunk.newText === this.displayLayer.foldCharacter) {
-            this.emitFold(nextHunk)
+            this.emitFold(nextHunk, decorationIterator)
           } else if (isEqual(nextHunk.oldStart, nextHunk.oldEnd)) {
             this.emitSoftWrap(nextHunk)
           }
@@ -102,6 +102,28 @@ class ScreenLineBuilder {
 
         if (this.emitBuiltInTagBoundary) {
           this.emitCloseTag(this.getBuiltInTag(previousBuiltInTagFlags))
+        }
+
+        if (!decorationIterator) {
+           decorationIterator = this.displayLayer.textDecorationLayer.buildIterator()
+           decorationIterator.seek(Point(this.bufferRow, this.bufferColumn))
+        }
+
+        if (this.compareBufferPosition(decorationIterator.getPosition()) < 0) {
+          decorationIterator.seek(Point(this.bufferRow, this.bufferColumn))
+        }
+
+        const decorationIteratorPosition = decorationIterator.getPosition()
+        while (this.compareBufferPosition(decorationIterator.getPosition()) === 0) {
+          for (const closeTag of decorationIterator.getCloseTags()) {
+            this.emitCloseTag(closeTag)
+          }
+
+          for (const openTag of decorationIterator.getOpenTags()) {
+            this.emitOpenTag(openTag)
+          }
+
+          decorationIterator.moveToSuccessor()
         }
 
         // Are we at the end of the line?
@@ -150,6 +172,13 @@ class ScreenLineBuilder {
     }
   }
 
+  beginLine () {
+    this.currentScreenLineText = ''
+    this.currentScreenLineTagCodes = []
+    this.screenColumn = 0
+    this.currentTokenLength = 0
+  }
+
   updateCurrentTokenFlags (nextCharacter) {
     const previousBuiltInTagFlags = this.currentBuiltInTagFlags
     this.currentBuiltInTagFlags = 0
@@ -185,9 +214,12 @@ class ScreenLineBuilder {
     }
   }
 
-  emitFold (nextHunk) {
+  emitFold (nextHunk, decorationIterator) {
     this.emitCloseTag(this.getBuiltInTag(this.currentBuiltInTagFlags))
     this.currentBuiltInTagFlags = 0
+
+    this.closeContainingTags()
+    this.tagsToReopen.length = 0
 
     this.emitOpenTag(this.getBuiltInTag(FOLD))
     this.emitText(this.displayLayer.foldCharacter)
@@ -195,6 +227,12 @@ class ScreenLineBuilder {
 
     this.bufferRow = nextHunk.oldEnd.row
     this.bufferColumn = nextHunk.oldEnd.column
+
+    const containingTags = decorationIterator.seek(Point(this.bufferRow, this.bufferColumn))
+    for (const containingTag of containingTags) {
+      this.emitOpenTag(containingTag)
+    }
+
     this.bufferLine = this.displayLayer.buffer.lineForRow(this.bufferRow)
     this.trailingWhitespaceStartColumn = this.displayLayer.findTrailingWhitespaceStartColumn(this.bufferLine)
   }
@@ -202,12 +240,14 @@ class ScreenLineBuilder {
   emitSoftWrap (nextHunk) {
     this.emitCloseTag(this.getBuiltInTag(this.currentBuiltInTagFlags))
     this.currentBuiltInTagFlags = 0
+    this.closeContainingTags()
     this.emitNewline()
     this.emitIndentWhitespace(nextHunk.newEnd.column)
   }
 
   emitLineEnding () {
     this.emitCloseTag(this.getBuiltInTag(this.currentBuiltInTagFlags))
+    this.closeContainingTags()
 
     let lineEnding = this.displayLayer.buffer.lineEndingForRow(this.bufferRow)
     const eolInvisible = this.displayLayer.eolInvisibles[lineEnding]
@@ -239,9 +279,7 @@ class ScreenLineBuilder {
     this.screenLines.push(screenLine)
     this.displayLayer.cachedScreenLines[this.screenRow] = screenLine
     this.screenRow++
-    this.currentScreenLineText = ''
-    this.currentScreenLineTagCodes = []
-    this.screenColumn = 0
+    this.beginLine()
   }
 
   emitIndentWhitespace (endColumn) {
@@ -276,6 +314,7 @@ class ScreenLineBuilder {
   }
 
   emitText (text) {
+    this.reopenTags()
     this.currentScreenLineText += text
     const length = text.length
     this.screenColumn += length
@@ -291,15 +330,66 @@ class ScreenLineBuilder {
 
   emitCloseTag (closeTag) {
     this.emitTokenBoundary()
-    if (closeTag.length > 0) {
-      this.currentScreenLineTagCodes.push(this.displayLayer.codeForCloseTag(closeTag))
+
+    if (closeTag.length === 0) return
+
+    for (let i = this.tagsToReopen.length - 1; i >= 0; i--) {
+      if (this.tagsToReopen[i] === closeTag) {
+        this.tagsToReopen.splice(i, 1)
+        return
+      }
+    }
+
+    let containingTag
+    while (containingTag = this.containingTags.pop()) {
+      this.currentScreenLineTagCodes.push(this.displayLayer.codeForCloseTag(containingTag))
+      if (containingTag === closeTag) {
+        return
+      } else {
+        this.tagsToReopen.unshift(containingTag)
+      }
     }
   }
 
   emitOpenTag (openTag) {
+    this.reopenTags()
+    this.containingTags.push(openTag)
     this.emitTokenBoundary()
     if (openTag.length > 0) {
       this.currentScreenLineTagCodes.push(this.displayLayer.codeForOpenTag(openTag))
+    }
+  }
+
+  closeContainingTags () {
+    for (let i = this.containingTags.length - 1; i >= 0; i--) {
+      const containingTag = this.containingTags[i]
+      this.currentScreenLineTagCodes.push(this.displayLayer.codeForCloseTag(containingTag))
+      this.tagsToReopen.unshift(containingTag)
+    }
+    this.containingTags.length = 0
+  }
+
+  reopenTags () {
+    for (const tagToReopen of this.tagsToReopen) {
+      this.containingTags.push(tagToReopen)
+      this.currentScreenLineTagCodes.push(this.displayLayer.codeForOpenTag(tagToReopen))
+    }
+    this.tagsToReopen.length = 0
+  }
+
+  compareBufferPosition (position) {
+    if (this.bufferRow < position.row) {
+      return -1
+    } else if (this.bufferRow === position.row) {
+      if (this.bufferColumn < position.column) {
+        return -1
+      } else if (this.bufferColumn === position.column) {
+        return 0
+      } else {
+        return 1
+      }
+    } else {
+      return 1
     }
   }
 }
