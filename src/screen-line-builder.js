@@ -1,3 +1,5 @@
+/* eslint-disable no-labels */
+
 const Point = require('./point')
 const {isEqual} = require('./point-helpers')
 
@@ -44,7 +46,7 @@ class ScreenLineBuilder {
 
         let nextHunk = hunks[hunkIndex]
         while (nextHunk && nextHunk.newStart.row <= this.screenRow) {
-          if (nextHunk.newStart.row == this.screenRow) {
+          if (nextHunk.newStart.row === this.screenRow) {
             if (nextHunk.newEnd.row > nextHunk.newStart.row) {
               this.screenRow++
               continue screenRowLoop
