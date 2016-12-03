@@ -105,15 +105,14 @@ class ScreenLineBuilder {
         }
 
         if (!decorationIterator) {
-           decorationIterator = this.displayLayer.textDecorationLayer.buildIterator()
-           decorationIterator.seek(Point(this.bufferRow, this.bufferColumn))
+          decorationIterator = this.displayLayer.textDecorationLayer.buildIterator()
+          decorationIterator.seek(Point(this.bufferRow, this.bufferColumn))
         }
 
         if (this.compareBufferPosition(decorationIterator.getPosition()) < 0) {
           decorationIterator.seek(Point(this.bufferRow, this.bufferColumn))
         }
 
-        const decorationIteratorPosition = decorationIterator.getPosition()
         while (this.compareBufferPosition(decorationIterator.getPosition()) === 0) {
           for (const closeTag of decorationIterator.getCloseTags()) {
             this.emitCloseTag(closeTag)
