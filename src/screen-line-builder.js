@@ -263,8 +263,8 @@ class ScreenLineBuilder {
     if (eolInvisible) {
       let eolFlags = INVISIBLE_CHARACTER | LINE_ENDING
       if (this.bufferLine.length === 0 && this.displayLayer.showIndentGuides) eolFlags |= INDENT_GUIDE
-      this.emitOpenTag(this.getBuiltInTag(eolFlags))
-      this.emitText(eolInvisible)
+      this.emitOpenTag(this.getBuiltInTag(eolFlags), false)
+      this.emitText(eolInvisible, false)
       this.emitCloseTag(this.getBuiltInTag(eolFlags))
     }
 
@@ -322,8 +322,8 @@ class ScreenLineBuilder {
     }
   }
 
-  emitText (text) {
-    this.reopenTags()
+  emitText (text, reopenTags = true) {
+    if (reopenTags) this.reopenTags()
     this.currentScreenLineText += text
     const length = text.length
     this.screenColumn += length
@@ -364,8 +364,8 @@ class ScreenLineBuilder {
     }
   }
 
-  emitOpenTag (openTag) {
-    this.reopenTags()
+  emitOpenTag (openTag, reopenTags = true) {
+    if (reopenTags) this.reopenTags()
     this.emitTokenBoundary()
     if (openTag.length > 0) {
       this.containingTags.push(openTag)
