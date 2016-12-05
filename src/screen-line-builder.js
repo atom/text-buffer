@@ -73,6 +73,11 @@ class ScreenLineBuilder {
       this.inLeadingWhitespace = true
       this.inTrailingWhitespace = false
 
+      if (!decorationIterator) {
+        decorationIterator = this.displayLayer.textDecorationLayer.buildIterator()
+        this.containingTags = decorationIterator.seek(Point(this.bufferRow, this.bufferColumn))
+      }
+
       // This loop may visit multiple buffer rows if there are folds and
       // multiple screen rows if there are soft wraps.
       while (this.bufferColumn <= this.bufferLine.length) {
@@ -106,26 +111,7 @@ class ScreenLineBuilder {
           this.emitCloseTag(this.getBuiltInTag(previousBuiltInTagFlags))
         }
 
-        if (!decorationIterator) {
-          decorationIterator = this.displayLayer.textDecorationLayer.buildIterator()
-          decorationIterator.seek(Point(this.bufferRow, this.bufferColumn))
-        }
-
-        if (this.compareBufferPosition(decorationIterator.getPosition()) < 0) {
-          decorationIterator.seek(Point(this.bufferRow, this.bufferColumn))
-        }
-
-        while (this.compareBufferPosition(decorationIterator.getPosition()) === 0) {
-          for (const closeTag of decorationIterator.getCloseTags()) {
-            this.emitCloseTag(closeTag)
-          }
-
-          for (const openTag of decorationIterator.getOpenTags()) {
-            this.emitOpenTag(openTag)
-          }
-
-          decorationIterator.moveToSuccessor()
-        }
+        this.emitDecorationBoundaries(decorationIterator)
 
         // Are we at the end of the line?
         if (this.bufferColumn === this.bufferLine.length) {
@@ -212,6 +198,28 @@ class ScreenLineBuilder {
 
     if (!this.emitBuiltInTagBoundary) {
       this.emitBuiltInTagBoundary = this.currentBuiltInTagFlags !== previousBuiltInTagFlags
+    }
+  }
+
+  emitDecorationBoundaries (decorationIterator) {
+    if (this.compareBufferPosition(decorationIterator.getPosition()) < 0) {
+      this.containingTags = decorationIterator.seek(Point(this.bufferRow, this.bufferColumn))
+    }
+
+    let emitEmptyToken = false
+    while (this.compareBufferPosition(decorationIterator.getPosition()) === 0) {
+      if (emitEmptyToken) this.emitEmptyToken()
+
+      for (const closeTag of decorationIterator.getCloseTags()) {
+        this.emitCloseTag(closeTag)
+      }
+
+      for (const openTag of decorationIterator.getOpenTags()) {
+        this.emitOpenTag(openTag)
+      }
+
+      decorationIterator.moveToSuccessor()
+      emitEmptyToken = true
     }
   }
 
@@ -329,6 +337,10 @@ class ScreenLineBuilder {
     }
   }
 
+  emitEmptyToken () {
+    this.currentScreenLineTagCodes.push(0)
+  }
+
   emitCloseTag (closeTag) {
     this.emitTokenBoundary()
 
@@ -354,9 +366,9 @@ class ScreenLineBuilder {
 
   emitOpenTag (openTag) {
     this.reopenTags()
-    this.containingTags.push(openTag)
     this.emitTokenBoundary()
     if (openTag.length > 0) {
+      this.containingTags.push(openTag)
       this.currentScreenLineTagCodes.push(this.displayLayer.codeForOpenTag(openTag))
     }
   }
