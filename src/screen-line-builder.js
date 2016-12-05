@@ -206,10 +206,7 @@ class ScreenLineBuilder {
       this.containingTags = decorationIterator.seek(Point(this.bufferRow, this.bufferColumn))
     }
 
-    let emitEmptyToken = false
     while (this.compareBufferPosition(decorationIterator.getPosition()) === 0) {
-      if (emitEmptyToken) this.emitEmptyToken()
-
       for (const closeTag of decorationIterator.getCloseTags()) {
         this.emitCloseTag(closeTag)
       }
@@ -219,7 +216,6 @@ class ScreenLineBuilder {
       }
 
       decorationIterator.moveToSuccessor()
-      emitEmptyToken = true
     }
   }
 
@@ -337,8 +333,11 @@ class ScreenLineBuilder {
     }
   }
 
-  emitEmptyToken () {
-    this.currentScreenLineTagCodes.push(0)
+  emitEmptyTokenIfNeeded () {
+    const lastTagCode = this.currentScreenLineTagCodes[this.currentScreenLineTagCodes.length - 1]
+    if (this.displayLayer.isOpenTagCode(lastTagCode)) {
+      this.currentScreenLineTagCodes.push(0)
+    }
   }
 
   emitCloseTag (closeTag) {
@@ -352,6 +351,8 @@ class ScreenLineBuilder {
         return
       }
     }
+
+    this.emitEmptyTokenIfNeeded()
 
     let containingTag
     while ((containingTag = this.containingTags.pop())) {
@@ -374,6 +375,8 @@ class ScreenLineBuilder {
   }
 
   closeContainingTags () {
+    if (this.containingTags.length > 0) this.emitEmptyTokenIfNeeded()
+
     for (let i = this.containingTags.length - 1; i >= 0; i--) {
       const containingTag = this.containingTags[i]
       this.currentScreenLineTagCodes.push(this.displayLayer.codeForCloseTag(containingTag))
