@@ -642,13 +642,11 @@ class DisplayLayer {
 
     for (const bufferRange of this.textDecorationLayer.getInvalidatedRanges()) {
       const screenRange = this.translateBufferRange(bufferRange)
-      debugger
-      screenRange.start.column = 0
-      screenRange.end.row++
-      screenRange.end.column = 0
-      const screenExtent = screenRange.getExtent()
-      this.cachedScreenLines.splice(screenRange.start, screenExtent.row, new Array(screenExtent.row))
-      combinedChanges.splice(screenRange.start, screenExtent, screenExtent)
+      const startRow = screenRange.start.row
+      const endRow = screenRange.end.row + 1
+      const extent = Point(endRow - startRow, 0)
+      spliceArray(this.cachedScreenLines, startRow, extent.row, new Array(extent.row))
+      combinedChanges.splice(Point(startRow, 0), extent, extent)
     }
 
     return Object.freeze(combinedChanges.getHunks().map((hunk) => {
