@@ -202,7 +202,7 @@ class ScreenLineBuilder {
   }
 
   emitDecorationBoundaries (decorationIterator) {
-    if (this.compareBufferPosition(decorationIterator.getPosition()) < 0) {
+    if (this.compareBufferPosition(decorationIterator.getPosition()) > 0) {
       this.containingTags = decorationIterator.seek(Point(this.bufferRow, this.bufferColumn))
     }
 
