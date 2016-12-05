@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 const childProcess = require('child_process')
+const path = require('path')
 
 const argv =
   require('yargs')
@@ -33,7 +34,7 @@ if (argv.rebuild) {
 
 // Run tests
 if (argv.interactive) {
-  childProcess.spawnSync('electron', ['spec/support/runner', 'spec/**/*-spec.*'], {stdio: 'inherit'})
+  childProcess.spawnSync('./node_modules/.bin/electron', ['spec/support/runner', 'spec/**/*-spec.*'], {stdio: 'inherit', cwd: path.join(__dirname, '..')})
 } else {
   childProcess.spawnSync('jasmine', ['--captureExceptions', '--forceexit'], {stdio: 'inherit'})
 }
