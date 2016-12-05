@@ -636,7 +636,28 @@ class DisplayLayer {
       }
     }
 
-    return [this.updateSpatialIndex(startRow, oldEndRow + 1, newEndRow + 1)]
+    const combinedChanges = new Patch()
+    const {start, oldExtent, newExtent} = this.updateSpatialIndex(startRow, oldEndRow + 1, newEndRow + 1)
+    combinedChanges.splice(start, oldExtent, newExtent)
+
+    for (const bufferRange of this.textDecorationLayer.getInvalidatedRanges()) {
+      const screenRange = this.translateBufferRange(bufferRange)
+      debugger
+      screenRange.start.column = 0
+      screenRange.end.row++
+      screenRange.end.column = 0
+      const screenExtent = screenRange.getExtent()
+      this.cachedScreenLines.splice(screenRange.start, screenExtent.row, new Array(screenExtent.row))
+      combinedChanges.splice(screenRange.start, screenExtent, screenExtent)
+    }
+
+    return Object.freeze(combinedChanges.getHunks().map((hunk) => {
+      return {
+        start: Point.fromObject(hunk.newStart),
+        oldExtent: traversal(hunk.oldEnd, hunk.oldStart),
+        newExtent: traversal(hunk.newEnd, hunk.newStart)
+      }
+    }))
   }
 
   emitDidChangeSyncEvent (event) {
