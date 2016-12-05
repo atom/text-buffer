@@ -342,7 +342,7 @@ class ScreenLineBuilder {
     }
 
     let containingTag
-    while (containingTag = this.containingTags.pop()) {
+    while ((containingTag = this.containingTags.pop())) {
       this.currentScreenLineTagCodes.push(this.displayLayer.codeForCloseTag(containingTag))
       if (containingTag === closeTag) {
         return
