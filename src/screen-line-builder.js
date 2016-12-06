@@ -296,15 +296,15 @@ class ScreenLineBuilder {
             this.emitCloseTag(this.getBuiltInTag(INDENT_GUIDE))
           }
 
-          this.emitOpenTag(this.getBuiltInTag(INDENT_GUIDE))
+          this.emitOpenTag(this.getBuiltInTag(INDENT_GUIDE), false)
           openedIndentGuide = true
         }
-        this.emitText(' ')
+        this.emitText(' ', false)
       }
 
       if (openedIndentGuide) this.emitCloseTag(this.getBuiltInTag(INDENT_GUIDE))
     } else {
-      this.emitText(' '.repeat(endColumn - this.screenColumn))
+      this.emitText(' '.repeat(endColumn - this.screenColumn), false)
     }
   }
 
