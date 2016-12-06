@@ -75,7 +75,7 @@ class ScreenLineBuilder {
 
       if (!decorationIterator) {
         decorationIterator = this.displayLayer.textDecorationLayer.buildIterator()
-        this.containingTags = decorationIterator.seek(Point(this.bufferRow, this.bufferColumn))
+        this.tagsToReopen = decorationIterator.seek(Point(this.bufferRow, this.bufferColumn))
       }
 
       // This loop may visit multiple buffer rows if there are folds and
@@ -233,10 +233,7 @@ class ScreenLineBuilder {
     this.bufferRow = nextHunk.oldEnd.row
     this.bufferColumn = nextHunk.oldEnd.column
 
-    const containingTags = decorationIterator.seek(Point(this.bufferRow, this.bufferColumn))
-    for (const containingTag of containingTags) {
-      this.emitOpenTag(containingTag)
-    }
+    this.tagsToReopen = decorationIterator.seek(Point(this.bufferRow, this.bufferColumn))
 
     this.bufferLine = this.displayLayer.buffer.lineForRow(this.bufferRow)
     this.trailingWhitespaceStartColumn = this.displayLayer.findTrailingWhitespaceStartColumn(this.bufferLine)
