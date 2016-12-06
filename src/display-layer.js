@@ -125,7 +125,12 @@ class DisplayLayer {
       this.decorationLayerDisposable = textDecorationLayer.onDidInvalidateRange((bufferRange) => {
         const screenRange = this.translateBufferRange(bufferRange)
         const extent = screenRange.getExtent()
-        this.cachedScreenLines.splice(screenRange.start, extent.row, new Array(extent.row))
+        spliceArray(
+          this.cachedScreenLines,
+          screenRange.start,
+          extent.row,
+          new Array(extent.row)
+        )
         this.emitDidChangeSyncEvent([{
           start: screenRange.start,
           oldExtent: extent,
