@@ -205,12 +205,14 @@ class ScreenLineBuilder {
 
   emitDecorationBoundaries (decorationIterator) {
     while (this.compareBufferPosition(decorationIterator.getPosition()) === 0) {
-      for (const closeTag of decorationIterator.getCloseTags()) {
-        this.emitCloseTag(closeTag)
+      const closeTags = decorationIterator.getCloseTags()
+      for (let i = 0, n = closeTags.length; i < n; i++) {
+        this.emitCloseTag(closeTags[i])
       }
 
-      for (const openTag of decorationIterator.getOpenTags()) {
-        this.emitOpenTag(openTag)
+      const openTags = decorationIterator.getOpenTags()
+      for (let i = 0, n = openTags.length; i < n; i++) {
+        this.emitOpenTag(openTags[i])
       }
 
       decorationIterator.moveToSuccessor()
@@ -381,7 +383,8 @@ class ScreenLineBuilder {
   }
 
   reopenTags () {
-    for (const tagToReopen of this.tagsToReopen) {
+    for (let i = 0, n = this.tagsToReopen.length; i < n; i++) {
+      const tagToReopen = this.tagsToReopen[i]
       this.containingTags.push(tagToReopen)
       this.currentScreenLineTagCodes.push(this.displayLayer.codeForOpenTag(tagToReopen))
     }
