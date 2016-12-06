@@ -640,10 +640,12 @@ class DisplayLayer {
     const {start, oldExtent, newExtent} = this.updateSpatialIndex(startRow, oldEndRow + 1, newEndRow + 1)
     combinedChanges.splice(start, oldExtent, newExtent)
 
-    for (const bufferRange of this.textDecorationLayer.getInvalidatedRanges()) {
-      const screenRange = this.translateBufferRange(bufferRange)
-      const startRow = screenRange.start.row
-      const endRow = screenRange.end.row + 1
+    for (let bufferRange of this.textDecorationLayer.getInvalidatedRanges()) {
+      bufferRange = Range.fromObject(bufferRange)
+      const startBufferRow = this.findBoundaryPrecedingBufferRow(bufferRange.start.row)
+      const endBufferRow = this.findBoundaryFollowingBufferRow(bufferRange.end.row + 1)
+      const startRow = this.translateBufferPositionWithoutBufferClipping(Point(startBufferRow, 0), 'backward').row
+      const endRow = this.translateBufferPositionWithoutBufferClipping(Point(endBufferRow, 0), 'backward').row
       const extent = Point(endRow - startRow, 0)
       spliceArray(this.cachedScreenLines, startRow, extent.row, new Array(extent.row))
       combinedChanges.splice(Point(startRow, 0), extent, extent)
