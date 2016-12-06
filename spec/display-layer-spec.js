@@ -1973,7 +1973,6 @@ describe('DisplayLayer', () => {
         freshDisplayLayer.getScreenLines()
         verifyTokenConsistency(displayLayer)
         verifyText(displayLayer, freshDisplayLayer)
-        verifyPositionTranslations(displayLayer)
         verifyRightmostScreenPosition(freshDisplayLayer)
         verifyScreenLineIds(displayLayer, screenLinesById)
       }
@@ -2079,87 +2078,6 @@ function verifyTokenConsistency (displayLayer) {
   }
 
   expect(containingTags).toEqual([])
-}
-
-function verifyPositionTranslations (displayLayer) {
-  let lineScreenStart = Point.ZERO
-  let lineBufferStart = Point.ZERO
-  const rowCount = getComputedScreenLineCount(displayLayer)
-
-  for (const screenLine of displayLayer.buildSpatialScreenLines(0, Infinity, rowCount).spatialScreenLines) {
-    let tokenScreenStart = lineScreenStart
-    let tokenBufferStart = lineBufferStart
-
-    for (const token of screenLine.tokens) {
-      let tokenScreenEnd = traverse(tokenScreenStart, Point(0, token.screenExtent))
-      let tokenBufferEnd = traverse(tokenBufferStart, token.bufferExtent)
-
-      for (let i = 0; i < token.screenExtent; i++) {
-        const screenPosition = traverse(tokenScreenStart, Point(0, i))
-        const bufferPosition = traverse(tokenBufferStart, Point(0, i))
-
-        if (token.metadata & displayLayer.ATOMIC_TOKEN) {
-          if (!isEqualPoint(screenPosition, tokenScreenStart)) {
-            expect(displayLayer.clipScreenPosition(screenPosition, {
-              clipDirection: 'backward'
-            })).toEqual(tokenScreenStart)
-
-            expect(displayLayer.clipScreenPosition(screenPosition, {
-              clipDirection: 'forward'
-            })).toEqual(tokenScreenEnd)
-
-            expect(displayLayer.translateScreenPosition(screenPosition, {
-              clipDirection: 'backward'
-            })).toEqual(tokenBufferStart)
-
-            expect(displayLayer.translateScreenPosition(screenPosition, {
-              clipDirection: 'forward'
-            })).toEqual(tokenBufferEnd)
-
-            if (comparePoints(bufferPosition, tokenBufferEnd) < 0) {
-              expect(displayLayer.translateBufferPosition(bufferPosition, {
-                clipDirection: 'backward'
-              })).toEqual(tokenScreenStart)
-
-              expect(displayLayer.translateBufferPosition(bufferPosition, {
-                clipDirection: 'forward'
-              })).toEqual(tokenScreenEnd)
-            }
-          }
-        } else if (!(token.metadata & displayLayer.VOID_TOKEN)) {
-          expect(displayLayer.clipScreenPosition(screenPosition, {
-            clipDirection: 'backward'
-          })).toEqual(screenPosition)
-
-          expect(displayLayer.clipScreenPosition(screenPosition, {
-            clipDirection: 'forward'
-          })).toEqual(screenPosition)
-
-          expect(displayLayer.translateScreenPosition(screenPosition, {
-            clipDirection: 'backward'
-          })).toEqual(bufferPosition)
-
-          expect(displayLayer.translateScreenPosition(screenPosition, {
-            clipDirection: 'forward'
-          })).toEqual(bufferPosition)
-
-          expect(displayLayer.translateBufferPosition(bufferPosition, {
-            clipDirection: 'backward'
-          })).toEqual(screenPosition)
-
-          expect(displayLayer.translateBufferPosition(bufferPosition, {
-            clipDirection: 'forward'
-          })).toEqual(screenPosition)
-        }
-      }
-
-      tokenScreenStart = tokenScreenEnd
-      tokenBufferStart = tokenBufferEnd
-    }
-
-    lineBufferStart = traverse(lineBufferStart, screenLine.bufferExtent)
-    lineScreenStart = traverse(lineScreenStart, Point(1, 0))
-  }
 }
 
 function verifyRightmostScreenPosition (displayLayer) {
@@ -2397,5 +2315,5 @@ function hasComputedAllScreenRows (displayLayer) {
 }
 
 function getComputedScreenLineCount (displayLayer) {
-  return displayLayer.displayIndex.getScreenLineCount() - 1
+  return displayLayer.getScreenLineCount()
 }
