@@ -32,7 +32,7 @@ class ScreenLineBuilder {
     this.tagsToReopen = []
     this.screenLines = []
     this.screenRow = startScreenRow
-    this.bufferRow = this.displayLayer.translateScreenPosition(screenStart).row
+    this.bufferRow = this.displayLayer.translateScreenPositionWithSpatialIndex(screenStart).row
     this.beginLine()
 
     // Loop through all characters spanning the given screen row range, building
