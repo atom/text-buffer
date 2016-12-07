@@ -1682,26 +1682,47 @@ describe('DisplayLayer', () => {
       }])
     })
 
-    it('throws an error if the text decoration iterator reports a boundary beyond the end of a line', () => {
+    it('gracefully handles the text decoration iterator reporting decoration boundaries beyond the end of a line', () => {
       const buffer = new TextBuffer({
-        text: 'abc\n\tdef'
+        text: 'abc\ndef'
       })
 
       const displayLayer = buffer.addDisplayLayer({
         tabLength: 2
       })
 
-      const decorationLayer = new TestDecorationLayer([['a', [[0, 1], [0, 10]]]])
+      const decorationLayer = new TestDecorationLayer([
+        ['a', [[0, 1], [0, 10]]],
+        ['b', [[0, 10], [1, 5]]]
+      ])
       displayLayer.setTextDecorationLayer(decorationLayer)
-      let exception
-
-      try {
-        getTokenBoundaries(displayLayer)
-      } catch (e) {
-        exception = e
-      }
-
-      expect(exception.message).toMatch(/iterator/)
+      expectTokenBoundaries(displayLayer, [
+        {
+          text: 'a',
+          close: [],
+          open: []
+        },
+        {
+          text: 'bc',
+          close: [],
+          open: ['a']
+        },
+        {
+          text: '',
+          close: ['a'],
+          open: []
+        },
+        {
+          text: 'def',
+          close: [],
+          open: ['b']
+        },
+        {
+          text: '',
+          close: ['b'],
+          open: []
+        }
+      ])
     })
   })
 
