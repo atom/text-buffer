@@ -900,7 +900,7 @@ class DisplayLayer {
   }
 
   populateSpatialIndexIfNeeded (endBufferRow, endScreenRow, deadline = NullDeadline) {
-    if (endBufferRow > this.indexedBufferRowCount) {
+    if (endBufferRow > this.indexedBufferRowCount && endScreenRow > this.screenLineLengths.length) {
       this.updateSpatialIndex(
         this.indexedBufferRowCount,
         endBufferRow,
