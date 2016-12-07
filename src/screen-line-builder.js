@@ -20,18 +20,18 @@ class ScreenLineBuilder {
     this.displayLayer = displayLayer
   }
 
-  buildScreenLines (screenStartRow, screenEndRow) {
-    this.displayLayer.populateSpatialIndexIfNeeded(this.displayLayer.buffer.getLineCount(), screenEndRow + 1)
+  buildScreenLines (startScreenRow, endScreenRow) {
+    this.displayLayer.populateSpatialIndexIfNeeded(this.displayLayer.buffer.getLineCount(), endScreenRow + 1)
     let decorationIterator
-    const screenStart = Point(screenStartRow, 0)
-    const screenEnd = Point(screenEndRow, 0)
+    const screenStart = Point(startScreenRow, 0)
+    const screenEnd = Point(endScreenRow, 0)
     const hunks = this.displayLayer.spatialIndex.getHunksInNewRange(screenStart, screenEnd)
     let hunkIndex = 0
 
     this.containingTags = []
     this.tagsToReopen = []
     this.screenLines = []
-    this.screenRow = screenStartRow
+    this.screenRow = startScreenRow
     this.bufferRow = this.displayLayer.translateScreenPosition(screenStart).row
     this.beginLine()
 
@@ -39,7 +39,7 @@ class ScreenLineBuilder {
     // up screen lines based on the contents of the spatial index and the
     // buffer.
     screenRowLoop:
-    while (this.screenRow < screenEndRow) {
+    while (this.screenRow < endScreenRow) {
       const cachedScreenLine = this.displayLayer.cachedScreenLines[this.screenRow]
       if (cachedScreenLine) {
         this.screenLines.push(cachedScreenLine)
