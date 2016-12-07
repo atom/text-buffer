@@ -129,7 +129,7 @@ class DisplayLayer {
         const extent = screenRange.getExtent()
         spliceArray(
           this.cachedScreenLines,
-          screenRange.start,
+          screenRange.start.row,
           extent.row,
           new Array(extent.row)
         )
