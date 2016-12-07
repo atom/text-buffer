@@ -857,6 +857,9 @@ class DisplayLayer {
 
     if (bufferRow > this.indexedBufferRowCount) {
       this.indexedBufferRowCount = bufferRow
+      if (bufferRow === this.buffer.getLineCount()) {
+        this.spatialIndex.rebalance()
+      }
     }
 
     const oldScreenRowCount = oldEndScreenRow - startScreenRow
