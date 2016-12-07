@@ -87,10 +87,10 @@ class ScreenLineBuilder {
         // Handle folds or soft wraps at the current position.
         let nextHunk = hunks[hunkIndex]
         while (nextHunk && nextHunk.oldStart.row === this.bufferRow && nextHunk.oldStart.column === this.bufferColumn) {
-          if (nextHunk.newText === this.displayLayer.foldCharacter) {
-            this.emitFold(nextHunk, decorationIterator)
-          } else if (isEqual(nextHunk.oldStart, nextHunk.oldEnd)) {
+          if (this.displayLayer.isSoftWrapHunk(nextHunk)) {
             this.emitSoftWrap(nextHunk)
+          } else {
+            this.emitFold(nextHunk, decorationIterator)
           }
 
           hunkIndex++
