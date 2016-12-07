@@ -21,8 +21,8 @@ class ScreenLineBuilder {
   }
 
   buildScreenLines (screenStartRow, screenEndRow) {
+    this.displayLayer.populateSpatialIndexIfNeeded(this.displayLayer.buffer.getLineCount(), screenEndRow + 1)
     let decorationIterator
-    screenEndRow = Math.min(screenEndRow, this.displayLayer.getScreenLineCount())
     const screenStart = Point(screenStartRow, 0)
     const screenEnd = Point(screenEndRow, 0)
     const hunks = this.displayLayer.spatialIndex.getHunksInNewRange(screenStart, screenEnd)
@@ -68,6 +68,7 @@ class ScreenLineBuilder {
 
       this.currentBuiltInTagFlags = 0
       this.bufferLine = this.displayLayer.buffer.lineForRow(this.bufferRow)
+      if (this.bufferLine == null) break
       this.bufferColumn = 0
       this.trailingWhitespaceStartColumn = this.displayLayer.findTrailingWhitespaceStartColumn(this.bufferLine)
       this.inLeadingWhitespace = true

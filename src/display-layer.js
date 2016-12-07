@@ -23,7 +23,7 @@ class DisplayLayer {
     this.screenLineBuilder = new ScreenLineBuilder(this)
     this.spatialIndex = new Patch({mergeAdjacentHunks: false})
     this.rightmostScreenPosition = Point(0, 0)
-    this.screenLineLengths = [0]
+    this.screenLineLengths = []
     this.cachedScreenLines = []
     this.tagsByCode = new Map()
     this.codesByTag = new Map()
@@ -79,8 +79,8 @@ class DisplayLayer {
       '\r\n': this.invisibles.cr + this.invisibles.eol
     }
 
-    this.updateSpatialIndex(0, this.buffer.getLineCount(), this.buffer.getLineCount())
-    this.spatialIndex.rebalance()
+    this.indexedBufferRowCount = 0
+    this.spatialIndex.spliceOld(Point.ZERO, Point.INFINITY, Point.INFINITY)
     this.emitter.emit('did-reset')
     this.notifyObserversIfMarkerScreenPositionsChanged()
   }
@@ -112,7 +112,9 @@ class DisplayLayer {
     delete this.buffer.displayLayers[this.id]
   }
 
-  doBackgroundWork () {
+  doBackgroundWork (deadline) {
+    this.populateSpatialIndexIfNeeded(this.buffer.getLineCount(), Infinity, deadline)
+    return this.indexedBufferRowCount < this.buffer.getLineCount()
   }
 
   getTextDecorationLayer () {
@@ -174,12 +176,13 @@ class DisplayLayer {
   foldBufferRange (bufferRange) {
     bufferRange = Range.fromObject(bufferRange)
     const containingFoldMarkers = this.foldsMarkerLayer.findMarkers({containsRange: bufferRange})
+    this.populateSpatialIndexIfNeeded(bufferRange.end.row + 1, Infinity)
     const foldId = this.foldsMarkerLayer.markRange(bufferRange).id
     if (containingFoldMarkers.length === 0) {
       const foldStartRow = bufferRange.start.row
       const foldEndRow = bufferRange.end.row + 1
       this.emitDidChangeSyncEvent([
-        this.updateSpatialIndex(foldStartRow, foldEndRow, foldEndRow)
+        this.updateSpatialIndex(foldStartRow, foldEndRow, foldEndRow, Infinity)
       ])
       this.notifyObserversIfMarkerScreenPositionsChanged()
     }
@@ -221,7 +224,8 @@ class DisplayLayer {
     this.emitDidChangeSyncEvent([this.updateSpatialIndex(
       combinedRangeStart.row,
       combinedRangeEnd.row + 1,
-      combinedRangeEnd.row + 1
+      combinedRangeEnd.row + 1,
+      Infinity
     )])
     this.notifyObserversIfMarkerScreenPositionsChanged()
 
@@ -236,8 +240,9 @@ class DisplayLayer {
 
   translateBufferPosition (bufferPosition, options) {
     bufferPosition = this.buffer.clipPosition(bufferPosition)
+    this.populateSpatialIndexIfNeeded(bufferPosition.row + 1, Infinity)
     const clipDirection = options && options.clipDirection || 'closest'
-    const screenPosition = this.translateBufferPositionWithoutReadingBuffer(bufferPosition, clipDirection)
+    const screenPosition = this.translateBufferPositionWithSpatialIndex(bufferPosition, clipDirection)
     const columnDelta = this.getClipColumnDelta(bufferPosition, clipDirection)
     if (columnDelta !== 0) {
       return Point(screenPosition.row, screenPosition.column + columnDelta)
@@ -246,7 +251,7 @@ class DisplayLayer {
     }
   }
 
-  translateBufferPositionWithoutReadingBuffer (bufferPosition, clipDirection) {
+  translateBufferPositionWithSpatialIndex (bufferPosition, clipDirection) {
     let hunk = this.spatialIndex.hunkForOldPosition(bufferPosition)
     if (hunk) {
       if (compare(bufferPosition, hunk.oldEnd) < 0) {
@@ -292,7 +297,9 @@ class DisplayLayer {
     screenPosition = Point.fromObject(screenPosition)
     const clipDirection = options && options.clipDirection || 'closest'
     const skipSoftWrapIndentation = options && options.skipSoftWrapIndentation
-    const bufferPosition = this.translateScreenPositionWithoutReadingBuffer(screenPosition, clipDirection, skipSoftWrapIndentation)
+    this.populateSpatialIndexIfNeeded(this.buffer.getLineCount(), screenPosition.row + 1)
+    screenPosition = this.constrainScreenPosition(screenPosition, clipDirection)
+    const bufferPosition = this.translateScreenPositionWithSpatialIndex(screenPosition, clipDirection, skipSoftWrapIndentation)
     const columnDelta = this.getClipColumnDelta(bufferPosition, clipDirection)
     if (columnDelta !== 0) {
       return Point(bufferPosition.row, bufferPosition.column + columnDelta)
@@ -301,8 +308,7 @@ class DisplayLayer {
     }
   }
 
-  translateScreenPositionWithoutReadingBuffer (screenPosition, clipDirection, skipSoftWrapIndentation) {
-    screenPosition = this.constrainScreenPosition(screenPosition, clipDirection)
+  translateScreenPositionWithSpatialIndex (screenPosition, clipDirection, skipSoftWrapIndentation) {
     let hunk = this.spatialIndex.hunkForNewPosition(screenPosition)
     if (hunk) {
       if (compare(screenPosition, hunk.newEnd) < 0) {
@@ -367,6 +373,8 @@ class DisplayLayer {
   clipScreenPosition (screenPosition, options) {
     const clipDirection = options && options.clipDirection || 'closest'
     const skipSoftWrapIndentation = options && options.skipSoftWrapIndentation
+    screenPosition = Point.fromObject(screenPosition)
+    this.populateSpatialIndexIfNeeded(this.buffer.getLineCount(), screenPosition.row + 1)
     screenPosition = this.constrainScreenPosition(screenPosition, clipDirection)
     let bufferPosition
     let hunk = this.spatialIndex.hunkForNewPosition(screenPosition)
@@ -428,7 +436,6 @@ class DisplayLayer {
   }
 
   constrainScreenPosition (screenPosition, clipDirection) {
-    screenPosition = Point.fromObject(screenPosition)
     let {row, column} = screenPosition
 
     if (row < 0) {
@@ -517,23 +524,30 @@ class DisplayLayer {
   }
 
   getLastScreenRow () {
+    this.populateSpatialIndexIfNeeded(this.buffer.getLineCount(), Infinity)
     return this.screenLineLengths.length - 1
   }
 
   getScreenLineCount () {
+    this.populateSpatialIndexIfNeeded(this.buffer.getLineCount(), Infinity)
     return this.screenLineLengths.length
   }
 
   getApproximateScreenLineCount () {
-    return this.getScreenLineCount()
+    if (this.indexedBufferRowCount > 0) {
+      return Math.floor(this.buffer.getLineCount() * this.screenLineLengths.length / this.indexedBufferRowCount)
+    } else {
+      return this.buffer.getLineCount()
+    }
   }
 
   getRightmostScreenPosition () {
+    this.populateSpatialIndexIfNeeded(this.buffer.getLineCount(), Infinity)
     return this.rightmostScreenPosition
   }
 
   getApproximateRightmostScreenPosition () {
-    return this.getRightmostScreenPosition()
+    return this.rightmostScreenPosition
   }
 
   getScreenLines (screenStartRow = 0, screenEndRow = this.getScreenLineCount()) {
@@ -617,8 +631,13 @@ class DisplayLayer {
     return tagCode < 0 && tagCode % 2 === 0
   }
 
-  bufferWillChange () {
-
+  bufferWillChange (change) {
+    const lineCount = this.buffer.getLineCount()
+    let endRow = change.oldRange.end.row
+    while (endRow + 1 < lineCount && this.buffer.lineLengthForRow(endRow + 1) === 0) {
+      endRow++
+    }
+    this.populateSpatialIndexIfNeeded(endRow + 1, Infinity)
   }
 
   bufferDidChange ({oldRange, newRange}) {
@@ -642,15 +661,16 @@ class DisplayLayer {
     }
 
     const combinedChanges = new Patch()
-    const {start, oldExtent, newExtent} = this.updateSpatialIndex(startRow, oldEndRow + 1, newEndRow + 1)
+    const {start, oldExtent, newExtent} = this.updateSpatialIndex(startRow, oldEndRow + 1, newEndRow + 1, Infinity)
     combinedChanges.splice(start, oldExtent, newExtent)
 
     for (let bufferRange of this.textDecorationLayer.getInvalidatedRanges()) {
       bufferRange = Range.fromObject(bufferRange)
+      this.populateSpatialIndexIfNeeded(bufferRange.end.row + 1, Infinity)
       const startBufferRow = this.findBoundaryPrecedingBufferRow(bufferRange.start.row)
       const endBufferRow = this.findBoundaryFollowingBufferRow(bufferRange.end.row + 1)
-      const startRow = this.translateBufferPositionWithoutReadingBuffer(Point(startBufferRow, 0), 'backward').row
-      const endRow = this.translateBufferPositionWithoutReadingBuffer(Point(endBufferRow, 0), 'backward').row
+      const startRow = this.translateBufferPositionWithSpatialIndex(Point(startBufferRow, 0), 'backward').row
+      const endRow = this.translateBufferPositionWithSpatialIndex(Point(endBufferRow, 0), 'backward').row
       const extent = Point(endRow - startRow, 0)
       spliceArray(this.cachedScreenLines, startRow, extent.row, new Array(extent.row))
       combinedChanges.splice(Point(startRow, 0), extent, extent)
@@ -675,14 +695,14 @@ class DisplayLayer {
     })
   }
 
-  updateSpatialIndex (startBufferRow, oldEndBufferRow, newEndBufferRow) {
+  updateSpatialIndex (startBufferRow, oldEndBufferRow, newEndBufferRow, endScreenRow, deadline = NullDeadline) {
     const originalOldEndBufferRow = oldEndBufferRow
     startBufferRow = this.findBoundaryPrecedingBufferRow(startBufferRow)
     oldEndBufferRow = this.findBoundaryFollowingBufferRow(oldEndBufferRow)
     newEndBufferRow += (oldEndBufferRow - originalOldEndBufferRow)
 
-    const startScreenRow = this.translateBufferPositionWithoutReadingBuffer({row: startBufferRow, column: 0}, 'backward').row
-    const oldEndScreenRow = this.translateBufferPositionWithoutReadingBuffer({row: oldEndBufferRow, column: 0}, 'backward').row
+    const startScreenRow = this.translateBufferPositionWithSpatialIndex({row: startBufferRow, column: 0}, 'backward').row
+    const oldEndScreenRow = this.translateBufferPositionWithSpatialIndex({row: oldEndBufferRow, column: 0}, 'backward').row
     this.spatialIndex.spliceOld(
       {row: startBufferRow, column: 0},
       {row: oldEndBufferRow - startBufferRow, column: 0},
@@ -698,8 +718,12 @@ class DisplayLayer {
     let bufferColumn = 0
     let screenColumn = 0
 
-    while (bufferRow < newEndBufferRow) {
+    while (true) {
+      if (bufferRow >= newEndBufferRow) break
+      if (screenRow >= endScreenRow && bufferColumn === 0) break
+      if (deadline.timeRemaining() < 2) break
       let bufferLine = this.buffer.lineForRow(bufferRow)
+      if (bufferLine == null) break
       let bufferLineLength = bufferLine.length
       let tabSequenceLength = 0
       let tabSequenceStartScreenColumn = -1
@@ -831,6 +855,10 @@ class DisplayLayer {
       screenColumn = 0
     }
 
+    if (bufferRow > this.indexedBufferRowCount) {
+      this.indexedBufferRowCount = bufferRow
+    }
+
     const oldScreenRowCount = oldEndScreenRow - startScreenRow
     spliceArray(
       this.screenLineLengths,
@@ -868,13 +896,25 @@ class DisplayLayer {
     }
   }
 
+  populateSpatialIndexIfNeeded (endBufferRow, endScreenRow, deadline = NullDeadline) {
+    if (endBufferRow > this.indexedBufferRowCount) {
+      this.updateSpatialIndex(
+        this.indexedBufferRowCount,
+        endBufferRow,
+        endBufferRow,
+        endScreenRow,
+        deadline
+      )
+    }
+  }
+
   findBoundaryPrecedingBufferRow (bufferRow) {
     while (true) {
-      let screenPosition = this.translateBufferPositionWithoutReadingBuffer(Point(bufferRow, 0), 'backward')
+      let screenPosition = this.translateBufferPositionWithSpatialIndex(Point(bufferRow, 0), 'backward')
       if (screenPosition.column === 0) {
-        return this.translateScreenPositionWithoutReadingBuffer(screenPosition, 'backward').row
+        return this.translateScreenPositionWithSpatialIndex(screenPosition, 'backward').row
       } else {
-        let bufferPosition = this.translateScreenPositionWithoutReadingBuffer(Point(screenPosition.row, 0), 'backward', false)
+        let bufferPosition = this.translateScreenPositionWithSpatialIndex(Point(screenPosition.row, 0), 'backward', false)
         if (bufferPosition.column === 0) {
           return bufferPosition.row
         } else {
@@ -886,7 +926,7 @@ class DisplayLayer {
 
   findBoundaryFollowingBufferRow (bufferRow) {
     while (true) {
-      let screenPosition = this.translateBufferPositionWithoutReadingBuffer(Point(bufferRow, 0), 'forward')
+      let screenPosition = this.translateBufferPositionWithSpatialIndex(Point(bufferRow, 0), 'forward')
       if (screenPosition.column === 0) {
         return bufferRow
       } else {
@@ -894,7 +934,7 @@ class DisplayLayer {
           screenPosition.row,
           this.screenLineLengths[screenPosition.row]
         )
-        bufferRow = this.translateScreenPositionWithoutReadingBuffer(endOfScreenRow, 'backward', false).row + 1
+        bufferRow = this.translateScreenPositionWithSpatialIndex(endOfScreenRow, 'backward', false).row + 1
       }
     }
   }
@@ -938,4 +978,9 @@ class DisplayLayer {
 function isWordStart (previousCharacter, character) {
   return (previousCharacter === ' ' || previousCharacter === '\t') &&
     (character !== ' ' && character !== '\t')
+}
+
+const NullDeadline = {
+  didTimeout: false,
+  timeRemaining() { return Infinity }
 }
