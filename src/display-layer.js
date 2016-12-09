@@ -1,4 +1,4 @@
-const Patch = require('atom-patch/build/Release/atom_patch')
+const Patch = require('atom-patch')
 const {Emitter} = require('event-kit')
 const Point = require('./point')
 const Range = require('./range')

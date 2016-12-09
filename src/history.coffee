@@ -1,4 +1,4 @@
-Patch = require 'atom-patch/dist/patch'
+Patch = require 'atom-patch'
 MarkerLayer = require './marker-layer'
 
 SerializationVersion = 5
@@ -117,8 +117,10 @@ class History
     if previousEntry instanceof Transaction and topEntry.shouldGroupWith(previousEntry)
       @undoStack.splice(@undoStack.length - 2, 2, topEntry.groupWith(previousEntry))
 
-  pushChange: (change) ->
-    @undoStack.push(Patch.hunk(change))
+  pushChange: ({newStart, oldExtent, newExtent, oldText, newText}) ->
+    patch = new Patch
+    patch.splice(newStart, oldExtent, newExtent, oldText, newText)
+    @undoStack.push(patch)
     @clearRedoStack()
 
   popUndoStack: ->
@@ -135,10 +137,10 @@ class History
             return false
         when Transaction
           snapshotBelow = entry.markerSnapshotBefore
-          patch = Patch.invert(entry.patch)
+          patch = entry.patch.invert()
           spliceIndex = i
         when Patch
-          patch = Patch.invert(entry)
+          patch = entry.invert()
           spliceIndex = i
         else
           throw new Error("Unexpected entry type when popping undoStack: #{entry.constructor.name}")
@@ -202,9 +204,9 @@ class History
           else if entry.isBoundary
             return false
         when Transaction
-          patchesSinceCheckpoint.push(Patch.invert(entry.patch))
+          patchesSinceCheckpoint.push(entry.patch.invert())
         else
-          patchesSinceCheckpoint.push(Patch.invert(entry))
+          patchesSinceCheckpoint.push(entry.invert())
 
     if spliceIndex?
       @undoStack.splice(spliceIndex)
@@ -274,17 +276,18 @@ class History
             type: 'transaction'
             markerSnapshotBefore: @serializeSnapshot(entry.markerSnapshotBefore, options)
             markerSnapshotAfter: @serializeSnapshot(entry.markerSnapshotAfter, options)
-            patch: entry.patch.serialize()
+            patch: entry.patch.serialize().toString('base64')
           }
         when Patch
           {
             type: 'patch'
-            content: entry.serialize()
+            data: entry.serialize().toString('base64')
           }
         else
           throw new Error("Unexpected undoStack entry type during serialization: #{entry.constructor.name}")
 
   deserializeStack: (stack) ->
+    debugger
     for entry in stack
       switch entry.type
         when 'checkpoint'
@@ -296,11 +299,11 @@ class History
         when 'transaction'
           new Transaction(
             MarkerLayer.deserializeSnapshot(entry.markerSnapshotBefore)
-            Patch.deserialize(entry.patch)
+            Patch.deserialize(Buffer.from(entry.patch, 'base64'))
             MarkerLayer.deserializeSnapshot(entry.markerSnapshotAfter)
           )
         when 'patch'
-          Patch.deserialize(entry.content)
+          Patch.deserialize(Buffer.from(entry.data, 'base64'))
         else
           throw new Error("Unexpected undoStack entry type during deserialization: #{entry.type}")
 
