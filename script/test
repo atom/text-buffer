@@ -36,5 +36,5 @@ if (argv.rebuild) {
 if (argv.interactive) {
   childProcess.spawnSync('./node_modules/.bin/electron', ['spec/support/runner', 'spec/**/*-spec.*'], {stdio: 'inherit', cwd: path.join(__dirname, '..')})
 } else {
-  childProcess.spawnSync('jasmine', ['--captureExceptions', '--forceexit'], {stdio: 'inherit'})
+  childProcess.spawnSync('jasmine', ['--captureExceptions', '--forceexit', '--stop-on-failure=true'], {stdio: 'inherit'})
 }

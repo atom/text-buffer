@@ -1949,82 +1949,87 @@ describe('DisplayLayer', () => {
     })
   })
 
-  const now = Date.now()
+  it('updates the displayed text correctly when the underlying buffer changes', () => {
+    const now = Date.now()
 
-  for (let i = 0; i < 100; i++) {
-    let seed = now + i
+    for (let i = 0; i < 100; i++) {
+      let seed = now + i
 
-    it('updates the displayed text correctly when the underlying buffer changes: ' + seed, () => {
-      const random = new Random(seed)
+      try {
+        const random = new Random(seed)
 
-      const buffer = new TextBuffer({
-        text: buildRandomLines(random, 20)
-      })
+        const buffer = new TextBuffer({
+          text: buildRandomLines(random, 20)
+        })
 
-      const invisibles = {}
+        const invisibles = {}
 
-      if (random(2) > 0) {
-        invisibles.space = '•'
-      }
-
-      if (random(2) > 0) {
-        invisibles.eol = '¬'
-      }
-
-      if (random(2) > 0) {
-        invisibles.cr = '¤'
-      }
-
-      const softWrapColumn = random(2) ? random.intBetween(5, 80) : null
-      const showIndentGuides = Boolean(random(2))
-
-      const displayLayer = buffer.addDisplayLayer({
-        tabLength: 4,
-        invisibles: invisibles,
-        showIndentGuides: showIndentGuides,
-        softWrapColumn: softWrapColumn
-      })
-
-      const textDecorationLayer = new TestDecorationLayer([], buffer, random)
-      displayLayer.setTextDecorationLayer(textDecorationLayer)
-      displayLayer.getText(0, 3)
-      const foldIds = []
-      let undoableChanges = 0
-      let redoableChanges = 0
-      const screenLinesById = new Map()
-
-      for (let j = 0; j < 10; j++) {
-        const k = random(10)
-
-        if (k < 2) {
-          createRandomFold(random, displayLayer, foldIds)
-        } else if (k < 3 && !hasComputedAllScreenRows(displayLayer)) {
-          performReadOutsideOfIndexedRegion(random, displayLayer)
-        } else if (k < 4 && foldIds.length > 0) {
-          destroyRandomFold(random, displayLayer, foldIds)
-        } else if (k < 5 && undoableChanges > 0) {
-          undoableChanges--
-          redoableChanges++
-          performUndo(random, displayLayer)
-        } else if (k < 6 && redoableChanges > 0) {
-          undoableChanges++
-          redoableChanges--
-          performRedo(random, displayLayer)
-        } else {
-          undoableChanges++
-          performRandomChange(random, displayLayer)
+        if (random(2) > 0) {
+          invisibles.space = '•'
         }
 
-        const freshDisplayLayer = displayLayer.copy()
-        freshDisplayLayer.setTextDecorationLayer(displayLayer.getTextDecorationLayer())
-        freshDisplayLayer.getScreenLines()
-        verifyTokenConsistency(displayLayer)
-        verifyText(displayLayer, freshDisplayLayer)
-        verifyRightmostScreenPosition(freshDisplayLayer)
-        verifyScreenLineIds(displayLayer, screenLinesById)
+        if (random(2) > 0) {
+          invisibles.eol = '¬'
+        }
+
+        if (random(2) > 0) {
+          invisibles.cr = '¤'
+        }
+
+        const softWrapColumn = random(2) ? random.intBetween(5, 80) : null
+        const showIndentGuides = Boolean(random(2))
+
+        const displayLayer = buffer.addDisplayLayer({
+          tabLength: 4,
+          invisibles: invisibles,
+          showIndentGuides: showIndentGuides,
+          softWrapColumn: softWrapColumn
+        })
+
+        const textDecorationLayer = new TestDecorationLayer([], buffer, random)
+        displayLayer.setTextDecorationLayer(textDecorationLayer)
+        displayLayer.getText(0, 3)
+        const foldIds = []
+        let undoableChanges = 0
+        let redoableChanges = 0
+        const screenLinesById = new Map()
+
+        for (let j = 0; j < 10; j++) {
+          const k = random(10)
+
+          if (k < 2) {
+            createRandomFold(random, displayLayer, foldIds)
+          } else if (k < 3 && !hasComputedAllScreenRows(displayLayer)) {
+            performReadOutsideOfIndexedRegion(random, displayLayer)
+          } else if (k < 4 && foldIds.length > 0) {
+            destroyRandomFold(random, displayLayer, foldIds)
+          } else if (k < 5 && undoableChanges > 0) {
+            undoableChanges--
+            redoableChanges++
+            performUndo(random, displayLayer)
+          } else if (k < 6 && redoableChanges > 0) {
+            undoableChanges++
+            redoableChanges--
+            performRedo(random, displayLayer)
+          } else {
+            undoableChanges++
+            performRandomChange(random, displayLayer)
+          }
+
+          const freshDisplayLayer = displayLayer.copy()
+          freshDisplayLayer.setTextDecorationLayer(displayLayer.getTextDecorationLayer())
+          freshDisplayLayer.getScreenLines()
+          verifyTokenConsistency(displayLayer)
+          verifyText(displayLayer, freshDisplayLayer)
+          verifyRightmostScreenPosition(freshDisplayLayer)
+          verifyScreenLineIds(displayLayer, screenLinesById)
+        }
+      } catch (error) {
+        console.log(`Failing Seed: ${seed}`)
+        throw error
       }
-    })
-  }
+    }
+  })
 })
 
 function performRandomChange (random, displayLayer) {
