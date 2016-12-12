@@ -1059,7 +1059,7 @@ class DisplayLayer {
           screenPosition.row,
           this.screenLineLengths[screenPosition.row]
         )
-        bufferRow = this.translateScreenPositionWithSpatialIndex(endOfScreenRow, 'backward', false).row + 1
+        bufferRow = this.translateScreenPositionWithSpatialIndex(endOfScreenRow, 'forward', false).row + 1
       }
     }
   }
