@@ -826,7 +826,6 @@ describe('DisplayLayer', () => {
       })
       displayLayer.foldBufferRange([[0, 3], [1, 3]])
       expect(displayLayer.getText()).toBe('abc⋯\njkl')
-      console.log(displayLayer.getText());
     })
 
     it('handles edits following a soft wrap in between adjacent folds ending/starting at column 1', () => {
