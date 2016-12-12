@@ -343,45 +343,10 @@ class DisplayLayer {
   }
 
   clipScreenPosition (screenPosition, options) {
-    const clipDirection = options && options.clipDirection || 'closest'
-    const skipSoftWrapIndentation = options && options.skipSoftWrapIndentation
-    screenPosition = Point.fromObject(screenPosition)
-    this.populateSpatialIndexIfNeeded(this.buffer.getLineCount(), screenPosition.row + 1)
-    screenPosition = this.constrainScreenPosition(screenPosition, clipDirection)
-    let bufferPosition
-    let hunk = this.spatialIndex.hunkForNewPosition(screenPosition)
-    if (hunk) {
-      if (compare(hunk.oldStart, hunk.oldEnd) === 0) {
-        // hunk is a soft wrap
-
-        if (clipDirection === 'backward' && !skipSoftWrapIndentation ||
-            clipDirection === 'closest' && isEqual(hunk.newStart, screenPosition)) {
-          return traverse(hunk.newStart, Point(0, -1))
-        } else {
-          return Point.fromObject(hunk.newEnd)
-        }
-      } else if (compare(screenPosition, hunk.newEnd) > 0) {
-        // clipped screen position follows a hunk; compute relative position
-        bufferPosition = traverse(hunk.oldEnd, traversal(screenPosition, hunk.newEnd))
-      } else {
-        // clipped screen position is at the start of the hunk
-        bufferPosition = hunk.oldStart
-      }
-    } else {
-      // No hunks proceed this screen position
-      bufferPosition = Point.fromObject(screenPosition)
-    }
-
-    const tabCount = this.tabCounts[screenPosition.row]
-    if (tabCount > 0) {
-      screenPosition = this.clipHardTabs(screenPosition, bufferPosition, tabCount, clipDirection)
-    }
-    const columnDelta = this.getClipColumnDelta(bufferPosition, clipDirection)
-    if (columnDelta !== 0) {
-      return Point(screenPosition.row, screenPosition.column + columnDelta)
-    } else {
-      return screenPosition
-    }
+    return this.translateBufferPosition(
+      this.translateScreenPosition(screenPosition, options),
+      options
+    )
   }
 
   constrainScreenPosition (screenPosition, clipDirection) {
@@ -434,13 +399,13 @@ class DisplayLayer {
       }
 
       let nextHunk = hunks[hunkIndex]
-      while (nextHunk && nextHunk.oldStart.row === bufferRow && nextHunk.oldStart.column === bufferColumn) {
+      if (nextHunk && nextHunk.oldStart.row === bufferRow && nextHunk.oldStart.column === bufferColumn) {
         ({row: bufferRow, column: bufferColumn} = nextHunk.oldEnd)
         bufferLine = this.buffer.lineForRow(bufferRow)
         unexpandedScreenColumn++
         expandedScreenColumn++
         hunkIndex++
-        nextHunk = hunks[hunkIndex]
+        continue
       }
 
       if (bufferLine[bufferColumn] === '\t') {
@@ -468,7 +433,10 @@ class DisplayLayer {
     let unexpandedScreenColumn = 0
     let expandedScreenColumn = 0
 
-    if (hunks.length > 0 && isSoftWrapHunk(hunks[0])) {
+    if (hunks.length > 0 && this.isSoftWrapHunk(hunks[0])) {
+      if (hunks[0].newEnd.column >= targetScreenPosition.column) {
+        return targetScreenPosition
+      }
       unexpandedScreenColumn = hunks[0].newEnd.column
       expandedScreenColumn = unexpandedScreenColumn
       hunkIndex++
@@ -483,13 +451,13 @@ class DisplayLayer {
       }
 
       let nextHunk = hunks[hunkIndex]
-      while (nextHunk && nextHunk.oldStart.row === bufferRow && nextHunk.oldStart.column === bufferColumn) {
+      if (nextHunk && nextHunk.oldStart.row === bufferRow && nextHunk.oldStart.column === bufferColumn) {
         ({row: bufferRow, column: bufferColumn} = nextHunk.oldEnd)
         bufferLine = this.buffer.lineForRow(bufferRow)
         unexpandedScreenColumn++
         expandedScreenColumn++
         hunkIndex++
-        nextHunk = hunks[hunkIndex]
+        continue
       }
 
       if (bufferLine[bufferColumn] === '\t') {
@@ -522,65 +490,6 @@ class DisplayLayer {
     } else {
       return Point(targetScreenPosition.row, unexpandedScreenColumn)
     }
-  }
-
-  clipHardTabs (targetScreenPosition, targetBufferPosition, tabCount, clipDirection) {
-    const screenRowStart = Point(targetScreenPosition.row, 0)
-    const screenRowEnd = Point(targetScreenPosition.row, this.screenLineLengths[targetScreenPosition.row])
-    const hunks = this.spatialIndex.getHunksInNewRange(screenRowStart, screenRowEnd)
-    let hunkIndex = 0
-    let unexpandedScreenColumn = 0
-    let expandedScreenColumn = 0
-
-    if (hunks.length > 0 && isSoftWrapHunk(hunks[0])) {
-      unexpandedScreenColumn = hunks[0].newEnd.column
-      expandedScreenColumn = unexpandedScreenColumn
-      hunkIndex++
-    }
-
-    let {row: bufferRow, column: bufferColumn} = this.translateScreenPositionWithSpatialIndex(screenRowStart)
-    let bufferLine = this.buffer.lineForRow(bufferRow)
-
-    while (tabCount > 0) {
-      if (expandedScreenColumn === targetScreenPosition.column) {
-        return targetScreenPosition
-      }
-
-      let nextHunk = hunks[hunkIndex]
-      while (nextHunk && nextHunk.oldStart.row === bufferRow && nextHunk.oldStart.column === bufferColumn) {
-        ({row: bufferRow, column: bufferColumn} = nextHunk.oldEnd)
-        bufferLine = this.buffer.lineForRow(bufferRow)
-        unexpandedScreenColumn++
-        expandedScreenColumn++
-        hunkIndex++
-        nextHunk = hunks[hunkIndex]
-      }
-
-      if (bufferLine[bufferColumn] === '\t') {
-        const nextTabStopColumn = expandedScreenColumn + this.tabLength - (expandedScreenColumn % this.tabLength)
-        if (nextTabStopColumn > targetScreenPosition.column) {
-          if (clipDirection === 'backward') {
-            return Point(targetScreenPosition.row, expandedScreenColumn)
-          } else if (clipDirection === 'forward') {
-            return Point(targetScreenPosition.row, nextTabStopColumn)
-          } else {
-            if (targetScreenPosition.column - expandedScreenColumn > nextTabStopColumn - targetScreenPosition.column) {
-              return Point(targetScreenPosition.row, expandedScreenColumn)
-            } else {
-              return Point(targetScreenPosition.row, nextTabStopColumn)
-            }
-          }
-        }
-        expandedScreenColumn = nextTabStopColumn
-        tabCount--
-      } else {
-        expandedScreenColumn++
-      }
-      unexpandedScreenColumn++
-      bufferColumn++
-    }
-
-    return targetScreenPosition
   }
 
   getClipColumnDelta (bufferPosition, clipDirection) {
@@ -909,6 +818,8 @@ class DisplayLayer {
             Point.ZERO,
             Point(1, indentLength)
           )
+          insertedTabCounts.push(tabCount)
+          tabCount = 0
           insertedScreenLineLengths.push(expandedWrapColumn)
           if (expandedWrapColumn > rightmostInsertedScreenPosition.column) {
             rightmostInsertedScreenPosition.row = screenRow

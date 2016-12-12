@@ -113,6 +113,64 @@ describe('DisplayLayer', () => {
         [Point(1, 8), Point(1, 3)]
       ])
     })
+
+    it('expands hard tabs on soft-wrapped line segments', function () {
+      const buffer = new TextBuffer({
+        text: '  abcdef\tgh\tijk'
+      })
+
+      const displayLayer = buffer.addDisplayLayer({
+        tabLength: 4,
+        softWrapColumn: 8
+      })
+
+      expectPositionTranslations(displayLayer, [
+        [Point(1, 2), Point(0, 8)],
+        [Point(1, 0), [Point(0, 7), Point(0, 8)]],
+        [Point(1, 1), [Point(0, 7), Point(0, 8)]],
+        [Point(1, 2), Point(0, 8)],
+        [Point(1, 3), [Point(0, 8), Point(0, 9)]],
+        [Point(1, 4), Point(0, 9)],
+        [Point(1, 5), Point(0, 10)],
+        [Point(1, 6), Point(0, 11)],
+        [Point(1, 7), [Point(0, 11), Point(0, 12)]],
+        [Point(2, 0), [Point(0, 11), Point(0, 12)]],
+        [Point(2, 1), [Point(0, 11), Point(0, 12)]],
+        [Point(2, 2), Point(0, 12)],
+        [Point(2, 3), Point(0, 13)],
+      ])
+    })
+
+    it('expands hard tabs on lines with folds', function () {
+      const buffer = new TextBuffer({
+        text: 'a\tbc\ndefg\thij\tk\nlm\tn'
+      })
+
+      const displayLayer = buffer.addDisplayLayer({
+        tabLength: 4
+      })
+
+      displayLayer.foldBufferRange(Range(Point(0, 3), Point(1, 3)))
+      displayLayer.foldBufferRange(Range(Point(1, 3), Point(1, 6)))
+      displayLayer.foldBufferRange(Range(Point(1, 10), Point(2, 2)))
+
+      expect(displayLayer.getText()).toBe('a   b⋯⋯ij   k⋯  n')
+
+      expectPositionTranslations(displayLayer, [
+        [Point(0, 6), Point(1, 3)],
+        [Point(0, 7), Point(1, 6)],
+        [Point(0, 8), Point(1, 7)],
+        [Point(0, 9), Point(1, 8)],
+        [Point(0, 10), [Point(1, 8), Point(1, 9)]],
+        [Point(0, 11), [Point(1, 8), Point(1, 9)]],
+        [Point(0, 12), Point(1, 9)],
+        [Point(0, 13), Point(1, 10)],
+        [Point(0, 14), Point(2, 2)],
+        [Point(0, 15), [Point(2, 2), Point(2, 3)]],
+        [Point(0, 16), Point(2, 3)],
+        [Point(0, 17), Point(2, 4)],
+      ])
+    })
   })
 
   describe('soft tabs', () => {
@@ -2197,14 +2255,7 @@ function buildRandomLine (random) {
 }
 
 function getRandomBufferRange (random, displayLayer) {
-  let endRow
-
-  if (random(10) < 8) {
-    endRow = random(displayLayer.buffer.getLineCount())
-  } else {
-    endRow = random(displayLayer.buffer.getLineCount())
-  }
-
+  const endRow = random(displayLayer.buffer.getLineCount())
   const startRow = random.intBetween(0, endRow)
   const startColumn = random(displayLayer.buffer.lineForRow(startRow).length + 1)
   const endColumn = random(displayLayer.buffer.lineForRow(endRow).length + 1)
