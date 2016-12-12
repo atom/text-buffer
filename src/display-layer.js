@@ -319,7 +319,7 @@ class DisplayLayer {
         if (this.isSoftWrapHunk(hunk)) {
           if (clipDirection === 'backward' && !skipSoftWrapIndentation ||
               clipDirection === 'closest' && isEqual(hunk.newStart, screenPosition)) {
-            return this.translateScreenPositionWithSpatialIndex(traverse(hunk.newStart, Point(0, -1)))
+            return this.translateScreenPositionWithSpatialIndex(traverse(hunk.newStart, Point(0, -1)), clipDirection, skipSoftWrapIndentation)
           } else {
             return hunk.oldStart
           }
