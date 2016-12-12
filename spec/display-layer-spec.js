@@ -2081,6 +2081,7 @@ describe('DisplayLayer', () => {
           verifyText(displayLayer, freshDisplayLayer)
           verifyRightmostScreenPosition(freshDisplayLayer)
           verifyScreenLineIds(displayLayer, screenLinesById)
+          verifyPositionTranslations(random, displayLayer)
         }
       } catch (error) {
         console.log(`Failing Seed: ${seed}`)
@@ -2219,6 +2220,23 @@ function verifyScreenLineIds (displayLayer, screenLinesById) {
     } else {
       screenLinesById.set(screenLine.id, screenLine)
     }
+  }
+}
+
+function verifyPositionTranslations (random, displayLayer) {
+  for (let i = 0; i < 20; i++) {
+    const screenRow = random(displayLayer.getScreenLineCount())
+    const screenColumn = random(displayLayer.lineLengthForScreenRow(screenRow))
+    const screenCharacter = displayLayer.getScreenLines(screenRow, screenRow + 1)[0].lineText[screenColumn]
+
+    if (!/[a-z]/.test(screenCharacter)) continue
+
+    const screenPosition = Point(screenRow, screenColumn)
+    const bufferPosition = displayLayer.translateScreenPosition(screenPosition)
+    const bufferCharacter = displayLayer.buffer.lineForRow(bufferPosition.row)[bufferPosition.column]
+
+    expect(bufferCharacter).toBe(screenCharacter, `Screen position: ${screenPosition}, Buffer position: ${bufferPosition}`)
+    expect(displayLayer.translateBufferPosition(bufferPosition)).toEqual(screenPosition)
   }
 }
 

@@ -383,13 +383,6 @@ class DisplayLayer {
     let hunkIndex = 0
     let unexpandedScreenColumn = 0
     let expandedScreenColumn = 0
-
-    if (hunks.length > 0 && this.isSoftWrapHunk(hunks[0])) {
-      unexpandedScreenColumn = hunks[0].newEnd.column
-      expandedScreenColumn = unexpandedScreenColumn
-      hunkIndex++
-    }
-
     let {row: bufferRow, column: bufferColumn} = this.translateScreenPositionWithSpatialIndex(screenRowStart)
     let bufferLine = this.buffer.lineForRow(bufferRow)
 
@@ -400,10 +393,17 @@ class DisplayLayer {
 
       let nextHunk = hunks[hunkIndex]
       if (nextHunk && nextHunk.oldStart.row === bufferRow && nextHunk.oldStart.column === bufferColumn) {
-        ({row: bufferRow, column: bufferColumn} = nextHunk.oldEnd)
-        bufferLine = this.buffer.lineForRow(bufferRow)
-        unexpandedScreenColumn++
-        expandedScreenColumn++
+        if (this.isSoftWrapHunk(nextHunk)) {
+          if (hunkIndex !== 0) throw new Error('Unexpected soft wrap hunk')
+          unexpandedScreenColumn = hunks[0].newEnd.column
+          expandedScreenColumn = unexpandedScreenColumn
+        } else {
+          ({row: bufferRow, column: bufferColumn} = nextHunk.oldEnd)
+          bufferLine = this.buffer.lineForRow(bufferRow)
+          unexpandedScreenColumn++
+          expandedScreenColumn++
+        }
+
         hunkIndex++
         continue
       }
@@ -428,20 +428,12 @@ class DisplayLayer {
 
   collapseHardTabs (targetScreenPosition, tabCount, clipDirection) {
     const screenRowStart = Point(targetScreenPosition.row, 0)
-    const hunks = this.spatialIndex.getHunksInNewRange(screenRowStart, targetScreenPosition)
+    const screenRowEnd = Point(targetScreenPosition.row, this.screenLineLengths[targetScreenPosition.row])
+
+    const hunks = this.spatialIndex.getHunksInNewRange(screenRowStart, screenRowEnd)
     let hunkIndex = 0
     let unexpandedScreenColumn = 0
     let expandedScreenColumn = 0
-
-    if (hunks.length > 0 && this.isSoftWrapHunk(hunks[0])) {
-      if (hunks[0].newEnd.column >= targetScreenPosition.column) {
-        return targetScreenPosition
-      }
-      unexpandedScreenColumn = hunks[0].newEnd.column
-      expandedScreenColumn = unexpandedScreenColumn
-      hunkIndex++
-    }
-
     let {row: bufferRow, column: bufferColumn} = this.translateScreenPositionWithSpatialIndex(screenRowStart)
     let bufferLine = this.buffer.lineForRow(bufferRow)
 
@@ -452,10 +444,16 @@ class DisplayLayer {
 
       let nextHunk = hunks[hunkIndex]
       if (nextHunk && nextHunk.oldStart.row === bufferRow && nextHunk.oldStart.column === bufferColumn) {
-        ({row: bufferRow, column: bufferColumn} = nextHunk.oldEnd)
-        bufferLine = this.buffer.lineForRow(bufferRow)
-        unexpandedScreenColumn++
-        expandedScreenColumn++
+        if (this.isSoftWrapHunk(nextHunk)) {
+          if (hunkIndex !== 0) throw new Error('Unexpected soft wrap hunk')
+          unexpandedScreenColumn = Math.min(targetScreenPosition.column, nextHunk.newEnd.column)
+          expandedScreenColumn = unexpandedScreenColumn
+        } else {
+          ({row: bufferRow, column: bufferColumn} = nextHunk.oldEnd)
+          bufferLine = this.buffer.lineForRow(bufferRow)
+          unexpandedScreenColumn++
+          expandedScreenColumn++
+        }
         hunkIndex++
         continue
       }
