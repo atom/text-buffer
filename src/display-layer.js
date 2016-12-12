@@ -933,6 +933,7 @@ class DisplayLayer {
           )
           unexpandedScreenColumn++
           expandedScreenColumn++
+          screenLineWidth += characterWidth
           bufferRow = foldEnd.row
           bufferColumn = foldEnd.column
           bufferLine = this.buffer.lineForRow(bufferRow)
