@@ -287,7 +287,6 @@ class History
           throw new Error("Unexpected undoStack entry type during serialization: #{entry.constructor.name}")
 
   deserializeStack: (stack) ->
-    debugger
     for entry in stack
       switch entry.type
         when 'checkpoint'
