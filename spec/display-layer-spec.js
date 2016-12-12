@@ -828,6 +828,20 @@ describe('DisplayLayer', () => {
       expect(displayLayer.getText()).toBe('abc⋯\njkl')
       console.log(displayLayer.getText());
     })
+
+    it('handles edits following a soft wrap in between adjacent folds ending/starting at column 1', () => {
+      const buffer = new TextBuffer({
+        text: '  abcdef\nghijk\nlmnop'
+      })
+
+      let displayLayer = buffer.addDisplayLayer({
+        softWrapColumn: 6
+      })
+      displayLayer.foldBufferRange([[0, 5], [1, 1]])
+      displayLayer.foldBufferRange([[1, 1], [2, 1]])
+      buffer.setTextInRange([[2, 2], [2, 3]], 'xyz')
+      expect(displayLayer.getText()).toBe("  abc⋯\n  ⋯mxy\n  zop")
+    })
   })
 
   describe('invisibles', () => {
