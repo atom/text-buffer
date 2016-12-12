@@ -358,7 +358,7 @@ class DisplayLayer {
 
     const maxRow = this.screenLineLengths.length - 1
     if (row > maxRow) {
-      return new Point(maxRow, 0)
+      return new Point(maxRow, this.screenLineLengths[maxRow])
     }
 
     if (column < 0) {
