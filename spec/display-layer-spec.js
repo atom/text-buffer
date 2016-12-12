@@ -4,8 +4,6 @@ const TextBuffer = require('../src/text-buffer')
 const Point = require('../src/point')
 const Range = require('../src/range')
 
-const {isEqual: isEqualPoint, compare: comparePoints, traverse} = require('../src/point-helpers')
-
 const WORDS = require('./helpers/words')
 const SAMPLE_TEXT = require('./helpers/sample-text')
 const TestDecorationLayer = require('./helpers/test-decoration-layer')
@@ -137,7 +135,7 @@ describe('DisplayLayer', () => {
         [Point(2, 0), [Point(0, 11), Point(0, 12)]],
         [Point(2, 1), [Point(0, 11), Point(0, 12)]],
         [Point(2, 2), Point(0, 12)],
-        [Point(2, 3), Point(0, 13)],
+        [Point(2, 3), Point(0, 13)]
       ])
     })
 
@@ -168,7 +166,7 @@ describe('DisplayLayer', () => {
         [Point(0, 14), Point(2, 2)],
         [Point(0, 15), [Point(2, 2), Point(2, 3)]],
         [Point(0, 16), Point(2, 3)],
-        [Point(0, 17), Point(2, 4)],
+        [Point(0, 17), Point(2, 4)]
       ])
     })
   })
@@ -897,7 +895,7 @@ describe('DisplayLayer', () => {
       displayLayer.foldBufferRange([[0, 5], [1, 1]])
       displayLayer.foldBufferRange([[1, 1], [2, 1]])
       buffer.setTextInRange([[2, 2], [2, 3]], 'xyz')
-      expect(displayLayer.getText()).toBe("  abc⋯\n  ⋯mxy\n  zop")
+      expect(displayLayer.getText()).toBe('  abc⋯\n  ⋯mxy\n  zop')
     })
   })
 

@@ -1020,5 +1020,5 @@ function isWordStart (previousCharacter, character) {
 
 const NullDeadline = {
   didTimeout: false,
-  timeRemaining() { return Infinity }
+  timeRemaining () { return Infinity }
 }

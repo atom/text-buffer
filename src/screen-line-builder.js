@@ -1,7 +1,6 @@
 /* eslint-disable no-labels */
 
 const Point = require('./point')
-const {isEqual} = require('./point-helpers')
 
 const HARD_TAB = 1 << 0
 const LEADING_WHITESPACE = 1 << 2
