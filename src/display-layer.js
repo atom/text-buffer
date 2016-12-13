@@ -992,8 +992,11 @@ class DisplayLayer {
       if (bufferPosition.column === 0) {
         return screenRow
       } else {
-        const nextBufferRowStart = Point(bufferPosition.row + 1, 0)
-        screenRow = this.translateBufferPositionWithSpatialIndex(nextBufferRowStart, 'forward').row
+        const endOfBufferRow = Point(
+          bufferPosition.row,
+          this.buffer.lineLengthForRow(bufferPosition.row)
+        )
+        screenRow = this.translateBufferPositionWithSpatialIndex(endOfBufferRow, 'forward').row + 1
       }
     }
   }
