@@ -51,7 +51,6 @@ class ScreenLineBuilder {
     screenRowLoop:
     while (this.screenRow < endScreenRow) {
       const cachedScreenLine = this.displayLayer.cachedScreenLines[this.screenRow]
-
       if (cachedScreenLine) {
         this.pushScreenLine(cachedScreenLine)
 
@@ -60,10 +59,6 @@ class ScreenLineBuilder {
           if (nextHunk.newStart.row === this.screenRow) {
             if (nextHunk.newEnd.row > nextHunk.newStart.row) {
               this.screenRow++
-              this.bufferColumn = nextHunk.oldEnd.column
-              if (!this.displayLayer.cachedScreenLines[this.screenRow]) {
-                this.emitIndentWhitespace(nextHunk.newEnd.column)
-              }
               hunkIndex++
               continue screenRowLoop
             } else {
@@ -104,7 +99,6 @@ class ScreenLineBuilder {
         while (nextHunk && nextHunk.oldStart.row === this.bufferRow && nextHunk.oldStart.column === this.bufferColumn) {
           if (this.displayLayer.isSoftWrapHunk(nextHunk)) {
             this.emitSoftWrap(nextHunk)
-            if (this.screenRow === this.endScreenRow) break screenRowLoop
           } else {
             this.emitFold(nextHunk, decorationIterator)
           }
