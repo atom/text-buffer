@@ -2457,5 +2457,5 @@ function hasComputedAllScreenRows (displayLayer) {
 }
 
 function getComputedScreenLineCount (displayLayer) {
-  return displayLayer.getScreenLineCount()
+  return displayLayer.screenLineLengths.length
 }
