@@ -766,6 +766,7 @@ class DisplayLayer {
       let screenLineWidth = 0
       let lastWrapBoundaryUnexpandedScreenColumn = 0
       let lastWrapBoundaryExpandedScreenColumn = 0
+      let lastWrapBoundaryTabCount = -1
       let lastWrapBoundaryScreenLineWidth = 0
       let firstNonWhitespaceScreenColumn = -1
 
@@ -787,6 +788,7 @@ class DisplayLayer {
               this.isWrapBoundary(previousCharacter, character)) {
             lastWrapBoundaryUnexpandedScreenColumn = unexpandedScreenColumn
             lastWrapBoundaryExpandedScreenColumn = expandedScreenColumn
+            lastWrapBoundaryTabCount = tabCount
             lastWrapBoundaryScreenLineWidth = screenLineWidth
           }
         }
@@ -819,13 +821,14 @@ class DisplayLayer {
           const unexpandedWrapColumn = lastWrapBoundaryUnexpandedScreenColumn || unexpandedScreenColumn
           const expandedWrapColumn = lastWrapBoundaryExpandedScreenColumn || expandedScreenColumn
           const wrapWidth = lastWrapBoundaryScreenLineWidth || screenLineWidth
+          const wrapTabCount = lastWrapBoundaryTabCount >= 0 ? lastWrapBoundaryTabCount : tabCount
           this.spatialIndex.splice(
             Point(screenRow, unexpandedWrapColumn),
             Point.ZERO,
             Point(1, indentLength)
           )
-          insertedTabCounts.push(tabCount)
-          tabCount = 0
+          insertedTabCounts.push(wrapTabCount)
+          tabCount -= wrapTabCount
           insertedScreenLineLengths.push(expandedWrapColumn)
           if (expandedWrapColumn > rightmostInsertedScreenPosition.column) {
             rightmostInsertedScreenPosition.row = screenRow
@@ -837,6 +840,7 @@ class DisplayLayer {
           screenLineWidth = (indentLength * this.ratioForCharacter(' ')) + (screenLineWidth - wrapWidth)
           lastWrapBoundaryUnexpandedScreenColumn = 0
           lastWrapBoundaryExpandedScreenColumn = 0
+          lastWrapBoundaryTabCount = -1
           lastWrapBoundaryScreenLineWidth = 0
         }
 
