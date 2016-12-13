@@ -177,6 +177,10 @@ class DisplayLayer {
     return this.emitter.on('did-reset', callback)
   }
 
+  bufferRangeForFold (foldId) {
+    return this.foldsMarkerLayer.getMarkerRange(foldId)
+  }
+
   foldBufferRange (bufferRange) {
     bufferRange = Range.fromObject(bufferRange)
     const containingFoldMarkers = this.foldsMarkerLayer.findMarkers({containsRange: bufferRange})
