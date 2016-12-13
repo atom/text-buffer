@@ -181,7 +181,7 @@ class DisplayLayer {
     bufferRange = Range.fromObject(bufferRange)
     const containingFoldMarkers = this.foldsMarkerLayer.findMarkers({containsRange: bufferRange})
     this.populateSpatialIndexIfNeeded(bufferRange.end.row + 1, Infinity)
-    const foldId = this.foldsMarkerLayer.markRange(bufferRange).id
+    const foldId = this.foldsMarkerLayer.markRange(bufferRange, {invalidate: 'overlap', exclusive: true}).id
     if (containingFoldMarkers.length === 0) {
       const foldStartRow = bufferRange.start.row
       const foldEndRow = bufferRange.end.row + 1
