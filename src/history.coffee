@@ -1,7 +1,7 @@
 Patch = require 'atom-patch'
 MarkerLayer = require './marker-layer'
 
-SerializationVersion = 5
+SerializationVersion = 6
 
 class Checkpoint
   constructor: (@id, @snapshot, @isBoundary) ->
