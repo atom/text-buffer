@@ -25,13 +25,8 @@ class ScreenLineBuilder {
     this.displayLayer.populateSpatialIndexIfNeeded(this.displayLayer.buffer.getLineCount(), endScreenRow)
 
     this.bufferRow = this.displayLayer.translateScreenPositionWithSpatialIndex(Point(startScreenRow, 0)).row
-    const precedingBoundaryBufferRow = this.displayLayer.findBoundaryPrecedingBufferRow(this.bufferRow)
-    if (precedingBoundaryBufferRow < this.bufferRow) {
-      this.bufferRow = precedingBoundaryBufferRow
-      this.screenRow = this.displayLayer.translateBufferPositionWithSpatialIndex(Point(precedingBoundaryBufferRow, 0)).row
-    } else {
-      this.screenRow = startScreenRow
-    }
+    this.bufferRow = this.displayLayer.findBoundaryPrecedingBufferRow(this.bufferRow)
+    this.screenRow = this.displayLayer.translateBufferPositionWithSpatialIndex(Point(this.bufferRow, 0)).row
 
     endScreenRow = this.displayLayer.findBoundaryFollowingScreenRow(endScreenRow)
 
