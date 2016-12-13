@@ -835,8 +835,8 @@ class DisplayLayer {
             rightmostInsertedScreenPosition.column = expandedWrapColumn
           }
           screenRow++
-          unexpandedScreenColumn = indentLength + (expandedScreenColumn - expandedWrapColumn)
-          expandedScreenColumn = unexpandedScreenColumn
+          unexpandedScreenColumn = indentLength + (unexpandedScreenColumn - unexpandedWrapColumn)
+          expandedScreenColumn = indentLength + (expandedScreenColumn - expandedWrapColumn)
           screenLineWidth = (indentLength * this.ratioForCharacter(' ')) + (screenLineWidth - wrapWidth)
           lastWrapBoundaryUnexpandedScreenColumn = 0
           lastWrapBoundaryExpandedScreenColumn = 0
