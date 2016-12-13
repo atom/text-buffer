@@ -20,18 +20,28 @@ class ScreenLineBuilder {
   }
 
   buildScreenLines (startScreenRow, endScreenRow) {
+    this.requestedStartScreenRow = startScreenRow
+    this.requestedEndScreenRow = endScreenRow
     this.displayLayer.populateSpatialIndexIfNeeded(this.displayLayer.buffer.getLineCount(), endScreenRow)
+
+    this.bufferRow = this.displayLayer.translateScreenPositionWithSpatialIndex(Point(startScreenRow, 0)).row
+    const precedingBoundaryBufferRow = this.displayLayer.findBoundaryPrecedingBufferRow(this.bufferRow)
+    if (precedingBoundaryBufferRow < this.bufferRow) {
+      this.bufferRow = precedingBoundaryBufferRow
+      this.screenRow = this.displayLayer.translateBufferPositionWithSpatialIndex(Point(precedingBoundaryBufferRow, 0)).row
+    } else {
+      this.screenRow = startScreenRow
+    }
+
+    endScreenRow = this.displayLayer.findBoundaryFollowingScreenRow(endScreenRow)
+
     let decorationIterator
-    const screenStart = Point(startScreenRow, 0)
-    const screenEnd = Point(endScreenRow, 0)
-    const hunks = this.displayLayer.spatialIndex.getHunksInNewRange(screenStart, screenEnd)
+    const hunks = this.displayLayer.spatialIndex.getHunksInNewRange(Point(this.screenRow, 0), Point(endScreenRow, 0))
     let hunkIndex = 0
 
     this.containingTags = []
     this.tagsToReopen = []
     this.screenLines = []
-    this.screenRow = startScreenRow
-    this.bufferRow = this.displayLayer.translateScreenPositionWithSpatialIndex(screenStart).row
     this.bufferColumn = 0
     this.beginLine()
 
@@ -43,7 +53,7 @@ class ScreenLineBuilder {
       const cachedScreenLine = this.displayLayer.cachedScreenLines[this.screenRow]
 
       if (cachedScreenLine) {
-        this.screenLines.push(cachedScreenLine)
+        this.pushScreenLine(cachedScreenLine)
 
         let nextHunk = hunks[hunkIndex]
         while (nextHunk && nextHunk.newStart.row <= this.screenRow) {
@@ -94,7 +104,7 @@ class ScreenLineBuilder {
         while (nextHunk && nextHunk.oldStart.row === this.bufferRow && nextHunk.oldStart.column === this.bufferColumn) {
           if (this.displayLayer.isSoftWrapHunk(nextHunk)) {
             this.emitSoftWrap(nextHunk)
-            if (this.screenRow === endScreenRow) break screenRowLoop
+            if (this.screenRow === this.endScreenRow) break screenRowLoop
           } else {
             this.emitFold(nextHunk, decorationIterator)
           }
@@ -286,7 +296,7 @@ class ScreenLineBuilder {
       lineText: this.currentScreenLineText,
       tagCodes: this.currentScreenLineTagCodes
     }
-    this.screenLines.push(screenLine)
+    this.pushScreenLine(screenLine)
     this.displayLayer.cachedScreenLines[this.screenRow] = screenLine
     this.screenRow++
     this.beginLine()
@@ -397,6 +407,12 @@ class ScreenLineBuilder {
       this.currentScreenLineTagCodes.push(this.displayLayer.codeForOpenTag(tagToReopen))
     }
     this.tagsToReopen.length = 0
+  }
+
+  pushScreenLine (screenLine) {
+    if (this.requestedStartScreenRow <= this.screenRow && this.screenRow < this.requestedEndScreenRow) {
+      this.screenLines.push(screenLine)
+    }
   }
 
   compareBufferPosition (position) {

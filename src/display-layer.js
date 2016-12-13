@@ -986,6 +986,18 @@ class DisplayLayer {
     }
   }
 
+  findBoundaryFollowingScreenRow (screenRow) {
+    while (true) {
+      let bufferPosition = this.translateScreenPositionWithSpatialIndex(Point(screenRow, 0), 'forward')
+      if (bufferPosition.column === 0) {
+        return screenRow
+      } else {
+        const nextBufferRowStart = Point(bufferPosition.row + 1, 0)
+        screenRow = this.translateBufferPositionWithSpatialIndex(nextBufferRowStart, 'forward').row
+      }
+    }
+  }
+
   // Returns a map describing fold starts and ends, structured as
   // fold start row -> fold start column -> fold end point
   computeFoldsInBufferRowRange (startBufferRow, endBufferRow) {
