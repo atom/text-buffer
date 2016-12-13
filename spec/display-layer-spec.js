@@ -2253,7 +2253,7 @@ function verifyPositionTranslations (random, displayLayer) {
     const bufferCharacter = displayLayer.buffer.lineForRow(bufferPosition.row)[bufferPosition.column]
 
     expect(bufferCharacter).toBe(screenCharacter, `Screen position: ${screenPosition}, Buffer position: ${bufferPosition}`)
-    expect(displayLayer.translateBufferPosition(bufferPosition)).toEqual(screenPosition)
+    expect(displayLayer.translateBufferPosition(bufferPosition)).toEqual(screenPosition, `translateBufferPosition(${bufferPosition})`)
   }
 }
 
