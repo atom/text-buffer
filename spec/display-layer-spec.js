@@ -2097,7 +2097,7 @@ describe('DisplayLayer', () => {
           freshDisplayLayer.setTextDecorationLayer(displayLayer.getTextDecorationLayer())
           freshDisplayLayer.getScreenLines()
           verifyTokenConsistency(displayLayer)
-          verifyText(displayLayer, freshDisplayLayer)
+          verifyText(random, displayLayer, freshDisplayLayer)
           verifyRightmostScreenPosition(freshDisplayLayer)
           verifyScreenLineIds(displayLayer, screenLinesById)
           verifyPositionTranslations(random, displayLayer)
@@ -2184,11 +2184,12 @@ function verifyChangeEvent (displayLayer, fn) {
   expect(previousTokenLines).toEqual(expectedTokenLines)
 }
 
-function verifyText (displayLayer, freshDisplayLayer) {
-  const rowCount = getComputedScreenLineCount(displayLayer)
-  const text = displayLayer.getText(0, rowCount)
-  const expectedText = freshDisplayLayer.getText(0, rowCount)
-  expect(JSON.stringify(text)).toBe(JSON.stringify(expectedText))
+function verifyText (random, displayLayer, freshDisplayLayer) {
+  const startRow = random(getComputedScreenLineCount(displayLayer))
+  const endRow = random.intBetween(startRow, getComputedScreenLineCount(displayLayer))
+  const text = displayLayer.getText(startRow, endRow)
+  const expectedText = freshDisplayLayer.getText().split('\n').slice(startRow, endRow).join('\n')
+  expect(JSON.stringify(text)).toBe(JSON.stringify(expectedText), `Text for rows ${startRow} - ${endRow}`)
 }
 
 function verifyTokenConsistency (displayLayer) {
