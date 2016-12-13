@@ -134,8 +134,8 @@ class DisplayLayer {
         spliceArray(
           this.cachedScreenLines,
           screenRange.start.row,
-          extent.row,
-          new Array(extent.row)
+          extent.row + 1,
+          new Array(extent.row + 1)
         )
         this.emitDidChangeSyncEvent([{
           start: screenRange.start,
