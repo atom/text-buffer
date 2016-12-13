@@ -550,8 +550,8 @@ class DisplayLayer {
     return clippedColumn - bufferColumn
   }
 
-  getText () {
-    return this.getScreenLines().map((line) => line.lineText).join('\n')
+  getText (startRow, endRow) {
+    return this.getScreenLines(startRow, endRow).map((line) => line.lineText).join('\n')
   }
 
   lineLengthForScreenRow (screenRow) {
@@ -696,6 +696,7 @@ class DisplayLayer {
     }
 
     const combinedChanges = new Patch()
+    this.indexedBufferRowCount += newEndRow - oldEndRow
     const {start, oldExtent, newExtent} = this.updateSpatialIndex(startRow, oldEndRow + 1, newEndRow + 1, Infinity)
     combinedChanges.splice(start, oldExtent, newExtent)
 

@@ -2074,8 +2074,6 @@ describe('DisplayLayer', () => {
 
           if (k < 2) {
             createRandomFold(random, displayLayer, foldIds)
-          } else if (k < 3 && !hasComputedAllScreenRows(displayLayer)) {
-            performReadOutsideOfIndexedRegion(random, displayLayer)
           } else if (k < 4 && foldIds.length > 0) {
             destroyRandomFold(random, displayLayer, foldIds)
           } else if (k < 5 && undoableChanges > 0) {
@@ -2089,6 +2087,10 @@ describe('DisplayLayer', () => {
           } else {
             undoableChanges++
             performRandomChange(random, displayLayer)
+          }
+
+          if (!hasComputedAllScreenRows(displayLayer)) {
+            performReadOutsideOfIndexedRegion(random, displayLayer)
           }
 
           const freshDisplayLayer = displayLayer.copy()
@@ -2242,7 +2244,7 @@ function verifyScreenLineIds (displayLayer, screenLinesById) {
 
 function verifyPositionTranslations (random, displayLayer) {
   for (let i = 0; i < 20; i++) {
-    const screenRow = random(displayLayer.getScreenLineCount())
+    const screenRow = random(getComputedScreenLineCount(displayLayer))
     const screenColumn = random(displayLayer.lineLengthForScreenRow(screenRow))
     const screenCharacter = displayLayer.getScreenLines(screenRow, screenRow + 1)[0].lineText[screenColumn]
 
@@ -2453,6 +2455,7 @@ function logTokens (displayLayer) { // eslint-disable-line
 }
 
 function hasComputedAllScreenRows (displayLayer) {
+  expect(displayLayer.indexedBufferRowCount).not.toBeGreaterThan(displayLayer.buffer.getLineCount())
   return displayLayer.indexedBufferRowCount === displayLayer.buffer.getLineCount()
 }
 
