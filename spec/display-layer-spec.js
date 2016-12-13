@@ -187,29 +187,34 @@ describe('DisplayLayer', () => {
 
       expect(displayLayer.getText()).toBe('••••••••••a\n•••••\n••••••  ••')
 
-      expect(displayLayer.clipScreenPosition([0, 2])).toEqual([0, 0])
-      expect(displayLayer.clipScreenPosition([0, 6])).toEqual([0, 4])
-      expect(displayLayer.clipScreenPosition([0, 9])).toEqual([0, 9])
-      expect(displayLayer.clipScreenPosition([2, 1])).toEqual([2, 0])
-      expect(displayLayer.clipScreenPosition([2, 3])).toEqual([2, 4])
-      expect(displayLayer.clipScreenPosition([2, 5])).toEqual([2, 5])
-      expect(displayLayer.clipScreenPosition([2, 9])).toEqual([2, 9])
-
-      expect(displayLayer.translateScreenPosition([0, 2])).toEqual([0, 0])
-      expect(displayLayer.translateScreenPosition([0, 6])).toEqual([0, 4])
-      expect(displayLayer.translateScreenPosition([0, 9])).toEqual([0, 9])
-      expect(displayLayer.translateScreenPosition([2, 1])).toEqual([2, 0])
-      expect(displayLayer.translateScreenPosition([2, 3])).toEqual([2, 4])
-      expect(displayLayer.translateScreenPosition([2, 5])).toEqual([2, 5])
-      expect(displayLayer.translateScreenPosition([2, 9])).toEqual([2, 8])
-
-      expect(displayLayer.translateBufferPosition([0, 2])).toEqual([0, 0])
-      expect(displayLayer.translateBufferPosition([0, 6])).toEqual([0, 4])
-      expect(displayLayer.translateBufferPosition([0, 9])).toEqual([0, 9])
-      expect(displayLayer.translateBufferPosition([2, 1])).toEqual([2, 0])
-      expect(displayLayer.translateBufferPosition([2, 3])).toEqual([2, 4])
-      expect(displayLayer.translateBufferPosition([2, 5])).toEqual([2, 5])
-      expect(displayLayer.translateBufferPosition([2, 8])).toEqual([2, 9])
+      expectPositionTranslations(displayLayer, [
+        [Point(0, 0), Point(0, 0)],
+        [Point(0, 1), [Point(0, 0), Point(0, 4)]],
+        [Point(0, 2), [Point(0, 0), Point(0, 4)]],
+        [Point(0, 3), [Point(0, 0), Point(0, 4)]],
+        [Point(0, 4), Point(0, 4)],
+        [Point(0, 5), [Point(0, 4), Point(0, 8)]],
+        [Point(0, 6), [Point(0, 4), Point(0, 8)]],
+        [Point(0, 7), [Point(0, 4), Point(0, 8)]],
+        [Point(0, 8), Point(0, 8)],
+        [Point(1, 0), Point(1, 0)],
+        [Point(1, 1), [Point(1, 0), Point(1, 4)]],
+        [Point(1, 2), [Point(1, 0), Point(1, 4)]],
+        [Point(1, 3), [Point(1, 0), Point(1, 4)]],
+        [Point(1, 4), Point(1, 4)],
+        [Point(1, 5), Point(1, 5)],
+        [Point(2, 0), Point(2, 0)],
+        [Point(2, 1), [Point(2, 0), Point(2, 4)]],
+        [Point(2, 2), [Point(2, 0), Point(2, 4)]],
+        [Point(2, 3), [Point(2, 0), Point(2, 4)]],
+        [Point(2, 4), Point(2, 4)],
+        [Point(2, 5), Point(2, 5)],
+        [Point(2, 6), Point(2, 6)],
+        [Point(2, 7), [Point(2, 6), Point(2, 7)]],
+        [Point(2, 8), Point(2, 7)],
+        [Point(2, 9), Point(2, 8)],
+        [Point(2, 10), Point(2, 9)]
+      ])
     })
 
     it('does not treat soft tabs as atomic if the atomicSoftTabs option is false', () => {
@@ -2305,7 +2310,11 @@ function expectPositionTranslations (displayLayer, tranlations) {
     } else {
       const bufferPosition = bufferPositions
       expect(displayLayer.translateScreenPosition(screenPosition)).toEqual(bufferPosition, `translateScreenPosition(Point${screenPosition})`)
+      expect(displayLayer.translateScreenPosition(screenPosition, {clipDirection: 'forward'})).toEqual(bufferPosition, `translateScreenPosition(Point${screenPosition}, {clipDirection: 'forward'})`)
+      expect(displayLayer.translateScreenPosition(screenPosition, {clipDirection: 'backward'})).toEqual(bufferPosition, `translateScreenPosition(Point${screenPosition}, {clipDirection: 'backward'})`)
       expect(displayLayer.translateBufferPosition(bufferPosition)).toEqual(screenPosition, `translateScreenPosition(Point${bufferPosition})`)
+      expect(displayLayer.translateBufferPosition(bufferPosition, {clipDirection: 'forward'})).toEqual(screenPosition, `translateScreenPosition(Point${bufferPosition}, {clipDirection: 'forward'})`)
+      expect(displayLayer.translateBufferPosition(bufferPosition, {clipDirection: 'backward'})).toEqual(screenPosition, `translateScreenPosition(Point${bufferPosition}, {clipDirection: 'backward'})`)
     }
   }
 }

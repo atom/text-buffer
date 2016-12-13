@@ -518,6 +518,7 @@ class DisplayLayer {
     }
 
     const previousTabStop = bufferColumn - (bufferColumn % this.tabLength)
+    if (bufferColumn === previousTabStop) return 0
     const nextTabStop = previousTabStop + this.tabLength
 
     // If there is a non-whitespace character before the next tab stop,
