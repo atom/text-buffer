@@ -49,6 +49,20 @@ describe('DisplayLayer', () => {
     })
   })
 
+  describe('reset()', () => {
+    it('updates the screen lines to reflect the new parameters', () => {
+      const buffer = new TextBuffer({
+        text: 'abc def\nghi jkl\nmno pqr'
+      })
+
+      const displayLayer = buffer.addDisplayLayer({})
+      expect(displayLayer.translateScreenPosition(Point(1, 3))).toEqual(Point(1, 3))
+
+      displayLayer.reset({softWrapColumn: 4})
+      expect(displayLayer.translateScreenPosition(Point(1, 3))).toEqual(Point(0, 7))
+    })
+  })
+
   describe('hard tabs', () => {
     it('expands hard tabs to their tab stops', () => {
       const buffer = new TextBuffer({

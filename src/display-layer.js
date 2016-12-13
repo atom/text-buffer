@@ -82,6 +82,9 @@ class DisplayLayer {
 
     this.indexedBufferRowCount = 0
     this.spatialIndex.spliceOld(Point.ZERO, Point.INFINITY, Point.INFINITY)
+    this.cachedScreenLines.length = 0
+    this.screenLineLengths.length = 0
+    this.tabCounts.length = 0
     this.emitter.emit('did-reset')
     this.notifyObserversIfMarkerScreenPositionsChanged()
   }
