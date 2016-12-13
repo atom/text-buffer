@@ -32,6 +32,7 @@ class ScreenLineBuilder {
     this.screenLines = []
     this.screenRow = startScreenRow
     this.bufferRow = this.displayLayer.translateScreenPositionWithSpatialIndex(screenStart).row
+    this.bufferColumn = 0
     this.beginLine()
 
     // Loop through all characters spanning the given screen row range, building
@@ -40,6 +41,7 @@ class ScreenLineBuilder {
     screenRowLoop:
     while (this.screenRow < endScreenRow) {
       const cachedScreenLine = this.displayLayer.cachedScreenLines[this.screenRow]
+
       if (cachedScreenLine) {
         this.screenLines.push(cachedScreenLine)
 
@@ -48,6 +50,11 @@ class ScreenLineBuilder {
           if (nextHunk.newStart.row === this.screenRow) {
             if (nextHunk.newEnd.row > nextHunk.newStart.row) {
               this.screenRow++
+              this.bufferColumn = nextHunk.oldEnd.column
+              if (!this.displayLayer.cachedScreenLines[this.screenRow]) {
+                this.emitIndentWhitespace(nextHunk.newEnd.column)
+              }
+              hunkIndex++
               continue screenRowLoop
             } else {
               this.bufferRow = nextHunk.oldEnd.row
@@ -68,7 +75,6 @@ class ScreenLineBuilder {
       this.currentBuiltInTagFlags = 0
       this.bufferLine = this.displayLayer.buffer.lineForRow(this.bufferRow)
       if (this.bufferLine == null) break
-      this.bufferColumn = 0
       this.trailingWhitespaceStartColumn = this.displayLayer.findTrailingWhitespaceStartColumn(this.bufferLine)
       this.inLeadingWhitespace = true
       this.inTrailingWhitespace = false
@@ -88,6 +94,7 @@ class ScreenLineBuilder {
         while (nextHunk && nextHunk.oldStart.row === this.bufferRow && nextHunk.oldStart.column === this.bufferColumn) {
           if (this.displayLayer.isSoftWrapHunk(nextHunk)) {
             this.emitSoftWrap(nextHunk)
+            if (this.screenRow === endScreenRow) break screenRowLoop
           } else {
             this.emitFold(nextHunk, decorationIterator)
           }
@@ -270,6 +277,7 @@ class ScreenLineBuilder {
     if (this.currentScreenLineTagCodes.length === 0) this.currentScreenLineTagCodes.push(0)
     this.emitNewline()
     this.bufferRow++
+    this.bufferColumn = 0
   }
 
   emitNewline () {
