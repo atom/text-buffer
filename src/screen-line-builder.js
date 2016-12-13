@@ -20,7 +20,7 @@ class ScreenLineBuilder {
   }
 
   buildScreenLines (startScreenRow, endScreenRow) {
-    this.displayLayer.populateSpatialIndexIfNeeded(this.displayLayer.buffer.getLineCount(), endScreenRow + 1)
+    this.displayLayer.populateSpatialIndexIfNeeded(this.displayLayer.buffer.getLineCount(), endScreenRow)
     let decorationIterator
     const screenStart = Point(startScreenRow, 0)
     const screenEnd = Point(endScreenRow, 0)
