@@ -1252,7 +1252,7 @@ class DisplayLayer
 
   getApproximateScreenLineCount: ->
     if @indexedBufferRowCount > 0
-      @buffer.getLineCount() * @displayIndex.getScreenLineCount() / @indexedBufferRowCount
+      Math.ceil(@buffer.getLineCount() * @displayIndex.getScreenLineCount() / @indexedBufferRowCount)
     else
       @buffer.getLineCount()
 

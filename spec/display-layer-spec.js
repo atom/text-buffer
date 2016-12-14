@@ -2003,10 +2003,21 @@ describe('DisplayLayer', () => {
       expect(displayLayer.getApproximateScreenLineCount()).toEqual(buffer.getLineCount())
       expect(displayLayer.translateBufferPosition(Point(1, Infinity))).toEqual(Point(3, 3))
       expect(displayLayer.indexedBufferRowCount).toBe(2)
-      expect(displayLayer.getApproximateScreenLineCount()).toEqual(buffer.getLineCount() * 4 / 2)
+      expect(displayLayer.getApproximateScreenLineCount()).toEqual(16)
       expect(displayLayer.translateBufferPosition(Point(3, 1))).toEqual(Point(5, 1))
       expect(displayLayer.indexedBufferRowCount).toBe(4)
-      expect(displayLayer.getApproximateScreenLineCount()).toEqual(buffer.getLineCount() * 6 / 4)
+      expect(displayLayer.getApproximateScreenLineCount()).toEqual(12)
+
+      expect(displayLayer.translateBufferPosition(Point(3, 1))).toEqual(Point(5, 1))
+      expect(displayLayer.indexedBufferRowCount).toBe(4)
+      expect(displayLayer.getApproximateScreenLineCount()).toEqual(12)
+
+      expect(displayLayer.translateBufferPosition(Point(4, 1))).toEqual(Point(6, 1))
+      expect(displayLayer.indexedBufferRowCount).toBe(5)
+      expect(displayLayer.getApproximateScreenLineCount()).toEqual(11)
+
+      expect(displayLayer.getScreenLineCount()).toBe(10)
+      expect(displayLayer.getApproximateScreenLineCount()).toBe(10)
     })
   })
 
