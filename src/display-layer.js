@@ -58,6 +58,7 @@ class DisplayLayer {
   }
 
   reset (params) {
+    if (this.isDestroyed()) return
     if (params.hasOwnProperty('tabLength')) this.tabLength = params.tabLength
     if (params.hasOwnProperty('invisibles')) this.invisibles = params.invisibles
     if (params.hasOwnProperty('showIndentGuides')) this.showIndentGuides = params.showIndentGuides
@@ -114,6 +115,10 @@ class DisplayLayer {
     this.displayMarkerLayersById.forEach((layer) => layer.destroy())
     if (this.decorationLayerDisposable) this.decorationLayerDisposable.dispose()
     delete this.buffer.displayLayers[this.id]
+  }
+
+  isDestroyed () {
+    return this.spatialIndex === null
   }
 
   doBackgroundWork (deadline) {
