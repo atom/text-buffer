@@ -7,7 +7,7 @@
     "prepublish": "npm run clean && npm run compile && npm run lint && npm run atomdoc",
     "atomdoc": "grunt shell:update-atomdoc atomdoc",
     "clean": "grunt clean",
-    "compile": "coffee --no-header --output lib --compile src",
+    "compile": "coffee --no-header --output lib --compile src && cp src/*.js lib/",
     "lint": "coffeelint -r src spec && eslint src spec",
     "test": "node script/test",
     "ci": "npm run compile && npm run lint && npm run test && npm run bench",
