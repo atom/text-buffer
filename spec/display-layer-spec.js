@@ -1691,7 +1691,7 @@ describe('DisplayLayer', () => {
         {text: '¬', close: ['trailing-whitespace indent-guide'], open: ['invisible-character eol']},
         {text: '', close: ['invisible-character eol', 'a'], open: []},
         {text: '  ', close: [], open: ['a', 'indent-guide']},
-        {text: '', close: ['indent-guide', 'a'], open: []},
+        {text: '', close: ['indent-guide', 'a'], open: []}
       ])
     })
 
