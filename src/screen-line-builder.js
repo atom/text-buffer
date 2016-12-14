@@ -255,14 +255,13 @@ class ScreenLineBuilder {
 
   emitLineEnding () {
     this.emitCloseTag(this.getBuiltInTag(this.currentBuiltInTagFlags))
-    this.closeContainingTags()
 
     let lineEnding = this.displayLayer.buffer.lineEndingForRow(this.bufferRow)
     const eolInvisible = this.displayLayer.eolInvisibles[lineEnding]
     if (eolInvisible) {
       let eolFlags = INVISIBLE_CHARACTER | LINE_ENDING
       if (this.bufferLine.length === 0 && this.displayLayer.showIndentGuides) eolFlags |= INDENT_GUIDE
-      this.emitOpenTag(this.getBuiltInTag(eolFlags), false)
+      this.emitOpenTag(this.getBuiltInTag(eolFlags))
       this.emitText(eolInvisible, false)
       this.emitCloseTag(this.getBuiltInTag(eolFlags))
     }
@@ -271,6 +270,9 @@ class ScreenLineBuilder {
       let whitespaceLength = this.displayLayer.leadingWhitespaceLengthForSurroundingLines(this.bufferRow)
       this.emitIndentWhitespace(whitespaceLength)
     }
+
+    this.closeContainingTags()
+
     // Ensure empty lines have at least one empty token to make it easier on
     // the caller
     if (this.currentScreenLineTagCodes.length === 0) this.currentScreenLineTagCodes.push(0)
@@ -300,7 +302,7 @@ class ScreenLineBuilder {
             this.emitCloseTag(this.getBuiltInTag(INDENT_GUIDE))
           }
 
-          this.emitOpenTag(this.getBuiltInTag(INDENT_GUIDE), false)
+          this.emitOpenTag(this.getBuiltInTag(INDENT_GUIDE))
           openedIndentGuide = true
         }
         this.emitText(' ', false)

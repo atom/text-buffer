@@ -126,6 +126,7 @@ class DisplayLayer {
   }
 
   setTextDecorationLayer (textDecorationLayer) {
+    this.cachedScreenLines.length = 0
     this.textDecorationLayer = textDecorationLayer
     if (typeof textDecorationLayer.onDidInvalidateRange === 'function') {
       this.decorationLayerDisposable = textDecorationLayer.onDidInvalidateRange((bufferRange) => {

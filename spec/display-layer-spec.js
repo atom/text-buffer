@@ -1655,6 +1655,46 @@ describe('DisplayLayer', () => {
       ])
     })
 
+    it('includes indent guides and EOL characters within containing decoration tags', function () {
+      const buffer = new TextBuffer({
+        text: [
+          '',   // empty line with no indent guide
+          '1',
+          '  ', // whitespace-only line
+          ''    // empty line with an indent guide
+        ].join('\n')
+      })
+
+      const displayLayer = buffer.addDisplayLayer({
+        showIndentGuides: true,
+        invisibles: {eol: '¬'}
+      })
+
+      expect(displayLayer.getText().split('\n')).toEqual([
+        '¬',
+        '1¬',
+        '  ¬',
+        '  '
+      ])
+
+      displayLayer.setTextDecorationLayer(new TestDecorationLayer([
+        ['a', [[0, 0], [4, 0]]]
+      ]))
+
+      expectTokenBoundaries(displayLayer, [
+        {text: '¬', close: [], open: ['a', 'invisible-character eol indent-guide']},
+        {text: '', close: ['invisible-character eol indent-guide', 'a'], open: []},
+        {text: '1', close: [], open: ['a']},
+        {text: '¬', close: [], open: ['invisible-character eol']},
+        {text: '', close: ['invisible-character eol', 'a'], open: []},
+        {text: '  ', close: [], open: ['a', 'trailing-whitespace indent-guide']},
+        {text: '¬', close: ['trailing-whitespace indent-guide'], open: ['invisible-character eol']},
+        {text: '', close: ['invisible-character eol', 'a'], open: []},
+        {text: '  ', close: [], open: ['a', 'indent-guide']},
+        {text: '', close: ['indent-guide', 'a'], open: []},
+      ])
+    })
+
     it('truncates decoration tags at fold boundaries', () => {
       const buffer = new TextBuffer({
         text: 'abcde\nfghij\nklmno'
