@@ -521,7 +521,7 @@ class DisplayLayer {
       return 0
     }
 
-    for (let column = bufferColumn; column > 0; column--) {
+    for (let column = bufferColumn; column >= 0; column--) {
       if (bufferLine[column] !== ' ') return 0
     }
 

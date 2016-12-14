@@ -2198,7 +2198,7 @@ function performReadOutsideOfIndexedRegion (random, displayLayer) {
   const computedRowCount = getComputedScreenLineCount(displayLayer)
   const row = random.intBetween(computedRowCount, computedRowCount + 10)
   log('new-read ' + row)
-  return displayLayer.getScreenLines(0, row)
+  displayLayer.getScreenLines(0, row)
 }
 
 function log (message) {}
@@ -2286,6 +2286,7 @@ function verifyScreenLineIds (displayLayer, screenLinesById) {
 function verifyPositionTranslations (random, displayLayer) {
   for (let i = 0; i < 20; i++) {
     const screenRow = random(getComputedScreenLineCount(displayLayer))
+    if (displayLayer.lineLengthForScreenRow(screenRow) === 0) continue
     const screenColumn = random(displayLayer.lineLengthForScreenRow(screenRow))
     const screenCharacter = displayLayer.getScreenLines(screenRow, screenRow + 1)[0].lineText[screenColumn]
 
@@ -2297,6 +2298,10 @@ function verifyPositionTranslations (random, displayLayer) {
 
     expect(bufferCharacter).toBe(screenCharacter, `Screen position: ${screenPosition}, Buffer position: ${bufferPosition}`)
     expect(displayLayer.translateBufferPosition(bufferPosition)).toEqual(screenPosition, `translateBufferPosition(${bufferPosition})`)
+
+    const nextBufferPosition = bufferPosition.traverse(Point(0, 1))
+    const nextScreenPosition = displayLayer.translateBufferPosition(nextBufferPosition)
+    expect(nextScreenPosition.isGreaterThan(screenPosition)).toBe(true, `translateBufferPosition(${nextBufferPosition}) > translateBufferPosition(${bufferPosition})`)
   }
 }
 
