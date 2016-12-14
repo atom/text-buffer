@@ -308,6 +308,7 @@ class DisplayLayer {
 
   translateScreenPosition (screenPosition, options) {
     screenPosition = Point.fromObject(screenPosition)
+    Point.assertValid(screenPosition)
     const clipDirection = options && options.clipDirection || 'closest'
     const skipSoftWrapIndentation = options && options.skipSoftWrapIndentation
     this.populateSpatialIndexIfNeeded(this.buffer.getLineCount(), screenPosition.row + 1)
