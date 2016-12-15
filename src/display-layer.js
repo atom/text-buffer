@@ -1060,7 +1060,7 @@ class DisplayLayer {
         '\r\n': this.invisibles.cr + this.invisibles.eol
       }
     }
-    if (params.hasOwnProperty('showIndentGuides')) {
+    if (params.hasOwnProperty('showIndentGuides') && params.showIndentGuides !== this.showIndentGuides) {
       paramsChanged = true
       this.showIndentGuides = params.showIndentGuides
     }
