@@ -13,4 +13,4 @@ process.stdout.write = function (output) {
 }
 
 process.exit = function () {}
-command.run(jasmine, ['--no-color', ...remote.process.argv.slice(2)])
+command.run(jasmine, ['--no-color', '--stop-on-failure=true', ...remote.process.argv.slice(2)])

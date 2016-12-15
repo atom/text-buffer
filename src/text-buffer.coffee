@@ -61,7 +61,6 @@ class TextBuffer
   @version: 5
   @Point: Point
   @Range: Range
-  @Patch: require('./patch')
   @newlineRegex: newlineRegex
 
   cachedText: null
@@ -93,7 +92,6 @@ class TextBuffer
 
     @emitter = new Emitter
     @patchesSinceLastStoppedChangingEvent = []
-    @didChangeTextPatch = new Patch
     @id = params?.id ? crypto.randomBytes(16).toString('hex')
     @lines = ['']
     @lineEndings = ['']
@@ -979,7 +977,7 @@ class TextBuffer
   # Public: Undo the last operation. If a transaction is in progress, aborts it.
   undo: ->
     if pop = @history.popUndoStack()
-      @applyChange(change) for change in pop.patch.getChanges()
+      @applyChange(change) for change in pop.patch.getHunks()
       @restoreFromMarkerSnapshot(pop.snapshot)
       @emitMarkerChangeEvents(pop.snapshot)
       @emitDidChangeTextEvent(pop.patch)
@@ -990,7 +988,7 @@ class TextBuffer
   # Public: Redo the last operation
   redo: ->
     if pop = @history.popRedoStack()
-      @applyChange(change) for change in pop.patch.getChanges()
+      @applyChange(change) for change in pop.patch.getHunks()
       @restoreFromMarkerSnapshot(pop.snapshot)
       @emitMarkerChangeEvents(pop.snapshot)
       @emitDidChangeTextEvent(pop.patch)
@@ -1064,7 +1062,7 @@ class TextBuffer
   # Returns a {Boolean} indicating whether the operation succeeded.
   revertToCheckpoint: (checkpoint) ->
     if truncated = @history.truncateUndoStack(checkpoint)
-      @applyChange(change) for change in truncated.patch.getChanges()
+      @applyChange(change) for change in truncated.patch.getHunks()
       @restoreFromMarkerSnapshot(truncated.snapshot)
       @emitter.emit 'did-update-markers'
       @emitDidChangeTextEvent(truncated.patch)
@@ -1094,7 +1092,7 @@ class TextBuffer
   # * `newText`: A {String} representing the replacement text.
   getChangesSinceCheckpoint: (checkpoint) ->
     if patch = @history.getChangesSinceCheckpoint(checkpoint)
-      normalizePatchChanges(patch.getChanges())
+      normalizePatchChanges(patch.getHunks())
     else
       []
 
@@ -1531,7 +1529,7 @@ class TextBuffer
   emitDidChangeTextEvent: (patch) ->
     return if @transactCallDepth isnt 0
 
-    @emitter.emit 'did-change-text', {changes: Object.freeze(normalizePatchChanges(patch.getChanges()))}
+    @emitter.emit 'did-change-text', {changes: Object.freeze(normalizePatchChanges(patch.getHunks()))}
     @patchesSinceLastStoppedChangingEvent.push(patch)
     @scheduleDidStopChangingEvent()
 
@@ -1550,7 +1548,7 @@ class TextBuffer
     stoppedChangingCallback = =>
       @stoppedChangingTimeout = null
       modifiedStatus = @isModified()
-      @emitter.emit 'did-stop-changing', {changes: Object.freeze(normalizePatchChanges(Patch.compose(@patchesSinceLastStoppedChangingEvent).getChanges()))}
+      @emitter.emit 'did-stop-changing', {changes: Object.freeze(normalizePatchChanges(Patch.compose(@patchesSinceLastStoppedChangingEvent).getHunks()))}
       @patchesSinceLastStoppedChangingEvent = []
       @emitModifiedStatusChanged(modifiedStatus)
     @stoppedChangingTimeout = setTimeout(stoppedChangingCallback, @stoppedChangingDelay)

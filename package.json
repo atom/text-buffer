@@ -1,13 +1,13 @@
 {
   "name": "text-buffer",
-  "version": "9.4.3",
+  "version": "10.0.0",
   "description": "A container for large mutable strings with annotated regions",
   "main": "./lib/text-buffer",
   "scripts": {
     "prepublish": "npm run clean && npm run compile && npm run lint && npm run atomdoc",
     "atomdoc": "grunt shell:update-atomdoc atomdoc",
     "clean": "grunt clean",
-    "compile": "coffee --no-header --output lib --compile src",
+    "compile": "coffee --no-header --output lib --compile src && cp src/*.js lib/",
     "lint": "coffeelint -r src spec && eslint src spec",
     "test": "node script/test",
     "ci": "npm run compile && npm run lint && npm run test && npm run bench",
@@ -43,10 +43,10 @@
     "random-seed": "^0.2.0",
     "rimraf": "~2.2.2",
     "temp": "^0.8.3",
-    "yargs": "^6.3.0"
+    "yargs": "^6.5.0"
   },
   "dependencies": {
-    "atom-patch": "0.3.0",
+    "atom-patch": "1.0.3",
     "buffer-offset-index": "0.0.1",
     "delegato": "^1.0.0",
     "diff": "^2.2.1",

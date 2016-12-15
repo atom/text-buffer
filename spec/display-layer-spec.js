@@ -4,8 +4,6 @@ const TextBuffer = require('../src/text-buffer')
 const Point = require('../src/point')
 const Range = require('../src/range')
 
-const {isEqual: isEqualPoint, compare: comparePoints, traverse} = require('../src/point-helpers')
-
 const WORDS = require('./helpers/words')
 const SAMPLE_TEXT = require('./helpers/sample-text')
 const TestDecorationLayer = require('./helpers/test-decoration-layer')
@@ -51,59 +49,46 @@ describe('DisplayLayer', () => {
     })
   })
 
+  describe('reset()', () => {
+    it('updates the screen lines to reflect the new parameters', () => {
+      const buffer = new TextBuffer({
+        text: 'abc def\nghi jkl\nmno pqr'
+      })
+
+      const displayLayer = buffer.addDisplayLayer({})
+      expect(displayLayer.translateScreenPosition(Point(1, 3))).toEqual(Point(1, 3))
+
+      displayLayer.reset({softWrapColumn: 4})
+      expect(displayLayer.translateScreenPosition(Point(1, 3))).toEqual(Point(0, 7))
+    })
+  })
+
   describe('hard tabs', () => {
     it('expands hard tabs to their tab stops', () => {
       const buffer = new TextBuffer({
-        text: '\ta\tbc\tdef\tg\n\th'
+        text: '\ta\tbc\tdef\tg\nh\t\ti'
       })
 
       const displayLayer = buffer.addDisplayLayer({
         tabLength: 4
       })
 
-      expect(displayLayer.getText()).toBe('    a   bc  def g\n    h')
+      expect(displayLayer.getText()).toBe('    a   bc  def g\nh       i')
 
-      expectTokenBoundaries(displayLayer, [{
-        text: '    ',
-        close: [],
-        open: ['hard-tab leading-whitespace']
-      }, {
-        text: 'a',
-        close: ['hard-tab leading-whitespace'],
-        open: []
-      }, {
-        text: '   ',
-        close: [],
-        open: ['hard-tab']
-      }, {
-        text: 'bc',
-        close: ['hard-tab'],
-        open: []
-      }, {
-        text: '  ',
-        close: [],
-        open: ['hard-tab']
-      }, {
-        text: 'def',
-        close: ['hard-tab'],
-        open: []
-      }, {
-        text: ' ',
-        close: [],
-        open: ['hard-tab']
-      }, {
-        text: 'g',
-        close: ['hard-tab'],
-        open: []
-      }, {
-        text: '    ',
-        close: [],
-        open: ['hard-tab leading-whitespace']
-      }, {
-        text: 'h',
-        close: ['hard-tab leading-whitespace'],
-        open: []
-      }])
+      expectTokenBoundaries(displayLayer, [
+        {text: '    ', close: [], open: ['hard-tab leading-whitespace']},
+        {text: 'a', close: ['hard-tab leading-whitespace'], open: []},
+        {text: '   ', close: [], open: ['hard-tab']},
+        {text: 'bc', close: ['hard-tab'], open: []},
+        {text: '  ', close: [], open: ['hard-tab']},
+        {text: 'def', close: ['hard-tab'], open: []},
+        {text: ' ', close: [], open: ['hard-tab']},
+        {text: 'g', close: ['hard-tab'], open: []},
+        {text: 'h', close: [], open: []},
+        {text: '   ', close: [], open: ['hard-tab']},
+        {text: '    ', close: ['hard-tab'], open: ['hard-tab']},
+        {text: 'i', close: ['hard-tab'], open: []}
+      ])
 
       expectPositionTranslations(displayLayer, [
         [Point(0, 0), Point(0, 0)],
@@ -126,12 +111,76 @@ describe('DisplayLayer', () => {
         [Point(0, 17), Point(0, 11)],
         [Point(0, 18), [Point(0, 11), Point(1, 0)]],
         [Point(1, 0), Point(1, 0)],
-        [Point(1, 1), [Point(1, 0), Point(1, 1)]],
-        [Point(1, 2), [Point(1, 0), Point(1, 1)]],
-        [Point(1, 3), [Point(1, 0), Point(1, 1)]],
-        [Point(1, 4), Point(1, 1)],
-        [Point(1, 5), Point(1, 2)],
-        [Point(1, 6), [Point(1, 2), Point(1, 2)]]
+        [Point(1, 1), Point(1, 1)],
+        [Point(1, 2), [Point(1, 1), Point(1, 2)]],
+        [Point(1, 3), [Point(1, 1), Point(1, 2)]],
+        [Point(1, 4), Point(1, 2)],
+        [Point(1, 5), [Point(1, 2), Point(1, 3)]],
+        [Point(1, 2), [Point(1, 1), Point(1, 2)]],
+        [Point(1, 3), [Point(1, 1), Point(1, 2)]],
+        [Point(1, 4), Point(1, 2)],
+        [Point(1, 5), [Point(1, 2), Point(1, 3)]],
+        [Point(1, 6), [Point(1, 2), Point(1, 3)]],
+        [Point(1, 7), [Point(1, 2), Point(1, 3)]],
+        [Point(1, 8), Point(1, 3)]
+      ])
+    })
+
+    it('expands hard tabs on soft-wrapped line segments', function () {
+      const buffer = new TextBuffer({
+        text: '  abcdef\tgh\tijk'
+      })
+
+      const displayLayer = buffer.addDisplayLayer({
+        tabLength: 4,
+        softWrapColumn: 8
+      })
+
+      expectPositionTranslations(displayLayer, [
+        [Point(1, 2), Point(0, 8)],
+        [Point(1, 0), [Point(0, 7), Point(0, 8)]],
+        [Point(1, 1), [Point(0, 7), Point(0, 8)]],
+        [Point(1, 2), Point(0, 8)],
+        [Point(1, 3), [Point(0, 8), Point(0, 9)]],
+        [Point(1, 4), Point(0, 9)],
+        [Point(1, 5), Point(0, 10)],
+        [Point(1, 6), Point(0, 11)],
+        [Point(1, 7), [Point(0, 11), Point(0, 12)]],
+        [Point(2, 0), [Point(0, 11), Point(0, 12)]],
+        [Point(2, 1), [Point(0, 11), Point(0, 12)]],
+        [Point(2, 2), Point(0, 12)],
+        [Point(2, 3), Point(0, 13)]
+      ])
+    })
+
+    it('expands hard tabs on lines with folds', function () {
+      const buffer = new TextBuffer({
+        text: 'a\tbc\ndefg\thij\tk\nlm\tn'
+      })
+
+      const displayLayer = buffer.addDisplayLayer({
+        tabLength: 4
+      })
+
+      displayLayer.foldBufferRange(Range(Point(0, 3), Point(1, 3)))
+      displayLayer.foldBufferRange(Range(Point(1, 3), Point(1, 6)))
+      displayLayer.foldBufferRange(Range(Point(1, 10), Point(2, 2)))
+
+      expect(displayLayer.getText()).toBe('a   b⋯⋯ij   k⋯  n')
+
+      expectPositionTranslations(displayLayer, [
+        [Point(0, 6), Point(1, 3)],
+        [Point(0, 7), Point(1, 6)],
+        [Point(0, 8), Point(1, 7)],
+        [Point(0, 9), Point(1, 8)],
+        [Point(0, 10), [Point(1, 8), Point(1, 9)]],
+        [Point(0, 11), [Point(1, 8), Point(1, 9)]],
+        [Point(0, 12), Point(1, 9)],
+        [Point(0, 13), Point(1, 10)],
+        [Point(0, 14), Point(2, 2)],
+        [Point(0, 15), [Point(2, 2), Point(2, 3)]],
+        [Point(0, 16), Point(2, 3)],
+        [Point(0, 17), Point(2, 4)]
       ])
     })
   })
@@ -139,7 +188,7 @@ describe('DisplayLayer', () => {
   describe('soft tabs', () => {
     it('breaks leading whitespace into atomic units corresponding to the tab length', () => {
       const buffer = new TextBuffer({
-        text: '          a\n     \n  \t    \t  '
+        text: '          a\n     \n      \t  '
       })
 
       const displayLayer = buffer.addDisplayLayer({
@@ -150,68 +199,36 @@ describe('DisplayLayer', () => {
         }
       })
 
-      expect(displayLayer.getText()).toBe('••••••••••a\n•••••\n••  ••••    ••')
+      expect(displayLayer.getText()).toBe('••••••••••a\n•••••\n••••••  ••')
 
-      expectTokenBoundaries(displayLayer, [{
-        text: '••••',
-        close: [],
-        open: ['invisible-character leading-whitespace']
-      }, {
-        text: '••••',
-        close: ['invisible-character leading-whitespace'],
-        open: ['invisible-character leading-whitespace']
-      }, {
-        text: '••',
-        close: ['invisible-character leading-whitespace'],
-        open: ['invisible-character leading-whitespace']
-      }, {
-        text: 'a',
-        close: ['invisible-character leading-whitespace'],
-        open: []
-      }, {
-        text: '••••',
-        close: [],
-        open: ['invisible-character trailing-whitespace']
-      }, {
-        text: '•',
-        close: ['invisible-character trailing-whitespace'],
-        open: ['invisible-character trailing-whitespace']
-      }, {
-        text: '',
-        close: ['invisible-character trailing-whitespace'],
-        open: []
-      }, {
-        text: '••',
-        close: [],
-        open: ['invisible-character trailing-whitespace']
-      }, {
-        text: '  ',
-        close: ['invisible-character trailing-whitespace'],
-        open: ['hard-tab trailing-whitespace']
-      }, {
-        text: '••••',
-        close: ['hard-tab trailing-whitespace'],
-        open: ['invisible-character trailing-whitespace']
-      }, {
-        text: '    ',
-        close: ['invisible-character trailing-whitespace'],
-        open: ['hard-tab trailing-whitespace']
-      }, {
-        text: '••',
-        close: ['hard-tab trailing-whitespace'],
-        open: ['invisible-character trailing-whitespace']
-      }, {
-        text: '',
-        close: ['invisible-character trailing-whitespace'],
-        open: []
-      }])
-
-      expect(displayLayer.clipScreenPosition([0, 2])).toEqual([0, 0])
-      expect(displayLayer.clipScreenPosition([0, 6])).toEqual([0, 4])
-      expect(displayLayer.clipScreenPosition([0, 9])).toEqual([0, 9])
-      expect(displayLayer.clipScreenPosition([2, 1])).toEqual([2, 1])
-      expect(displayLayer.clipScreenPosition([2, 6])).toEqual([2, 4])
-      expect(displayLayer.clipScreenPosition([2, 13])).toEqual([2, 13])
+      expectPositionTranslations(displayLayer, [
+        [Point(0, 0), Point(0, 0)],
+        [Point(0, 1), [Point(0, 0), Point(0, 4)]],
+        [Point(0, 2), [Point(0, 0), Point(0, 4)]],
+        [Point(0, 3), [Point(0, 0), Point(0, 4)]],
+        [Point(0, 4), Point(0, 4)],
+        [Point(0, 5), [Point(0, 4), Point(0, 8)]],
+        [Point(0, 6), [Point(0, 4), Point(0, 8)]],
+        [Point(0, 7), [Point(0, 4), Point(0, 8)]],
+        [Point(0, 8), Point(0, 8)],
+        [Point(1, 0), Point(1, 0)],
+        [Point(1, 1), [Point(1, 0), Point(1, 4)]],
+        [Point(1, 2), [Point(1, 0), Point(1, 4)]],
+        [Point(1, 3), [Point(1, 0), Point(1, 4)]],
+        [Point(1, 4), Point(1, 4)],
+        [Point(1, 5), Point(1, 5)],
+        [Point(2, 0), Point(2, 0)],
+        [Point(2, 1), [Point(2, 0), Point(2, 4)]],
+        [Point(2, 2), [Point(2, 0), Point(2, 4)]],
+        [Point(2, 3), [Point(2, 0), Point(2, 4)]],
+        [Point(2, 4), Point(2, 4)],
+        [Point(2, 5), Point(2, 5)],
+        [Point(2, 6), Point(2, 6)],
+        [Point(2, 7), [Point(2, 6), Point(2, 7)]],
+        [Point(2, 8), Point(2, 7)],
+        [Point(2, 9), Point(2, 8)],
+        [Point(2, 10), Point(2, 9)]
+      ])
     })
 
     it('does not treat soft tabs as atomic if the atomicSoftTabs option is false', () => {
@@ -226,6 +243,9 @@ describe('DisplayLayer', () => {
 
       expect(displayLayer.clipScreenPosition([0, 2])).toEqual([0, 2])
       expect(displayLayer.clipScreenPosition([1, 6])).toEqual([1, 6])
+
+      expect(displayLayer.translateBufferPosition([0, 2])).toEqual([0, 2])
+      expect(displayLayer.translateBufferPosition([1, 6])).toEqual([1, 6])
     })
   })
 
@@ -333,8 +353,13 @@ describe('DisplayLayer', () => {
       })
 
       const displayLayer = buffer.addDisplayLayer()
+
       displayLayer.foldBufferRange([[0, 1], [1, 1]])
+      expect(displayLayer.getText()).toBe('a⋯ef\nghi\nj')
+
       displayLayer.foldBufferRange([[1, 2], [2, 1]])
+      expect(displayLayer.getText()).toBe('a⋯e⋯hi\nj')
+
       displayLayer.foldBufferRange([[2, 2], [3, 0]])
       expect(displayLayer.getText()).toBe('a⋯e⋯h⋯j')
     })
@@ -574,11 +599,6 @@ describe('DisplayLayer', () => {
         },
         {
           close: [],
-          open: [],
-          text: ''
-        },
-        {
-          close: [],
           open: ['indent-guide'],
           text: '  '
         },
@@ -599,11 +619,6 @@ describe('DisplayLayer', () => {
         },
         {
           close: [],
-          open: [],
-          text: ''
-        },
-        {
-          close: [],
           open: ['indent-guide'],
           text: '  '
         },
@@ -621,11 +636,6 @@ describe('DisplayLayer', () => {
           close: ['indent-guide'],
           open: [],
           text: 'fgh '
-        },
-        {
-          close: [],
-          open: [],
-          text: ''
         },
         {
           close: [],
@@ -656,11 +666,6 @@ describe('DisplayLayer', () => {
           close: ['invisible-character leading-whitespace indent-guide'],
           open: [],
           text: 'lmnopqr'
-        },
-        {
-          close: [],
-          open: [],
-          text: ''
         },
         {
           close: [],
@@ -791,54 +796,6 @@ describe('DisplayLayer', () => {
       ])
     })
 
-    it('allows to query the soft-wrap descriptor of each screen row', () => {
-      const buffer = new TextBuffer({
-        text: 'abc def ghi\njkl mno pqr'
-      })
-
-      const displayLayer = buffer.addDisplayLayer({
-        softWrapColumn: 4
-      })
-
-      expect(JSON.stringify(displayLayer.getText())).toBe(JSON.stringify('abc \ndef \nghi\njkl \nmno \npqr'))
-
-      expect(displayLayer.softWrapDescriptorForScreenRow(0)).toEqual({
-        softWrappedAtStart: false,
-        softWrappedAtEnd: true,
-        bufferRow: 0
-      })
-
-      expect(displayLayer.softWrapDescriptorForScreenRow(1)).toEqual({
-        softWrappedAtStart: true,
-        softWrappedAtEnd: true,
-        bufferRow: 0
-      })
-
-      expect(displayLayer.softWrapDescriptorForScreenRow(2)).toEqual({
-        softWrappedAtStart: true,
-        softWrappedAtEnd: false,
-        bufferRow: 0
-      })
-
-      expect(displayLayer.softWrapDescriptorForScreenRow(3)).toEqual({
-        softWrappedAtStart: false,
-        softWrappedAtEnd: true,
-        bufferRow: 1
-      })
-
-      expect(displayLayer.softWrapDescriptorForScreenRow(4)).toEqual({
-        softWrappedAtStart: true,
-        softWrappedAtEnd: true,
-        bufferRow: 1
-      })
-
-      expect(displayLayer.softWrapDescriptorForScreenRow(5)).toEqual({
-        softWrappedAtStart: true,
-        softWrappedAtEnd: false,
-        bufferRow: 1
-      })
-    })
-
     it('prefers the skipSoftWrapIndentation option over clipDirection when translating points', () => {
       const buffer = new TextBuffer({
         text: '   abc defgh'
@@ -933,6 +890,32 @@ describe('DisplayLayer', () => {
 
       expect(displayLayer.getText()).toBe('a\nb\nc')
     })
+
+    it('allows soft wraps immediately following folds', () => {
+      const buffer = new TextBuffer({
+        text: 'abcdef\nghijkl'
+      })
+
+      let displayLayer = buffer.addDisplayLayer({
+        softWrapColumn: 4
+      })
+      displayLayer.foldBufferRange([[0, 3], [1, 3]])
+      expect(displayLayer.getText()).toBe('abc⋯\njkl')
+    })
+
+    it('handles edits following a soft wrap in between adjacent folds ending/starting at column 1', () => {
+      const buffer = new TextBuffer({
+        text: '  abcdef\nghijk\nlmnop'
+      })
+
+      let displayLayer = buffer.addDisplayLayer({
+        softWrapColumn: 6
+      })
+      displayLayer.foldBufferRange([[0, 5], [1, 1]])
+      displayLayer.foldBufferRange([[1, 1], [2, 1]])
+      buffer.setTextInRange([[2, 2], [2, 3]], 'xyz')
+      expect(displayLayer.getText()).toBe('  abc⋯\n  ⋯mxy\n  zop')
+    })
   })
 
   describe('invisibles', () => {
@@ -1008,12 +991,8 @@ describe('DisplayLayer', () => {
         close: [],
         open: []
       }, {
-        text: '••••',
+        text: '•••••••',
         close: [],
-        open: ['invisible-character trailing-whitespace']
-      }, {
-        text: '•••',
-        close: ['invisible-character trailing-whitespace'],
         open: ['invisible-character trailing-whitespace']
       }, {
         text: '',
@@ -1292,11 +1271,6 @@ describe('DisplayLayer', () => {
           open: []
         },
         {
-          text: '',
-          close: [],
-          open: []
-        },
-        {
           text: '¬',
           close: [],
           open: ['invisible-character eol']
@@ -1349,11 +1323,6 @@ describe('DisplayLayer', () => {
         {
           text: '',
           close: ['invisible-character eol'],
-          open: []
-        },
-        {
-          text: '',
-          close: [],
           open: []
         },
         {
@@ -1518,13 +1487,11 @@ describe('DisplayLayer', () => {
       )
 
       expectTokenBoundaries(displayLayer, [
-        {text: '', close: [], open: []},
         {text: '¬', close: [], open: ['invisible-character eol indent-guide']},
         {text: '   ', close: ['invisible-character eol indent-guide'], open: []},
         {text: '    ', close: [], open: ['indent-guide']},
         {text: '  ', close: ['indent-guide'], open: ['indent-guide']},
         {text: '', close: ['indent-guide'], open: []},
-        {text: '', close: [], open: []},
         {text: '¬', close: [], open: ['invisible-character eol indent-guide']},
         {text: '   ', close: ['invisible-character eol indent-guide'], open: []},
         {text: '    ', close: [], open: ['indent-guide']},
@@ -1536,7 +1503,6 @@ describe('DisplayLayer', () => {
         {text: 'a', close: ['leading-whitespace indent-guide'], open: []},
         {text: '¬', close: [], open: ['invisible-character eol']},
         {text: '', close: ['invisible-character eol'], open: []},
-        {text: '', close: [], open: []},
         {text: '¬', close: [], open: ['invisible-character eol indent-guide']},
         {text: '   ', close: ['invisible-character eol indent-guide'], open: []},
         {text: '    ', close: [], open: ['indent-guide']},
@@ -1549,19 +1515,16 @@ describe('DisplayLayer', () => {
         {text: 'b', close: ['leading-whitespace indent-guide'], open: []},
         {text: '¬', close: [], open: ['invisible-character eol']},
         {text: '', close: ['invisible-character eol'], open: []},
-        {text: '', close: [], open: []},
         {text: '¬', close: [], open: ['invisible-character eol indent-guide']},
         {text: '   ', close: ['invisible-character eol indent-guide'], open: []},
         {text: '    ', close: [], open: ['indent-guide']},
         {text: ' ', close: ['indent-guide'], open: ['indent-guide']},
         {text: '', close: ['indent-guide'], open: []},
-        {text: '', close: [], open: []},
         {text: '¬', close: [], open: ['invisible-character eol indent-guide']},
         {text: '   ', close: ['invisible-character eol indent-guide'], open: []},
         {text: '    ', close: [], open: ['indent-guide']},
         {text: ' ', close: ['indent-guide'], open: ['indent-guide']},
         {text: '', close: ['indent-guide'], open: []},
-        {text: '', close: [], open: []},
         {text: '    ', close: [], open: ['indent-guide']},
         {text: '    ', close: ['indent-guide'], open: ['indent-guide']},
         {text: ' ', close: ['indent-guide'], open: ['indent-guide']},
@@ -1651,10 +1614,8 @@ describe('DisplayLayer', () => {
         {text: 'b', close: [], open: []},
         {text: '  ', close: [], open: ['leading-whitespace indent-guide']},
         {text: 'c', close: ['leading-whitespace indent-guide'], open: []},
-        {text: '', close: [], open: []},
         {text: '  ', close: [], open: ['indent-guide']},
         {text: '', close: ['indent-guide'], open: []},
-        {text: '', close: [], open: []},
         {text: '  ', close: [], open: ['indent-guide']},
         {text: '', close: ['indent-guide'], open: []}
       ])
@@ -1691,6 +1652,46 @@ describe('DisplayLayer', () => {
         {text: 'klm', close: [], open: []},
         {text: 'no', close: [], open: ['ae']},
         {text: '', close: ['ae'], open: []}
+      ])
+    })
+
+    it('includes indent guides and EOL characters within containing decoration tags', function () {
+      const buffer = new TextBuffer({
+        text: [
+          '',   // empty line with no indent guide
+          '1',
+          '  ', // whitespace-only line
+          ''    // empty line with an indent guide
+        ].join('\n')
+      })
+
+      const displayLayer = buffer.addDisplayLayer({
+        showIndentGuides: true,
+        invisibles: {eol: '¬'}
+      })
+
+      expect(displayLayer.getText().split('\n')).toEqual([
+        '¬',
+        '1¬',
+        '  ¬',
+        '  '
+      ])
+
+      displayLayer.setTextDecorationLayer(new TestDecorationLayer([
+        ['a', [[0, 0], [4, 0]]]
+      ]))
+
+      expectTokenBoundaries(displayLayer, [
+        {text: '¬', close: [], open: ['a', 'invisible-character eol indent-guide']},
+        {text: '', close: ['invisible-character eol indent-guide', 'a'], open: []},
+        {text: '1', close: [], open: ['a']},
+        {text: '¬', close: [], open: ['invisible-character eol']},
+        {text: '', close: ['invisible-character eol', 'a'], open: []},
+        {text: '  ', close: [], open: ['a', 'trailing-whitespace indent-guide']},
+        {text: '¬', close: ['trailing-whitespace indent-guide'], open: ['invisible-character eol']},
+        {text: '', close: ['invisible-character eol', 'a'], open: []},
+        {text: '  ', close: [], open: ['a', 'indent-guide']},
+        {text: '', close: ['indent-guide', 'a'], open: []}
       ])
     })
 
@@ -1822,26 +1823,47 @@ describe('DisplayLayer', () => {
       }])
     })
 
-    it('throws an error if the text decoration iterator reports a boundary beyond the end of a line', () => {
+    it('gracefully handles the text decoration iterator reporting decoration boundaries beyond the end of a line', () => {
       const buffer = new TextBuffer({
-        text: 'abc\n\tdef'
+        text: 'abc\ndef'
       })
 
       const displayLayer = buffer.addDisplayLayer({
         tabLength: 2
       })
 
-      const decorationLayer = new TestDecorationLayer([['a', [[0, 1], [0, 10]]]])
+      const decorationLayer = new TestDecorationLayer([
+        ['a', [[0, 1], [0, 10]]],
+        ['b', [[0, 10], [1, 5]]]
+      ])
       displayLayer.setTextDecorationLayer(decorationLayer)
-      let exception
-
-      try {
-        getTokenBoundaries(displayLayer)
-      } catch (e) {
-        exception = e
-      }
-
-      expect(exception.message).toMatch(/iterator/)
+      expectTokenBoundaries(displayLayer, [
+        {
+          text: 'a',
+          close: [],
+          open: []
+        },
+        {
+          text: 'bc',
+          close: [],
+          open: ['a']
+        },
+        {
+          text: '',
+          close: ['a'],
+          open: []
+        },
+        {
+          text: 'def',
+          close: [],
+          open: ['b']
+        },
+        {
+          text: '',
+          close: ['b'],
+          open: []
+        }
+      ])
     })
   })
 
@@ -1978,23 +2000,20 @@ describe('DisplayLayer', () => {
         softWrapColumn: 4
       })
 
-      expect(buffer.getLineCount()).toBe(8)
-      expect(displayLayer.getApproximateScreenLineCount()).toEqual(8)
-
-      expect(displayLayer.translateBufferPosition(Point(0, Infinity))).toEqual(Point(1, 3))
+      expect(displayLayer.getApproximateScreenLineCount()).toEqual(buffer.getLineCount())
+      expect(displayLayer.translateBufferPosition(Point(1, Infinity))).toEqual(Point(3, 3))
       expect(displayLayer.indexedBufferRowCount).toBe(2)
       expect(displayLayer.getApproximateScreenLineCount()).toEqual(16)
-
-      expect(displayLayer.translateBufferPosition(Point(2, 1))).toEqual(Point(4, 1))
+      expect(displayLayer.translateBufferPosition(Point(3, 1))).toEqual(Point(5, 1))
       expect(displayLayer.indexedBufferRowCount).toBe(4)
       expect(displayLayer.getApproximateScreenLineCount()).toEqual(12)
 
       expect(displayLayer.translateBufferPosition(Point(3, 1))).toEqual(Point(5, 1))
-      expect(displayLayer.indexedBufferRowCount).toBe(5)
+      expect(displayLayer.indexedBufferRowCount).toBe(4)
       expect(displayLayer.getApproximateScreenLineCount()).toEqual(12)
 
       expect(displayLayer.translateBufferPosition(Point(4, 1))).toEqual(Point(6, 1))
-      expect(displayLayer.indexedBufferRowCount).toBe(6)
+      expect(displayLayer.indexedBufferRowCount).toBe(5)
       expect(displayLayer.getApproximateScreenLineCount()).toEqual(11)
 
       expect(displayLayer.getScreenLineCount()).toBe(10)
@@ -2010,13 +2029,13 @@ describe('DisplayLayer', () => {
 
       const displayLayer = buffer.addDisplayLayer({})
       expect(displayLayer.getApproximateRightmostScreenPosition()).toEqual(Point.ZERO)
-      displayLayer.translateBufferPosition(Point(0, 0))
+      displayLayer.translateBufferPosition(Point(1, 0))
       expect(displayLayer.indexedBufferRowCount).toBe(2)
       expect(displayLayer.getApproximateRightmostScreenPosition()).toEqual(Point(1, 7))
-      displayLayer.translateBufferPosition(Point(1, 0))
+      displayLayer.translateBufferPosition(Point(2, 0))
       expect(displayLayer.indexedBufferRowCount).toBe(3)
       expect(displayLayer.getApproximateRightmostScreenPosition()).toEqual(Point(2, 11))
-      displayLayer.translateBufferPosition(Point(2, 0))
+      displayLayer.translateBufferPosition(Point(3, 0))
       expect(displayLayer.indexedBufferRowCount).toBe(4)
       expect(displayLayer.getApproximateRightmostScreenPosition()).toEqual(Point(2, 11))
     })
@@ -2056,83 +2075,90 @@ describe('DisplayLayer', () => {
     })
   })
 
-  const now = Date.now()
+  it('updates the displayed text correctly when the underlying buffer changes', () => {
+    const now = Date.now()
 
-  for (let i = 0; i < 100; i++) {
-    const seed = now + i
+    for (let i = 0; i < 100; i++) {
+      let seed = now + i
 
-    it('updates the displayed text correctly when the underlying buffer changes: ' + seed, () => {
-      const random = new Random(seed)
+      try {
+        const random = new Random(seed)
 
-      const buffer = new TextBuffer({
-        text: buildRandomLines(random, 20)
-      })
+        const buffer = new TextBuffer({
+          text: buildRandomLines(random, 20)
+        })
 
-      const invisibles = {}
+        const invisibles = {}
 
-      if (random(2) > 0) {
-        invisibles.space = '•'
-      }
-
-      if (random(2) > 0) {
-        invisibles.eol = '¬'
-      }
-
-      if (random(2) > 0) {
-        invisibles.cr = '¤'
-      }
-
-      const softWrapColumn = random(2) ? random.intBetween(5, 80) : null
-      const showIndentGuides = Boolean(random(2))
-
-      const displayLayer = buffer.addDisplayLayer({
-        tabLength: 4,
-        invisibles: invisibles,
-        showIndentGuides: showIndentGuides,
-        softWrapColumn: softWrapColumn
-      })
-
-      const textDecorationLayer = new TestDecorationLayer([], buffer, random)
-      displayLayer.setTextDecorationLayer(textDecorationLayer)
-      displayLayer.getText(0, 3)
-      const foldIds = []
-      let undoableChanges = 0
-      let redoableChanges = 0
-      const screenLinesById = new Map()
-
-      for (let j = 0; j < 10; j++) {
-        const k = random(10)
-
-        if (k < 2) {
-          createRandomFold(random, displayLayer, foldIds)
-        } else if (k < 3 && !hasComputedAllScreenRows(displayLayer)) {
-          performReadOutsideOfIndexedRegion(random, displayLayer)
-        } else if (k < 4 && foldIds.length > 0) {
-          destroyRandomFold(random, displayLayer, foldIds)
-        } else if (k < 5 && undoableChanges > 0) {
-          undoableChanges--
-          redoableChanges++
-          performUndo(random, displayLayer)
-        } else if (k < 6 && redoableChanges > 0) {
-          undoableChanges++
-          redoableChanges--
-          performRedo(random, displayLayer)
-        } else {
-          undoableChanges++
-          performRandomChange(random, displayLayer)
+        if (random(2) > 0) {
+          invisibles.space = '•'
         }
 
-        const freshDisplayLayer = displayLayer.copy()
-        freshDisplayLayer.setTextDecorationLayer(displayLayer.getTextDecorationLayer())
-        freshDisplayLayer.getScreenLines()
-        verifyTokenConsistency(displayLayer)
-        verifyText(displayLayer, freshDisplayLayer)
-        verifyPositionTranslations(displayLayer)
-        verifyRightmostScreenPosition(freshDisplayLayer)
-        verifyScreenLineIds(displayLayer, screenLinesById)
+        if (random(2) > 0) {
+          invisibles.eol = '¬'
+        }
+
+        if (random(2) > 0) {
+          invisibles.cr = '¤'
+        }
+
+        const softWrapColumn = random(2) ? random.intBetween(5, 80) : null
+        const showIndentGuides = Boolean(random(2))
+
+        const displayLayer = buffer.addDisplayLayer({
+          tabLength: 4,
+          invisibles: invisibles,
+          showIndentGuides: showIndentGuides,
+          softWrapColumn: softWrapColumn
+        })
+
+        const textDecorationLayer = new TestDecorationLayer([], buffer, random)
+        displayLayer.setTextDecorationLayer(textDecorationLayer)
+        displayLayer.getText(0, 3)
+        const foldIds = []
+        let undoableChanges = 0
+        let redoableChanges = 0
+        const screenLinesById = new Map()
+
+        for (let j = 0; j < 10; j++) {
+          const k = random(10)
+
+          if (k < 2) {
+            createRandomFold(random, displayLayer, foldIds)
+          } else if (k < 4 && foldIds.length > 0) {
+            destroyRandomFold(random, displayLayer, foldIds)
+          } else if (k < 5 && undoableChanges > 0) {
+            undoableChanges--
+            redoableChanges++
+            performUndo(random, displayLayer)
+          } else if (k < 6 && redoableChanges > 0) {
+            undoableChanges++
+            redoableChanges--
+            performRedo(random, displayLayer)
+          } else {
+            undoableChanges++
+            performRandomChange(random, displayLayer)
+          }
+
+          if (!hasComputedAllScreenRows(displayLayer)) {
+            performReadOutsideOfIndexedRegion(random, displayLayer)
+          }
+
+          const freshDisplayLayer = displayLayer.copy()
+          freshDisplayLayer.setTextDecorationLayer(displayLayer.getTextDecorationLayer())
+          freshDisplayLayer.getScreenLines()
+          verifyTokenConsistency(displayLayer)
+          verifyText(random, displayLayer, freshDisplayLayer)
+          verifyRightmostScreenPosition(freshDisplayLayer)
+          verifyScreenLineIds(displayLayer, screenLinesById)
+          verifyPositionTranslations(random, displayLayer)
+        }
+      } catch (error) {
+        console.log(`Failing Seed: ${seed}`)
+        throw error
       }
-    })
-  }
+    }
+  })
 })
 
 function performRandomChange (random, displayLayer) {
@@ -2183,7 +2209,7 @@ function performReadOutsideOfIndexedRegion (random, displayLayer) {
   const computedRowCount = getComputedScreenLineCount(displayLayer)
   const row = random.intBetween(computedRowCount, computedRowCount + 10)
   log('new-read ' + row)
-  return displayLayer.getScreenLines(0, row)
+  displayLayer.getScreenLines(0, row)
 }
 
 function log (message) {}
@@ -2209,11 +2235,12 @@ function verifyChangeEvent (displayLayer, fn) {
   expect(previousTokenLines).toEqual(expectedTokenLines)
 }
 
-function verifyText (displayLayer, freshDisplayLayer) {
-  const rowCount = getComputedScreenLineCount(displayLayer)
-  const text = displayLayer.getText(0, rowCount)
-  const expectedText = freshDisplayLayer.getText(0, rowCount)
-  expect(JSON.stringify(text)).toBe(JSON.stringify(expectedText))
+function verifyText (random, displayLayer, freshDisplayLayer) {
+  const startRow = random(getComputedScreenLineCount(displayLayer))
+  const endRow = random.intBetween(startRow, getComputedScreenLineCount(displayLayer))
+  const text = displayLayer.getText(startRow, endRow)
+  const expectedText = freshDisplayLayer.getText().split('\n').slice(startRow, endRow).join('\n')
+  expect(JSON.stringify(text)).toBe(JSON.stringify(expectedText), `Text for rows ${startRow} - ${endRow}`)
 }
 
 function verifyTokenConsistency (displayLayer) {
@@ -2235,101 +2262,19 @@ function verifyTokenConsistency (displayLayer) {
   expect(containingTags).toEqual([])
 }
 
-function verifyPositionTranslations (displayLayer) {
-  let lineScreenStart = Point.ZERO
-  let lineBufferStart = Point.ZERO
-  const rowCount = getComputedScreenLineCount(displayLayer)
-
-  for (const screenLine of displayLayer.buildSpatialScreenLines(0, Infinity, rowCount).spatialScreenLines) {
-    let tokenScreenStart = lineScreenStart
-    let tokenBufferStart = lineBufferStart
-
-    for (const token of screenLine.tokens) {
-      let tokenScreenEnd = traverse(tokenScreenStart, Point(0, token.screenExtent))
-      let tokenBufferEnd = traverse(tokenBufferStart, token.bufferExtent)
-
-      for (let i = 0; i < token.screenExtent; i++) {
-        const screenPosition = traverse(tokenScreenStart, Point(0, i))
-        const bufferPosition = traverse(tokenBufferStart, Point(0, i))
-
-        if (token.metadata & displayLayer.ATOMIC_TOKEN) {
-          if (!isEqualPoint(screenPosition, tokenScreenStart)) {
-            expect(displayLayer.clipScreenPosition(screenPosition, {
-              clipDirection: 'backward'
-            })).toEqual(tokenScreenStart)
-
-            expect(displayLayer.clipScreenPosition(screenPosition, {
-              clipDirection: 'forward'
-            })).toEqual(tokenScreenEnd)
-
-            expect(displayLayer.translateScreenPosition(screenPosition, {
-              clipDirection: 'backward'
-            })).toEqual(tokenBufferStart)
-
-            expect(displayLayer.translateScreenPosition(screenPosition, {
-              clipDirection: 'forward'
-            })).toEqual(tokenBufferEnd)
-
-            if (comparePoints(bufferPosition, tokenBufferEnd) < 0) {
-              expect(displayLayer.translateBufferPosition(bufferPosition, {
-                clipDirection: 'backward'
-              })).toEqual(tokenScreenStart)
-
-              expect(displayLayer.translateBufferPosition(bufferPosition, {
-                clipDirection: 'forward'
-              })).toEqual(tokenScreenEnd)
-            }
-          }
-        } else if (!(token.metadata & displayLayer.VOID_TOKEN)) {
-          expect(displayLayer.clipScreenPosition(screenPosition, {
-            clipDirection: 'backward'
-          })).toEqual(screenPosition)
-
-          expect(displayLayer.clipScreenPosition(screenPosition, {
-            clipDirection: 'forward'
-          })).toEqual(screenPosition)
-
-          expect(displayLayer.translateScreenPosition(screenPosition, {
-            clipDirection: 'backward'
-          })).toEqual(bufferPosition)
-
-          expect(displayLayer.translateScreenPosition(screenPosition, {
-            clipDirection: 'forward'
-          })).toEqual(bufferPosition)
-
-          expect(displayLayer.translateBufferPosition(bufferPosition, {
-            clipDirection: 'backward'
-          })).toEqual(screenPosition)
-
-          expect(displayLayer.translateBufferPosition(bufferPosition, {
-            clipDirection: 'forward'
-          })).toEqual(screenPosition)
-        }
-      }
-
-      tokenScreenStart = tokenScreenEnd
-      tokenBufferStart = tokenBufferEnd
-    }
-
-    lineBufferStart = traverse(lineBufferStart, screenLine.bufferExtent)
-    lineScreenStart = traverse(lineScreenStart, Point(1, 0))
-  }
-}
-
 function verifyRightmostScreenPosition (displayLayer) {
-  const screenLines = displayLayer.getText().split('\n')
   let maxLineLength = -1
   const longestScreenRows = new Set()
 
-  for (const [row, screenLine] of screenLines.entries()) {
-    expect(displayLayer.lineLengthForScreenRow(row)).toBe(screenLine.length, ('Screen line length differs for row ' + (row) + '.'))
+  for (let row = 0, rowCount = displayLayer.getScreenLineCount(); row < rowCount; row++) {
+    const length = displayLayer.lineLengthForScreenRow(row)
 
-    if (screenLine.length > maxLineLength) {
+    if (length > maxLineLength) {
       longestScreenRows.clear()
-      maxLineLength = screenLine.length
+      maxLineLength = length
     }
 
-    if (screenLine.length >= maxLineLength) {
+    if (length >= maxLineLength) {
       longestScreenRows.add(row)
     }
   }
@@ -2346,6 +2291,28 @@ function verifyScreenLineIds (displayLayer, screenLinesById) {
     } else {
       screenLinesById.set(screenLine.id, screenLine)
     }
+  }
+}
+
+function verifyPositionTranslations (random, displayLayer) {
+  for (let i = 0; i < 20; i++) {
+    const screenRow = random(getComputedScreenLineCount(displayLayer))
+    if (displayLayer.lineLengthForScreenRow(screenRow) === 0) continue
+    const screenColumn = random(displayLayer.lineLengthForScreenRow(screenRow))
+    const screenCharacter = displayLayer.getScreenLines(screenRow, screenRow + 1)[0].lineText[screenColumn]
+
+    if (!/[a-z]/.test(screenCharacter)) continue
+
+    const screenPosition = Point(screenRow, screenColumn)
+    const bufferPosition = displayLayer.translateScreenPosition(screenPosition)
+    const bufferCharacter = displayLayer.buffer.lineForRow(bufferPosition.row)[bufferPosition.column]
+
+    expect(bufferCharacter).toBe(screenCharacter, `Screen position: ${screenPosition}, Buffer position: ${bufferPosition}`)
+    expect(displayLayer.translateBufferPosition(bufferPosition)).toEqual(screenPosition, `translateBufferPosition(${bufferPosition})`)
+
+    const nextBufferPosition = bufferPosition.traverse(Point(0, 1))
+    const nextScreenPosition = displayLayer.translateBufferPosition(nextBufferPosition)
+    expect(nextScreenPosition.isGreaterThan(screenPosition)).toBe(true, `translateBufferPosition(${nextBufferPosition}) > translateBufferPosition(${bufferPosition})`)
   }
 }
 
@@ -2382,14 +2349,7 @@ function buildRandomLine (random) {
 }
 
 function getRandomBufferRange (random, displayLayer) {
-  let endRow
-
-  if (random(10) < 8) {
-    endRow = random(displayLayer.buffer.getLineCount())
-  } else {
-    endRow = random(displayLayer.buffer.getLineCount())
-  }
-
+  const endRow = random(displayLayer.buffer.getLineCount())
   const startRow = random.intBetween(0, endRow)
   const startColumn = random(displayLayer.buffer.lineForRow(startRow).length + 1)
   const endColumn = random(displayLayer.buffer.lineForRow(endRow).length + 1)
@@ -2403,27 +2363,31 @@ function expectPositionTranslations (displayLayer, tranlations) {
 
       expect(displayLayer.translateScreenPosition(screenPosition, {
         clipDirection: 'backward'
-      })).toEqual(backwardBufferPosition)
+      })).toEqual(backwardBufferPosition, `translateScreenPosition(Point${screenPosition}, {clipDirection: 'backward'})`)
 
       expect(displayLayer.translateScreenPosition(screenPosition, {
         clipDirection: 'forward'
-      })).toEqual(forwardBufferPosition)
+      })).toEqual(forwardBufferPosition, `translateScreenPosition(Point${screenPosition}, {clipDirection: 'forward'})`)
 
       expect(displayLayer.clipScreenPosition(screenPosition, {
         clipDirection: 'backward'
       })).toEqual(displayLayer.translateBufferPosition(backwardBufferPosition, {
         clipDirection: 'backward'
-      }))
+      }), `clipScreenPosition(Point${screenPosition}, {clipDirection: 'backward'})`)
 
       expect(displayLayer.clipScreenPosition(screenPosition, {
         clipDirection: 'forward'
       })).toEqual(displayLayer.translateBufferPosition(forwardBufferPosition, {
         clipDirection: 'forward'
-      }))
+      }), `clipScreenPosition(Point${screenPosition}, {clipDirection: 'forward'})`)
     } else {
       const bufferPosition = bufferPositions
-      expect(displayLayer.translateScreenPosition(screenPosition)).toEqual(bufferPosition)
-      expect(displayLayer.translateBufferPosition(bufferPosition)).toEqual(screenPosition)
+      expect(displayLayer.translateScreenPosition(screenPosition)).toEqual(bufferPosition, `translateScreenPosition(Point${screenPosition})`)
+      expect(displayLayer.translateScreenPosition(screenPosition, {clipDirection: 'forward'})).toEqual(bufferPosition, `translateScreenPosition(Point${screenPosition}, {clipDirection: 'forward'})`)
+      expect(displayLayer.translateScreenPosition(screenPosition, {clipDirection: 'backward'})).toEqual(bufferPosition, `translateScreenPosition(Point${screenPosition}, {clipDirection: 'backward'})`)
+      expect(displayLayer.translateBufferPosition(bufferPosition)).toEqual(screenPosition, `translateScreenPosition(Point${bufferPosition})`)
+      expect(displayLayer.translateBufferPosition(bufferPosition, {clipDirection: 'forward'})).toEqual(screenPosition, `translateScreenPosition(Point${bufferPosition}, {clipDirection: 'forward'})`)
+      expect(displayLayer.translateBufferPosition(bufferPosition, {clipDirection: 'backward'})).toEqual(screenPosition, `translateScreenPosition(Point${bufferPosition}, {clipDirection: 'backward'})`)
     }
   }
 }
@@ -2441,7 +2405,10 @@ function expectTokenBoundaries (displayLayer, expectedTokens) {
 
       const {text, open, close} = expectedTokens.shift()
 
-      expect(token.text).toEqual(text)
+      expect(token.text).toEqual(
+        text,
+        ('Text of token with start position ' + (Point(screenRow, screenColumn)))
+      )
 
       expect(token.closeTags).toEqual(
         close,
@@ -2525,7 +2492,7 @@ function getTokenBoundaries (displayLayer, startRow = 0, endRow = displayLayer.g
 }
 
 function updateTokenLines (tokenLines, displayLayer, changes) {
-  for (const {start, oldExtent, newExtent} of typeof changes !== 'undefined' && changes !== null ? changes : []) {
+  for (const {start, oldExtent, newExtent} of changes || []) {
     const newTokenLines = getTokens(displayLayer, start.row, start.row + newExtent.row)
     tokenLines.splice(start.row, oldExtent.row, ...newTokenLines)
   }
@@ -2545,9 +2512,10 @@ function logTokens (displayLayer) { // eslint-disable-line
 }
 
 function hasComputedAllScreenRows (displayLayer) {
+  expect(displayLayer.indexedBufferRowCount).not.toBeGreaterThan(displayLayer.buffer.getLineCount())
   return displayLayer.indexedBufferRowCount === displayLayer.buffer.getLineCount()
 }
 
 function getComputedScreenLineCount (displayLayer) {
-  return displayLayer.displayIndex.getScreenLineCount() - 1
+  return displayLayer.screenLineLengths.length
 }

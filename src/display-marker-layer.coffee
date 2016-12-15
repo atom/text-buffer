@@ -30,6 +30,7 @@ class DisplayMarkerLayer
     @destroyed = true
     @subscriptions.dispose()
     @bufferMarkerLayer.destroy() if @ownsBufferMarkerLayer
+    @displayLayer.didDestroyMarkerLayer(@id)
     @emitter.emit('did-destroy')
 
   # Essential: Determine whether this layer has been destroyed.
