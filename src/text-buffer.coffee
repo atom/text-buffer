@@ -746,8 +746,12 @@ class TextBuffer
     lineEndings[lastIndex] = lastLineEnding
 
     # Replace lines in oldRange with new lines
-    spliceArray(@lines, startRow, rowCount, lines)
-    spliceArray(@lineEndings, startRow, rowCount, lineEndings)
+    if @lines.length > 1 or @lines[0].length > 0
+      spliceArray(@lines, startRow, rowCount, lines)
+      spliceArray(@lineEndings, startRow, rowCount, lineEndings)
+    else
+      @lines = lines
+      @lineEndings = lineEndings
 
     # Update the offset index for position <-> character offset translation
     @offsetIndex.splice(startRow, rowCount, lines.map((line, i) -> line.length + lineEndings[i].length))
