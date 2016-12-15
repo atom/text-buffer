@@ -61,7 +61,6 @@ class TextBuffer
   @version: 5
   @Point: Point
   @Range: Range
-  @Patch: require('./patch')
   @newlineRegex: newlineRegex
 
   cachedText: null
