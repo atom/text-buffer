@@ -1065,31 +1065,31 @@ class DisplayLayer {
       this.showIndentGuides = params.showIndentGuides
     }
     if (params.hasOwnProperty('softWrapColumn')) {
-      let softWrapColumn = params.softWrapColumn != null ?
-        Math.max(1, params.softWrapColumn) :
-        Infinity
+      let softWrapColumn = params.softWrapColumn != null
+        ? Math.max(1, params.softWrapColumn)
+        : Infinity
       if (softWrapColumn !== this.softWrapColumn) {
         paramsChanged = true
         this.softWrapColumn = softWrapColumn
       }
     }
-    if (params.hasOwnProperty('softWrapHangingIndent') && params.softWrapHangingIndent != this.softWrapHangingIndent) {
+    if (params.hasOwnProperty('softWrapHangingIndent') && params.softWrapHangingIndent !== this.softWrapHangingIndent) {
       paramsChanged = true
       this.softWrapHangingIndent = params.softWrapHangingIndent
     }
-    if (params.hasOwnProperty('ratioForCharacter') && params.ratioForCharacter != this.ratioForCharacter) {
+    if (params.hasOwnProperty('ratioForCharacter') && params.ratioForCharacter !== this.ratioForCharacter) {
       paramsChanged = true
       this.ratioForCharacter = params.ratioForCharacter
     }
-    if (params.hasOwnProperty('isWrapBoundary') && params.isWrapBoundary != this.isWrapBoundary) {
+    if (params.hasOwnProperty('isWrapBoundary') && params.isWrapBoundary !== this.isWrapBoundary) {
       paramsChanged = true
       this.isWrapBoundary = params.isWrapBoundary
     }
-    if (params.hasOwnProperty('foldCharacter') && params.foldCharacter != this.foldCharacter) {
+    if (params.hasOwnProperty('foldCharacter') && params.foldCharacter !== this.foldCharacter) {
       paramsChanged = true
       this.foldCharacter = params.foldCharacter
     }
-    if (params.hasOwnProperty('atomicSoftTabs') && params.atomicSoftTabs != this.atomicSoftTabs) {
+    if (params.hasOwnProperty('atomicSoftTabs') && params.atomicSoftTabs !== this.atomicSoftTabs) {
       paramsChanged = true
       this.atomicSoftTabs = params.atomicSoftTabs
     }
@@ -1102,7 +1102,6 @@ class DisplayLayer {
 }
 
 function invisiblesEqual (left, right) {
-  let result = true
   let leftKeys = Object.keys(left)
   let rightKeys = Object.keys(right)
   if (leftKeys.length !== rightKeys.length) return false
