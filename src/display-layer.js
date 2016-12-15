@@ -14,35 +14,52 @@ class DisplayLayer {
   constructor (id, buffer, params = {}) {
     this.id = id
     this.buffer = buffer
-    this.foldIdCounter = 1
-    this.foldsMarkerLayer = params.foldsMarkerLayer || buffer.addMarkerLayer({
-      maintainHistory: false,
-      persistent: true,
-      destroyInvalidatedMarkers: true
-    })
+    this.emitter = new Emitter()
     this.screenLineBuilder = new ScreenLineBuilder(this)
-    this.spatialIndex = new Patch({mergeAdjacentHunks: false})
-    this.rightmostScreenPosition = Point(0, 0)
-    this.screenLineLengths = []
-    this.tabCounts = []
     this.cachedScreenLines = []
     this.tagsByCode = new Map()
     this.codesByTag = new Map()
     this.nextOpenTagCode = -1
     this.textDecorationLayer = new EmptyDecorationLayer()
     this.displayMarkerLayersById = new Map()
-    this.emitter = new Emitter()
 
-    this.invisibles = {}
-    this.tabLength = 4
-    this.softWrapColumn = Infinity
-    this.softWrapHangingIndent = 0
-    this.showIndentGuides = false
-    this.ratioForCharacter = () => 1
-    this.isWrapBoundary = isWordStart
-    this.foldCharacter = '⋯'
-    this.atomicSoftTabs = true
-    this.reset(params)
+    this.invisibles = params.invisibles != null ? params.invisibles : {}
+    this.tabLength = params.tabLength != null ? params.tabLength : 4
+    this.softWrapColumn = params.softWrapColumn != null ? Math.max(1, params.softWrapColumn) : Infinity
+    this.softWrapHangingIndent = params.softWrapHangingIndent != null ? params.softWrapHangingIndent : 0
+    this.showIndentGuides = params.showIndentGuides != null ? params.showIndentGuides : false
+    this.ratioForCharacter = params.ratioForCharacter != null ? params.ratioForCharacter : unitRatio
+    this.isWrapBoundary = params.isWrapBoundary != null ? params.isWrapBoundary : isWordStart
+    this.foldCharacter = params.foldCharacter != null ? params.foldCharacter : '⋯'
+    this.atomicSoftTabs = params.atomicSoftTabs != null ? params.atomicSoftTabs : true
+
+    this.eolInvisibles = {
+      '\r': this.invisibles.cr,
+      '\n': this.invisibles.eol,
+      '\r\n': this.invisibles.cr + this.invisibles.eol
+    }
+
+    this.foldsMarkerLayer = params.foldsMarkerLayer || buffer.addMarkerLayer({
+      maintainHistory: false,
+      persistent: true,
+      destroyInvalidatedMarkers: true
+    })
+    this.foldIdCounter = params.foldIdCounter || 1
+
+    if (params.spatialIndex) {
+      this.spatialIndex = params.spatialIndex
+      this.tabCounts = params.tabCounts
+      this.screenLineLengths = params.screenLineLengths
+      this.rightmostScreenPosition = params.rightmostScreenPosition
+      this.indexedBufferRowCount = params.indexedBufferRowCount
+    } else {
+      this.spatialIndex = new Patch({mergeAdjacentHunks: false})
+      this.tabCounts = []
+      this.screenLineLengths = []
+      this.rightmostScreenPosition = Point(0, 0)
+      this.indexedBufferRowCount = 0
+      this.reset({})
+    }
   }
 
   static deserialize (buffer, params) {
@@ -53,7 +70,8 @@ class DisplayLayer {
   serialize () {
     return {
       id: this.id,
-      foldsMarkerLayerId: this.foldsMarkerLayer.id
+      foldsMarkerLayerId: this.foldsMarkerLayer.id,
+      foldIdCounter: this.foldIdCounter
     }
   }
 
@@ -94,6 +112,12 @@ class DisplayLayer {
     const copyId = this.buffer.nextDisplayLayerId++
     const copy = new DisplayLayer(copyId, this.buffer, {
       foldsMarkerLayer: this.foldsMarkerLayer.copy(),
+      foldIdCounter: this.foldIdCounter,
+      spatialIndex: this.spatialIndex.copy(),
+      tabCounts: this.tabCounts.slice(),
+      screenLineLengths: this.screenLineLengths.slice(),
+      rightmostScreenPosition: this.rightmostScreenPosition.copy(),
+      indexedBufferRowCount: this.indexedBufferRowCount,
       invisibles: this.invisibles,
       tabLength: this.tabLength,
       softWrapColumn: this.softWrapColumn,
@@ -1051,6 +1075,10 @@ class DisplayLayer {
 function isWordStart (previousCharacter, character) {
   return (previousCharacter === ' ' || previousCharacter === '\t') &&
     (character !== ' ' && character !== '\t')
+}
+
+function unitRatio () {
+  return 1
 }
 
 const NullDeadline = {
