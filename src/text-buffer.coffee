@@ -655,11 +655,8 @@ class TextBuffer
 
     oldRange = @clipRange(range)
     oldText = @getTextInRange(oldRange)
-    newRange = Range.fromText(oldRange.start, newText)
-    change = {newStart: oldRange.start, oldExtent: oldRange.getExtent(), newExtent: newRange.getExtent(), oldText, newText, normalizeLineEndings}
-    @history?.pushChange(change) if undo isnt 'skip'
-    @applyChange(change)
-    newRange
+    change = {newStart: oldRange.start, oldExtent: oldRange.getExtent(), oldText, newText, normalizeLineEndings}
+    @applyChange(change, undo isnt 'skip')
 
   # Public: Insert text at the given position.
   #
@@ -686,15 +683,13 @@ class TextBuffer
     @insert(@getEndPosition(), text, options)
 
   # Applies a change to the buffer based on its old range and new text.
-  applyChange: (change) ->
-    {newStart, oldExtent, newExtent, oldText, newText, normalizeLineEndings} = change
-    start = Point.fromObject(newStart)
-    oldRange = Range(start, start.traverse(oldExtent))
-    newRange = Range(start, start.traverse(newExtent))
-    oldRange.freeze()
-    newRange.freeze()
+  applyChange: (change, pushToHistory = false) ->
+    {newStart, oldExtent, oldText, newText, normalizeLineEndings} = change
     @cachedText = null
 
+    start = Point.fromObject(newStart)
+    oldRange = Range(start, start.traverse(oldExtent))
+    oldRange.freeze()
     startRow = oldRange.start.row
     endRow = oldRange.end.row
     rowCount = endRow - startRow + 1
@@ -725,6 +720,14 @@ class TextBuffer
     lines.push(lastLine)
     lineEndings.push('')
     normalizedNewText += lastLine
+
+    newExtent = Point(lines.length - 1, lastLine.length)
+    newRange = Range(start, start.traverse(newExtent))
+    newRange.freeze()
+
+    if pushToHistory
+      change.newExtent ?= newExtent
+      @history?.pushChange(change)
 
     newText = normalizedNewText
     changeEvent = Object.freeze({oldRange, newRange, oldText, newText})
@@ -759,6 +762,7 @@ class TextBuffer
 
     @changeCount++
     @emitDidChangeEvent(changeEvent)
+    newRange
 
   emitDidChangeEvent: (changeEvent) ->
     # 1. Emit the change event on all the registered text decoration layers.
