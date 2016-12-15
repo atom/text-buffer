@@ -58,7 +58,6 @@ class DisplayLayer {
       this.screenLineLengths = []
       this.rightmostScreenPosition = Point(0, 0)
       this.indexedBufferRowCount = 0
-      this.reset({})
     }
   }
 
@@ -76,36 +75,15 @@ class DisplayLayer {
   }
 
   reset (params) {
-    if (this.isDestroyed()) return
-    if (params.hasOwnProperty('tabLength')) this.tabLength = params.tabLength
-    if (params.hasOwnProperty('invisibles')) this.invisibles = params.invisibles
-    if (params.hasOwnProperty('showIndentGuides')) this.showIndentGuides = params.showIndentGuides
-    if (params.hasOwnProperty('softWrapColumn')) {
-      if (params.softWrapColumn != null) {
-        this.softWrapColumn = Math.max(params.softWrapColumn, 1)
-      } else {
-        this.softWrapColumn = Infinity
-      }
+    if (!this.isDestroyed() && this.setParams(params)) {
+      this.indexedBufferRowCount = 0
+      this.spatialIndex.spliceOld(Point.ZERO, Point.INFINITY, Point.INFINITY)
+      this.cachedScreenLines.length = 0
+      this.screenLineLengths.length = 0
+      this.tabCounts.length = 0
+      this.emitter.emit('did-reset')
+      this.notifyObserversIfMarkerScreenPositionsChanged()
     }
-    if (params.hasOwnProperty('softWrapHangingIndent')) this.softWrapHangingIndent = params.softWrapHangingIndent
-    if (params.hasOwnProperty('ratioForCharacter')) this.ratioForCharacter = params.ratioForCharacter
-    if (params.hasOwnProperty('isWrapBoundary')) this.isWrapBoundary = params.isWrapBoundary
-    if (params.hasOwnProperty('foldCharacter')) this.foldCharacter = params.foldCharacter
-    if (params.hasOwnProperty('atomicSoftTabs')) this.atomicSoftTabs = params.atomicSoftTabs
-
-    this.eolInvisibles = {
-      '\r': this.invisibles.cr,
-      '\n': this.invisibles.eol,
-      '\r\n': this.invisibles.cr + this.invisibles.eol
-    }
-
-    this.indexedBufferRowCount = 0
-    this.spatialIndex.spliceOld(Point.ZERO, Point.INFINITY, Point.INFINITY)
-    this.cachedScreenLines.length = 0
-    this.screenLineLengths.length = 0
-    this.tabCounts.length = 0
-    this.emitter.emit('did-reset')
-    this.notifyObserversIfMarkerScreenPositionsChanged()
   }
 
   copy () {
@@ -1067,9 +1045,71 @@ class DisplayLayer {
     return folds
   }
 
+  setParams (params) {
+    let paramsChanged = false
+    if (params.hasOwnProperty('tabLength') && params.tabLength !== this.tabLength) {
+      paramsChanged = true
+      this.tabLength = params.tabLength
+    }
+    if (params.hasOwnProperty('invisibles') && !invisiblesEqual(params.invisibles, this.invisibles)) {
+      paramsChanged = true
+      this.invisibles = params.invisibles
+      this.eolInvisibles = {
+        '\r': this.invisibles.cr,
+        '\n': this.invisibles.eol,
+        '\r\n': this.invisibles.cr + this.invisibles.eol
+      }
+    }
+    if (params.hasOwnProperty('showIndentGuides')) {
+      paramsChanged = true
+      this.showIndentGuides = params.showIndentGuides
+    }
+    if (params.hasOwnProperty('softWrapColumn')) {
+      let softWrapColumn = params.softWrapColumn != null ?
+        Math.max(1, params.softWrapColumn) :
+        Infinity
+      if (softWrapColumn !== this.softWrapColumn) {
+        paramsChanged = true
+        this.softWrapColumn = softWrapColumn
+      }
+    }
+    if (params.hasOwnProperty('softWrapHangingIndent') && params.softWrapHangingIndent != this.softWrapHangingIndent) {
+      paramsChanged = true
+      this.softWrapHangingIndent = params.softWrapHangingIndent
+    }
+    if (params.hasOwnProperty('ratioForCharacter') && params.ratioForCharacter != this.ratioForCharacter) {
+      paramsChanged = true
+      this.ratioForCharacter = params.ratioForCharacter
+    }
+    if (params.hasOwnProperty('isWrapBoundary') && params.isWrapBoundary != this.isWrapBoundary) {
+      paramsChanged = true
+      this.isWrapBoundary = params.isWrapBoundary
+    }
+    if (params.hasOwnProperty('foldCharacter') && params.foldCharacter != this.foldCharacter) {
+      paramsChanged = true
+      this.foldCharacter = params.foldCharacter
+    }
+    if (params.hasOwnProperty('atomicSoftTabs') && params.atomicSoftTabs != this.atomicSoftTabs) {
+      paramsChanged = true
+      this.atomicSoftTabs = params.atomicSoftTabs
+    }
+    return paramsChanged
+  }
+
   isSoftWrapHunk (hunk) {
     return isEqual(hunk.oldStart, hunk.oldEnd)
   }
+}
+
+function invisiblesEqual (left, right) {
+  let result = true
+  let leftKeys = Object.keys(left)
+  let rightKeys = Object.keys(right)
+  if (leftKeys.length !== rightKeys.length) return false
+  for (let key of leftKeys) {
+    if (left[key] !== right[key]) return false
+  }
+  return true
 }
 
 function isWordStart (previousCharacter, character) {
