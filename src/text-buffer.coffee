@@ -655,11 +655,8 @@ class TextBuffer
 
     oldRange = @clipRange(range)
     oldText = @getTextInRange(oldRange)
-    newRange = Range.fromText(oldRange.start, newText)
-    change = {newStart: oldRange.start, oldExtent: oldRange.getExtent(), newExtent: newRange.getExtent(), oldText, newText, normalizeLineEndings}
-    @history?.pushChange(change) if undo isnt 'skip'
-    @applyChange(change)
-    newRange
+    change = {newStart: oldRange.start, oldExtent: oldRange.getExtent(), oldText, newText, normalizeLineEndings}
+    @applyChange(change, undo isnt 'skip')
 
   # Public: Insert text at the given position.
   #
@@ -686,15 +683,13 @@ class TextBuffer
     @insert(@getEndPosition(), text, options)
 
   # Applies a change to the buffer based on its old range and new text.
-  applyChange: (change) ->
-    {newStart, oldExtent, newExtent, oldText, newText, normalizeLineEndings} = change
-    start = Point.fromObject(newStart)
-    oldRange = Range(start, start.traverse(oldExtent))
-    newRange = Range(start, start.traverse(newExtent))
-    oldRange.freeze()
-    newRange.freeze()
+  applyChange: (change, pushToHistory = false) ->
+    {newStart, oldExtent, oldText, newText, normalizeLineEndings} = change
     @cachedText = null
 
+    start = Point.fromObject(newStart)
+    oldRange = Range(start, start.traverse(oldExtent))
+    oldRange.freeze()
     startRow = oldRange.start.row
     endRow = oldRange.end.row
     rowCount = endRow - startRow + 1
@@ -726,6 +721,14 @@ class TextBuffer
     lineEndings.push('')
     normalizedNewText += lastLine
 
+    newExtent = Point(lines.length - 1, lastLine.length)
+    newRange = Range(start, start.traverse(newExtent))
+    newRange.freeze()
+
+    if pushToHistory
+      change.newExtent ?= newExtent
+      @history?.pushChange(change)
+
     newText = normalizedNewText
     changeEvent = Object.freeze({oldRange, newRange, oldText, newText})
     for id, displayLayer of @displayLayers
@@ -743,8 +746,12 @@ class TextBuffer
     lineEndings[lastIndex] = lastLineEnding
 
     # Replace lines in oldRange with new lines
-    spliceArray(@lines, startRow, rowCount, lines)
-    spliceArray(@lineEndings, startRow, rowCount, lineEndings)
+    if @lines.length > 1 or @lines[0].length > 0
+      spliceArray(@lines, startRow, rowCount, lines)
+      spliceArray(@lineEndings, startRow, rowCount, lineEndings)
+    else
+      @lines = lines
+      @lineEndings = lineEndings
 
     # Update the offset index for position <-> character offset translation
     @offsetIndex.splice(startRow, rowCount, lines.map((line, i) -> line.length + lineEndings[i].length))
@@ -759,6 +766,7 @@ class TextBuffer
 
     @changeCount++
     @emitDidChangeEvent(changeEvent)
+    newRange
 
   emitDidChangeEvent: (changeEvent) ->
     # 1. Emit the change event on all the registered text decoration layers.
