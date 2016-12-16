@@ -13,7 +13,7 @@ History = require './history'
 MarkerLayer = require './marker-layer'
 MatchIterator = require './match-iterator'
 DisplayLayer = require './display-layer'
-{spliceArray, newlineRegex, normalizePatchChanges} = require './helpers'
+{spliceArray, newlineRegex, normalizePatchChanges, regexIsSingleLine} = require './helpers'
 
 class TransactionAbortedError extends Error
   constructor: -> super
@@ -1128,13 +1128,16 @@ class TextBuffer
     flags += "i" if regex.ignoreCase
     regex = new RegExp(regex.source, flags)
 
-    startIndex = @characterIndexForPosition(range.start)
-    endIndex = @characterIndexForPosition(range.end)
-
-    if reverse
-      iterator = new MatchIterator.Backwards(this, regex, startIndex, endIndex, @backwardsScanChunkSize)
+    if regexIsSingleLine(regex)
+      if reverse
+        iterator = new MatchIterator.BackwardsSingleLine(this, regex, range, @backwardsScanChunkSize)
+      else
+        iterator = new MatchIterator.ForwardsSingleLine(this, regex, range)
     else
-      iterator = new MatchIterator.Forwards(this, regex, startIndex, endIndex)
+      if reverse
+        iterator = new MatchIterator.BackwardsMultiLine(this, regex, range, @backwardsScanChunkSize)
+      else
+        iterator = new MatchIterator.ForwardsMultiLine(this, regex, range)
 
     iterator.iterate(callback, global)
 

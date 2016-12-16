@@ -1,7 +1,92 @@
 Point = require './point'
 Range = require './range'
 
-class SearchCallbackArgument
+class SingleLineSearchCallbackArgument
+  Object.defineProperty @::, "range",
+    get: ->
+      @computedRange ?= Range(
+        Point(@row, @lineOffset + @match.index),
+        Point(@row, @lineOffset + @match.index + @matchText.length)
+      )
+
+    set: (@computedRange) ->
+
+  constructor: (@buffer, @row, @match, @lineOffset) ->
+    @stopped = false
+    @matchText = @match[0]
+
+  replace: (text) =>
+    @replacementText = text
+    @buffer.setTextInRange(@range, @replacementText)
+
+  stop: => @stopped = true
+
+class ForwardsSingleLine
+  constructor: (@buffer, @regex, @range) ->
+
+  iterate: (callback, global) ->
+    row = @range.start.row
+    lineOffset = @range.start.column
+    line = @buffer.lineForRow(row).slice(lineOffset)
+
+    while row < @range.end.row
+      if match = @regex.exec(line)
+        argument = new SingleLineSearchCallbackArgument(@buffer, row, match, lineOffset)
+        callback(argument)
+        return if argument.stopped or not global
+        if argument.replacementText?
+          lineOffset += argument.replacementText.length - argument.matchText.length
+        if match[0].length is 0
+          @regex.lastIndex++
+      else
+        row++
+        lineOffset = 0
+        line = @buffer.lineForRow(row)
+        @regex.lastIndex = 0
+
+    line = line.slice(0, @range.end.column - @buffer.lineLengthForRow(row))
+    while match = @regex.exec(line)
+      argument = new SingleLineSearchCallbackArgument(@buffer, row, match, lineOffset)
+      callback(argument)
+      return if argument.stopped or not global
+      if argument.replacementText?
+        lineOffset += argument.replacementText.length - argument.matchText.length
+      if match[0].length is 0
+        @regex.lastIndex++
+
+class BackwardsSingleLine
+  constructor: (@buffer, @regex, @range) ->
+
+  iterate: (callback, global) ->
+    row = @range.end.row
+    line = @buffer.lineForRow(row).slice(0, @range.end.column - @buffer.lineLengthForRow(row))
+    bufferedMatches = []
+    while row > @range.start.row
+      if match = @regex.exec(line)
+        bufferedMatches.push(match)
+        if match[0].length is 0
+          @regex.lastIndex++
+      else
+        while match = bufferedMatches.pop()
+          argument = new SingleLineSearchCallbackArgument(@buffer, row, match, 0)
+          callback(argument)
+          return if argument.stopped or not global
+        row--
+        line = @buffer.lineForRow(row)
+        @regex.lastIndex = 0
+
+    line = line.slice(@range.start.column)
+    while match = @regex.exec(line)
+      bufferedMatches.push(match)
+      if match[0].length is 0
+        @regex.lastIndex++
+
+    while match = bufferedMatches.pop()
+      argument = new SingleLineSearchCallbackArgument(@buffer, row, match, @range.start.column)
+      callback(argument)
+      return if argument.stopped or not global
+
+class MultiLineSearchCallbackArgument
   Object.defineProperty @::, "range",
     get: ->
       return @computedRange if @computedRange?
@@ -22,10 +107,6 @@ class SearchCallbackArgument
     @replacementText = null
     @matchText = @match[0]
 
-  getReplacementDelta: ->
-    return 0 unless @replacementText?
-    @replacementText.length - @matchText.length
-
   replace: (text) =>
     @replacementText = text
     @buffer.setTextInRange(@range, @replacementText)
@@ -33,19 +114,21 @@ class SearchCallbackArgument
   stop: =>
     @stopped = true
 
-class Forwards
-  constructor: (@buffer, @regex, @startIndex, @endIndex) ->
+class ForwardsMultiLine
+  constructor: (@buffer, @regex, range) ->
+    @startIndex = @buffer.characterIndexForPosition(range.start)
+    @endIndex = @buffer.characterIndexForPosition(range.end)
     @text = @buffer.getText()
     @regex.lastIndex = @startIndex
 
   iterate: (callback, global) ->
     lengthDelta = 0
     while match = @next()
-      argument = new SearchCallbackArgument(@buffer, match, lengthDelta)
+      argument = new MultiLineSearchCallbackArgument(@buffer, match, lengthDelta)
       callback(argument)
       if argument.replacementText?
         lengthDelta += argument.replacementText.length - argument.matchText.length
-      break unless global and not arg.stopped
+      break unless global and not argument.stopped
     return
 
   next: ->
@@ -66,16 +149,17 @@ class Forwards
         @regex.lastIndex = matchEndIndex
       match
 
-class Backwards
-  constructor: (@buffer, @regex, @startIndex, endIndex, @chunkSize) ->
+class BackwardsMultiLine
+  constructor: (@buffer, @regex, range, @chunkSize) ->
     @text = @buffer.getText()
+    @startIndex = @buffer.characterIndexForPosition(range.start)
+    @chunkStartIndex = @chunkEndIndex = @buffer.characterIndexForPosition(range.end)
     @bufferedMatches = []
-    @chunkStartIndex = @chunkEndIndex = endIndex
     @lastMatchIndex = Infinity
 
   iterate: (callback, global) ->
     while match = @next()
-      argument = new SearchCallbackArgument(@buffer, match, 0)
+      argument = new MultiLineSearchCallbackArgument(@buffer, match, 0)
       callback(argument)
       break unless global and not argument.stopped
     return
@@ -119,4 +203,9 @@ class Backwards
       @scanNextChunk()
     @bufferedMatches.pop()
 
-module.exports = {Forwards, Backwards}
+module.exports = {
+  ForwardsMultiLine,
+  BackwardsMultiLine,
+  ForwardsSingleLine,
+  BackwardsSingleLine
+}
