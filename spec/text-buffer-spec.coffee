@@ -2045,10 +2045,10 @@ describe "TextBuffer", ->
 
   describe "::scanInRange(range, regex, fn)", ->
     beforeEach (done) ->
+    beforeEach ->
       filePath = require.resolve('./fixtures/sample.js')
       buffer = new TextBuffer({filePath, load: false})
-      buffer.load().then ->
-        done()
+      buffer.loadSync()
 
     describe "when given a regex with a ignore case flag", ->
       it "does a case-insensitive search", ->
@@ -2161,11 +2161,10 @@ describe "TextBuffer", ->
         expect(ranges.length).toBe 2
 
   describe "::backwardsScanInRange(range, regex, fn)", ->
-    beforeEach (done) ->
+    beforeEach ->
       filePath = require.resolve('./fixtures/sample.js')
       buffer = new TextBuffer({filePath, load: false})
-      buffer.load().then ->
-        done()
+      buffer.loadSync()
 
     describe "when given a regex with no global flag", ->
       it "calls the iterator with the last match for the given regex in the given range", ->
