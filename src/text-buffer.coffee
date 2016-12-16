@@ -15,42 +15,6 @@ MatchIterator = require './match-iterator'
 DisplayLayer = require './display-layer'
 {spliceArray, newlineRegex, normalizePatchChanges} = require './helpers'
 
-class SearchCallbackArgument
-  Object.defineProperty @::, "range",
-    get: ->
-      return @computedRange if @computedRange?
-
-      matchStartIndex = @match.index
-      matchEndIndex = matchStartIndex + @matchText.length
-
-      startPosition = @buffer.positionForCharacterIndex(matchStartIndex + @lengthDelta)
-      endPosition = @buffer.positionForCharacterIndex(matchEndIndex + @lengthDelta)
-
-      @computedRange = new Range(startPosition, endPosition)
-
-    set: (range) ->
-      @computedRange = range
-
-  constructor: (@buffer, @match, @lengthDelta) ->
-    @stopped = false
-    @replacementText = null
-    @matchText = @match[0]
-
-  getReplacementDelta: ->
-    return 0 unless @replacementText?
-
-    @replacementText.length - @matchText.length
-
-  replace: (text) =>
-    @replacementText = text
-    @buffer.setTextInRange(@range, @replacementText)
-
-  stop: =>
-    @stopped = true
-
-  keepLooping: ->
-    @stopped is false
-
 class TransactionAbortedError extends Error
   constructor: -> super
 
@@ -1150,14 +1114,14 @@ class TextBuffer
   #
   # * `regex` A {RegExp} to search for.
   # * `range` A {Range} in which to search.
-  # * `iterator` A {Function} that's called on each match with an {Object}
+  # * `callback` A {Function} that's called on each match with an {Object}
   #   containing the following keys:
   #   * `match` The current regular expression match.
   #   * `matchText` A {String} with the text of the match.
   #   * `range` The {Range} of the match.
   #   * `stop` Call this {Function} to terminate the scan.
   #   * `replace` Call this {Function} with a {String} to replace the match.
-  scanInRange: (regex, range, iterator, reverse=false) ->
+  scanInRange: (regex, range, callback, reverse=false) ->
     range = @clipRange(range)
     global = regex.global
     flags = "gm"
@@ -1168,19 +1132,11 @@ class TextBuffer
     endIndex = @characterIndexForPosition(range.end)
 
     if reverse
-      matches = new MatchIterator.Backwards(@getText(), regex, startIndex, endIndex, @backwardsScanChunkSize)
+      iterator = new MatchIterator.Backwards(this, regex, startIndex, endIndex, @backwardsScanChunkSize)
     else
-      matches = new MatchIterator.Forwards(@getText(), regex, startIndex, endIndex)
+      iterator = new MatchIterator.Forwards(this, regex, startIndex, endIndex)
 
-    lengthDelta = 0
-    until (next = matches.next()).done
-      match = next.value
-      callbackArgument = new SearchCallbackArgument(this, match, lengthDelta)
-      iterator(callbackArgument)
-      lengthDelta += callbackArgument.getReplacementDelta() unless reverse
-
-      break unless global and callbackArgument.keepLooping()
-    return
+    iterator.iterate(callback, global)
 
   # Public: Scan regular expression matches in a given range in reverse order,
   # calling the given iterator function on each match.

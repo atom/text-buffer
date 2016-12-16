@@ -1,6 +1,52 @@
+Point = require './point'
+Range = require './range'
+
+class SearchCallbackArgument
+  Object.defineProperty @::, "range",
+    get: ->
+      return @computedRange if @computedRange?
+
+      matchStartIndex = @match.index
+      matchEndIndex = matchStartIndex + @matchText.length
+
+      startPosition = @buffer.positionForCharacterIndex(matchStartIndex + @lengthDelta)
+      endPosition = @buffer.positionForCharacterIndex(matchEndIndex + @lengthDelta)
+
+      @computedRange = new Range(startPosition, endPosition)
+
+    set: (range) ->
+      @computedRange = range
+
+  constructor: (@buffer, @match, @lengthDelta) ->
+    @stopped = false
+    @replacementText = null
+    @matchText = @match[0]
+
+  getReplacementDelta: ->
+    return 0 unless @replacementText?
+    @replacementText.length - @matchText.length
+
+  replace: (text) =>
+    @replacementText = text
+    @buffer.setTextInRange(@range, @replacementText)
+
+  stop: =>
+    @stopped = true
+
 class Forwards
-  constructor: (@text, @regex, @startIndex, @endIndex) ->
+  constructor: (@buffer, @regex, @startIndex, @endIndex) ->
+    @text = @buffer.getText()
     @regex.lastIndex = @startIndex
+
+  iterate: (callback, global) ->
+    lengthDelta = 0
+    while match = @next()
+      argument = new SearchCallbackArgument(@buffer, match, lengthDelta)
+      callback(argument)
+      if argument.replacementText?
+        lengthDelta += argument.replacementText.length - argument.matchText.length
+      break unless global and not arg.stopped
+    return
 
   next: ->
     if match = @regex.exec(@text)
@@ -18,18 +64,21 @@ class Forwards
       else
         matchEndIndex++ if matchLength is 0
         @regex.lastIndex = matchEndIndex
-
-    if match
-      {value: match, done: false}
-    else
-      {value: null, done: true}
+      match
 
 class Backwards
-  constructor: (@text, @regex, @startIndex, endIndex, @chunkSize) ->
+  constructor: (@buffer, @regex, @startIndex, endIndex, @chunkSize) ->
+    @text = @buffer.getText()
     @bufferedMatches = []
-    @doneScanning = false
     @chunkStartIndex = @chunkEndIndex = endIndex
     @lastMatchIndex = Infinity
+
+  iterate: (callback, global) ->
+    while match = @next()
+      argument = new SearchCallbackArgument(@buffer, match, 0)
+      callback(argument)
+      break unless global and not argument.stopped
+    return
 
   scanNextChunk: ->
     # If results were found in the last chunk, then scan to the beginning
@@ -68,10 +117,6 @@ class Backwards
   next: ->
     until @chunkStartIndex is @startIndex or @bufferedMatches.length > 0
       @scanNextChunk()
-
-    if match = @bufferedMatches.pop()
-      {value: match, done: false}
-    else
-      {value: null, done: true}
+    @bufferedMatches.pop()
 
 module.exports = {Forwards, Backwards}
