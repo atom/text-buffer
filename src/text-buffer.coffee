@@ -1087,10 +1087,7 @@ class TextBuffer
   #   * `stop` Call this {Function} to terminate the scan.
   #   * `replace` Call this {Function} with a {String} to replace the match.
   scan: (regex, iterator) ->
-    @scanInRange regex, @getRange(), (result) =>
-      result.lineText = @lineForRow(result.range.start.row)
-      result.lineTextOffset = 0
-      iterator(result)
+    @scanInRange(regex, @getRange(), iterator)
 
   # Public: Scan regular expression matches in the entire buffer in reverse
   # order, calling the given iterator function on each match.
@@ -1104,10 +1101,7 @@ class TextBuffer
   #   * `stop` Call this {Function} to terminate the scan.
   #   * `replace` Call this {Function} with a {String} to replace the match.
   backwardsScan: (regex, iterator) ->
-    @backwardsScanInRange regex, @getRange(), (result) =>
-      result.lineText = @lineForRow(result.range.start.row)
-      result.lineTextOffset = 0
-      iterator(result)
+    @backwardsScanInRange(regex, @getRange(), iterator)
 
   # Public: Scan regular expression matches in a given range , calling the given
   # iterator function on each match.

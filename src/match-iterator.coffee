@@ -2,7 +2,9 @@ Point = require './point'
 Range = require './range'
 
 class SingleLineSearchCallbackArgument
-  Object.defineProperty @::, "range",
+  lineTextOffset: 0
+
+  Object.defineProperty @::, 'range',
     get: ->
       @computedRange ?= Range(
         Point(@row, @lineOffset + @match.index),
@@ -10,6 +12,9 @@ class SingleLineSearchCallbackArgument
       )
 
     set: (@computedRange) ->
+
+  Object.defineProperty @::, 'lineText',
+    get: -> @buffer.lineForRow(@row)
 
   constructor: (@buffer, @row, @match, @lineOffset) ->
     @stopped = false
@@ -87,7 +92,9 @@ class BackwardsSingleLine
       return if argument.stopped or not global
 
 class MultiLineSearchCallbackArgument
-  Object.defineProperty @::, "range",
+  lineTextOffset: 0
+
+  Object.defineProperty @::, 'range',
     get: ->
       return @computedRange if @computedRange?
 
@@ -101,6 +108,9 @@ class MultiLineSearchCallbackArgument
 
     set: (range) ->
       @computedRange = range
+
+  Object.defineProperty @::, 'lineText',
+    get: -> @buffer.lineForRow(@range.start.row)
 
   constructor: (@buffer, @match, @lengthDelta) ->
     @stopped = false
