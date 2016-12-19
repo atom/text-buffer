@@ -49,7 +49,7 @@ class ForwardsSingleLine
         line = @buffer.lineForRow(row)
         @regex.lastIndex = 0
 
-    line = line.slice(0, @range.end.column - @buffer.lineLengthForRow(row))
+    line = line.slice(0, @range.end.column - lineOffset)
     while match = @regex.exec(line)
       argument = new SingleLineSearchCallbackArgument(@buffer, row, match, lineOffset)
       callback(argument)
@@ -58,13 +58,14 @@ class ForwardsSingleLine
         lineOffset += argument.replacementText.length - argument.matchText.length
       if match[0].length is 0
         @regex.lastIndex++
+    return
 
 class BackwardsSingleLine
   constructor: (@buffer, @regex, @range) ->
 
   iterate: (callback, global) ->
     row = @range.end.row
-    line = @buffer.lineForRow(row).slice(0, @range.end.column - @buffer.lineLengthForRow(row))
+    line = @buffer.lineForRow(row).slice(0, @range.end.column)
     bufferedMatches = []
     while row > @range.start.row
       if match = @regex.exec(line)
@@ -90,6 +91,7 @@ class BackwardsSingleLine
       argument = new SingleLineSearchCallbackArgument(@buffer, row, match, @range.start.column)
       callback(argument)
       return if argument.stopped or not global
+    return
 
 class MultiLineSearchCallbackArgument
   lineTextOffset: 0
@@ -174,6 +176,11 @@ class BackwardsMultiLine
       break unless global and not argument.stopped
     return
 
+  next: ->
+    until @chunkStartIndex is @startIndex or @bufferedMatches.length > 0
+      @scanNextChunk()
+    @bufferedMatches.pop()
+
   scanNextChunk: ->
     # If results were found in the last chunk, then scan to the beginning
     # of the previous result. Otherwise, continue to scan to the same position
@@ -207,11 +214,7 @@ class BackwardsMultiLine
         @regex.lastIndex = matchEndIndex
 
     @lastMatchIndex = firstResultIndex if firstResultIndex
-
-  next: ->
-    until @chunkStartIndex is @startIndex or @bufferedMatches.length > 0
-      @scanNextChunk()
-    @bufferedMatches.pop()
+    return
 
 module.exports = {
   ForwardsMultiLine,

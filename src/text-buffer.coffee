@@ -1124,7 +1124,7 @@ class TextBuffer
 
     if regexIsSingleLine(regex)
       if reverse
-        iterator = new MatchIterator.BackwardsSingleLine(this, regex, range, @backwardsScanChunkSize)
+        iterator = new MatchIterator.BackwardsSingleLine(this, regex, range)
       else
         iterator = new MatchIterator.ForwardsSingleLine(this, regex, range)
     else
