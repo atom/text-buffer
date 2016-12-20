@@ -3,8 +3,7 @@ const dedent = require('dedent')
 const TextBuffer = require('../src/text-buffer')
 const Point = require('../src/point')
 const Range = require('../src/range')
-
-const WORDS = require('./helpers/words')
+const {buildRandomLines, getRandomBufferRange} = require('./helpers/random')
 const SAMPLE_TEXT = require('./helpers/sample-text')
 const TestDecorationLayer = require('./helpers/test-decoration-layer')
 
@@ -2163,7 +2162,7 @@ describe('DisplayLayer', () => {
 
 function performRandomChange (random, displayLayer) {
   const text = buildRandomLines(random, 4)
-  const range = getRandomBufferRange(random, displayLayer)
+  const range = getRandomBufferRange(random, displayLayer.buffer)
   log(('buffer change ' + (range) + ' ' + (JSON.stringify(text))))
 
   verifyChangeEvent(displayLayer, () => {
@@ -2188,7 +2187,7 @@ function performRedo (random, displayLayer) {
 }
 
 function createRandomFold (random, displayLayer, foldIds) {
-  const bufferRange = getRandomBufferRange(random, displayLayer)
+  const bufferRange = getRandomBufferRange(random, displayLayer.buffer)
   log('fold ' + bufferRange)
 
   verifyChangeEvent(displayLayer, () => {
@@ -2314,46 +2313,6 @@ function verifyPositionTranslations (random, displayLayer) {
     const nextScreenPosition = displayLayer.translateBufferPosition(nextBufferPosition)
     expect(nextScreenPosition.isGreaterThan(screenPosition)).toBe(true, `translateBufferPosition(${nextBufferPosition}) > translateBufferPosition(${bufferPosition})`)
   }
-}
-
-function buildRandomLines (random, maxLines) {
-  const lines = []
-
-  for (let i = 0; i < random(maxLines); i++) {
-    lines.push(buildRandomLine(random))
-  }
-
-  return lines.join('\n')
-}
-
-function buildRandomLine (random) {
-  const line = []
-
-  for (let i = 0; i < random(5); i++) {
-    const n = random(10)
-
-    if (n < 2) {
-      line.push('\t')
-    } else if (n < 4) {
-      line.push(' ')
-    } else {
-      if (line.length > 0 && !/\s/.test(line[line.length - 1])) {
-        line.push(' ')
-      }
-
-      line.push(WORDS[random(WORDS.length)])
-    }
-  }
-
-  return line.join('')
-}
-
-function getRandomBufferRange (random, displayLayer) {
-  const endRow = random(displayLayer.buffer.getLineCount())
-  const startRow = random.intBetween(0, endRow)
-  const startColumn = random(displayLayer.buffer.lineForRow(startRow).length + 1)
-  const endColumn = random(displayLayer.buffer.lineForRow(endRow).length + 1)
-  return Range(Point(startRow, startColumn), Point(endRow, endColumn))
 }
 
 function expectPositionTranslations (displayLayer, tranlations) {

@@ -2,6 +2,8 @@ Point = require './point'
 
 SpliceArrayChunkSize = 100000
 
+MULTI_LINE_REGEX_REGEX = /\\r|\\n|^\[\^|[^\\]\[\^/
+
 module.exports =
   spliceArray: (originalArray, start, length, insertedArray=[]) ->
     if insertedArray.length < SpliceArrayChunkSize
@@ -23,3 +25,6 @@ module.exports =
       newExtent: Point.fromObject(change.newExtent)
       newText: change.newText
     }
+
+  regexIsSingleLine: (regex) ->
+    not MULTI_LINE_REGEX_REGEX.test(regex.source)

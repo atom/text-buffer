@@ -8,6 +8,7 @@ Range = require '../src/range'
 DisplayLayer = require '../src/display-layer'
 TextBuffer = require '../src/text-buffer'
 SampleText = fs.readFileSync(join(__dirname, 'fixtures', 'sample.js'), 'utf8')
+{buildRandomLines, getRandomBufferRange} = require './helpers/random'
 
 describe "TextBuffer", ->
   buffer = null
@@ -2044,11 +2045,10 @@ describe "TextBuffer", ->
       expect(matches[1].lineTextOffset).toBe 0
 
   describe "::scanInRange(range, regex, fn)", ->
-    beforeEach (done) ->
+    beforeEach ->
       filePath = require.resolve('./fixtures/sample.js')
       buffer = new TextBuffer({filePath, load: false})
-      buffer.load().then ->
-        done()
+      buffer.loadSync()
 
     describe "when given a regex with a ignore case flag", ->
       it "does a case-insensitive search", ->
@@ -2160,12 +2160,52 @@ describe "TextBuffer", ->
 
         expect(ranges.length).toBe 2
 
+    it "returns the same results as a regex match on a regular string", ->
+      regexps = [
+        /\w+/g                    # 1 word
+        /\w+\n\s*\w+/g,           # 2 words separated by a newline
+        /\w+[^\w]+\w+/g,          # 2 words separated by anything
+        /\w+\n\s*\w+\n\s*\w+/g,   # 3 words separated by newlines
+        /\w+[^\w]+\w+[^\w]+\w+/g, # 3 words separated by anything
+      ]
+
+      i = 0
+      while i < 20
+        seed = Date.now()
+        random = new Random(seed)
+
+        text = buildRandomLines(random, 40)
+        buffer = new TextBuffer({text})
+        buffer.backwardsScanChunkSize = random.intBetween(100, 1000)
+
+        range = getRandomBufferRange(random, buffer)
+          .union(getRandomBufferRange(random, buffer))
+          .union(getRandomBufferRange(random, buffer))
+        regex = regexps[random(regexps.length)]
+
+        expectedMatches = buffer.getTextInRange(range).match(regex) ? []
+        continue unless expectedMatches.length > 0
+        i++
+
+        forwardRanges = []
+        forwardMatches = []
+        buffer.scanInRange regex, range, ({range, matchText}) ->
+          forwardRanges.push(range)
+          forwardMatches.push(matchText)
+        expect(forwardMatches).toEqual(expectedMatches, "Seed: #{seed}")
+
+        backwardRanges = []
+        backwardMatches = []
+        buffer.backwardsScanInRange regex, range, ({range, matchText}) ->
+          backwardRanges.push(range)
+          backwardMatches.push(matchText)
+        expect(backwardMatches).toEqual(expectedMatches.reverse(), "Seed: #{seed}")
+
   describe "::backwardsScanInRange(range, regex, fn)", ->
-    beforeEach (done) ->
+    beforeEach ->
       filePath = require.resolve('./fixtures/sample.js')
       buffer = new TextBuffer({filePath, load: false})
-      buffer.load().then ->
-        done()
+      buffer.loadSync()
 
     describe "when given a regex with no global flag", ->
       it "calls the iterator with the last match for the given regex in the given range", ->
