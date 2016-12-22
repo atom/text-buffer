@@ -2201,6 +2201,17 @@ describe "TextBuffer", ->
           backwardMatches.push(matchText)
         expect(backwardMatches).toEqual(expectedMatches.reverse(), "Seed: #{seed}")
 
+    it "does not return empty matches at the end of the range", ->
+      ranges = []
+
+      buffer.scanInRange /\s*/gm, [[0, 29], [1, 2]], ({range}) -> ranges.push(range)
+      expect(ranges).toEqual([[[0, 29], [0, 29]], [[1, 0], [1, 2]]])
+
+      ranges.length = 0
+      buffer.scanInRange /\s*/gm, [[1, 0], [1, 2]], ({range}) ->
+        ranges.push(range)
+      expect(ranges).toEqual([[[1, 0], [1, 2]]])
+
   describe "::backwardsScanInRange(range, regex, fn)", ->
     beforeEach ->
       filePath = require.resolve('./fixtures/sample.js')
@@ -2376,6 +2387,16 @@ describe "TextBuffer", ->
               replace(matchText + '.')
 
             expect(buffer.getText()).toBe(referenceBuffer.getText(), "Seed: #{seed}")
+
+    it "does not return empty matches at the end of the range", ->
+      ranges = []
+
+      buffer.backwardsScanInRange /\s*/gm, [[1, 0], [1, 2]], ({range}) -> ranges.push(range)
+      expect(ranges).toEqual([[[1, 0], [1, 2]]])
+
+      ranges.length = 0
+      buffer.backwardsScanInRange /\s*/m, [[0, 29], [1, 2]], ({range}) -> ranges.push(range)
+      expect(ranges).toEqual([[[1, 0], [1, 2]]])
 
   describe "::characterIndexForPosition(position)", ->
     beforeEach (done) ->

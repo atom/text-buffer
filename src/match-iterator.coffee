@@ -31,8 +31,9 @@ class ForwardsSingleLine
 
   iterate: (callback, global) ->
     row = @range.start.row
-    lineOffset = @range.start.column
-    line = @buffer.lineForRow(row).slice(lineOffset)
+    line = @buffer.lineForRow(row)
+    lineOffset = 0
+    @regex.lastIndex = @range.start.column
 
     while row < @range.end.row
       if match = @regex.exec(line)
@@ -51,6 +52,7 @@ class ForwardsSingleLine
 
     line = line.slice(0, @range.end.column - lineOffset)
     while match = @regex.exec(line)
+      break if match.index is @range.end.column
       argument = new SingleLineSearchCallbackArgument(@buffer, row, match, lineOffset)
       callback(argument)
       return if argument.stopped or not global
@@ -69,7 +71,8 @@ class BackwardsSingleLine
     bufferedMatches = []
     while row > @range.start.row
       if match = @regex.exec(line)
-        bufferedMatches.push(match)
+        if row < @range.end.row or match.index < @range.end.column
+          bufferedMatches.push(match)
         if match[0].length is 0
           @regex.lastIndex++
       else
@@ -81,14 +84,15 @@ class BackwardsSingleLine
         line = @buffer.lineForRow(row)
         @regex.lastIndex = 0
 
-    line = line.slice(@range.start.column)
+    @regex.lastIndex = @range.start.column
     while match = @regex.exec(line)
+      break if row is @range.end.row and match.index >= @range.end.column
       bufferedMatches.push(match)
       if match[0].length is 0
         @regex.lastIndex++
 
     while match = bufferedMatches.pop()
-      argument = new SingleLineSearchCallbackArgument(@buffer, row, match, @range.start.column)
+      argument = new SingleLineSearchCallbackArgument(@buffer, row, match, 0)
       callback(argument)
       return if argument.stopped or not global
     return
