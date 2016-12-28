@@ -1,4 +1,4 @@
-const Patch = require('atom-patch')
+const {Patch} = require('superstring')
 const {Emitter} = require('event-kit')
 const Point = require('./point')
 const Range = require('./range')

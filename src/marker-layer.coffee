@@ -3,7 +3,7 @@
 Point = require "./point"
 Range = require "./range"
 Marker = require "./marker"
-MarkerIndex = require "marker-index"
+{MarkerIndex} = require "superstring"
 {intersectSet} = require "./set-helpers"
 
 SerializationVersion = 2
