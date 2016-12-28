@@ -52,7 +52,7 @@ class ForwardsSingleLine
 
     line = line.slice(0, @range.end.column - lineOffset)
     while match = @regex.exec(line)
-      break if match.index is @range.end.column
+      break if line.length isnt 0 and match.index is @range.end.column
       argument = new SingleLineSearchCallbackArgument(@buffer, row, match, lineOffset)
       callback(argument)
       return if argument.stopped or not global

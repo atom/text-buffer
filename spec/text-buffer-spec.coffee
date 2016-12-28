@@ -2212,6 +2212,16 @@ describe "TextBuffer", ->
         ranges.push(range)
       expect(ranges).toEqual([[[1, 0], [1, 2]]])
 
+    it "returns a single empty match on the final line of the range", ->
+      ranges = []
+
+      buffer.scanInRange /^\s*/gm, [[9, 0], [10, 0]], ({range}) -> ranges.push(range)
+      expect(ranges).toEqual([[[9, 0], [9, 2]], [[10, 0], [10, 0]]])
+
+      ranges.length = 0
+      buffer.scanInRange /^\s*/gm, [[10, 0], [10, 0]], ({range}) -> ranges.push(range)
+      expect(ranges).toEqual([[[10, 0], [10, 0]]])
+
   describe "::backwardsScanInRange(range, regex, fn)", ->
     beforeEach ->
       filePath = require.resolve('./fixtures/sample.js')
