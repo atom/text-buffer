@@ -1,4 +1,4 @@
-Patch = require 'atom-patch'
+{Patch} = require 'superstring'
 MarkerLayer = require './marker-layer'
 
 SerializationVersion = 6
