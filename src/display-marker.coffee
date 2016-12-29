@@ -49,9 +49,8 @@ class DisplayMarker
     {@id} = @bufferMarker
     @hasChangeObservers = false
     @emitter = new Emitter
-    @disposables = new CompositeDisposable
     @destroyed = false
-    @disposables.add @bufferMarker.onDidDestroy(@destroy.bind(this))
+    @bufferMarkerSubscription = null
 
   # Essential: Destroys the marker, causing it to emit the 'destroyed' event. Once
   # destroyed, a marker cannot be restored by undo/redo operations.
@@ -59,12 +58,11 @@ class DisplayMarker
     return if @destroyed
 
     @destroyed = true
-    @layer.markersWithDestroyListeners.delete(this)
     @bufferMarker.destroy()
     @emitter.emit('did-destroy')
     @layer.didDestroyMarker(this)
     @emitter.dispose()
-    @disposables.dispose()
+    @bufferMarkerSubscription?.dispose()
 
   # Essential: Creates and returns a new {DisplayMarker} with the same properties as
   # this marker.
@@ -116,7 +114,7 @@ class DisplayMarker
       @oldTailBufferPosition = @getTailBufferPosition()
       @oldTailScreenPosition = @getTailScreenPosition()
       @wasValid = @isValid()
-      @disposables.add @bufferMarker.onDidChange (event) => @notifyObservers(event.textChanged)
+      @bufferMarkerSubscription = @bufferMarker.onDidChange (event) => @notifyObservers(event.textChanged)
       @hasChangeObservers = true
     @emitter.on 'did-change', callback
 
