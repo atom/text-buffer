@@ -47,7 +47,7 @@
     "yargs": "^6.5.0"
   },
   "dependencies": {
-    "superstring": "1.0.2",
+    "superstring": "1.0.3",
     "delegato": "^1.0.0",
     "diff": "^2.2.1",
     "emissary": "^1.0.0",
