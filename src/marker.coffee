@@ -296,10 +296,8 @@ class Marker
   # Public: Destroys the marker, causing it to emit the 'destroyed' event.
   destroy: ->
     return if @rangeWhenDestroyed?
-    @layer.markersWithChangeListeners.delete(this)
-    @layer.markersWithDestroyListeners.delete(this)
     @rangeWhenDestroyed = @getRange()
-    @layer.destroyMarker(@id)
+    @layer.destroyMarker(this)
     @emitter.emit 'did-destroy'
 
   # Public: Compares this marker to another based on their ranges.

@@ -11,13 +11,13 @@ module.exports =
 class DisplayMarkerLayer
   constructor: (@displayLayer, @bufferMarkerLayer, @ownsBufferMarkerLayer) ->
     {@id} = @bufferMarkerLayer
+    @bufferMarkerLayer.displayMarkerLayers.add(this)
     @markersById = {}
     @destroyed = false
     @emitter = new Emitter
     @subscriptions = new CompositeDisposable
     @markersWithDestroyListeners = new Set
     @subscriptions.add(@bufferMarkerLayer.onDidUpdate(@emitDidUpdate.bind(this)))
-    @subscriptions.add(@bufferMarkerLayer.onDidDestroy(@destroy.bind(this)))
 
   ###
   Section: Lifecycle
@@ -25,13 +25,20 @@ class DisplayMarkerLayer
 
   # Essential: Destroy this layer.
   destroy: ->
-    @markersWithDestroyListeners.forEach (marker) ->
-      marker.destroy()
+    @markersWithDestroyListeners.forEach (marker) -> marker.destroy()
     @destroyed = true
     @subscriptions.dispose()
+    @bufferMarkerLayer.displayMarkerLayers.delete(this)
     @bufferMarkerLayer.destroy() if @ownsBufferMarkerLayer
     @displayLayer.didDestroyMarkerLayer(@id)
     @emitter.emit('did-destroy')
+
+  # Public: Destroy all markers in this layer.
+  clear: ->
+    @markersWithDestroyListeners.forEach (marker) -> marker.destroy()
+    @markersById = {}
+    @bufferMarkerLayer.clear()
+    @emitDidUpdate()
 
   # Essential: Determine whether this layer has been destroyed.
   #
@@ -314,7 +321,11 @@ class DisplayMarkerLayer
       marker.notifyObservers(false)
     return
 
+  destroyMarker: (id) ->
+    @markersById[id].destroy()
+
   didDestroyMarker: (marker) ->
+    @markersWithDestroyListeners.delete(marker)
     delete @markersById[marker.id]
 
   translateToBufferMarkerLayerFindParams: (params) ->

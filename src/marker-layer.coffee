@@ -40,6 +40,7 @@ class MarkerLayer
     @markersById = {}
     @markersWithChangeListeners = new Set
     @markersWithDestroyListeners = new Set
+    @displayMarkerLayers = new Set
     @destroyed = false
     @emitCreateMarkerEvents = false
 
@@ -54,12 +55,19 @@ class MarkerLayer
 
   # Public: Destroy this layer.
   destroy: ->
-    @markersWithDestroyListeners.forEach (marker) ->
-      marker.destroy()
+    @markersWithDestroyListeners.forEach (marker) -> marker.destroy()
     @destroyed = true
     @delegate.markerLayerDestroyed(this)
+    @displayMarkerLayers.forEach (displayMarkerLayer) -> displayMarkerLayer.destroy()
     @emitter.emit 'did-destroy'
     @emitter.dispose()
+
+  # Public: Remove all markers from this layer.
+  clear: ->
+    @markersWithDestroyListeners.forEach (marker) -> marker.destroy()
+    @markersWithDestroyListeners.clear()
+    @markersById = {}
+    @index = new MarkerIndex
 
   # Public: Determine whether this layer has been destroyed.
   isDestroyed: ->
@@ -322,11 +330,13 @@ class MarkerLayer
     @delegate.markersUpdated(this)
     @scheduleUpdateEvent()
 
-  destroyMarker: (id) ->
-    if @markersById.hasOwnProperty(id)
-      delete @markersById[id]
-      @markersWithChangeListeners.delete(id)
-      @index.delete(id)
+  destroyMarker: (marker) ->
+    if @markersById.hasOwnProperty(marker.id)
+      delete @markersById[marker.id]
+      @markersWithChangeListeners.delete(marker)
+      @markersWithDestroyListeners.delete(marker)
+      @displayMarkerLayers.forEach (displayMarkerLayer) -> displayMarkerLayer.destroyMarker(marker.id)
+      @index.delete(marker.id)
       @delegate.markersUpdated(this)
       @scheduleUpdateEvent()
 
