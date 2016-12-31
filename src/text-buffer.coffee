@@ -1417,10 +1417,22 @@ class TextBuffer
 
   destroy: ->
     unless @destroyed
-      @cancelStoppedChangingTimeout()
-      @fileSubscriptions?.dispose()
       @destroyed = true
       @emitter.emit 'did-destroy'
+      @emitter = null
+
+      @cancelStoppedChangingTimeout()
+      @fileSubscriptions?.dispose()
+      @displayLayers = null
+      @textDecorationLayers = null
+      for id, markerLayer of @markerLayers
+        markerLayer.destroy()
+      @markerLayers = null
+      @defaultMarkerLayer = null
+      @lines = null
+      @history = null
+      @cachedText = null
+      @cachedDiskContents = null
 
   isAlive: -> not @destroyed
 

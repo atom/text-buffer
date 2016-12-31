@@ -298,6 +298,7 @@ class Marker
     return if @rangeWhenDestroyed?
     @rangeWhenDestroyed = @getRange()
     @layer.destroyMarker(this)
+    @layer = null
     @emitter.emit 'did-destroy'
 
   # Public: Compares this marker to another based on their ranges.

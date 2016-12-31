@@ -111,12 +111,21 @@ class DisplayLayer {
   }
 
   destroy () {
+    this.textDecorationLayer = null
+    this.emitter = null
     this.spatialIndex = null
+    this.tabCounts = null
     this.screenLineLengths = null
+    this.cachedScreenLines = null
+    this.tagsByCode = null
+    this.codesByTag = null
     this.foldsMarkerLayer.destroy()
+    this.foldsMarkerLayer = null
     this.displayMarkerLayersById.forEach((layer) => layer.destroy())
+    this.displayMarkerLayersById = null
     if (this.decorationLayerDisposable) this.decorationLayerDisposable.dispose()
     delete this.buffer.displayLayers[this.id]
+    this.buffer = null
   }
 
   isDestroyed () {
