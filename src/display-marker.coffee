@@ -144,7 +144,7 @@ class DisplayMarker
   # undoing the invalidating operation would restore the marker. Once a marker
   # is destroyed by calling {DisplayMarker::destroy}, no undo/redo operation
   # can ever bring it back.
-  isDestroyed: -> @layer.isDestroyed() or @destroyed
+  isDestroyed: -> @destroyed or @layer.isDestroyed()
 
   # Essential: Returns a {Boolean} indicating whether the head precedes the tail.
   isReversed: ->
