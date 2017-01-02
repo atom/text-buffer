@@ -25,13 +25,14 @@ class DisplayMarkerLayer
 
   # Essential: Destroy this layer.
   destroy: ->
-    @markersWithDestroyListeners.forEach (marker) -> marker.destroy()
-    @destroyed = true
-    @subscriptions.dispose()
-    @bufferMarkerLayer.displayMarkerLayers.delete(this)
-    @bufferMarkerLayer.destroy() if @ownsBufferMarkerLayer
-    @displayLayer.didDestroyMarkerLayer(@id)
-    @emitter.emit('did-destroy')
+    unless @destroyed
+      @markersWithDestroyListeners.forEach (marker) -> marker.destroy()
+      @destroyed = true
+      @subscriptions.dispose()
+      @bufferMarkerLayer.displayMarkerLayers.delete(this)
+      @bufferMarkerLayer.destroy() if @ownsBufferMarkerLayer
+      @displayLayer.didDestroyMarkerLayer(@id)
+      @emitter.emit('did-destroy')
 
   # Public: Destroy all markers in this layer.
   clear: ->

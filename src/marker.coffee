@@ -237,7 +237,7 @@ class Marker
   #
   # Returns a {Boolean}.
   isDestroyed: ->
-    @layer.isDestroyed() or @rangeWhenDestroyed?
+    @rangeWhenDestroyed? or not @layer?
 
   # Public: Returns a {Boolean} indicating whether changes that occur exactly at
   # the marker's head or tail cause it to move.
