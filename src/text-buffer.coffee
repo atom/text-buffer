@@ -1334,6 +1334,7 @@ class TextBuffer
   #
   # Sets the buffer's content to the cached disk contents
   reload: (clearHistory=false) ->
+    return if @destroyed
     @emitter.emit 'will-reload'
     if clearHistory
       @clearUndoStack()
