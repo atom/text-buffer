@@ -111,6 +111,8 @@ class DisplayLayer {
   }
 
   destroy () {
+    if (this.destroyed) return
+    this.destroyed = true
     this.textDecorationLayer = null
     this.emitter = null
     this.spatialIndex = null
