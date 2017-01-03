@@ -654,6 +654,7 @@ describe "Marker", ->
       expect(buffer.getMarker(marker.id)).toBeUndefined()
       expect(marker.isDestroyed()).toBe true
       expect(marker.isValid()).toBe false
+      expect(marker.getRange()).toEqual [[0, 0], [0, 0]]
 
     it "handles markers deleted in event handlers", ->
       marker1 = buffer.markRange([[0, 3], [0, 6]])
@@ -679,15 +680,6 @@ describe "Marker", ->
 
       # doesn't blow up.
       buffer.undo()
-
-    it "allows the position to be retrieved after destruction", ->
-      marker = buffer.markRange([[0, 3], [0, 6]])
-      marker.destroy()
-      expect(marker.getRange()).toEqual [[0, 3], [0, 6]]
-      expect(marker.getHeadPosition()).toEqual [0, 6]
-      expect(marker.getTailPosition()).toEqual [0, 3]
-      expect(marker.getStartPosition()).toEqual [0, 3]
-      expect(marker.getEndPosition()).toEqual [0, 6]
 
     it "does not reinsert the marker if its range is later updated", ->
       marker = buffer.markRange([[0, 3], [0, 6]])

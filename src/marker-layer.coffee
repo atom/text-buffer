@@ -55,17 +55,14 @@ class MarkerLayer
 
   # Public: Destroy this layer.
   destroy: ->
-    unless @destroyed
-      @destroyed = true
-      @markersWithDestroyListeners.forEach (marker) -> marker.destroy()
-      @delegate.markerLayerDestroyed(this)
-      @displayMarkerLayers.forEach (displayMarkerLayer) -> displayMarkerLayer.destroy()
-      @emitter.emit 'did-destroy'
-      @emitter = null
-      @index = null
-      @markersById = null
-      @displayMarkerLayers = null
-      @markersWithDestroyListeners = null
+    return if @destroyed
+    @destroyed = true
+    @clear()
+    @delegate.markerLayerDestroyed(this)
+    @displayMarkerLayers.forEach (displayMarkerLayer) -> displayMarkerLayer.destroy()
+    @displayMarkerLayers.clear()
+    @emitter.emit 'did-destroy'
+    @emitter.clear()
 
   # Public: Remove all markers from this layer.
   clear: ->

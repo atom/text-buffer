@@ -62,8 +62,7 @@ class DisplayMarker
     @emitter.emit('did-destroy')
     @layer.didDestroyMarker(this)
     @emitter.dispose()
-    @emitter = null
-    @layer = null
+    @emitter.clear()
     @bufferMarkerSubscription?.dispose()
 
   # Essential: Creates and returns a new {DisplayMarker} with the same properties as

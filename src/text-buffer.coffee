@@ -75,6 +75,7 @@ class TextBuffer
     @setPreferredLineEnding(params?.preferredLineEnding)
 
     @loaded = false
+    @destroyed = false
     @transactCallDepth = 0
     @digestWhenLastPersisted = params?.digestWhenLastPersisted ? false
 
@@ -1308,6 +1309,7 @@ class TextBuffer
   #
   # * `filePath` The path to save at.
   saveAs: (filePath, options) ->
+    if @destroyed then throw new Error("Can't save destroyed buffer")
     unless filePath then throw new Error("Can't save buffer with no file path")
 
     @emitter.emit 'will-save', {path: filePath}
@@ -1420,20 +1422,14 @@ class TextBuffer
     unless @destroyed
       @destroyed = true
       @emitter.emit 'did-destroy'
-      @emitter = null
+      @emitter.clear()
 
       @cancelStoppedChangingTimeout()
       @fileSubscriptions?.dispose()
-      @displayLayers = null
-      @textDecorationLayers = null
       for id, markerLayer of @markerLayers
         markerLayer.destroy()
-      @markerLayers = null
-      @defaultMarkerLayer = null
-      @lines = null
-      @history = null
-      @cachedText = null
-      @cachedDiskContents = null
+      @setText('', undo: 'skip')
+      @history.clear()
 
   isAlive: -> not @destroyed
 

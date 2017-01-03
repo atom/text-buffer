@@ -217,6 +217,10 @@ class History
     else
       false
 
+  clear: ->
+    @clearUndoStack()
+    @clearRedoStack()
+
   clearUndoStack: ->
     @undoStack.length = 0
 

@@ -67,7 +67,7 @@ class Marker
     @invalidate ?= 'overlap'
     @properties ?= {}
     @hasChangeObservers = false
-    @rangeWhenDestroyed = null
+    @destroyed = false
     Object.freeze(@properties)
     @layer.setMarkerIsExclusive(@id, @isExclusive())
 
@@ -110,8 +110,7 @@ class Marker
     @emitter.on 'did-change', callback
 
   # Public: Returns the current {Range} of the marker. The range is immutable.
-  getRange: ->
-    @rangeWhenDestroyed ? @layer.getMarkerRange(@id)
+  getRange: -> @layer.getMarkerRange(@id)
 
   # Public: Sets the range of the marker.
   #
@@ -196,13 +195,11 @@ class Marker
 
   # Public: Returns a {Point} representing the start position of the marker,
   # which could be the head or tail position, depending on its orientation.
-  getStartPosition: ->
-    @rangeWhenDestroyed?.start ? @layer.getMarkerStartPosition(@id)
+  getStartPosition: -> @layer.getMarkerStartPosition(@id)
 
   # Public: Returns a {Point} representing the end position of the marker,
   # which could be the head or tail position, depending on its orientation.
-  getEndPosition: ->
-    @rangeWhenDestroyed?.end ? @layer.getMarkerEndPosition(@id)
+  getEndPosition: -> @layer.getMarkerEndPosition(@id)
 
   # Public: Removes the marker's tail. After calling the marker's head position
   # will be reported as its current tail position until the tail is planted
@@ -237,7 +234,7 @@ class Marker
   #
   # Returns a {Boolean}.
   isDestroyed: ->
-    @rangeWhenDestroyed? or not @layer?
+    @destroyed or @layer.isDestroyed()
 
   # Public: Returns a {Boolean} indicating whether changes that occur exactly at
   # the marker's head or tail cause it to move.
@@ -295,20 +292,17 @@ class Marker
 
   # Public: Destroys the marker, causing it to emit the 'destroyed' event.
   destroy: ->
-    return if @rangeWhenDestroyed?
-    @rangeWhenDestroyed = @getRange()
+    return if @destroyed
+    @destroyed = true
     @layer.destroyMarker(this)
-    @layer = null
     @emitter.emit 'did-destroy'
+    @emitter.clear()
 
   # Public: Compares this marker to another based on their ranges.
   #
   # * `other` {Marker}
   compare: (other) ->
-    if @rangeWhenDestroyed? or other.rangeWhenDestroyed?
-      @getRange().compare(other.getRange())
-    else
-      @layer.compareMarkers(@id, other.id)
+    @layer.compareMarkers(@id, other.id)
 
   # Returns whether this marker matches the given parameters. The parameters
   # are the same as {MarkerLayer::findMarkers}.
