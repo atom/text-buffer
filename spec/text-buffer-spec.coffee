@@ -91,6 +91,20 @@ describe "TextBuffer", ->
             expect(buffer.getText()).toBe ''
             done()
 
+  describe "::destroy()", ->
+    it "clears the buffer's state", ->
+      filePath = temp.openSync('atom').path
+      buffer = new TextBuffer()
+      buffer.setPath(filePath)
+      buffer.append("a")
+      buffer.append("b")
+      buffer.destroy()
+
+      expect(buffer.getText()).toBe('')
+      buffer.undo()
+      expect(buffer.getText()).toBe('')
+      expect(-> buffer.save()).toThrowError(/Can't save destroyed buffer/)
+
   describe "::setTextInRange(range, text)", ->
     beforeEach ->
       buffer = new TextBuffer("hello\nworld\r\nhow are you doing?")

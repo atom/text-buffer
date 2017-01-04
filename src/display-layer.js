@@ -22,6 +22,7 @@ class DisplayLayer {
     this.nextOpenTagCode = -1
     this.textDecorationLayer = new EmptyDecorationLayer()
     this.displayMarkerLayersById = new Map()
+    this.destroyed = false
 
     this.invisibles = params.invisibles != null ? params.invisibles : {}
     this.tabLength = params.tabLength != null ? params.tabLength : 4
@@ -76,11 +77,7 @@ class DisplayLayer {
 
   reset (params) {
     if (!this.isDestroyed() && this.setParams(params)) {
-      this.indexedBufferRowCount = 0
-      this.spatialIndex.spliceOld(Point.ZERO, Point.INFINITY, Point.INFINITY)
-      this.cachedScreenLines.length = 0
-      this.screenLineLengths.length = 0
-      this.tabCounts.length = 0
+      this.clearSpatialIndex()
       this.emitter.emit('did-reset')
       this.notifyObserversIfMarkerScreenPositionsChanged()
     }
@@ -111,8 +108,9 @@ class DisplayLayer {
   }
 
   destroy () {
-    this.spatialIndex = null
-    this.screenLineLengths = null
+    if (this.destroyed) return
+    this.destroyed = true
+    this.clearSpatialIndex()
     this.foldsMarkerLayer.destroy()
     this.displayMarkerLayersById.forEach((layer) => layer.destroy())
     if (this.decorationLayerDisposable) this.decorationLayerDisposable.dispose()
@@ -120,7 +118,15 @@ class DisplayLayer {
   }
 
   isDestroyed () {
-    return this.spatialIndex === null
+    return this.destroyed
+  }
+
+  clearSpatialIndex () {
+    this.indexedBufferRowCount = 0
+    this.spatialIndex.spliceOld(Point.ZERO, Point.INFINITY, Point.INFINITY)
+    this.cachedScreenLines.length = 0
+    this.screenLineLengths.length = 0
+    this.tabCounts.length = 0
   }
 
   doBackgroundWork (deadline) {

@@ -62,6 +62,20 @@ describe('DisplayLayer', () => {
     })
   })
 
+  describe('destroy', function () {
+    it('does not throw exceptions when queried after destruction', function () {
+      const buffer = new TextBuffer({text: 'hi'})
+
+      const displayLayer = buffer.addDisplayLayer({})
+
+      displayLayer.destroy()
+
+      expect(displayLayer.isDestroyed()).toBe(true)
+      expect(displayLayer.getText()).toBe('hi')
+      expect(displayLayer.translateScreenPosition(Point(0, 0))).toEqual(Point(0, 0))
+    })
+  })
+
   describe('hard tabs', () => {
     it('expands hard tabs to their tab stops', () => {
       const buffer = new TextBuffer({
