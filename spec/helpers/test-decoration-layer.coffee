@@ -1,4 +1,4 @@
-MarkerIndex = require 'marker-index/dist/js/marker-index'
+{MarkerIndex} = require 'superstring'
 Random = require 'random-seed'
 {Emitter} = require 'event-kit'
 {compare: comparePoints, isEqual: isEqualPoint, min: minPoint} = require('../../src/point-helpers')

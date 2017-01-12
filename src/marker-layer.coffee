@@ -3,7 +3,7 @@
 Point = require "./point"
 Range = require "./range"
 Marker = require "./marker"
-MarkerIndex = require "marker-index"
+{MarkerIndex} = require "superstring"
 {intersectSet} = require "./set-helpers"
 
 SerializationVersion = 2
@@ -40,6 +40,7 @@ class MarkerLayer
     @markersById = {}
     @markersWithChangeListeners = new Set
     @markersWithDestroyListeners = new Set
+    @displayMarkerLayers = new Set
     @destroyed = false
     @emitCreateMarkerEvents = false
 
@@ -54,12 +55,21 @@ class MarkerLayer
 
   # Public: Destroy this layer.
   destroy: ->
-    @markersWithDestroyListeners.forEach (marker) ->
-      marker.destroy()
+    return if @destroyed
     @destroyed = true
+    @clear()
     @delegate.markerLayerDestroyed(this)
+    @displayMarkerLayers.forEach (displayMarkerLayer) -> displayMarkerLayer.destroy()
+    @displayMarkerLayers.clear()
     @emitter.emit 'did-destroy'
-    @emitter.dispose()
+    @emitter.clear()
+
+  # Public: Remove all markers from this layer.
+  clear: ->
+    @markersWithDestroyListeners.forEach (marker) -> marker.destroy()
+    @markersWithDestroyListeners.clear()
+    @markersById = {}
+    @index = new MarkerIndex
 
   # Public: Determine whether this layer has been destroyed.
   isDestroyed: ->
@@ -322,11 +332,13 @@ class MarkerLayer
     @delegate.markersUpdated(this)
     @scheduleUpdateEvent()
 
-  destroyMarker: (id) ->
-    if @markersById.hasOwnProperty(id)
-      delete @markersById[id]
-      @markersWithChangeListeners.delete(id)
-      @index.delete(id)
+  destroyMarker: (marker) ->
+    if @markersById.hasOwnProperty(marker.id)
+      delete @markersById[marker.id]
+      @markersWithChangeListeners.delete(marker)
+      @markersWithDestroyListeners.delete(marker)
+      @displayMarkerLayers.forEach (displayMarkerLayer) -> displayMarkerLayer.destroyMarker(marker.id)
+      @index.delete(marker.id)
       @delegate.markersUpdated(this)
       @scheduleUpdateEvent()
 
@@ -375,6 +387,7 @@ class MarkerLayer
     unless @didUpdateEventScheduled
       @didUpdateEventScheduled = true
       process.nextTick =>
+        return if @destroyed
         @didUpdateEventScheduled = false
         @emitter.emit 'did-update'
 

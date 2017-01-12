@@ -8,6 +8,7 @@ Range = require '../src/range'
 DisplayLayer = require '../src/display-layer'
 TextBuffer = require '../src/text-buffer'
 SampleText = fs.readFileSync(join(__dirname, 'fixtures', 'sample.js'), 'utf8')
+{buildRandomLines, getRandomBufferRange} = require './helpers/random'
 
 describe "TextBuffer", ->
   buffer = null
@@ -89,6 +90,20 @@ describe "TextBuffer", ->
             expect(buffer.isModified()).not.toBeTruthy()
             expect(buffer.getText()).toBe ''
             done()
+
+  describe "::destroy()", ->
+    it "clears the buffer's state", ->
+      filePath = temp.openSync('atom').path
+      buffer = new TextBuffer()
+      buffer.setPath(filePath)
+      buffer.append("a")
+      buffer.append("b")
+      buffer.destroy()
+
+      expect(buffer.getText()).toBe('')
+      buffer.undo()
+      expect(buffer.getText()).toBe('')
+      expect(-> buffer.save()).toThrowError(/Can't save destroyed buffer/)
 
   describe "::setTextInRange(range, text)", ->
     beforeEach ->
@@ -2044,11 +2059,10 @@ describe "TextBuffer", ->
       expect(matches[1].lineTextOffset).toBe 0
 
   describe "::scanInRange(range, regex, fn)", ->
-    beforeEach (done) ->
+    beforeEach ->
       filePath = require.resolve('./fixtures/sample.js')
       buffer = new TextBuffer({filePath, load: false})
-      buffer.load().then ->
-        done()
+      buffer.loadSync()
 
     describe "when given a regex with a ignore case flag", ->
       it "does a case-insensitive search", ->
@@ -2160,12 +2174,73 @@ describe "TextBuffer", ->
 
         expect(ranges.length).toBe 2
 
+    it "returns the same results as a regex match on a regular string", ->
+      regexps = [
+        /\w+/g                    # 1 word
+        /\w+\n\s*\w+/g,           # 2 words separated by a newline
+        /\w+[^\w]+\w+/g,          # 2 words separated by anything
+        /\w+\n\s*\w+\n\s*\w+/g,   # 3 words separated by newlines
+        /\w+[^\w]+\w+[^\w]+\w+/g, # 3 words separated by anything
+      ]
+
+      i = 0
+      while i < 20
+        seed = Date.now()
+        random = new Random(seed)
+
+        text = buildRandomLines(random, 40)
+        buffer = new TextBuffer({text})
+        buffer.backwardsScanChunkSize = random.intBetween(100, 1000)
+
+        range = getRandomBufferRange(random, buffer)
+          .union(getRandomBufferRange(random, buffer))
+          .union(getRandomBufferRange(random, buffer))
+        regex = regexps[random(regexps.length)]
+
+        expectedMatches = buffer.getTextInRange(range).match(regex) ? []
+        continue unless expectedMatches.length > 0
+        i++
+
+        forwardRanges = []
+        forwardMatches = []
+        buffer.scanInRange regex, range, ({range, matchText}) ->
+          forwardRanges.push(range)
+          forwardMatches.push(matchText)
+        expect(forwardMatches).toEqual(expectedMatches, "Seed: #{seed}")
+
+        backwardRanges = []
+        backwardMatches = []
+        buffer.backwardsScanInRange regex, range, ({range, matchText}) ->
+          backwardRanges.push(range)
+          backwardMatches.push(matchText)
+        expect(backwardMatches).toEqual(expectedMatches.reverse(), "Seed: #{seed}")
+
+    it "does not return empty matches at the end of the range", ->
+      ranges = []
+
+      buffer.scanInRange /\s*/gm, [[0, 29], [1, 2]], ({range}) -> ranges.push(range)
+      expect(ranges).toEqual([[[0, 29], [0, 29]], [[1, 0], [1, 2]]])
+
+      ranges.length = 0
+      buffer.scanInRange /\s*/gm, [[1, 0], [1, 2]], ({range}) ->
+        ranges.push(range)
+      expect(ranges).toEqual([[[1, 0], [1, 2]]])
+
+    it "returns a single empty match on the final line of the range", ->
+      ranges = []
+
+      buffer.scanInRange /^\s*/gm, [[9, 0], [10, 0]], ({range}) -> ranges.push(range)
+      expect(ranges).toEqual([[[9, 0], [9, 2]], [[10, 0], [10, 0]]])
+
+      ranges.length = 0
+      buffer.scanInRange /^\s*/gm, [[10, 0], [10, 0]], ({range}) -> ranges.push(range)
+      expect(ranges).toEqual([[[10, 0], [10, 0]]])
+
   describe "::backwardsScanInRange(range, regex, fn)", ->
-    beforeEach (done) ->
+    beforeEach ->
       filePath = require.resolve('./fixtures/sample.js')
       buffer = new TextBuffer({filePath, load: false})
-      buffer.load().then ->
-        done()
+      buffer.loadSync()
 
     describe "when given a regex with no global flag", ->
       it "calls the iterator with the last match for the given regex in the given range", ->
@@ -2336,6 +2411,16 @@ describe "TextBuffer", ->
               replace(matchText + '.')
 
             expect(buffer.getText()).toBe(referenceBuffer.getText(), "Seed: #{seed}")
+
+    it "does not return empty matches at the end of the range", ->
+      ranges = []
+
+      buffer.backwardsScanInRange /\s*/gm, [[1, 0], [1, 2]], ({range}) -> ranges.push(range)
+      expect(ranges).toEqual([[[1, 0], [1, 2]]])
+
+      ranges.length = 0
+      buffer.backwardsScanInRange /\s*/m, [[0, 29], [1, 2]], ({range}) -> ranges.push(range)
+      expect(ranges).toEqual([[[1, 0], [1, 2]]])
 
   describe "::characterIndexForPosition(position)", ->
     beforeEach (done) ->

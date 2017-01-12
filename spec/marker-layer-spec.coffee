@@ -43,7 +43,9 @@ describe "MarkerLayer", ->
     buffer.undo()
     expect(defaultMarker.getRange()).toEqual [[0, 3], [0, 6]]
     expect(layer1Marker.getRange()).toEqual [[0, 4], [0, 7]]
-    expect(layer2Marker.getRange()).toEqual [[0, 7], [0, 10]]
+
+    expect(layer2Marker.isDestroyed()).toBe true
+    expect(layer2Marker.getRange()).toEqual [[0, 0], [0, 0]]
 
   it "emits onDidCreateMarker events synchronously when markers are created", ->
     createdMarkers = []

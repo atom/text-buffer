@@ -1,55 +1,18 @@
 {Emitter, CompositeDisposable, Disposable} = require 'event-kit'
 {File} = require 'pathwatcher'
-SpanSkipList = require 'span-skip-list'
 diff = require 'diff'
 _ = require 'underscore-plus'
 fs = require 'fs-plus'
 path = require 'path'
 crypto = require 'crypto'
-Patch = require 'atom-patch'
+{BufferOffsetIndex, Patch} = require 'superstring'
 Point = require './point'
 Range = require './range'
 History = require './history'
 MarkerLayer = require './marker-layer'
 MatchIterator = require './match-iterator'
 DisplayLayer = require './display-layer'
-{spliceArray, newlineRegex, normalizePatchChanges} = require './helpers'
-
-class SearchCallbackArgument
-  Object.defineProperty @::, "range",
-    get: ->
-      return @computedRange if @computedRange?
-
-      matchStartIndex = @match.index
-      matchEndIndex = matchStartIndex + @matchText.length
-
-      startPosition = @buffer.positionForCharacterIndex(matchStartIndex + @lengthDelta)
-      endPosition = @buffer.positionForCharacterIndex(matchEndIndex + @lengthDelta)
-
-      @computedRange = new Range(startPosition, endPosition)
-
-    set: (range) ->
-      @computedRange = range
-
-  constructor: (@buffer, @match, @lengthDelta) ->
-    @stopped = false
-    @replacementText = null
-    @matchText = @match[0]
-
-  getReplacementDelta: ->
-    return 0 unless @replacementText?
-
-    @replacementText.length - @matchText.length
-
-  replace: (text) =>
-    @replacementText = text
-    @buffer.setTextInRange(@range, @replacementText)
-
-  stop: =>
-    @stopped = true
-
-  keepLooping: ->
-    @stopped is false
+{spliceArray, newlineRegex, normalizePatchChanges, regexIsSingleLine} = require './helpers'
 
 class TransactionAbortedError extends Error
   constructor: -> super
@@ -61,7 +24,6 @@ class TextBuffer
   @version: 5
   @Point: Point
   @Range: Range
-  @Patch: require('./patch')
   @newlineRegex: newlineRegex
 
   cachedText: null
@@ -93,11 +55,10 @@ class TextBuffer
 
     @emitter = new Emitter
     @patchesSinceLastStoppedChangingEvent = []
-    @didChangeTextPatch = new Patch
     @id = params?.id ? crypto.randomBytes(16).toString('hex')
     @lines = ['']
     @lineEndings = ['']
-    @offsetIndex = new SpanSkipList('rows', 'characters')
+    @offsetIndex = new BufferOffsetIndex()
     @textDecorationLayers = new Set()
     @setTextInRange([[0, 0], [0, 0]], text ? params?.text ? '', normalizeLineEndings: false)
     maxUndoEntries = params?.maxUndoEntries ? @defaultMaxUndoEntries
@@ -114,6 +75,7 @@ class TextBuffer
     @setPreferredLineEnding(params?.preferredLineEnding)
 
     @loaded = false
+    @destroyed = false
     @transactCallDepth = 0
     @digestWhenLastPersisted = params?.digestWhenLastPersisted ? false
 
@@ -657,11 +619,8 @@ class TextBuffer
 
     oldRange = @clipRange(range)
     oldText = @getTextInRange(oldRange)
-    newRange = Range.fromText(oldRange.start, newText)
-    change = {newStart: oldRange.start, oldExtent: oldRange.getExtent(), newExtent: newRange.getExtent(), oldText, newText, normalizeLineEndings}
-    @history?.pushChange(change) if undo isnt 'skip'
-    @applyChange(change)
-    newRange
+    change = {newStart: oldRange.start, oldExtent: oldRange.getExtent(), oldText, newText, normalizeLineEndings}
+    @applyChange(change, undo isnt 'skip')
 
   # Public: Insert text at the given position.
   #
@@ -688,15 +647,13 @@ class TextBuffer
     @insert(@getEndPosition(), text, options)
 
   # Applies a change to the buffer based on its old range and new text.
-  applyChange: (change) ->
-    {newStart, oldExtent, newExtent, oldText, newText, normalizeLineEndings} = change
-    start = Point.fromObject(newStart)
-    oldRange = Range(start, start.traverse(oldExtent))
-    newRange = Range(start, start.traverse(newExtent))
-    oldRange.freeze()
-    newRange.freeze()
+  applyChange: (change, pushToHistory = false) ->
+    {newStart, oldExtent, oldText, newText, normalizeLineEndings} = change
     @cachedText = null
 
+    start = Point.fromObject(newStart)
+    oldRange = Range(start, start.traverse(oldExtent))
+    oldRange.freeze()
     startRow = oldRange.start.row
     endRow = oldRange.end.row
     rowCount = endRow - startRow + 1
@@ -728,6 +685,14 @@ class TextBuffer
     lineEndings.push('')
     normalizedNewText += lastLine
 
+    newExtent = Point(lines.length - 1, lastLine.length)
+    newRange = Range(start, start.traverse(newExtent))
+    newRange.freeze()
+
+    if pushToHistory
+      change.newExtent ?= newExtent
+      @history?.pushChange(change)
+
     newText = normalizedNewText
     changeEvent = Object.freeze({oldRange, newRange, oldText, newText})
     for id, displayLayer of @displayLayers
@@ -745,13 +710,15 @@ class TextBuffer
     lineEndings[lastIndex] = lastLineEnding
 
     # Replace lines in oldRange with new lines
-    spliceArray(@lines, startRow, rowCount, lines)
-    spliceArray(@lineEndings, startRow, rowCount, lineEndings)
+    if @lines.length > 1 or @lines[0].length > 0
+      spliceArray(@lines, startRow, rowCount, lines)
+      spliceArray(@lineEndings, startRow, rowCount, lineEndings)
+    else
+      @lines = lines
+      @lineEndings = lineEndings
 
     # Update the offset index for position <-> character offset translation
-    offsets = lines.map (line, index) ->
-      {rows: 1, characters: line.length + lineEndings[index].length}
-    @offsetIndex.spliceArray('rows', startRow, rowCount, offsets)
+    @offsetIndex.splice(startRow, rowCount, lines.map((line, i) -> line.length + lineEndings[i].length))
 
     if @markerLayers?
       oldExtent = oldRange.getExtent()
@@ -763,6 +730,7 @@ class TextBuffer
 
     @changeCount++
     @emitDidChangeEvent(changeEvent)
+    newRange
 
   emitDidChangeEvent: (changeEvent) ->
     # 1. Emit the change event on all the registered text decoration layers.
@@ -981,7 +949,7 @@ class TextBuffer
   # Public: Undo the last operation. If a transaction is in progress, aborts it.
   undo: ->
     if pop = @history.popUndoStack()
-      @applyChange(change) for change in pop.patch.getChanges()
+      @applyChange(change) for change in pop.patch.getHunks()
       @restoreFromMarkerSnapshot(pop.snapshot)
       @emitMarkerChangeEvents(pop.snapshot)
       @emitDidChangeTextEvent(pop.patch)
@@ -992,7 +960,7 @@ class TextBuffer
   # Public: Redo the last operation
   redo: ->
     if pop = @history.popRedoStack()
-      @applyChange(change) for change in pop.patch.getChanges()
+      @applyChange(change) for change in pop.patch.getHunks()
       @restoreFromMarkerSnapshot(pop.snapshot)
       @emitMarkerChangeEvents(pop.snapshot)
       @emitDidChangeTextEvent(pop.patch)
@@ -1066,7 +1034,7 @@ class TextBuffer
   # Returns a {Boolean} indicating whether the operation succeeded.
   revertToCheckpoint: (checkpoint) ->
     if truncated = @history.truncateUndoStack(checkpoint)
-      @applyChange(change) for change in truncated.patch.getChanges()
+      @applyChange(change) for change in truncated.patch.getHunks()
       @restoreFromMarkerSnapshot(truncated.snapshot)
       @emitter.emit 'did-update-markers'
       @emitDidChangeTextEvent(truncated.patch)
@@ -1096,7 +1064,7 @@ class TextBuffer
   # * `newText`: A {String} representing the replacement text.
   getChangesSinceCheckpoint: (checkpoint) ->
     if patch = @history.getChangesSinceCheckpoint(checkpoint)
-      normalizePatchChanges(patch.getChanges())
+      normalizePatchChanges(patch.getHunks())
     else
       []
 
@@ -1119,10 +1087,7 @@ class TextBuffer
   #   * `stop` Call this {Function} to terminate the scan.
   #   * `replace` Call this {Function} with a {String} to replace the match.
   scan: (regex, iterator) ->
-    @scanInRange regex, @getRange(), (result) =>
-      result.lineText = @lineForRow(result.range.start.row)
-      result.lineTextOffset = 0
-      iterator(result)
+    @scanInRange(regex, @getRange(), iterator)
 
   # Public: Scan regular expression matches in the entire buffer in reverse
   # order, calling the given iterator function on each match.
@@ -1136,47 +1101,39 @@ class TextBuffer
   #   * `stop` Call this {Function} to terminate the scan.
   #   * `replace` Call this {Function} with a {String} to replace the match.
   backwardsScan: (regex, iterator) ->
-    @backwardsScanInRange regex, @getRange(), (result) =>
-      result.lineText = @lineForRow(result.range.start.row)
-      result.lineTextOffset = 0
-      iterator(result)
+    @backwardsScanInRange(regex, @getRange(), iterator)
 
   # Public: Scan regular expression matches in a given range , calling the given
   # iterator function on each match.
   #
   # * `regex` A {RegExp} to search for.
   # * `range` A {Range} in which to search.
-  # * `iterator` A {Function} that's called on each match with an {Object}
+  # * `callback` A {Function} that's called on each match with an {Object}
   #   containing the following keys:
   #   * `match` The current regular expression match.
   #   * `matchText` A {String} with the text of the match.
   #   * `range` The {Range} of the match.
   #   * `stop` Call this {Function} to terminate the scan.
   #   * `replace` Call this {Function} with a {String} to replace the match.
-  scanInRange: (regex, range, iterator, reverse=false) ->
+  scanInRange: (regex, range, callback, reverse=false) ->
     range = @clipRange(range)
     global = regex.global
     flags = "gm"
     flags += "i" if regex.ignoreCase
     regex = new RegExp(regex.source, flags)
 
-    startIndex = @characterIndexForPosition(range.start)
-    endIndex = @characterIndexForPosition(range.end)
-
-    if reverse
-      matches = new MatchIterator.Backwards(@getText(), regex, startIndex, endIndex, @backwardsScanChunkSize)
+    if regexIsSingleLine(regex)
+      if reverse
+        iterator = new MatchIterator.BackwardsSingleLine(this, regex, range)
+      else
+        iterator = new MatchIterator.ForwardsSingleLine(this, regex, range)
     else
-      matches = new MatchIterator.Forwards(@getText(), regex, startIndex, endIndex)
+      if reverse
+        iterator = new MatchIterator.BackwardsMultiLine(this, regex, range, @backwardsScanChunkSize)
+      else
+        iterator = new MatchIterator.ForwardsMultiLine(this, regex, range)
 
-    lengthDelta = 0
-    until (next = matches.next()).done
-      match = next.value
-      callbackArgument = new SearchCallbackArgument(this, match, lengthDelta)
-      iterator(callbackArgument)
-      lengthDelta += callbackArgument.getReplacementDelta() unless reverse
-
-      break unless global and callbackArgument.keepLooping()
-    return
+    iterator.iterate(callback, global)
 
   # Public: Scan regular expression matches in a given range in reverse order,
   # calling the given iterator function on each match.
@@ -1252,7 +1209,7 @@ class TextBuffer
   #
   # Returns a {Number}.
   getMaxCharacterIndex: ->
-    @offsetIndex.totalTo(Infinity, 'rows').characters
+    @characterIndexForPosition(Point.INFINITY)
 
   # Public: Get the range for the given row
   #
@@ -1280,13 +1237,8 @@ class TextBuffer
   #
   # Returns a {Number}.
   characterIndexForPosition: (position) ->
-    {row, column} = @clipPosition(Point.fromObject(position))
-
-    if row < 0 or row > @getLastRow() or column < 0 or column > @lineLengthForRow(row)
-      throw new Error("Position #{position} is invalid")
-
-    {characters} = @offsetIndex.totalTo(row, 'rows')
-    characters + column
+    position = @clipPosition(Point.fromObject(position))
+    @offsetIndex.characterIndexForPosition(position)
 
   # Public: Convert an absolute character offset, inclusive of newlines, to a
   # position in the buffer in row/column coordinates.
@@ -1297,14 +1249,8 @@ class TextBuffer
   #
   # Returns a {Point}.
   positionForCharacterIndex: (offset) ->
-    offset = Math.max(0, offset)
-    offset = Math.min(@getMaxCharacterIndex(), offset)
-
-    {rows, characters} = @offsetIndex.totalTo(offset, 'characters')
-    if rows > @getLastRow()
-      @getEndPosition()
-    else
-      new Point(rows, offset - characters)
+    position = @offsetIndex.positionForCharacterIndex(Math.max(0, offset))
+    new Point(position.row, position.column)
 
   # Public: Clip the given range so it starts and ends at valid positions.
   #
@@ -1363,6 +1309,7 @@ class TextBuffer
   #
   # * `filePath` The path to save at.
   saveAs: (filePath, options) ->
+    if @destroyed then throw new Error("Can't save destroyed buffer")
     unless filePath then throw new Error("Can't save buffer with no file path")
 
     @emitter.emit 'will-save', {path: filePath}
@@ -1389,6 +1336,7 @@ class TextBuffer
   #
   # Sets the buffer's content to the cached disk contents
   reload: (clearHistory=false) ->
+    return if @destroyed
     @emitter.emit 'will-reload'
     if clearHistory
       @clearUndoStack()
@@ -1472,10 +1420,16 @@ class TextBuffer
 
   destroy: ->
     unless @destroyed
-      @cancelStoppedChangingTimeout()
-      @fileSubscriptions?.dispose()
       @destroyed = true
       @emitter.emit 'did-destroy'
+      @emitter.clear()
+
+      @cancelStoppedChangingTimeout()
+      @fileSubscriptions?.dispose()
+      for id, markerLayer of @markerLayers
+        markerLayer.destroy()
+      @setText('', undo: 'skip')
+      @history.clear()
 
   isAlive: -> not @destroyed
 
@@ -1548,7 +1502,7 @@ class TextBuffer
   emitDidChangeTextEvent: (patch) ->
     return if @transactCallDepth isnt 0
 
-    @emitter.emit 'did-change-text', {changes: Object.freeze(normalizePatchChanges(patch.getChanges()))}
+    @emitter.emit 'did-change-text', {changes: Object.freeze(normalizePatchChanges(patch.getHunks()))}
     @patchesSinceLastStoppedChangingEvent.push(patch)
     @scheduleDidStopChangingEvent()
 
@@ -1567,7 +1521,7 @@ class TextBuffer
     stoppedChangingCallback = =>
       @stoppedChangingTimeout = null
       modifiedStatus = @isModified()
-      @emitter.emit 'did-stop-changing', {changes: Object.freeze(normalizePatchChanges(Patch.compose(@patchesSinceLastStoppedChangingEvent).getChanges()))}
+      @emitter.emit 'did-stop-changing', {changes: Object.freeze(normalizePatchChanges(Patch.compose(@patchesSinceLastStoppedChangingEvent).getHunks()))}
       @patchesSinceLastStoppedChangingEvent = []
       @emitModifiedStatusChanged(modifiedStatus)
     @stoppedChangingTimeout = setTimeout(stoppedChangingCallback, @stoppedChangingDelay)

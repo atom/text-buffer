@@ -2,18 +2,10 @@ language: node_js
 
 sudo: false
 
-addons:
-  apt:
-    sources:
-    - ubuntu-toolchain-r-test
-    packages:
-    - g++-4.8
-
-node_js:
-  - "node"
+node_js: 6
 
 env:
-  - CC=gcc-4.8 CXX=g++-4.8
+  - CC=clang CXX=clang++
 
 script: npm run ci
 
