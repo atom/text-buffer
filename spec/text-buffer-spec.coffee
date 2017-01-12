@@ -1330,13 +1330,9 @@ describe "TextBuffer", ->
           done()
         fs.removeSync(filePath)
 
-      it "retains its path and reports the buffer as not modified", ->
-        # FIXME: This doesn't pass on Linux
-        return if process.platform is 'linux'
-
-        expect(bufferToDelete.getPath()).toBe filePath
-        expect(bufferToDelete.isModified()).toBeFalsy()
-
+      it "unsets its path and reports the buffer as modified", ->
+        expect(bufferToDelete.getPath()).toBe undefined
+        expect(bufferToDelete.isModified()).toBeTruthy()
 
     describe "when the file is deleted", ->
       it "notifies all onDidDelete listeners ", (done) ->
