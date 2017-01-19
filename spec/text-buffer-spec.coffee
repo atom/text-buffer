@@ -1332,6 +1332,7 @@ describe "TextBuffer", ->
 
       it "unsets its path and reports the buffer as modified", ->
         expect(bufferToDelete.getPath()).toBe undefined
+        expect(bufferToDelete.file).toBe null
         expect(bufferToDelete.isModified()).toBeTruthy()
 
     describe "when the file is deleted", ->

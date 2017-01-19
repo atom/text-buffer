@@ -1482,7 +1482,9 @@ class TextBuffer
 
   unsubscribeFromFile: ->
     @fileSubscriptions?.dispose()
-    @file = null
+    @setPath(null)
+    @conflict = false
+    @cachedDiskContents = null
 
   createMarkerSnapshot: ->
     snapshot = {}
