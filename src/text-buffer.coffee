@@ -79,6 +79,8 @@ class TextBuffer
     @transactCallDepth = 0
     @digestWhenLastPersisted = params?.digestWhenLastPersisted ? false
 
+    @shouldDestroyBufferOnFileDelete = -> false
+
     @setPath(params.filePath) if params?.filePath
     @load() if params?.load
 
@@ -130,6 +132,9 @@ class TextBuffer
     digestWhenLastPersisted: @file?.getDigestSync()
     preferredLineEnding: @preferredLineEnding
     nextMarkerId: @nextMarkerId
+
+  setConfigCallbacks: (shouldDestroyBufferOnFileDelete) ->
+    @shouldDestroyBufferOnFileDelete = shouldDestroyBufferOnFileDelete
 
   ###
   Section: Event Subscription
@@ -1472,7 +1477,10 @@ class TextBuffer
       if modified
         @updateCachedDiskContents()
       else
-        @unsubscribeFromFile()
+        if @shouldDestroyBufferOnFileDelete()
+          @destroy()
+        else
+          @unsubscribeFromFile()
 
     @fileSubscriptions.add @file.onDidRename =>
       @emitter.emit 'did-change-path', @getPath()
