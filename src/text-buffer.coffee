@@ -50,6 +50,9 @@ class TextBuffer
   #   * `load` A {Boolean}, `true` to asynchronously load the buffer from disk
   #     after initialization.
   #   * `text` The initial {String} text of the buffer.
+  #   * `shouldDestroyOnFileDelete` A {Function} that returns a {Boolean}
+  #     indicating whether the buffer should be destroyed if its file is
+  #     deleted.
   constructor: (params) ->
     text = params if typeof params is 'string'
 
@@ -79,7 +82,7 @@ class TextBuffer
     @transactCallDepth = 0
     @digestWhenLastPersisted = params?.digestWhenLastPersisted ? false
 
-    @shouldDestroyBufferOnFileDelete = -> false
+    @shouldDestroyOnFileDelete = params?.shouldDestroyOnFileDelete ? -> false
 
     @setPath(params.filePath) if params?.filePath
     @load() if params?.load
@@ -132,9 +135,6 @@ class TextBuffer
     digestWhenLastPersisted: @file?.getDigestSync()
     preferredLineEnding: @preferredLineEnding
     nextMarkerId: @nextMarkerId
-
-  setConfigCallbacks: (shouldDestroyBufferOnFileDelete) ->
-    @shouldDestroyBufferOnFileDelete = shouldDestroyBufferOnFileDelete
 
   ###
   Section: Event Subscription
@@ -1477,7 +1477,7 @@ class TextBuffer
       if modified
         @updateCachedDiskContents()
       else
-        if @shouldDestroyBufferOnFileDelete()
+        if @shouldDestroyOnFileDelete()
           @destroy()
         else
           @unsubscribeFromFile()
