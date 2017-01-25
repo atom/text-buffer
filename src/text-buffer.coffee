@@ -50,6 +50,9 @@ class TextBuffer
   #   * `load` A {Boolean}, `true` to asynchronously load the buffer from disk
   #     after initialization.
   #   * `text` The initial {String} text of the buffer.
+  #   * `shouldDestroyOnFileDelete` A {Function} that returns a {Boolean}
+  #     indicating whether the buffer should be destroyed if its file is
+  #     deleted.
   constructor: (params) ->
     text = params if typeof params is 'string'
 
@@ -78,6 +81,8 @@ class TextBuffer
     @destroyed = false
     @transactCallDepth = 0
     @digestWhenLastPersisted = params?.digestWhenLastPersisted ? false
+
+    @shouldDestroyOnFileDelete = params?.shouldDestroyOnFileDelete ? -> false
 
     @setPath(params.filePath) if params?.filePath
     @load() if params?.load
@@ -1472,13 +1477,22 @@ class TextBuffer
       if modified
         @updateCachedDiskContents()
       else
-        @destroy()
+        if @shouldDestroyOnFileDelete()
+          @destroy()
+        else
+          @unsubscribeFromFile()
 
     @fileSubscriptions.add @file.onDidRename =>
       @emitter.emit 'did-change-path', @getPath()
 
     @fileSubscriptions.add @file.onWillThrowWatchError (errorObject) =>
       @emitter.emit 'will-throw-watch-error', errorObject
+
+  unsubscribeFromFile: ->
+    @fileSubscriptions?.dispose()
+    @setPath(null)
+    @conflict = false
+    @cachedDiskContents = null
 
   createMarkerSnapshot: ->
     snapshot = {}
