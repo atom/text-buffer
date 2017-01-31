@@ -348,11 +348,9 @@ class TextBuffer
       return false unless @loaded
 
       if @file.existsSync()
-        @getText() != @cachedDiskContents
-      else
-        @wasModifiedBeforeRemove ? not @isEmpty()
-    else
-      not @isEmpty()
+        return @getText() != @cachedDiskContents
+
+    not @isEmpty()
 
   # Public: Determine if the in-memory contents of the buffer conflict with the
   # on-disk contents of its associated file.
@@ -1475,28 +1473,19 @@ class TextBuffer
         @reload()
 
     @fileSubscriptions.add @file.onDidDelete =>
-      modified = @getText() != @cachedDiskContents
-      @wasModifiedBeforeRemove = modified
       @emitter.emit 'did-delete'
-      if modified
-        @updateCachedDiskContents()
+      @updateCachedDiskContents()
+      if @shouldDestroyOnFileDelete()
+        @destroy()
       else
-        if @shouldDestroyOnFileDelete()
-          @destroy()
-        else
-          @unsubscribeFromFile()
+        @emitModifiedStatusChanged(true)
+
 
     @fileSubscriptions.add @file.onDidRename =>
       @emitter.emit 'did-change-path', @getPath()
 
     @fileSubscriptions.add @file.onWillThrowWatchError (errorObject) =>
       @emitter.emit 'will-throw-watch-error', errorObject
-
-  unsubscribeFromFile: ->
-    @fileSubscriptions?.dispose()
-    @setPath(null)
-    @conflict = false
-    @cachedDiskContents = null
 
   createMarkerSnapshot: ->
     snapshot = {}

@@ -1330,9 +1330,8 @@ describe "TextBuffer", ->
           done()
         fs.removeSync(filePath)
 
-      it "unsets its path and reports the buffer as modified", ->
-        expect(bufferToDelete.getPath()).toBe undefined
-        expect(bufferToDelete.file).toBe null
+      it "retains its path and reports the buffer as modified", ->
+        expect(bufferToDelete.getPath()).toBe filePath
         expect(bufferToDelete.isModified()).toBeTruthy()
 
     describe "when the file is deleted", ->
