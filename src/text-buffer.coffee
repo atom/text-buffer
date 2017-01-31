@@ -1456,6 +1456,10 @@ class TextBuffer
     @fileSubscriptions = new CompositeDisposable
 
     @fileSubscriptions.add @file.onDidChange =>
+      # On Linux we get change events when the file is deleted. This yields
+      # consistent behavior with Mac/Windows.
+      return unless @file.existsSync()
+
       @conflict = true if @isModified()
       previousContents = @cachedDiskContents
 
