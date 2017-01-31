@@ -1473,9 +1473,10 @@ class TextBuffer
         @reload()
 
     @fileSubscriptions.add @file.onDidDelete =>
+      modified = @getText() != @cachedDiskContents
       @emitter.emit 'did-delete'
       @updateCachedDiskContents()
-      if @shouldDestroyOnFileDelete()
+      if not modified and @shouldDestroyOnFileDelete()
         @destroy()
       else
         @emitModifiedStatusChanged(true)
