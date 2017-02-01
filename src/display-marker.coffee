@@ -1,4 +1,4 @@
-{Emitter, CompositeDisposable} = require 'event-kit'
+{Emitter} = require 'event-kit'
 
 # Essential: Represents a buffer annotation that remains logically stationary
 # even as the buffer changes. This is used to represent cursors, folds, snippet
