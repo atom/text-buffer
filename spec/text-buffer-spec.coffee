@@ -1477,6 +1477,24 @@ describe "TextBuffer", ->
           done()
         buffer.insert([0, 0], 'x')
 
+    describe "buffer created without a backing file", ->
+      beforeEach ->
+        buffer.destroy()
+        buffer = new TextBuffer('test')
+        tempDir = temp.mkdirSync()
+        filePath = join(tempDir, 'atom-file')
+        expect(fs.existsSync(filePath)).toBeFalsy()
+
+      it "reports correct modified status before and after saving", ->
+        expect(buffer.isModified()).toBe true
+
+        buffer.saveAs(filePath)
+        expect(fs.existsSync(filePath)).toBeTruthy()
+        expect(buffer.isModified()).toBe false
+
+        buffer.insert([0, 0], 'x')
+        expect(buffer.isModified()).toBe true
+
     it "returns false for an empty buffer with no path", ->
       buffer.destroy()
       buffer = new TextBuffer()
