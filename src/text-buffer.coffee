@@ -1332,6 +1332,7 @@ class TextBuffer
 
     @cachedDiskContents = @getText()
     @conflict = false
+    @loaded = true
     @emitModifiedStatusChanged(false)
     @emitter.emit 'did-save', {path: filePath}
 
