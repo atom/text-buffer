@@ -2129,7 +2129,7 @@ describe('DisplayLayer', () => {
           invisibles: invisibles,
           showIndentGuides: showIndentGuides,
           softWrapColumn: softWrapColumn,
-          foldsMarkerLayer: foldsMarkerLayer,
+          foldsMarkerLayer: foldsMarkerLayer
         })
 
         const textDecorationLayer = new TestDecorationLayer([], buffer, random)
