@@ -7,6 +7,10 @@ const {buildRandomLines, getRandomBufferRange} = require('./helpers/random')
 const SAMPLE_TEXT = require('./helpers/sample-text')
 const TestDecorationLayer = require('./helpers/test-decoration-layer')
 
+const EOL_INVISIBLE = '¬'
+const CR_INVISIBLE = '¤'
+const LINE_ENDING_INVISIBLES_REGEXP = new RegExp(`${CR_INVISIBLE}?${EOL_INVISIBLE}?$`)
+
 describe('DisplayLayer', () => {
   beforeEach(() => {
     return jasmine.addCustomEqualityTester(require('underscore-plus').isEqual)
@@ -2091,7 +2095,7 @@ describe('DisplayLayer', () => {
   it('updates the displayed text correctly when the underlying buffer changes', () => {
     const now = Date.now()
 
-    for (let i = 0; i < 100; i++) {
+    for (let i = 0; i < 200; i++) {
       let seed = now + i
 
       try {
@@ -2108,27 +2112,29 @@ describe('DisplayLayer', () => {
         }
 
         if (random(2) > 0) {
-          invisibles.eol = '¬'
+          invisibles.eol = EOL_INVISIBLE
         }
 
         if (random(2) > 0) {
-          invisibles.cr = '¤'
+          invisibles.cr = CR_INVISIBLE
         }
 
-        const softWrapColumn = random(2) ? random.intBetween(5, 80) : null
+        const foldIds = []
         const showIndentGuides = Boolean(random(2))
+        const softWrapColumn = random(2) ? random.intBetween(5, 80) : null
+        const foldsMarkerLayer = random(2) ? createFoldsMarkerLayer(random, buffer, foldIds) : null
 
         const displayLayer = buffer.addDisplayLayer({
           tabLength: 4,
           invisibles: invisibles,
           showIndentGuides: showIndentGuides,
-          softWrapColumn: softWrapColumn
+          softWrapColumn: softWrapColumn,
+          foldsMarkerLayer: foldsMarkerLayer
         })
 
         const textDecorationLayer = new TestDecorationLayer([], buffer, random)
         displayLayer.setTextDecorationLayer(textDecorationLayer)
         displayLayer.getText(0, 3)
-        const foldIds = []
         let undoableChanges = 0
         let redoableChanges = 0
         const screenLinesById = new Map()
@@ -2140,11 +2146,14 @@ describe('DisplayLayer', () => {
             createRandomFold(random, displayLayer, foldIds)
           } else if (k < 4 && foldIds.length > 0) {
             destroyRandomFold(random, displayLayer, foldIds)
-          } else if (k < 5 && undoableChanges > 0) {
+          } else if (k < 5 && foldIds.length > 0) {
+            displayLayer.destroyAllFolds()
+            foldIds.length = 0
+          } else if (k < 6 && undoableChanges > 0) {
             undoableChanges--
             redoableChanges++
             performUndo(random, displayLayer)
-          } else if (k < 6 && redoableChanges > 0) {
+          } else if (k < 7 && redoableChanges > 0) {
             undoableChanges++
             redoableChanges--
             performRedo(random, displayLayer)
@@ -2160,6 +2169,9 @@ describe('DisplayLayer', () => {
           const freshDisplayLayer = displayLayer.copy()
           freshDisplayLayer.setTextDecorationLayer(displayLayer.getTextDecorationLayer())
           freshDisplayLayer.getScreenLines()
+          if (!Number.isFinite(displayLayer.softWrapColumn) && !displayLayer.showIndentGuides) {
+            verifyLineLengths(displayLayer)
+          }
           verifyTokenConsistency(displayLayer)
           verifyText(random, displayLayer, freshDisplayLayer)
           verifyRightmostScreenPosition(freshDisplayLayer)
@@ -2198,6 +2210,18 @@ function performRedo (random, displayLayer) {
   verifyChangeEvent(displayLayer, () => {
     displayLayer.buffer.redo()
   })
+}
+
+function createFoldsMarkerLayer (random, buffer, foldIds) {
+  const markerLayer = buffer.addMarkerLayer({
+    maintainHistory: false,
+    persistent: true,
+    destroyInvalidatedMarkers: true
+  })
+  for (let i = 0, n = random(5); i < n; i++) {
+    foldIds.push(markerLayer.markRange(getRandomBufferRange(random, buffer)).id)
+  }
+  return markerLayer
 }
 
 function createRandomFold (random, displayLayer, foldIds) {
@@ -2254,6 +2278,15 @@ function verifyText (random, displayLayer, freshDisplayLayer) {
   const text = displayLayer.getText(startRow, endRow)
   const expectedText = freshDisplayLayer.getText().split('\n').slice(startRow, endRow).join('\n')
   expect(JSON.stringify(text)).toBe(JSON.stringify(expectedText), `Text for rows ${startRow} - ${endRow}`)
+}
+
+function verifyLineLengths (displayLayer) {
+  const rowCount = getComputedScreenLineCount(displayLayer)
+  const screenLines = displayLayer.getScreenLines(0, rowCount)
+  for (let row = 0; row < rowCount; row++) {
+    let text = screenLines[row].lineText.replace(LINE_ENDING_INVISIBLES_REGEXP, '')
+    expect(displayLayer.lineLengthForScreenRow(row)).toBe(text.length)
+  }
 }
 
 function verifyTokenConsistency (displayLayer) {
