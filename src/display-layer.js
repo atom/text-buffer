@@ -240,6 +240,11 @@ class DisplayLayer {
       const foldedRange = foldMarker.getRange()
       foldedRanges.push(foldedRange)
       combinedRangeEnd = max(combinedRangeEnd, foldedRange.end)
+    }
+
+    this.populateSpatialIndexIfNeeded(combinedRangeEnd.row + 1, Infinity)
+
+    for (const foldMarker of foldMarkers) {
       foldMarker.destroy()
     }
 
