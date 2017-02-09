@@ -324,7 +324,8 @@ class DisplayMarkerLayer
     return
 
   destroyMarker: (id) ->
-    @markersById[id].destroy()
+    if marker = @markersById[id]
+      marker.destroy()
 
   didDestroyMarker: (marker) ->
     @markersWithDestroyListeners.delete(marker)
