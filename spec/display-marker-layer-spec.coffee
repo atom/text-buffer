@@ -264,6 +264,17 @@ describe "DisplayMarkerLayer", ->
     expect(displayMarker1DestroyCount).toBe(1)
     expect(displayMarker2DestroyCount).toBe(1)
 
+  it "does not throw exceptions when buffer markers are destroyed that don't have corresponding display markers", ->
+    buffer = new TextBuffer(text: '\tabc')
+    displayLayer1 = buffer.addDisplayLayer(tabLength: 2)
+    displayLayer2 = buffer.addDisplayLayer(tabLength: 4)
+    bufferMarkerLayer = buffer.addMarkerLayer()
+    displayMarkerLayer1 = displayLayer1.getMarkerLayer(bufferMarkerLayer.id)
+    displayMarkerLayer2 = displayLayer2.getMarkerLayer(bufferMarkerLayer.id)
+
+    bufferMarker = bufferMarkerLayer.markRange([[0, 1], [0, 2]])
+    bufferMarker.destroy()
+
   it "destroys itself when the underlying buffer marker layer is destroyed", ->
     buffer = new TextBuffer(text: 'abc\ndef\nghi\nj\tk\tl\nmno')
     displayLayer1 = buffer.addDisplayLayer(tabLength: 2)
