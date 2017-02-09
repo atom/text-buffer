@@ -2190,11 +2190,13 @@ describe "TextBuffer", ->
 
     it "returns the same results as a regex match on a regular string", ->
       regexps = [
-        /\w+/g                    # 1 word
-        /\w+\n\s*\w+/g,           # 2 words separated by a newline
-        /\w+[^\w]+\w+/g,          # 2 words separated by anything
-        /\w+\n\s*\w+\n\s*\w+/g,   # 3 words separated by newlines
-        /\w+[^\w]+\w+[^\w]+\w+/g, # 3 words separated by anything
+        /\w+/g                                   # 1 word
+        /\w+\n\s*\w+/g,                          # 2 words separated by an newline (escape sequence)
+        RegExp("\\w+\n\\s*\w+", 'g'),            # 2 words separated by a newline (literal)
+        /\w+[^\w]+\w+/g,                         # 2 words separated by anything
+        /\w+\n\s*\w+\n\s*\w+/g,                  # 3 words separated by newlines (escape sequence)
+        RegExp("\\w+\n\\s*\\w+\n\\s*\\w+", 'g'), # 3 words separated by newlines (literal)
+        /\w+[^\w]+\w+[^\w]+\w+/g,                # 3 words separated by anything
       ]
 
       i = 0

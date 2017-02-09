@@ -2,7 +2,7 @@ Point = require './point'
 
 SpliceArrayChunkSize = 100000
 
-MULTI_LINE_REGEX_REGEX = /\\r|\\n|^\[\^|[^\\]\[\^/
+MULTI_LINE_REGEX_REGEX = /\\r|\\n|\r|\n|^\[\^|[^\\]\[\^/
 
 module.exports =
   spliceArray: (originalArray, start, length, insertedArray=[]) ->
