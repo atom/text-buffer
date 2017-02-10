@@ -115,6 +115,18 @@ describe "DisplayMarkerLayer", ->
       textChanged: false
     }
 
+  it "does not create duplicate DisplayMarkers when it has onDidCreateMarker observers (regression)", ->
+    buffer = new TextBuffer(text: 'abc\ndef\nghi\nj\tk\tl\nmno')
+    displayLayer = buffer.addDisplayLayer(tabLength: 4)
+    markerLayer = displayLayer.addMarkerLayer()
+
+    emittedMarker = null
+    markerLayer.onDidCreateMarker (marker) ->
+      emittedMarker = marker
+
+    createdMarker = markerLayer.markBufferRange([[0, 1], [2, 3]])
+    expect(createdMarker).toBe(emittedMarker)
+
   it "emits events when markers are created and destroyed", ->
     buffer = new TextBuffer(text: 'hello world')
     displayLayer = buffer.addDisplayLayer(tabLength: 4)

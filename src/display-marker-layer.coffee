@@ -133,7 +133,7 @@ class DisplayMarkerLayer
   markScreenRange: (screenRange, options) ->
     screenRange = Range.fromObject(screenRange)
     bufferRange = @displayLayer.translateScreenRange(screenRange, options)
-    @createDisplayMarker(@bufferMarkerLayer.markRange(bufferRange, options))
+    @getMarker(@bufferMarkerLayer.markRange(bufferRange, options).id)
 
   # Public: Create a marker on this layer with its head at the given screen
   # position and no tail.
@@ -170,7 +170,7 @@ class DisplayMarkerLayer
   markScreenPosition: (screenPosition, options) ->
     screenPosition = Point.fromObject(screenPosition)
     bufferPosition = @displayLayer.translateScreenPosition(screenPosition, options)
-    @createDisplayMarker(@bufferMarkerLayer.markPosition(bufferPosition, options))
+    @getMarker(@bufferMarkerLayer.markPosition(bufferPosition, options).id)
 
   # Public: Create a marker with the given buffer range.
   #
@@ -203,7 +203,7 @@ class DisplayMarkerLayer
   # Returns a {DisplayMarker}.
   markBufferRange: (bufferRange, options) ->
     bufferRange = Range.fromObject(bufferRange)
-    @createDisplayMarker(@bufferMarkerLayer.markRange(bufferRange, options))
+    @getMarker(@bufferMarkerLayer.markRange(bufferRange, options).id)
 
   # Public: Create a marker on this layer with its head at the given buffer
   # position and no tail.
@@ -233,12 +233,7 @@ class DisplayMarkerLayer
   #
   # Returns a {DisplayMarker}.
   markBufferPosition: (bufferPosition, options) ->
-    @createDisplayMarker(@bufferMarkerLayer.markPosition(Point.fromObject(bufferPosition), options))
-
-  createDisplayMarker: (bufferMarker) ->
-    displayMarker = new DisplayMarker(this, bufferMarker)
-    @markersById[displayMarker.id] = displayMarker
-    displayMarker
+    @getMarker(@bufferMarkerLayer.markPosition(Point.fromObject(bufferPosition), options).id)
 
   ###
   Section: Querying
