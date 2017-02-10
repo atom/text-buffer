@@ -37,10 +37,11 @@ class DisplayMarkerLayer
 
   # Public: Destroy all markers in this layer.
   clear: ->
-    @markersWithDestroyListeners.forEach (marker) -> marker.destroy()
-    @markersById = {}
     @bufferMarkerLayer.clear()
-    @emitDidUpdate()
+
+  didClearBufferMarkerLayer: ->
+    @markersWithDestroyListeners.forEach (marker) -> marker.didDestroyBufferMarker()
+    @markersById = {}
 
   # Essential: Determine whether this layer has been destroyed.
   #
@@ -325,7 +326,7 @@ class DisplayMarkerLayer
 
   destroyMarker: (id) ->
     if marker = @markersById[id]
-      marker.destroy()
+      marker.didDestroyBufferMarker()
 
   didDestroyMarker: (marker) ->
     @markersWithDestroyListeners.delete(marker)

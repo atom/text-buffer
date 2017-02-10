@@ -195,6 +195,50 @@ describe "MarkerLayer", ->
       marker1 = layer1.markRange([[0, 2], [0, 4]])
       marker2 = layer1.markRange([[0, 6], [0, 8]])
 
+  describe "::clear()", ->
+    it "destroys all of the layer's markers", (done) ->
+      buffer = new TextBuffer(text: 'abc')
+      displayLayer = buffer.addDisplayLayer()
+      markerLayer = buffer.addMarkerLayer()
+      displayMarkerLayer = displayLayer.getMarkerLayer(markerLayer.id)
+      marker1 = markerLayer.markRange([[0, 1], [0, 2]])
+      marker2 = markerLayer.markRange([[0, 1], [0, 2]])
+      marker3 = markerLayer.markRange([[0, 1], [0, 2]])
+      displayMarker1 = displayMarkerLayer.getMarker(marker1.id)
+      # intentionally omit a display marker for marker2 just to cover that case
+      displayMarker3 = displayMarkerLayer.getMarker(marker3.id)
+
+      marker1DestroyCount = 0
+      marker2DestroyCount = 0
+      displayMarker1DestroyCount = 0
+      displayMarker3DestroyCount = 0
+      markerLayerUpdateCount = 0
+      displayMarkerLayerUpdateCount = 0
+      marker1.onDidDestroy -> marker1DestroyCount++
+      marker2.onDidDestroy -> marker2DestroyCount++
+      displayMarker1.onDidDestroy -> displayMarker1DestroyCount++
+      displayMarker3.onDidDestroy -> displayMarker3DestroyCount++
+      markerLayer.onDidUpdate ->
+        markerLayerUpdateCount++
+        done() if markerLayerUpdateCount is 1 and displayMarkerLayerUpdateCount is 1
+      displayMarkerLayer.onDidUpdate ->
+        displayMarkerLayerUpdateCount++
+        done() if markerLayerUpdateCount is 1 and displayMarkerLayerUpdateCount is 1
+
+      markerLayer.clear()
+      expect(marker1.isDestroyed()).toBe(true)
+      expect(marker2.isDestroyed()).toBe(true)
+      expect(marker3.isDestroyed()).toBe(true)
+      expect(displayMarker1.isDestroyed()).toBe(true)
+      expect(displayMarker3.isDestroyed()).toBe(true)
+      expect(marker1DestroyCount).toBe(1)
+      expect(marker2DestroyCount).toBe(1)
+      expect(displayMarker1DestroyCount).toBe(1)
+      expect(displayMarker3DestroyCount).toBe(1)
+      expect(markerLayer.getMarkers()).toEqual([])
+      expect(displayMarkerLayer.getMarkers()).toEqual([])
+      expect(displayMarkerLayer.getMarker(displayMarker3.id)).toBeUndefined()
+
   describe "::copy", ->
     it "creates a new marker layer with markers in the same states", ->
       originalLayer = buffer.addMarkerLayer(maintainHistory: true)
