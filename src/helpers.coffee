@@ -1,20 +1,27 @@
 Point = require './point'
 
-SpliceArrayChunkSize = 100000
-
 MULTI_LINE_REGEX_REGEX = /\\r|\\n|\r|\n|^\[\^|[^\\]\[\^/
 
 module.exports =
-  spliceArray: (originalArray, start, length, insertedArray=[]) ->
-    if insertedArray.length < SpliceArrayChunkSize
-      originalArray.splice(start, length, insertedArray...)
+  spliceArray: (array, start, removedCount, insertedItems=[]) ->
+    oldLength = array.length
+    insertedCount = insertedItems.length
+    removedCount = Math.min(removedCount, oldLength - start)
+    lengthDelta = insertedCount - removedCount
+    newLength = oldLength + lengthDelta
+
+    if lengthDelta > 0
+      array.length = newLength
+      for i in [(newLength - 1)..(start + insertedCount)] by -1
+        array[i] = array[i - lengthDelta]
     else
-      removedValues = originalArray.splice(start, length)
-      for chunkStart in [0..insertedArray.length] by SpliceArrayChunkSize
-        chunkEnd = chunkStart + SpliceArrayChunkSize
-        chunk = insertedArray.slice(chunkStart, chunkEnd)
-        originalArray.splice(start + chunkStart, 0, chunk...)
-      removedValues
+      for i in [(start + insertedCount)...newLength] by 1
+        array[i] = array[i - lengthDelta]
+      array.length = newLength
+
+    for value, i in insertedItems by 1
+      array[start + i] = insertedItems[i]
+    return
 
   newlineRegex: /\r\n|\n|\r/g
 
