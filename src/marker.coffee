@@ -67,7 +67,6 @@ class Marker
     @invalidate ?= 'overlap'
     @properties ?= {}
     @hasChangeObservers = false
-    @destroyed = false
     Object.freeze(@properties)
     @layer.setMarkerIsExclusive(@id, @isExclusive())
 
@@ -234,7 +233,7 @@ class Marker
   #
   # Returns a {Boolean}.
   isDestroyed: ->
-    @destroyed or @layer.isDestroyed()
+    not @layer.hasMarker(@id)
 
   # Public: Returns a {Boolean} indicating whether changes that occur exactly at
   # the marker's head or tail cause it to move.
@@ -292,8 +291,7 @@ class Marker
 
   # Public: Destroys the marker, causing it to emit the 'destroyed' event.
   destroy: ->
-    return if @destroyed
-    @destroyed = true
+    return if @isDestroyed()
     @layer.destroyMarker(this)
     @emitter.emit 'did-destroy'
     @emitter.clear()

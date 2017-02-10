@@ -219,27 +219,6 @@ describe "DisplayMarkerLayer", ->
       # ::onDidDestroy listener
       expect(marker2.isDestroyed()).toBe(true)
 
-  describe "::clear()", ->
-    it "destroys all of the layer's markers", ->
-      buffer = new TextBuffer(text: 'abc')
-      displayLayer = buffer.addDisplayLayer()
-      displayMarkerLayer = displayLayer.addMarkerLayer()
-
-      displayMarker1 = displayMarkerLayer.markBufferRange([[0, 1], [0, 2]])
-      displayMarker2 = displayMarkerLayer.markBufferRange([[0, 1], [0, 2]])
-      displayMarker1DestroyCount = 0
-      displayMarker2DestroyCount = 0
-      layerUpdateCount = 0
-      displayMarker1.onDidDestroy -> displayMarker1DestroyCount++
-      displayMarker2.onDidDestroy -> displayMarker2DestroyCount++
-      displayMarkerLayer.onDidUpdate -> layerUpdateCount++
-
-      displayMarkerLayer.clear()
-      expect(displayMarker1DestroyCount).toBe(1)
-      expect(displayMarker2DestroyCount).toBe(1)
-      expect(layerUpdateCount).toBe(1)
-      expect(displayMarkerLayer.getMarkers()).toEqual([])
-
   it "destroys display markers when their underlying buffer markers are destroyed", ->
     buffer = new TextBuffer(text: '\tabc')
     displayLayer1 = buffer.addDisplayLayer(tabLength: 2)
