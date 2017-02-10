@@ -56,11 +56,11 @@ class MarkerLayer
   # Public: Destroy this layer.
   destroy: ->
     return if @destroyed
-    @destroyed = true
     @clear()
     @delegate.markerLayerDestroyed(this)
     @displayMarkerLayers.forEach (displayMarkerLayer) -> displayMarkerLayer.destroy()
     @displayMarkerLayers.clear()
+    @destroyed = true
     @emitter.emit 'did-destroy'
     @emitter.clear()
 
@@ -70,6 +70,8 @@ class MarkerLayer
     @markersWithDestroyListeners.clear()
     @markersById = {}
     @index = new MarkerIndex
+    @displayMarkerLayers.forEach (layer) -> layer.didClearBufferMarkerLayer()
+    @scheduleUpdateEvent()
 
   # Public: Determine whether this layer has been destroyed.
   isDestroyed: ->
@@ -341,6 +343,9 @@ class MarkerLayer
       @index.delete(marker.id)
       @delegate.markersUpdated(this)
       @scheduleUpdateEvent()
+
+  hasMarker: (id) ->
+    not @destroyed and @index.has(id)
 
   getMarkerRange: (id) ->
     Range.fromObject(@index.getRange(id))

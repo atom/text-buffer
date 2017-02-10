@@ -49,16 +49,15 @@ class DisplayMarker
     {@id} = @bufferMarker
     @hasChangeObservers = false
     @emitter = new Emitter
-    @destroyed = false
     @bufferMarkerSubscription = null
 
   # Essential: Destroys the marker, causing it to emit the 'destroyed' event. Once
   # destroyed, a marker cannot be restored by undo/redo operations.
   destroy: ->
-    return if @destroyed
+    unless @isDestroyed()
+      @bufferMarker.destroy()
 
-    @destroyed = true
-    @bufferMarker.destroy()
+  didDestroyBufferMarker: ->
     @emitter.emit('did-destroy')
     @layer.didDestroyMarker(this)
     @emitter.dispose()
@@ -143,7 +142,8 @@ class DisplayMarker
   # undoing the invalidating operation would restore the marker. Once a marker
   # is destroyed by calling {DisplayMarker::destroy}, no undo/redo operation
   # can ever bring it back.
-  isDestroyed: -> @destroyed or @layer.isDestroyed()
+  isDestroyed: ->
+    @layer.isDestroyed() or @bufferMarker.isDestroyed()
 
   # Essential: Returns a {Boolean} indicating whether the head precedes the tail.
   isReversed: ->
