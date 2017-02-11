@@ -115,6 +115,18 @@ describe "DisplayMarkerLayer", ->
       textChanged: false
     }
 
+  it "does not create duplicate DisplayMarkers when it has onDidCreateMarker observers (regression)", ->
+    buffer = new TextBuffer(text: 'abc\ndef\nghi\nj\tk\tl\nmno')
+    displayLayer = buffer.addDisplayLayer(tabLength: 4)
+    markerLayer = displayLayer.addMarkerLayer()
+
+    emittedMarker = null
+    markerLayer.onDidCreateMarker (marker) ->
+      emittedMarker = marker
+
+    createdMarker = markerLayer.markBufferRange([[0, 1], [2, 3]])
+    expect(createdMarker).toBe(emittedMarker)
+
   it "emits events when markers are created and destroyed", ->
     buffer = new TextBuffer(text: 'hello world')
     displayLayer = buffer.addDisplayLayer(tabLength: 4)
@@ -334,3 +346,9 @@ describe "DisplayMarkerLayer", ->
       marker2 = markerLayer.markBufferRange([[8, 0], [8, 0]], class: 'a')
       displayLayer.foldBufferRange([[4, 0], [7, 0]])
       expect(markerLayer.findMarkers(class: 'a', intersectsScreenRange: [[5, 0], [10, 0]])).toEqual [marker2]
+
+    it "works when used from within a Marker.onDidDestroy callback (regression)", ->
+      displayMarker = markerLayer.markBufferRange([[0, 3], [0, 6]])
+      displayMarker.onDidDestroy ->
+        expect(markerLayer.findMarkers({containsBufferPosition: [0, 4]})).not.toContain(displayMarker)
+      displayMarker.destroy()
