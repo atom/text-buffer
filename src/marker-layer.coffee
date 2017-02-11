@@ -337,10 +337,10 @@ class MarkerLayer
   destroyMarker: (marker) ->
     if @markersById.hasOwnProperty(marker.id)
       delete @markersById[marker.id]
+      @index.delete(marker.id)
       @markersWithChangeListeners.delete(marker)
       @markersWithDestroyListeners.delete(marker)
       @displayMarkerLayers.forEach (displayMarkerLayer) -> displayMarkerLayer.destroyMarker(marker.id)
-      @index.delete(marker.id)
       @delegate.markersUpdated(this)
       @scheduleUpdateEvent()
 
