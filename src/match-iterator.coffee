@@ -67,11 +67,12 @@ class BackwardsSingleLine
 
   iterate: (callback, global) ->
     row = @range.end.row
+    endColumn = @range.end.column
     line = @buffer.lineForRow(row).slice(0, @range.end.column)
     bufferedMatches = []
     while row > @range.start.row
       if match = @regex.exec(line)
-        if row < @range.end.row or match.index < @range.end.column
+        if row < @range.end.row or match.index < endColumn or (match.index is endColumn and endColumn is 0)
           bufferedMatches.push(match)
         if match[0].length is 0
           @regex.lastIndex++
@@ -86,7 +87,7 @@ class BackwardsSingleLine
 
     @regex.lastIndex = @range.start.column
     while match = @regex.exec(line)
-      break if row is @range.end.row and match.index >= @range.end.column
+      break if row is @range.end.row and (match.index > endColumn or match.index is endColumn and endColumn > 0)
       bufferedMatches.push(match)
       if match[0].length is 0
         @regex.lastIndex++
@@ -134,6 +135,7 @@ class ForwardsMultiLine
   constructor: (@buffer, @regex, range) ->
     @startIndex = @buffer.characterIndexForPosition(range.start)
     @endIndex = @buffer.characterIndexForPosition(range.end)
+    @rangeEndColumn = range.end.column
     @text = @buffer.getText()
     @regex.lastIndex = @startIndex
 
@@ -153,14 +155,15 @@ class ForwardsMultiLine
       matchStartIndex = match.index
       matchEndIndex = matchStartIndex + matchLength
       if matchEndIndex > @endIndex
-        @regex.lastIndex = 0
-        if matchStartIndex < @endIndex and submatch = @regex.exec(@text[matchStartIndex...@endIndex])
-          submatch.index = matchStartIndex
-          match = submatch
-        else
-          match = null
+        match = null
+        if matchStartIndex < @endIndex or matchStartIndex is @endIndex and @rangeEndColumn is 0
+          @regex.lastIndex = 0
+          if submatch = @regex.exec(@text[matchStartIndex...@endIndex])
+            submatch.index = matchStartIndex
+            match = submatch
         @regex.lastIndex = Infinity
       else
+        return null if matchStartIndex is @endIndex and @rangeEndColumn > 0
         matchEndIndex++ if matchLength is 0
         @regex.lastIndex = matchEndIndex
       match
@@ -169,9 +172,12 @@ class BackwardsMultiLine
   constructor: (@buffer, @regex, range, @chunkSize) ->
     @text = @buffer.getText()
     @startIndex = @buffer.characterIndexForPosition(range.start)
-    @chunkStartIndex = @chunkEndIndex = @buffer.characterIndexForPosition(range.end)
+    @endIndex = @buffer.characterIndexForPosition(range.end)
+    @rangeEndColumn = range.end.column
+    @chunkStartIndex = @chunkEndIndex = @endIndex
     @bufferedMatches = []
     @lastMatchIndex = Infinity
+    @didInitialScan = false
 
   iterate: (callback, global) ->
     while match = @next()
@@ -181,7 +187,7 @@ class BackwardsMultiLine
     return
 
   next: ->
-    until @chunkStartIndex is @startIndex or @bufferedMatches.length > 0
+    while @bufferedMatches.length is 0 and (not @didInitialScan or @chunkStartIndex > @startIndex)
       @scanNextChunk()
     @bufferedMatches.pop()
 
@@ -191,6 +197,7 @@ class BackwardsMultiLine
     # as before.
     @chunkEndIndex = Math.min(@chunkEndIndex, @lastMatchIndex)
     @chunkStartIndex = Math.max(@startIndex, @chunkStartIndex - @chunkSize)
+    @didInitialScan = true
 
     firstResultIndex = null
     @regex.lastIndex = @chunkStartIndex
@@ -201,8 +208,8 @@ class BackwardsMultiLine
 
       # If the match occurs at the beginning of the chunk, expand the chunk
       # in case the match could have started earlier.
-      break if matchStartIndex == @chunkStartIndex > @startIndex
-      break if matchStartIndex >= @chunkEndIndex
+      break if matchStartIndex == @chunkStartIndex and @chunkStartIndex > @startIndex
+      break if matchStartIndex > @chunkEndIndex or (matchStartIndex == @endIndex and @rangeEndColumn > 0)
 
       if matchEndIndex > @chunkEndIndex
         @regex.lastIndex = 0

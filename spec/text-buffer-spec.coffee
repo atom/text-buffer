@@ -2220,24 +2220,41 @@ describe "TextBuffer", ->
 
     it "does not return empty matches at the end of the range", ->
       ranges = []
-
-      buffer.scanInRange /\s*/gm, [[0, 29], [1, 2]], ({range}) -> ranges.push(range)
+      buffer.scanInRange /[ ]*/gm, [[0, 29], [1, 2]], ({range}) -> ranges.push(range)
       expect(ranges).toEqual([[[0, 29], [0, 29]], [[1, 0], [1, 2]]])
 
       ranges.length = 0
-      buffer.scanInRange /\s*/gm, [[1, 0], [1, 2]], ({range}) ->
-        ranges.push(range)
+      buffer.scanInRange /[ ]*/gm, [[1, 0], [1, 2]], ({range}) -> ranges.push(range)
       expect(ranges).toEqual([[[1, 0], [1, 2]]])
 
-    it "returns a single empty match on the final line of the range", ->
-      ranges = []
+      ranges.length = 0
+      buffer.scanInRange /\s*/gm, [[0, 29], [1, 2]], ({range}) -> ranges.push(range)
+      expect(ranges).toEqual([[[0, 29], [1, 2]]])
 
+      ranges.length = 0
+      buffer.scanInRange /\s*/gm, [[1, 0], [1, 2]], ({range}) -> ranges.push(range)
+      expect(ranges).toEqual([[[1, 0], [1, 2]]])
+
+    it "allows empty matches at the end of a range, when the range ends at column 0", ->
+      ranges = []
+      buffer.scanInRange /^[ ]*/gm, [[9, 0], [10, 0]], ({range}) -> ranges.push(range)
+      expect(ranges).toEqual([[[9, 0], [9, 2]], [[10, 0], [10, 0]]])
+
+      ranges.length = 0
+      buffer.scanInRange /^[ ]*/gm, [[10, 0], [10, 0]], ({range}) -> ranges.push(range)
+      expect(ranges).toEqual([[[10, 0], [10, 0]]])
+
+      ranges.length = 0
       buffer.scanInRange /^\s*/gm, [[9, 0], [10, 0]], ({range}) -> ranges.push(range)
       expect(ranges).toEqual([[[9, 0], [9, 2]], [[10, 0], [10, 0]]])
 
       ranges.length = 0
       buffer.scanInRange /^\s*/gm, [[10, 0], [10, 0]], ({range}) -> ranges.push(range)
       expect(ranges).toEqual([[[10, 0], [10, 0]]])
+
+      ranges.length = 0
+      buffer.scanInRange /^\s*/gm, [[11, 0], [12, 0]], ({range}) -> ranges.push(range)
+      expect(ranges).toEqual([[[11, 0], [11, 2]], [[12, 0], [12, 0]]])
 
     it "handles multi-line patterns", ->
       matchStrings = []
@@ -2445,12 +2462,37 @@ describe "TextBuffer", ->
     it "does not return empty matches at the end of the range", ->
       ranges = []
 
+      buffer.backwardsScanInRange /[ ]*/gm, [[1, 0], [1, 2]], ({range}) -> ranges.push(range)
+      expect(ranges).toEqual([[[1, 0], [1, 2]]])
+
+      ranges.length = 0
+      buffer.backwardsScanInRange /[ ]*/m, [[0, 29], [1, 2]], ({range}) -> ranges.push(range)
+      expect(ranges).toEqual([[[1, 0], [1, 2]]])
+
+      ranges.length = 0
       buffer.backwardsScanInRange /\s*/gm, [[1, 0], [1, 2]], ({range}) -> ranges.push(range)
       expect(ranges).toEqual([[[1, 0], [1, 2]]])
 
       ranges.length = 0
       buffer.backwardsScanInRange /\s*/m, [[0, 29], [1, 2]], ({range}) -> ranges.push(range)
-      expect(ranges).toEqual([[[1, 0], [1, 2]]])
+      expect(ranges).toEqual([[[0, 29], [1, 2]]])
+
+    it "allows empty matches at the end of a range, when the range ends at column 0", ->
+      ranges = []
+      buffer.backwardsScanInRange /^[ ]*/gm, [[9, 0], [10, 0]], ({range}) -> ranges.push(range)
+      expect(ranges).toEqual([[[10, 0], [10, 0]], [[9, 0], [9, 2]]])
+
+      ranges.length = 0
+      buffer.backwardsScanInRange /^[ ]*/gm, [[10, 0], [10, 0]], ({range}) -> ranges.push(range)
+      expect(ranges).toEqual([[[10, 0], [10, 0]]])
+
+      ranges.length = 0
+      buffer.backwardsScanInRange /^\s*/gm, [[9, 0], [10, 0]], ({range}) -> ranges.push(range)
+      expect(ranges).toEqual([[[10, 0], [10, 0]], [[9, 0], [9, 2]]])
+
+      ranges.length = 0
+      buffer.backwardsScanInRange /^\s*/gm, [[10, 0], [10, 0]], ({range}) -> ranges.push(range)
+      expect(ranges).toEqual([[[10, 0], [10, 0]]])
 
   describe "::characterIndexForPosition(position)", ->
     beforeEach (done) ->
