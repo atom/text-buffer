@@ -2179,6 +2179,7 @@ describe "TextBuffer", ->
         /\w+/g                                   # 1 word
         /\w+\n\s*\w+/g,                          # 2 words separated by an newline (escape sequence)
         RegExp("\\w+\n\\s*\w+", 'g'),            # 2 words separated by a newline (literal)
+        /\w+\s+\w+/g,                            # 2 words separated by some whitespace
         /\w+[^\w]+\w+/g,                         # 2 words separated by anything
         /\w+\n\s*\w+\n\s*\w+/g,                  # 3 words separated by newlines (escape sequence)
         RegExp("\\w+\n\\s*\\w+\n\\s*\\w+", 'g'), # 3 words separated by newlines (literal)
@@ -2237,6 +2238,33 @@ describe "TextBuffer", ->
       ranges.length = 0
       buffer.scanInRange /^\s*/gm, [[10, 0], [10, 0]], ({range}) -> ranges.push(range)
       expect(ranges).toEqual([[[10, 0], [10, 0]]])
+
+    it "handles multi-line patterns", ->
+      matchStrings = []
+
+      # The '\s' character class
+      buffer.scan /{\s+var/, ({matchText}) -> matchStrings.push(matchText)
+      expect(matchStrings).toEqual(['{\n  var'])
+
+      # A literal newline character
+      matchStrings.length = 0
+      buffer.scan RegExp("{\n  var"), ({matchText}) -> matchStrings.push(matchText)
+      expect(matchStrings).toEqual(['{\n  var'])
+
+      # A '\n' escape sequence
+      matchStrings.length = 0
+      buffer.scan /{\n  var/, ({matchText}) -> matchStrings.push(matchText)
+      expect(matchStrings).toEqual(['{\n  var'])
+
+      # A negated character class in the middle of the pattern
+      matchStrings.length = 0
+      buffer.scan /{[^a]  var/, ({matchText}) -> matchStrings.push(matchText)
+      expect(matchStrings).toEqual(['{\n  var'])
+
+      # A negated character class at the beginning of the pattern
+      matchStrings.length = 0
+      buffer.scan /[^a]  var/, ({matchText}) -> matchStrings.push(matchText)
+      expect(matchStrings).toEqual(['\n  var'])
 
   describe "::backwardsScanInRange(range, regex, fn)", ->
     beforeEach ->
