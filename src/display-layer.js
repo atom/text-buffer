@@ -331,6 +331,14 @@ class DisplayLayer {
       screenPosition = this.collapseHardTabs(screenPosition, tabCount, clipDirection)
     }
     const bufferPosition = this.translateScreenPositionWithSpatialIndex(screenPosition, clipDirection, skipSoftWrapIndentation)
+
+    if (global.atom && bufferPosition.row >= this.buffer.getLineCount()) {
+      global.atom.assert(false, 'Invalid translated buffer row', {
+        bufferPosition, bufferLineCount: this.buffer.getLineCount()
+      })
+      return this.buffer.getEndPosition()
+    }
+
     const columnDelta = this.getClipColumnDelta(bufferPosition, clipDirection)
     if (columnDelta !== 0) {
       return Point(bufferPosition.row, bufferPosition.column + columnDelta)
@@ -955,6 +963,18 @@ class DisplayLayer {
       oldScreenRowCount,
       new Array(insertedScreenLineLengths.length)
     )
+
+    if (global.atom && this.indexedBufferRowCount === this.buffer.getLineCount()) {
+      const lastScreenRow = this.getLastScreenRow()
+      const lastScreenColumn = this.lineLengthForScreenRow(lastScreenRow)
+      const translatedEndPosition = this.translateScreenPosition(Point(lastScreenRow, lastScreenColumn))
+      const expectedEndPosition = this.buffer.getEndPosition()
+      if (!translatedEndPosition.isEqual(expectedEndPosition)) {
+        global.atom.assert(false, 'Invalid spatial index state', {
+          lastScreenRow, lastScreenColumn, translatedEndPosition, expectedEndPosition,
+        })
+      }
+    }
 
     return {
       start: Point(startScreenRow, 0),
