@@ -1,6 +1,6 @@
 Point = require './point'
 
-MULTI_LINE_REGEX_REGEX = /\\r|\\n|\r|\n|^\[\^|[^\\]\[\^/
+MULTI_LINE_REGEX_REGEX = /\\s|\\r|\\n|\r|\n|^\[\^|[^\\]\[\^/
 
 module.exports =
   spliceArray: (array, start, removedCount, insertedItems=[]) ->
