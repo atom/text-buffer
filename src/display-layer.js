@@ -971,7 +971,7 @@ class DisplayLayer {
       const expectedEndPosition = this.buffer.getEndPosition()
       if (!translatedEndPosition.isEqual(expectedEndPosition)) {
         global.atom.assert(false, 'Invalid spatial index state', {
-          lastScreenRow, lastScreenColumn, translatedEndPosition, expectedEndPosition,
+          lastScreenRow, lastScreenColumn, translatedEndPosition, expectedEndPosition
         })
       }
     }
