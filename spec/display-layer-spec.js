@@ -528,6 +528,21 @@ describe('DisplayLayer', () => {
         }
       }
     })
+
+    it('correctly updates the index for edits fully contained within multi-line folds that appear on soft-wrapped line segments', () => {
+      const buffer = new TextBuffer({
+        text: 'premillennial alcoholism\nelse\t\nastraphobia stereotomy\nbananas\n'
+      })
+      const displayLayer = buffer.addDisplayLayer({
+        tabLength: 4,
+        invisibles: {eol: '¬'},
+        softWrapColumn: 10
+      })
+      displayLayer.foldBufferRange([[0, 16], [1, 4]])
+      displayLayer.foldBufferRange([[1, 5], [3, 3]])
+      buffer.setTextInRange([[2, 16], [2, 21]], ' \nunderlinen\ncopybook\t')
+      expect(displayLayer.getText()).toBe('premillenn\nial al⋯ \n⋯anas¬\n')
+    })
   })
 
   describe('soft wraps', () => {
