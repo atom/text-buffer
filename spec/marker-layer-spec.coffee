@@ -274,3 +274,27 @@ describe "MarkerLayer", ->
       # Markers states are updated regardless of whether they have an
       # ::onDidDestroy listener
       expect(marker2.isDestroyed()).toBe(true)
+
+  describe "trackDestructionInOnDidCreateMarkerCallbacks", ->
+    it "stores a stack trace when destroy is called during onDidCreateMarker callbacks", ->
+      layer1.onDidCreateMarker (m) -> m.destroy() if destroyInCreateCallback
+
+      layer1.trackDestructionInOnDidCreateMarkerCallbacks = true
+      destroyInCreateCallback = true
+      marker1 = layer1.markPosition([0, 0])
+      expect(marker1.isDestroyed()).toBe(true)
+      expect(marker1.destroyStackTrace).toBeDefined()
+
+      destroyInCreateCallback = false
+      marker2 = layer1.markPosition([0, 0])
+      expect(marker2.isDestroyed()).toBe(false)
+      expect(marker2.destroyStackTrace).toBeUndefined()
+      marker2.destroy()
+      expect(marker2.isDestroyed()).toBe(true)
+      expect(marker2.destroyStackTrace).toBeUndefined()
+
+      destroyInCreateCallback = true
+      layer1.trackDestructionInOnDidCreateMarkerCallbacks = false
+      marker3 = layer1.markPosition([0, 0])
+      expect(marker3.isDestroyed()).toBe(true)
+      expect(marker3.destroyStackTrace).toBeUndefined()
