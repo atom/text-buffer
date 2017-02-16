@@ -292,6 +292,12 @@ class Marker
   # Public: Destroys the marker, causing it to emit the 'destroyed' event.
   destroy: ->
     return if @isDestroyed()
+
+    if @trackDestruction
+      error = new Error
+      Error.captureStackTrace(error)
+      @destroyStackTrace = error.stack
+
     @layer.destroyMarker(this)
     @emitter.emit 'did-destroy'
     @emitter.clear()
