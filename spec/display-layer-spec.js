@@ -454,6 +454,80 @@ describe('DisplayLayer', () => {
       expect(displayLayer.getText()).toBe('a⋯i jkzvwx')
       expect(displayLayer.foldsIntersectingBufferRange([[0, 0], [Infinity, 0]]).length).toBe(1)
     })
+
+    it('accounts for pre-populated folds that end/start on the same row when populating an empty index', () => {
+      const buffer = new TextBuffer({
+        text: 'abc\ndef\nghi\njkl\nmno\npqr'
+      })
+      const foldsMarkerLayer = buffer.addMarkerLayer()
+      foldsMarkerLayer.markRange([[1, 2], [2, 1]])
+      foldsMarkerLayer.markRange([[2, 2], [3, 1]])
+      foldsMarkerLayer.markRange([[3, 2], [4, 1]])
+      foldsMarkerLayer.markRange([[4, 2], [5, 1]])
+      const displayLayer = buffer.addDisplayLayer({foldsMarkerLayer})
+
+      expect(displayLayer.indexedBufferRowCount).toBe(0)
+      displayLayer.foldBufferRange([[0, 2], [1, 1]])
+      expect(displayLayer.getText()).toBe('ab⋯e⋯h⋯k⋯n⋯qr')
+    })
+
+    it('accounts for pre-populated folds with intersecting ranges when populating an empty index', () => {
+      const buffer = new TextBuffer({
+        text: 'abc\ndef\nghi\njkl\nmno\npqr'
+      })
+      const foldsMarkerLayer = buffer.addMarkerLayer()
+      foldsMarkerLayer.markRange([[1, 2], [2, 2]])
+      foldsMarkerLayer.markRange([[2, 1], [3, 2]])
+      foldsMarkerLayer.markRange([[3, 1], [4, 2]])
+      foldsMarkerLayer.markRange([[4, 2], [5, 1]])
+      const displayLayer = buffer.addDisplayLayer({foldsMarkerLayer})
+
+      expect(displayLayer.indexedBufferRowCount).toBe(0)
+      displayLayer.foldBufferRange([[0, 2], [1, 1]])
+      expect(displayLayer.getText()).toBe('ab⋯e⋯⋯qr')
+    })
+
+    it('accounts for random pre-populated folds when populating an empty index', () => {
+      const now = Date.now()
+
+      for (let i = 0; i < 100; i++) {
+        let seed = now + i
+
+        try {
+          const random = new Random(seed)
+          const buffer = new TextBuffer({
+            text: buildRandomLines(random, 40)
+          })
+          const foldsMarkerLayer = buffer.addMarkerLayer({
+            maintainHistory: false,
+            persistent: true,
+            destroyInvalidatedMarkers: true
+          })
+          for (let i = 0, n = random(20); i < n; i++) {
+            foldsMarkerLayer.markRange(getRandomBufferRange(random, buffer))
+          }
+
+          const displayLayer = buffer.addDisplayLayer({foldsMarkerLayer})
+
+          const randomRange = getRandomBufferRange(random, buffer)
+
+          // In displayLayerCopy, our reference, we'll create a fold after fully populating the spatial index
+          const displayLayerCopy = displayLayer.copy()
+          displayLayerCopy.getText() // force a full index
+          expect(displayLayerCopy.indexedBufferRowCount).toBe(buffer.getLineCount())
+          displayLayerCopy.foldBufferRange(randomRange)
+
+          // In displayLayer, we'll create a fold before poulating the spatial index.
+          expect(displayLayer.indexedBufferRowCount).toBe(0)
+          displayLayer.foldBufferRange(randomRange)
+
+          expect(displayLayer.getText()).toBe(displayLayerCopy.getText())
+        } catch (error) {
+          console.log(`Failing Seed: ${seed}`)
+          throw error
+        }
+      }
+    })
   })
 
   describe('soft wraps', () => {

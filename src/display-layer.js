@@ -198,7 +198,9 @@ class DisplayLayer {
   foldBufferRange (bufferRange) {
     bufferRange = Range.fromObject(bufferRange)
     const containingFoldMarkers = this.foldsMarkerLayer.findMarkers({containsRange: bufferRange})
-    this.populateSpatialIndexIfNeeded(bufferRange.end.row + 1, Infinity)
+    if (containingFoldMarkers.length === 0) {
+      this.populateSpatialIndexIfNeeded(bufferRange.end.row + 1, Infinity)
+    }
     const foldId = this.foldsMarkerLayer.markRange(bufferRange, {invalidate: 'overlap', exclusive: true}).id
     if (containingFoldMarkers.length === 0) {
       const foldStartRow = bufferRange.start.row
@@ -1048,6 +1050,25 @@ class DisplayLayer {
     const foldMarkers = this.foldsMarkerLayer.findMarkers({
       intersectsRowRange: [startBufferRow, endBufferRow - 1]
     })
+
+    // If the given buffer range exceeds the indexed range, we need to ensure
+    // we consider any folds that intersect the combined row range of the
+    // initially-queried folds, since we couldn't use the index to expand the
+    // row range to account for these extra folds ahead of time.
+    if (endBufferRow >= this.indexedBufferRowCount) {
+      for (let i = 0; i < foldMarkers.length; i++) {
+        const marker = foldMarkers[i]
+        const nextMarker = foldMarkers[i + 1]
+        if (marker.getEndPosition().row >= endBufferRow &&
+            (!nextMarker || nextMarker.getEndPosition().row < marker.getEndPosition().row)) {
+          const intersectingMarkers = this.foldsMarkerLayer.findMarkers({
+            intersectsRow: marker.getEndPosition().row
+          })
+          endBufferRow = marker.getEndPosition().row + 1
+          foldMarkers.splice(i, foldMarkers.length - i, ...intersectingMarkers)
+        }
+      }
+    }
 
     for (let i = 0; i < foldMarkers.length; i++) {
       const foldStart = foldMarkers[i].getStartPosition()
