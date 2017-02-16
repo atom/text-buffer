@@ -779,6 +779,7 @@ class DisplayLayer {
 
     const insertedScreenLineLengths = []
     const insertedTabCounts = []
+    const currentScreenLineTabColumns = []
     let rightmostInsertedScreenPosition = Point(0, -1)
     let bufferRow = startBufferRow
     let screenRow = startScreenRow
@@ -793,11 +794,10 @@ class DisplayLayer {
       let bufferLine = this.buffer.lineForRow(bufferRow)
       if (bufferLine == null) break
       let bufferLineLength = bufferLine.length
-      let tabCount = 0
+      currentScreenLineTabColumns.length = 0
       let screenLineWidth = 0
       let lastWrapBoundaryUnexpandedScreenColumn = 0
       let lastWrapBoundaryExpandedScreenColumn = 0
-      let lastWrapBoundaryTabCount = -1
       let lastWrapBoundaryScreenLineWidth = 0
       let firstNonWhitespaceScreenColumn = -1
 
@@ -819,7 +819,6 @@ class DisplayLayer {
               this.isWrapBoundary(previousCharacter, character)) {
             lastWrapBoundaryUnexpandedScreenColumn = unexpandedScreenColumn
             lastWrapBoundaryExpandedScreenColumn = expandedScreenColumn
-            lastWrapBoundaryTabCount = tabCount
             lastWrapBoundaryScreenLineWidth = screenLineWidth
           }
         }
@@ -852,26 +851,45 @@ class DisplayLayer {
           const unexpandedWrapColumn = lastWrapBoundaryUnexpandedScreenColumn || unexpandedScreenColumn
           const expandedWrapColumn = lastWrapBoundaryExpandedScreenColumn || expandedScreenColumn
           const wrapWidth = lastWrapBoundaryScreenLineWidth || screenLineWidth
-          const wrapTabCount = lastWrapBoundaryTabCount >= 0 ? lastWrapBoundaryTabCount : tabCount
           this.spatialIndex.splice(
             Point(screenRow, unexpandedWrapColumn),
             Point.ZERO,
             Point(1, indentLength)
           )
-          insertedTabCounts.push(wrapTabCount)
-          tabCount -= wrapTabCount
+
           insertedScreenLineLengths.push(expandedWrapColumn)
           if (expandedWrapColumn > rightmostInsertedScreenPosition.column) {
             rightmostInsertedScreenPosition.row = screenRow
             rightmostInsertedScreenPosition.column = expandedWrapColumn
           }
           screenRow++
-          unexpandedScreenColumn = indentLength + (unexpandedScreenColumn - unexpandedWrapColumn)
-          expandedScreenColumn = indentLength + (expandedScreenColumn - expandedWrapColumn)
+
+          // To determine the expanded screen column following the wrap, we need
+          // to re-expand each tab following the wrap boundary, because tabs may
+          // take on different lengths due to starting at different screen columns.
+          let unexpandedScreenColumnAfterLastTab = indentLength
+          let expandedScreenColumnAfterLastTab = indentLength
+          let tabCountPrecedingWrap = 0
+          for (let i = 0; i < currentScreenLineTabColumns.length; i++) {
+            const tabColumn = currentScreenLineTabColumns[i]
+            if (tabColumn < unexpandedWrapColumn) {
+              tabCountPrecedingWrap++
+            } else {
+              const tabColumnAfterWrap = indentLength + tabColumn - unexpandedWrapColumn
+              expandedScreenColumnAfterLastTab += (tabColumnAfterWrap - unexpandedScreenColumnAfterLastTab)
+              expandedScreenColumnAfterLastTab += this.tabLength - (expandedScreenColumnAfterLastTab % this.tabLength)
+              unexpandedScreenColumnAfterLastTab = tabColumnAfterWrap + 1
+            }
+          }
+          insertedTabCounts.push(tabCountPrecedingWrap)
+          currentScreenLineTabColumns.splice(0, tabCountPrecedingWrap)
+
+          unexpandedScreenColumn = unexpandedScreenColumn - unexpandedWrapColumn + indentLength
+          expandedScreenColumn = expandedScreenColumnAfterLastTab + unexpandedScreenColumn - unexpandedScreenColumnAfterLastTab
           screenLineWidth = (indentLength * this.ratioForCharacter(' ')) + (screenLineWidth - wrapWidth)
+
           lastWrapBoundaryUnexpandedScreenColumn = 0
           lastWrapBoundaryExpandedScreenColumn = 0
-          lastWrapBoundaryTabCount = -1
           lastWrapBoundaryScreenLineWidth = 0
         }
 
@@ -894,7 +912,7 @@ class DisplayLayer {
           // If there is no fold at this position, check if we need to handle
           // a hard tab at this position and advance by a single buffer column.
           if (character === '\t') {
-            tabCount++
+            currentScreenLineTabColumns.push(unexpandedScreenColumn)
             const distanceToNextTabStop = this.tabLength - (expandedScreenColumn % this.tabLength)
             expandedScreenColumn += distanceToNextTabStop
             screenLineWidth += distanceToNextTabStop * this.ratioForCharacter(' ')
@@ -909,7 +927,7 @@ class DisplayLayer {
 
       expandedScreenColumn--
       insertedScreenLineLengths.push(expandedScreenColumn)
-      insertedTabCounts.push(tabCount)
+      insertedTabCounts.push(currentScreenLineTabColumns.length)
       if (expandedScreenColumn > rightmostInsertedScreenPosition.column) {
         rightmostInsertedScreenPosition.row = screenRow
         rightmostInsertedScreenPosition.column = expandedScreenColumn
