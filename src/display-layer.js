@@ -999,16 +999,13 @@ class DisplayLayer {
 
   findBoundaryPrecedingBufferRow (bufferRow) {
     while (true) {
+      if (bufferRow === 0) return 0
       let screenPosition = this.translateBufferPositionWithSpatialIndex(Point(bufferRow, 0), 'backward')
-      if (screenPosition.column === 0) {
-        return this.translateScreenPositionWithSpatialIndex(screenPosition, 'backward').row
+      let bufferPosition = this.translateScreenPositionWithSpatialIndex(Point(screenPosition.row, 0), 'backward', false)
+      if (screenPosition.column === 0 && bufferPosition.column === 0) {
+        return bufferPosition.row
       } else {
-        let bufferPosition = this.translateScreenPositionWithSpatialIndex(Point(screenPosition.row, 0), 'backward', false)
-        if (bufferPosition.column === 0) {
-          return bufferPosition.row
-        } else {
-          bufferRow = bufferPosition.row
-        }
+        bufferRow = bufferPosition.row
       }
     }
   }
