@@ -848,15 +848,15 @@ describe('DisplayLayer', () => {
 
     it('re-expands tabs on soft-wrapped lines', () => {
       const buffer = new TextBuffer({
-        text: 'ab cd\t   '
+        text: 'fah\t\t\tcodexelectric valence\t ble'
       })
 
       const displayLayer = buffer.addDisplayLayer({
         tabLength: 4,
-        softWrapColumn: 10
+        softWrapColumn: 12
       })
 
-      expect(JSON.stringify(displayLayer.getText())).toBe(JSON.stringify('ab \ncd     '))
+      displayLayer.getText()
       expect(displayLayer.indexedBufferRowCount).toBe(buffer.getLineCount())
       verifyLineLengths(displayLayer)
     })

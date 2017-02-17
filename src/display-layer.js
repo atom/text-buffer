@@ -879,10 +879,11 @@ class DisplayLayer {
               expandedScreenColumnAfterLastTab += (tabColumnAfterWrap - unexpandedScreenColumnAfterLastTab)
               expandedScreenColumnAfterLastTab += this.tabLength - (expandedScreenColumnAfterLastTab % this.tabLength)
               unexpandedScreenColumnAfterLastTab = tabColumnAfterWrap + 1
+              currentScreenLineTabColumns[i - tabCountPrecedingWrap] = tabColumnAfterWrap
             }
           }
           insertedTabCounts.push(tabCountPrecedingWrap)
-          currentScreenLineTabColumns.splice(0, tabCountPrecedingWrap)
+          currentScreenLineTabColumns.length -= tabCountPrecedingWrap
 
           unexpandedScreenColumn = unexpandedScreenColumn - unexpandedWrapColumn + indentLength
           expandedScreenColumn = expandedScreenColumnAfterLastTab + unexpandedScreenColumn - unexpandedScreenColumnAfterLastTab
