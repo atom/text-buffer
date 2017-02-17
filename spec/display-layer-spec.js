@@ -846,6 +846,21 @@ describe('DisplayLayer', () => {
       expect(JSON.stringify(displayLayer.getText())).toBe(JSON.stringify('abc \ndef     '))
     })
 
+    it('re-expands tabs on soft-wrapped lines', () => {
+      const buffer = new TextBuffer({
+        text: 'fah\t\t\tcodexelectric valence\t ble'
+      })
+
+      const displayLayer = buffer.addDisplayLayer({
+        tabLength: 4,
+        softWrapColumn: 12
+      })
+
+      displayLayer.getText()
+      expect(displayLayer.indexedBufferRowCount).toBe(buffer.getLineCount())
+      verifyLineLengths(displayLayer)
+    })
+
     it('correctly soft wraps lines when hard tabs are wider than the softWrapColumn', () => {
       const buffer = new TextBuffer({
         text: '\they'
