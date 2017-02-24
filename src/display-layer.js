@@ -985,18 +985,6 @@ class DisplayLayer {
       new Array(insertedScreenLineLengths.length)
     )
 
-    if (global.atom && this.indexedBufferRowCount === this.buffer.getLineCount()) {
-      const lastScreenRow = this.getLastScreenRow()
-      const lastScreenColumn = this.lineLengthForScreenRow(lastScreenRow)
-      const translatedEndPosition = this.translateScreenPosition(Point(lastScreenRow, lastScreenColumn))
-      const expectedEndPosition = this.buffer.getEndPosition()
-      if (!translatedEndPosition.isEqual(expectedEndPosition)) {
-        global.atom.assert(false, 'Invalid spatial index state', {
-          lastScreenRow, lastScreenColumn, translatedEndPosition, expectedEndPosition
-        })
-      }
-    }
-
     return {
       start: Point(startScreenRow, 0),
       oldExtent: Point(oldScreenRowCount, 0),
