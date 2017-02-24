@@ -2089,7 +2089,7 @@ describe "TextBuffer", ->
       it "calls the iterator with the first match for the given regex in the given range", ->
         matches = []
         ranges = []
-        buffer.scanInRange /cu(rr)ent/, [[4, 0], [6 ,44]], ({match, range}) ->
+        buffer.scanInRange /cu(rr)ent/, [[4, 0], [6, 44]], ({match, range}) ->
           matches.push(match)
           ranges.push(range)
 
@@ -2184,7 +2184,7 @@ describe "TextBuffer", ->
         ranges = []
         buffer.scanInRange /cu(rr)ent/g, [[4, 0], [6, 59]], ({range, stop}) ->
           ranges.push(range)
-          stop() if ranges.length == 2
+          stop() if ranges.length is 2
 
         expect(ranges.length).toBe 2
 
@@ -2421,7 +2421,7 @@ describe "TextBuffer", ->
         ranges = []
         buffer.backwardsScanInRange /cu(rr)ent/g, [[4, 0], [6, 59]], ({range, stop}) ->
           ranges.push(range)
-          stop() if ranges.length == 2
+          stop() if ranges.length is 2
 
         expect(ranges.length).toBe 2
         expect(ranges[0]).toEqual [[6, 34], [6, 41]]

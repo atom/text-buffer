@@ -242,7 +242,7 @@ class Range
   #
   # * `otherRange` A {Range} or range-compatible {Array}.
   coversSameRows: (other) ->
-    @start.row is other.start.row && @end.row is other.end.row
+    @start.row is other.start.row and @end.row is other.end.row
 
   # Public: Determines whether this range intersects with the argument.
   #

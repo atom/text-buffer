@@ -1536,7 +1536,7 @@ class TextBuffer
     @previousModifiedStatus = modifiedStatus
     @emitter.emit 'did-change-modified', modifiedStatus
 
-  logLines: (start = 0, end = @getLastRow())->
+  logLines: (start = 0, end = @getLastRow()) ->
     for row in [start..end]
       line = @lineForRow(row)
       console.log row, line, line.length
