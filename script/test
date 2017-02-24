@@ -32,9 +32,13 @@ if (argv.rebuild) {
   childProcess.spawnSync('npm', ['rebuild'], {env, stdio: 'inherit'})
 }
 
+normalizeCommand = (command) => {
+  return process.platform === 'win32' ? path.normalize(command + '.cmd') : command
+}
+
 // Run tests
 if (argv.interactive) {
-  childProcess.spawnSync('./node_modules/.bin/electron', ['spec/support/runner', 'spec/**/*-spec.*'], {stdio: 'inherit', cwd: path.join(__dirname, '..')})
+  childProcess.spawnSync(normalizeCommand('./node_modules/.bin/electron'), ['spec/support/runner', 'spec/**/*-spec.*'], {stdio: 'inherit', cwd: path.join(__dirname, '..')})
 } else {
-  process.exit(childProcess.spawnSync('./node_modules/.bin/jasmine', ['--captureExceptions', '--forceexit', '--stop-on-failure=true'], {stdio: 'inherit'}))
+  process.exit(childProcess.spawnSync(normalizeCommand('./node_modules/.bin/jasmine'), ['--captureExceptions', '--forceexit', '--stop-on-failure=true'], {stdio: 'inherit'}))
 }
