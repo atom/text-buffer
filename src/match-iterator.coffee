@@ -209,7 +209,7 @@ class BackwardsMultiLine
       # If the match occurs at the beginning of the chunk, expand the chunk
       # in case the match could have started earlier.
       break if matchStartIndex is @chunkStartIndex and @chunkStartIndex > @startIndex
-      break if matchStartIndex > @chunkEndIndex or (matchStartIndex == @endIndex and @rangeEndColumn > 0)
+      break if matchStartIndex > @chunkEndIndex or (matchStartIndex is @endIndex and @rangeEndColumn > 0)
 
       if matchEndIndex > @chunkEndIndex
         @regex.lastIndex = 0
