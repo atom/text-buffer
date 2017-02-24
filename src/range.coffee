@@ -242,7 +242,7 @@ class Range
   #
   # * `otherRange` A {Range} or range-compatible {Array}.
   coversSameRows: (other) ->
-    @start.row == other.start.row && @end.row == other.end.row
+    @start.row is other.start.row && @end.row is other.end.row
 
   # Public: Determines whether this range intersects with the argument.
   #
@@ -305,7 +305,7 @@ class Range
 
   toDelta: ->
     rows = @end.row - @start.row
-    if rows == 0
+    if rows is 0
       columns = @end.column - @start.column
     else
       columns = @end.column

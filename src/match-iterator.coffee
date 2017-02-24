@@ -208,7 +208,7 @@ class BackwardsMultiLine
 
       # If the match occurs at the beginning of the chunk, expand the chunk
       # in case the match could have started earlier.
-      break if matchStartIndex == @chunkStartIndex and @chunkStartIndex > @startIndex
+      break if matchStartIndex is @chunkStartIndex and @chunkStartIndex > @startIndex
       break if matchStartIndex > @chunkEndIndex or (matchStartIndex == @endIndex and @rangeEndColumn > 0)
 
       if matchEndIndex > @chunkEndIndex

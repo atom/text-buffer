@@ -186,7 +186,7 @@ class Marker
     else
       if position.isLessThan(oldRange.end)
         params.range = new Range(position, oldRange.end)
-       else
+      else
         params.reversed = true
         params.range = new Range(oldRange.end, position)
 
