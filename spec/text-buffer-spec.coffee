@@ -1237,7 +1237,7 @@ describe "TextBuffer", ->
       buffer?.destroy()
 
     it "does not notify ::onDidChange observers when the file is written via TextBuffer::save", (done) ->
-      buffer.insert([0,0], "HELLO!")
+      buffer.insert([0, 0], "HELLO!")
       changeHandler = jasmine.createSpy("buffer changed")
       buffer.onDidChange changeHandler
       buffer.save()
@@ -1374,14 +1374,14 @@ describe "TextBuffer", ->
         buffer.onDidChangeModified modifiedHandler
 
         expect(buffer.isModified()).toBeFalsy()
-        buffer.insert([0,0], "hi")
+        buffer.insert([0, 0], "hi")
         expect(buffer.isModified()).toBe true
 
       beforeEach (done) ->
         expect(modifiedHandler).toHaveBeenCalledWith(true)
 
         modifiedHandler.calls.reset()
-        buffer.insert([0,2], "ho")
+        buffer.insert([0, 2], "ho")
         setTimeout(->
           expect(modifiedHandler).not.toHaveBeenCalled()
           done()
@@ -1401,7 +1401,7 @@ describe "TextBuffer", ->
         modifiedHandler = jasmine.createSpy("modifiedHandler").and.callFake ->
           doneFunc()
         buffer.onDidChangeModified modifiedHandler
-        buffer.insert([0,0], "hi")
+        buffer.insert([0, 0], "hi")
 
       it "reports the modified status changing to false", (done) ->
         expect(buffer.isModified()).toBe true
@@ -1424,7 +1424,7 @@ describe "TextBuffer", ->
         modifiedHandler = jasmine.createSpy("modifiedHandler").and.callFake ->
           doneFunc()
         buffer.onDidChangeModified modifiedHandler
-        buffer.insert([0,0], "hi")
+        buffer.insert([0, 0], "hi")
 
       it "reports the modified status changing to false after a modified buffer is reloaded", ->
         expect(buffer.isModified()).toBe true
@@ -1458,7 +1458,7 @@ describe "TextBuffer", ->
         modifiedHandler = jasmine.createSpy("modifiedHandler").and.callFake ->
           doneFunc()
         buffer.onDidChangeModified modifiedHandler
-        buffer.insert([0,0], "hi")
+        buffer.insert([0, 0], "hi")
 
       it "reports the modified status changing to false", (done) ->
         expect(buffer.isModified()).toBe true
@@ -1653,7 +1653,7 @@ describe "TextBuffer", ->
     describe "when the buffer contains newlines", ->
       it "changes the entire contents of the buffer and emits a change event", ->
         lastRow = buffer.getLastRow()
-        expectedPreRange = [[0,0], [lastRow, buffer.lineForRow(lastRow).length]]
+        expectedPreRange = [[0, 0], [lastRow, buffer.lineForRow(lastRow).length]]
         changeHandler = jasmine.createSpy('changeHandler')
         buffer.onDidChange changeHandler
 
@@ -1672,7 +1672,7 @@ describe "TextBuffer", ->
       it "changes the entire contents of the buffer", ->
         buffer = new TextBuffer("first\r\nlast")
         lastRow = buffer.getLastRow()
-        expectedPreRange = [[0,0], [lastRow, buffer.lineForRow(lastRow).length]]
+        expectedPreRange = [[0, 0], [lastRow, buffer.lineForRow(lastRow).length]]
         changeHandler = jasmine.createSpy('changeHandler')
         buffer.onDidChange changeHandler
 
@@ -1691,7 +1691,7 @@ describe "TextBuffer", ->
       it "changes the entire contents of the buffer", ->
         buffer = new TextBuffer("first\rlast")
         lastRow = buffer.getLastRow()
-        expectedPreRange = [[0,0], [lastRow, buffer.lineForRow(lastRow).length]]
+        expectedPreRange = [[0, 0], [lastRow, buffer.lineForRow(lastRow).length]]
         changeHandler = jasmine.createSpy('changeHandler')
         buffer.onDidChange changeHandler
 
@@ -2002,26 +2002,26 @@ describe "TextBuffer", ->
 
     describe "when range is empty", ->
       it "returns an empty string", ->
-        range = [[1,1], [1,1]]
+        range = [[1, 1], [1, 1]]
         expect(buffer.getTextInRange(range)).toBe ""
 
     describe "when range spans one line", ->
       it "returns characters in range", ->
-        range = [[2,8], [2,13]]
+        range = [[2, 8], [2, 13]]
         expect(buffer.getTextInRange(range)).toBe "items"
 
         lineLength = buffer.lineForRow(2).length
-        range = [[2,0], [2,lineLength]]
+        range = [[2, 0], [2, lineLength]]
         expect(buffer.getTextInRange(range)).toBe "    if (items.length <= 1) return items;"
 
     describe "when range spans multiple lines", ->
       it "returns characters in range (including newlines)", ->
         lineLength = buffer.lineForRow(2).length
-        range = [[2,0], [3,0]]
+        range = [[2, 0], [3, 0]]
         expect(buffer.getTextInRange(range)).toBe "    if (items.length <= 1) return items;\n"
 
         lineLength = buffer.lineForRow(2).length
-        range = [[2,10], [4,10]]
+        range = [[2, 10], [4, 10]]
         expect(buffer.getTextInRange(range)).toBe "ems.length <= 1) return items;\n    var pivot = items.shift(), current, left = [], right = [];\n    while("
 
     describe "when the range starts before the start of the buffer", ->
@@ -2081,7 +2081,7 @@ describe "TextBuffer", ->
     describe "when given a regex with a ignore case flag", ->
       it "does a case-insensitive search", ->
         matches = []
-        buffer.scanInRange /cuRRent/i, [[0,0], [12,0]], ({match, range}) ->
+        buffer.scanInRange /cuRRent/i, [[0, 0], [12, 0]], ({match, range}) ->
           matches.push(match)
         expect(matches.length).toBe 1
 
@@ -2089,7 +2089,7 @@ describe "TextBuffer", ->
       it "calls the iterator with the first match for the given regex in the given range", ->
         matches = []
         ranges = []
-        buffer.scanInRange /cu(rr)ent/, [[4,0], [6,44]], ({match, range}) ->
+        buffer.scanInRange /cu(rr)ent/, [[4, 0], [6, 44]], ({match, range}) ->
           matches.push(match)
           ranges.push(range)
 
@@ -2098,13 +2098,13 @@ describe "TextBuffer", ->
 
         expect(matches[0][0]).toBe 'current'
         expect(matches[0][1]).toBe 'rr'
-        expect(ranges[0]).toEqual [[5,6], [5,13]]
+        expect(ranges[0]).toEqual [[5, 6], [5, 13]]
 
     describe "when given a regex with a global flag", ->
       it "calls the iterator with each match for the given regex in the given range", ->
         matches = []
         ranges = []
-        buffer.scanInRange /cu(rr)ent/g, [[4,0], [6,59]], ({match, range}) ->
+        buffer.scanInRange /cu(rr)ent/g, [[4, 0], [6, 59]], ({match, range}) ->
           matches.push(match)
           ranges.push(range)
 
@@ -2113,22 +2113,22 @@ describe "TextBuffer", ->
 
         expect(matches[0][0]).toBe 'current'
         expect(matches[0][1]).toBe 'rr'
-        expect(ranges[0]).toEqual [[5,6], [5,13]]
+        expect(ranges[0]).toEqual [[5, 6], [5, 13]]
 
         expect(matches[1][0]).toBe 'current'
         expect(matches[1][1]).toBe 'rr'
-        expect(ranges[1]).toEqual [[6,6], [6,13]]
+        expect(ranges[1]).toEqual [[6, 6], [6, 13]]
 
         expect(matches[2][0]).toBe 'current'
         expect(matches[2][1]).toBe 'rr'
-        expect(ranges[2]).toEqual [[6,34], [6,41]]
+        expect(ranges[2]).toEqual [[6, 34], [6, 41]]
 
     describe "when the last regex match exceeds the end of the range", ->
       describe "when the portion of the match within the range also matches the regex", ->
         it "calls the iterator with the truncated match", ->
           matches = []
           ranges = []
-          buffer.scanInRange /cu(r*)/g, [[4,0], [6,9]], ({match, range}) ->
+          buffer.scanInRange /cu(r*)/g, [[4, 0], [6, 9]], ({match, range}) ->
             matches.push(match)
             ranges.push(range)
 
@@ -2137,17 +2137,17 @@ describe "TextBuffer", ->
 
           expect(matches[0][0]).toBe 'curr'
           expect(matches[0][1]).toBe 'rr'
-          expect(ranges[0]).toEqual [[5,6], [5,10]]
+          expect(ranges[0]).toEqual [[5, 6], [5, 10]]
 
           expect(matches[1][0]).toBe 'cur'
           expect(matches[1][1]).toBe 'r'
-          expect(ranges[1]).toEqual [[6,6], [6,9]]
+          expect(ranges[1]).toEqual [[6, 6], [6, 9]]
 
       describe "when the portion of the match within the range does not matches the regex", ->
         it "does not call the iterator with the truncated match", ->
           matches = []
           ranges = []
-          buffer.scanInRange /cu(r*)e/g, [[4,0], [6,9]], ({match, range}) ->
+          buffer.scanInRange /cu(r*)e/g, [[4, 0], [6, 9]], ({match, range}) ->
             matches.push(match)
             ranges.push(range)
 
@@ -2156,24 +2156,24 @@ describe "TextBuffer", ->
 
           expect(matches[0][0]).toBe 'curre'
           expect(matches[0][1]).toBe 'rr'
-          expect(ranges[0]).toEqual [[5,6], [5,11]]
+          expect(ranges[0]).toEqual [[5, 6], [5, 11]]
 
     describe "when the iterator calls the 'replace' control function with a replacement string", ->
       it "replaces each occurrence of the regex match with the string", ->
         ranges = []
-        buffer.scanInRange /cu(rr)ent/g, [[4,0], [6,59]], ({range, replace}) ->
+        buffer.scanInRange /cu(rr)ent/g, [[4, 0], [6, 59]], ({range, replace}) ->
           ranges.push(range)
           replace("foo")
 
-        expect(ranges[0]).toEqual [[5,6], [5,13]]
-        expect(ranges[1]).toEqual [[6,6], [6,13]]
-        expect(ranges[2]).toEqual [[6,30], [6,37]]
+        expect(ranges[0]).toEqual [[5, 6], [5, 13]]
+        expect(ranges[1]).toEqual [[6, 6], [6, 13]]
+        expect(ranges[2]).toEqual [[6, 30], [6, 37]]
 
         expect(buffer.lineForRow(5)).toBe '      foo = items.shift();'
         expect(buffer.lineForRow(6)).toBe '      foo < pivot ? left.push(foo) : right.push(current);'
 
       it "allows the match to be replaced with the empty string", ->
-        buffer.scanInRange /current/g, [[4,0], [6,59]], ({replace}) ->
+        buffer.scanInRange /current/g, [[4, 0], [6, 59]], ({replace}) ->
           replace("")
 
         expect(buffer.lineForRow(5)).toBe '       = items.shift();'
@@ -2182,9 +2182,9 @@ describe "TextBuffer", ->
     describe "when the iterator calls the 'stop' control function", ->
       it "stops the traversal", ->
         ranges = []
-        buffer.scanInRange /cu(rr)ent/g, [[4,0], [6,59]], ({range, stop}) ->
+        buffer.scanInRange /cu(rr)ent/g, [[4, 0], [6, 59]], ({range, stop}) ->
           ranges.push(range)
-          stop() if ranges.length == 2
+          stop() if ranges.length is 2
 
         expect(ranges.length).toBe 2
 
@@ -2307,7 +2307,7 @@ describe "TextBuffer", ->
       it "calls the iterator with the last match for the given regex in the given range", ->
         matches = []
         ranges = []
-        buffer.backwardsScanInRange /cu(rr)ent/, [[4,0], [6,44]], ({match, range}) ->
+        buffer.backwardsScanInRange /cu(rr)ent/, [[4, 0], [6, 44]], ({match, range}) ->
           matches.push(match)
           ranges.push(range)
 
@@ -2316,13 +2316,13 @@ describe "TextBuffer", ->
 
         expect(matches[0][0]).toBe 'current'
         expect(matches[0][1]).toBe 'rr'
-        expect(ranges[0]).toEqual [[6,34], [6,41]]
+        expect(ranges[0]).toEqual [[6, 34], [6, 41]]
 
     describe "when given a regex with a global flag", ->
       it "calls the iterator with each match for the given regex in the given range, starting with the last match", ->
         matches = []
         ranges = []
-        buffer.backwardsScanInRange /cu(rr)ent/g, [[4,0], [6,59]], ({match, range}) ->
+        buffer.backwardsScanInRange /cu(rr)ent/g, [[4, 0], [6, 59]], ({match, range}) ->
           matches.push(match)
           ranges.push(range)
 
@@ -2331,21 +2331,21 @@ describe "TextBuffer", ->
 
         expect(matches[0][0]).toBe 'current'
         expect(matches[0][1]).toBe 'rr'
-        expect(ranges[0]).toEqual [[6,34], [6,41]]
+        expect(ranges[0]).toEqual [[6, 34], [6, 41]]
 
         expect(matches[1][0]).toBe 'current'
         expect(matches[1][1]).toBe 'rr'
-        expect(ranges[1]).toEqual [[6,6], [6,13]]
+        expect(ranges[1]).toEqual [[6, 6], [6, 13]]
 
         expect(matches[2][0]).toBe 'current'
         expect(matches[2][1]).toBe 'rr'
-        expect(ranges[2]).toEqual [[5,6], [5,13]]
+        expect(ranges[2]).toEqual [[5, 6], [5, 13]]
 
     describe "when the last regex match starts at the beginning of the range", ->
       it "calls the iterator with the match", ->
         matches = []
         ranges = []
-        buffer.scanInRange /quick/g, [[0,4], [2,0]], ({match, range}) ->
+        buffer.scanInRange /quick/g, [[0, 4], [2, 0]], ({match, range}) ->
           matches.push(match)
           ranges.push(range)
 
@@ -2353,11 +2353,11 @@ describe "TextBuffer", ->
         expect(ranges.length).toBe 1
 
         expect(matches[0][0]).toBe 'quick'
-        expect(ranges[0]).toEqual [[0,4], [0,9]]
+        expect(ranges[0]).toEqual [[0, 4], [0, 9]]
 
         matches = []
         ranges = []
-        buffer.scanInRange /^/, [[0,0], [2,0]], ({match, range}) ->
+        buffer.scanInRange /^/, [[0, 0], [2, 0]], ({match, range}) ->
           matches.push(match)
           ranges.push(range)
 
@@ -2365,14 +2365,14 @@ describe "TextBuffer", ->
         expect(ranges.length).toBe 1
 
         expect(matches[0][0]).toBe ""
-        expect(ranges[0]).toEqual [[0,0], [0,0]]
+        expect(ranges[0]).toEqual [[0, 0], [0, 0]]
 
     describe "when the first regex match exceeds the end of the range", ->
       describe "when the portion of the match within the range also matches the regex", ->
         it "calls the iterator with the truncated match", ->
           matches = []
           ranges = []
-          buffer.backwardsScanInRange /cu(r*)/g, [[4,0], [6,9]], ({match, range}) ->
+          buffer.backwardsScanInRange /cu(r*)/g, [[4, 0], [6, 9]], ({match, range}) ->
             matches.push(match)
             ranges.push(range)
 
@@ -2381,17 +2381,17 @@ describe "TextBuffer", ->
 
           expect(matches[0][0]).toBe 'cur'
           expect(matches[0][1]).toBe 'r'
-          expect(ranges[0]).toEqual [[6,6], [6,9]]
+          expect(ranges[0]).toEqual [[6, 6], [6, 9]]
 
           expect(matches[1][0]).toBe 'curr'
           expect(matches[1][1]).toBe 'rr'
-          expect(ranges[1]).toEqual [[5,6], [5,10]]
+          expect(ranges[1]).toEqual [[5, 6], [5, 10]]
 
       describe "when the portion of the match within the range does not matches the regex", ->
         it "does not call the iterator with the truncated match", ->
           matches = []
           ranges = []
-          buffer.backwardsScanInRange /cu(r*)e/g, [[4,0], [6,9]], ({match, range}) ->
+          buffer.backwardsScanInRange /cu(r*)e/g, [[4, 0], [6, 9]], ({match, range}) ->
             matches.push(match)
             ranges.push(range)
 
@@ -2400,18 +2400,18 @@ describe "TextBuffer", ->
 
           expect(matches[0][0]).toBe 'curre'
           expect(matches[0][1]).toBe 'rr'
-          expect(ranges[0]).toEqual [[5,6], [5,11]]
+          expect(ranges[0]).toEqual [[5, 6], [5, 11]]
 
     describe "when the iterator calls the 'replace' control function with a replacement string", ->
       it "replaces each occurrence of the regex match with the string", ->
         ranges = []
-        buffer.backwardsScanInRange /cu(rr)ent/g, [[4,0], [6,59]], ({range, replace}) ->
+        buffer.backwardsScanInRange /cu(rr)ent/g, [[4, 0], [6, 59]], ({range, replace}) ->
           ranges.push(range)
-          replace("foo") unless range.start.isEqual([6,6])
+          replace("foo") unless range.start.isEqual([6, 6])
 
-        expect(ranges[0]).toEqual [[6,34], [6,41]]
-        expect(ranges[1]).toEqual [[6,6], [6,13]]
-        expect(ranges[2]).toEqual [[5,6], [5,13]]
+        expect(ranges[0]).toEqual [[6, 34], [6, 41]]
+        expect(ranges[1]).toEqual [[6, 6], [6, 13]]
+        expect(ranges[2]).toEqual [[5, 6], [5, 13]]
 
         expect(buffer.lineForRow(5)).toBe '      foo = items.shift();'
         expect(buffer.lineForRow(6)).toBe '      current < pivot ? left.push(foo) : right.push(current);'
@@ -2419,13 +2419,13 @@ describe "TextBuffer", ->
     describe "when the iterator calls the 'stop' control function", ->
       it "stops the traversal", ->
         ranges = []
-        buffer.backwardsScanInRange /cu(rr)ent/g, [[4,0], [6,59]], ({range, stop}) ->
+        buffer.backwardsScanInRange /cu(rr)ent/g, [[4, 0], [6, 59]], ({range, stop}) ->
           ranges.push(range)
-          stop() if ranges.length == 2
+          stop() if ranges.length is 2
 
         expect(ranges.length).toBe 2
-        expect(ranges[0]).toEqual [[6,34], [6,41]]
-        expect(ranges[1]).toEqual [[6,6], [6,13]]
+        expect(ranges[0]).toEqual [[6, 34], [6, 41]]
+        expect(ranges[1]).toEqual [[6, 6], [6, 13]]
 
     describe "when called with a random range", ->
       it "returns the same results as ::scanInRange, but in the opposite order", ->
@@ -2741,7 +2741,7 @@ describe "TextBuffer", ->
       , delay)
 
     it "notifies observers after a delay passes following changes", ->
-        expect(didStopChangingCallback).toHaveBeenCalled()
+      expect(didStopChangingCallback).toHaveBeenCalled()
 
   describe "::append(text)", ->
     beforeEach (done) ->

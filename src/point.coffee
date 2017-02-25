@@ -40,7 +40,7 @@ class Point
       if Array.isArray(object)
         [row, column] = object
       else
-        { row, column } = object
+        {row, column} = object
 
       new Point(row, column)
 
@@ -142,7 +142,7 @@ class Point
   traverse: (other) ->
     other = Point.fromObject(other)
     row = @row + other.row
-    if other.row == 0
+    if other.row is 0
       column = @column + other.column
     else
       column = other.column
@@ -160,7 +160,7 @@ class Point
       new Point(@row - other.row, @column)
 
   splitAt: (column) ->
-    if @row == 0
+    if @row is 0
       rightColumn = @column - column
     else
       rightColumn = @column
@@ -199,7 +199,7 @@ class Point
   isEqual: (other) ->
     return false unless other
     other = Point.fromObject(other)
-    @row == other.row and @column == other.column
+    @row is other.row and @column is other.column
 
   # Public: Returns a {Boolean} indicating whether this point precedes the given
   # {Point} or point-compatible {Array}.

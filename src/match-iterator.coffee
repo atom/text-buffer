@@ -4,7 +4,7 @@ Range = require './range'
 class SingleLineSearchCallbackArgument
   lineTextOffset: 0
 
-  Object.defineProperty @::, 'range',
+  Object.defineProperty this.prototype, 'range',
     get: ->
       @computedRange ?= Range(
         Point(@row, @lineOffset + @match.index),
@@ -13,7 +13,7 @@ class SingleLineSearchCallbackArgument
 
     set: (@computedRange) ->
 
-  Object.defineProperty @::, 'lineText',
+  Object.defineProperty this.prototype, 'lineText',
     get: -> @buffer.lineForRow(@row)
 
   constructor: (@buffer, @row, @match, @lineOffset) ->
@@ -101,7 +101,7 @@ class BackwardsSingleLine
 class MultiLineSearchCallbackArgument
   lineTextOffset: 0
 
-  Object.defineProperty @::, 'range',
+  Object.defineProperty this.prototype, 'range',
     get: ->
       return @computedRange if @computedRange?
 
@@ -116,7 +116,7 @@ class MultiLineSearchCallbackArgument
     set: (range) ->
       @computedRange = range
 
-  Object.defineProperty @::, 'lineText',
+  Object.defineProperty this.prototype, 'lineText',
     get: -> @buffer.lineForRow(@range.start.row)
 
   constructor: (@buffer, @match, @lengthDelta) ->
@@ -208,8 +208,8 @@ class BackwardsMultiLine
 
       # If the match occurs at the beginning of the chunk, expand the chunk
       # in case the match could have started earlier.
-      break if matchStartIndex == @chunkStartIndex and @chunkStartIndex > @startIndex
-      break if matchStartIndex > @chunkEndIndex or (matchStartIndex == @endIndex and @rangeEndColumn > 0)
+      break if matchStartIndex is @chunkStartIndex and @chunkStartIndex > @startIndex
+      break if matchStartIndex > @chunkEndIndex or (matchStartIndex is @endIndex and @rangeEndColumn > 0)
 
       if matchEndIndex > @chunkEndIndex
         @regex.lastIndex = 0
