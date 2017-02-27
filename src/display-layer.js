@@ -615,6 +615,10 @@ class DisplayLayer {
     return this.rightmostScreenPosition
   }
 
+  getScreenLine (screenRow) {
+    return this.cachedScreenLines[screenRow] || this.getScreenLines(screenRow, screenRow + 1)[0]
+  }
+
   getScreenLines (screenStartRow = 0, screenEndRow = this.getScreenLineCount()) {
     return this.screenLineBuilder.buildScreenLines(screenStartRow, screenEndRow)
   }
