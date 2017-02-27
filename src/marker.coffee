@@ -5,7 +5,7 @@ Point = require './point'
 Range = require './range'
 Grim = require 'grim'
 
-OptionKeys = new Set(['reversed', 'tailed', 'invalidate', 'exclusive'])
+OptionKeys = new Set(['reversed', 'tailed', 'invalidate', 'exclusive', 'suppressLayerUpdateEvent'])
 
 # Private: Represents a buffer annotation that remains logically stationary
 # even as the buffer changes. This is used to represent cursors, folds, snippet

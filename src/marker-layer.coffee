@@ -374,7 +374,7 @@ class MarkerLayer
     marker = @addMarker(id, range, params)
     @delegate.markerCreated(this, marker)
     @delegate.markersUpdated(this)
-    @scheduleUpdateEvent()
+    @scheduleUpdateEvent() unless params.suppressLayerUpdateEvent
     marker.trackDestruction = @trackDestructionInOnDidCreateMarkerCallbacks ? false
     @emitter.emit 'did-create-marker', marker if @emitCreateMarkerEvents
     marker.trackDestruction = false
