@@ -147,6 +147,7 @@ describe "DisplayMarkerLayer", ->
     buffer = new TextBuffer(text: 'hello world')
     displayLayer = buffer.addDisplayLayer(tabLength: 4)
     markerLayer = displayLayer.addMarkerLayer()
+    marker = null
 
     updateEventCount = 0
     markerLayer.onDidUpdate ->
@@ -160,7 +161,8 @@ describe "DisplayMarkerLayer", ->
       else if updateEventCount is 4
         done()
 
-    marker = markerLayer.markScreenRange([[0, 4], [1, 4]])
+    buffer.transact ->
+      marker = markerLayer.markScreenRange([[0, 4], [1, 4]])
 
   it "allows markers to be copied", ->
     buffer = new TextBuffer(text: '\ta\tbc\tdef\tg\n\th')

@@ -176,24 +176,34 @@ describe "MarkerLayer", ->
       expect(layer2.findMarkers(containsPoint: [0, 4])).toEqual [layer2Marker]
 
   describe "::onDidUpdate", ->
-    it "notifies observers asynchronously when markers are created, updated, or destroyed", (done) ->
+    it "notifies observers at the end of the outermost transaction when markers are created, updated, or destroyed", ->
+      [marker1, marker2] = []
+
       updateCount = 0
       layer1.onDidUpdate ->
         updateCount++
         if updateCount is 1
-          marker1.setRange([[1, 2], [3, 4]])
-          marker2.setRange([[4, 5], [6, 7]])
+          buffer.transact ->
+            marker1.setRange([[1, 2], [3, 4]])
+            marker2.setRange([[4, 5], [6, 7]])
         else if updateCount is 2
-          buffer.insert([0, 1], "xxx")
-          buffer.insert([0, 1], "yyy")
+          buffer.transact ->
+            buffer.insert([0, 1], "xxx")
+            buffer.insert([0, 1], "yyy")
         else if updateCount is 3
           marker1.destroy()
           marker2.destroy()
-        else if updateCount is 4
-          done()
 
-      marker1 = layer1.markRange([[0, 2], [0, 4]])
-      marker2 = layer1.markRange([[0, 6], [0, 8]])
+      buffer.transact ->
+        buffer.transact ->
+          marker1 = layer1.markRange([[0, 2], [0, 4]])
+          marker2 = layer1.markRange([[0, 6], [0, 8]])
+
+      expect(updateCount).toBe(4)
+
+      # update events happen immediately when there is no parent transaction
+      layer1.markRange([[0, 2], [0, 4]])
+      expect(updateCount).toBe(5)
 
   describe "::clear()", ->
     it "destroys all of the layer's markers", (done) ->
