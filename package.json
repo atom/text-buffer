@@ -8,7 +8,7 @@
     "atomdoc": "grunt shell:update-atomdoc atomdoc",
     "clean": "grunt clean",
     "compile": "coffee --no-header --output lib --compile src && cp src/*.js lib/",
-    "lint": "coffeelint -r src spec && standard --fix src/**/*.js spec/**/*.js benchmarks/**/*.js",
+    "lint": "coffeelint -r src spec && standard src/**/*.js spec/**/*.js benchmarks/**/*.js",
     "test": "node script/test",
     "ci": "npm run compile && npm run lint && npm run test && npm run bench",
     "bench": "node benchmarks/index"
@@ -52,5 +52,10 @@
     "pathwatcher": "6.7.1",
     "serializable": "^1.0.3",
     "underscore-plus": "^1.0.0"
+  },
+  "standard": {
+    "ignore": [
+      "/spec/fixtures/"
+    ]
   }
 }
