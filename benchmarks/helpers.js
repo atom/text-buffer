@@ -9,7 +9,6 @@ exports.getRandomText = function (sizeInKB) {
   let length = 0
   let lines = []
   let currentLine = ''
-  let lastLineStartIndex = 0
   let goalLineLength = random(100)
 
   for (;;) {
@@ -34,7 +33,7 @@ exports.getRandomText = function (sizeInKB) {
         length++
         currentLine += ' '
       }
-      word = WORDS[random(WORDS.length)]
+      let word = WORDS[random(WORDS.length)]
       length += word.length
       currentLine += word
     }
