@@ -72,6 +72,7 @@ class TextBuffer
     @displayLayers = {}
     @markerLayers = params?.markerLayers ? {}
     @markerLayers[@defaultMarkerLayer.id] = @defaultMarkerLayer
+    @markerLayersWithPendingUpdateEvents = new Set()
     @nextMarkerId = params?.nextMarkerId ? 1
 
     @setEncoding(params?.encoding)
@@ -1501,6 +1502,14 @@ class TextBuffer
       @markerLayers[markerLayerId]?.restoreFromSnapshot(layerSnapshot)
 
   emitMarkerChangeEvents: (snapshot) ->
+    while @markerLayersWithPendingUpdateEvents.size > 0
+      updatedMarkerLayers = Array.from(@markerLayersWithPendingUpdateEvents)
+      @markerLayersWithPendingUpdateEvents.clear()
+      for markerLayer in updatedMarkerLayers
+        markerLayer.emitUpdateEvent()
+        if markerLayer is @defaultMarkerLayer
+          @emitter.emit 'did-update-markers'
+
     for markerLayerId, markerLayer of @markerLayers
       markerLayer.emitChangeEvents(snapshot?[markerLayerId])
 
@@ -1590,7 +1599,11 @@ class TextBuffer
       @emitter.emit 'did-create-marker', marker
 
   markersUpdated: (layer) ->
-    if layer is @defaultMarkerLayer
-      @emitter.emit 'did-update-markers'
+    if @transactCallDepth is 0
+      layer.emitUpdateEvent()
+      if layer is @defaultMarkerLayer
+        @emitter.emit 'did-update-markers'
+    else
+      @markerLayersWithPendingUpdateEvents.add(layer)
 
   getNextMarkerId: -> @nextMarkerId++

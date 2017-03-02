@@ -71,7 +71,7 @@ class MarkerLayer
     @markersById = {}
     @index = new MarkerIndex
     @displayMarkerLayers.forEach (layer) -> layer.didClearBufferMarkerLayer()
-    @scheduleUpdateEvent()
+    @delegate.markersUpdated(this)
 
   # Public: Determine whether this layer has been destroyed.
   isDestroyed: ->
@@ -272,7 +272,7 @@ class MarkerLayer
           marker.destroy()
         else
           marker.valid = false
-    @scheduleUpdateEvent()
+    @delegate.markersUpdated(this)
 
   restoreFromSnapshot: (snapshots) ->
     return unless snapshots?
@@ -305,7 +305,6 @@ class MarkerLayer
     @markersWithChangeListeners.forEach (marker) ->
       unless marker.isDestroyed() # event handlers could destroy markers
         marker.emitChangeEvent(snapshot?[marker.id]?.range, true, false)
-    @delegate.markersUpdated(this)
 
   serialize: ->
     ranges = @index.dump()
@@ -332,7 +331,6 @@ class MarkerLayer
 
   markerUpdated: ->
     @delegate.markersUpdated(this)
-    @scheduleUpdateEvent()
 
   destroyMarker: (marker) ->
     if @markersById.hasOwnProperty(marker.id)
@@ -342,7 +340,6 @@ class MarkerLayer
       @markersWithDestroyListeners.delete(marker)
       @displayMarkerLayers.forEach (displayMarkerLayer) -> displayMarkerLayer.destroyMarker(marker.id)
       @delegate.markersUpdated(this)
-      @scheduleUpdateEvent()
 
   hasMarker: (id) ->
     not @destroyed and @index.has(id)
@@ -374,7 +371,6 @@ class MarkerLayer
     marker = @addMarker(id, range, params)
     @delegate.markerCreated(this, marker)
     @delegate.markersUpdated(this)
-    @scheduleUpdateEvent()
     marker.trackDestruction = @trackDestructionInOnDidCreateMarkerCallbacks ? false
     @emitter.emit 'did-create-marker', marker if @emitCreateMarkerEvents
     marker.trackDestruction = false
@@ -390,13 +386,8 @@ class MarkerLayer
     @index.insert(id, range.start, range.end)
     @markersById[id] = new Marker(id, this, range, params)
 
-  scheduleUpdateEvent: ->
-    unless @didUpdateEventScheduled
-      @didUpdateEventScheduled = true
-      process.nextTick =>
-        return if @destroyed
-        @didUpdateEventScheduled = false
-        @emitter.emit 'did-update'
+  emitUpdateEvent: ->
+    @emitter.emit('did-update')
 
 filterSet = (set1, set2) ->
   if set1
