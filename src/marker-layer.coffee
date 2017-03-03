@@ -272,7 +272,6 @@ class MarkerLayer
           marker.destroy()
         else
           marker.valid = false
-    @delegate.markersUpdated(this)
 
   restoreFromSnapshot: (snapshots) ->
     return unless snapshots?

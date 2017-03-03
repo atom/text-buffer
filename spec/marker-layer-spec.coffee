@@ -179,6 +179,9 @@ describe "MarkerLayer", ->
     it "notifies observers at the end of the outermost transaction when markers are created, updated, or destroyed", ->
       [marker1, marker2] = []
 
+      displayLayer = buffer.addDisplayLayer()
+      displayLayerDidChange = false
+
       updateCount = 0
       layer1.onDidUpdate ->
         updateCount++
@@ -193,6 +196,8 @@ describe "MarkerLayer", ->
         else if updateCount is 3
           marker1.destroy()
           marker2.destroy()
+        else if updateCount is 6
+          expect(displayLayerDidChange).toBe(true, 'Display layer was updated after marker layer.')
 
       buffer.transact ->
         buffer.transact ->
@@ -204,6 +209,12 @@ describe "MarkerLayer", ->
       # update events happen immediately when there is no parent transaction
       layer1.markRange([[0, 2], [0, 4]])
       expect(updateCount).toBe(5)
+
+      # update events happen after updating display layers when there is no parent transaction.
+      displayLayer.onDidChangeSync ->
+        displayLayerDidChange = true
+      buffer.undo()
+      expect(updateCount).toBe(6)
 
   describe "::clear()", ->
     it "destroys all of the layer's markers", (done) ->

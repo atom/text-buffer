@@ -737,19 +737,25 @@ class TextBuffer
     newRange
 
   emitDidChangeEvent: (changeEvent) ->
-    # 1. Emit the change event on all the registered text decoration layers.
+    # Emit the change event on all the registered text decoration layers.
     @textDecorationLayers.forEach (textDecorationLayer) ->
       textDecorationLayer.bufferDidChange(changeEvent)
-    # 2. Emit the change event on all the registered display layers.
+    # Emit the change event on all the registered display layers.
     changeEventsByDisplayLayer = new Map()
     for id, displayLayer of @displayLayers
       event = displayLayer.bufferDidChange(changeEvent)
       changeEventsByDisplayLayer.set(displayLayer, event)
-    # 3. Emit a normal `did-change` event for other subscribers too.
+    # Emit a normal `did-change` event for other subscribers too.
     @emitter.emit 'did-change', changeEvent
-    # 4. Emit a `did-change-sync` event from all the registered display layers.
+    # Emit a `did-change-sync` event from all the registered display layers.
     changeEventsByDisplayLayer.forEach (event, displayLayer) ->
       displayLayer.emitDidChangeSyncEvent(event)
+    # Emit a `did-update` event from all the registered marker layers. If this
+    # happens inside a nested transaction, the event will be emitted at the end
+    # of the outermost transaction.
+    if @markerLayers?
+      for id, markerLayer of @markerLayers
+        @markersUpdated(markerLayer)
 
   # Public: Delete the text in the given range.
   #
