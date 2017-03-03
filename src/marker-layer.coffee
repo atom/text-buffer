@@ -337,7 +337,7 @@ class MarkerLayer
   destroyMarker: (marker) ->
     if @markersById.hasOwnProperty(marker.id)
       delete @markersById[marker.id]
-      @index.delete(marker.id)
+      @index.remove(marker.id)
       @markersWithChangeListeners.delete(marker)
       @markersWithDestroyListeners.delete(marker)
       @displayMarkerLayers.forEach (displayMarkerLayer) -> displayMarkerLayer.destroyMarker(marker.id)
@@ -363,7 +363,7 @@ class MarkerLayer
     {start, end} = Range.fromObject(range)
     start = @delegate.clipPosition(start)
     end = @delegate.clipPosition(end)
-    @index.delete(id)
+    @index.remove(id)
     @index.insert(id, start, end)
 
   setMarkerIsExclusive: (id, exclusive) ->
