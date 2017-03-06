@@ -13,6 +13,7 @@ MarkerLayer = require './marker-layer'
 MatchIterator = require './match-iterator'
 DisplayLayer = require './display-layer'
 {spliceArray, newlineRegex, normalizePatchChanges, regexIsSingleLine} = require './helpers'
+{traversal} = require './point-helpers'
 
 class TransactionAbortedError extends Error
   constructor: -> super
@@ -623,7 +624,14 @@ class TextBuffer
 
     oldRange = @clipRange(range)
     oldText = @getTextInRange(oldRange)
-    change = {newStart: oldRange.start, oldExtent: oldRange.getExtent(), oldText, newText, normalizeLineEndings}
+    change = {
+      oldStart: oldRange.start,
+      newStart: oldRange.start,
+      oldEnd: oldRange.end,
+      oldText,
+      newText,
+      normalizeLineEndings
+    }
     @applyChange(change, undo isnt 'skip')
 
   # Public: Insert text at the given position.
@@ -652,9 +660,10 @@ class TextBuffer
 
   # Applies a change to the buffer based on its old range and new text.
   applyChange: (change, pushToHistory = false) ->
-    {newStart, oldExtent, oldText, newText, normalizeLineEndings} = change
+    {newStart, oldStart, oldEnd, oldText, newText, normalizeLineEndings} = change
     @cachedText = null
 
+    oldExtent = traversal(oldEnd, oldStart)
     start = Point.fromObject(newStart)
     oldRange = Range(start, start.traverse(oldExtent))
     oldRange.freeze()
@@ -694,6 +703,7 @@ class TextBuffer
     newRange.freeze()
 
     if pushToHistory
+      change.oldExtent ?= oldExtent
       change.newExtent ?= newExtent
       @history?.pushChange(change)
 
