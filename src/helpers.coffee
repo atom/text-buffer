@@ -1,4 +1,5 @@
 Point = require './point'
+{traversal} = require './point-helpers'
 
 MULTI_LINE_REGEX_REGEX = /\\s|\\r|\\n|\r|\n|^\[\^|[^\\]\[\^/
 
@@ -28,8 +29,8 @@ module.exports =
   normalizePatchChanges: (changes) ->
     changes.map (change) -> {
       start: Point.fromObject(change.newStart)
-      oldExtent: Point.fromObject(change.oldExtent)
-      newExtent: Point.fromObject(change.newExtent)
+      oldExtent: traversal(change.oldEnd, change.oldStart)
+      newExtent: traversal(change.newEnd, change.newStart)
       newText: change.newText
     }
 
