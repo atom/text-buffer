@@ -50,9 +50,9 @@
     "diff": "^2.2.1",
     "emissary": "^1.0.0",
     "event-kit": "^2.1.0",
-    "fs-plus": "^2.0.0",
+    "fs-plus": "^3.0.0",
     "grim": "1.5.0",
-    "pathwatcher": "6.9.0",
+    "pathwatcher": "^7.0.0",
     "serializable": "^1.0.3",
     "underscore-plus": "^1.0.0"
   }
