@@ -26,7 +26,7 @@ describe "TextBuffer", ->
   describe "construction", ->
     it "can be constructed empty", ->
       buffer = new TextBuffer
-      expect(buffer.getLineCount()).toBe 1
+      expect(buffer.getLineCount()).toBe 2
       expect(buffer.getText()).toBe ''
       expect(buffer.lineForRow(0)).toBe ''
       expect(buffer.lineEndingForRow(0)).toBe ''
