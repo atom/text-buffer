@@ -2046,11 +2046,40 @@ describe "TextBuffer", ->
       expect(matches[0].range).toEqual [[3, 31], [3, 38]]
       expect(matches[0].lineText).toBe '    var pivot = items.shift(), current, left = [], right = [];'
       expect(matches[0].lineTextOffset).toBe 0
+      expect(matches[0].leadingContextLines.length).toBe 0
+      expect(matches[0].trailingContextLines.length).toBe 0
 
       expect(matches[1].matchText).toBe 'current'
       expect(matches[1].range).toEqual [[5, 6], [5, 13]]
       expect(matches[1].lineText).toBe '      current = items.shift();'
       expect(matches[1].lineTextOffset).toBe 0
+      expect(matches[1].leadingContextLines.length).toBe 0
+      expect(matches[1].trailingContextLines.length).toBe 0
+
+    it "calls the given function with the information about each match including context lines", ->
+      matches = []
+      buffer.scan /current/g, {leadingContextLineCount: 1, trailingContextLineCount: 2}, (match) -> matches.push(match)
+      expect(matches.length).toBe 5
+
+      expect(matches[0].matchText).toBe 'current'
+      expect(matches[0].range).toEqual [[3, 31], [3, 38]]
+      expect(matches[0].lineText).toBe '    var pivot = items.shift(), current, left = [], right = [];'
+      expect(matches[0].lineTextOffset).toBe 0
+      expect(matches[0].leadingContextLines.length).toBe 1
+      expect(matches[0].leadingContextLines[0]).toBe '    if (items.length <= 1) return items;'
+      expect(matches[0].trailingContextLines.length).toBe 2
+      expect(matches[0].trailingContextLines[0]).toBe '    while(items.length > 0) {'
+      expect(matches[0].trailingContextLines[1]).toBe '      current = items.shift();'
+
+      expect(matches[1].matchText).toBe 'current'
+      expect(matches[1].range).toEqual [[5, 6], [5, 13]]
+      expect(matches[1].lineText).toBe '      current = items.shift();'
+      expect(matches[1].lineTextOffset).toBe 0
+      expect(matches[1].leadingContextLines.length).toBe 1
+      expect(matches[1].leadingContextLines[0]).toBe '    while(items.length > 0) {'
+      expect(matches[1].trailingContextLines.length).toBe 2
+      expect(matches[1].trailingContextLines[0]).toBe '      current < pivot ? left.push(current) : right.push(current);'
+      expect(matches[1].trailingContextLines[1]).toBe '    }'
 
   describe "::backwardsScan(regex, fn)", ->
     beforeEach ->
@@ -2066,11 +2095,15 @@ describe "TextBuffer", ->
       expect(matches[0].range).toEqual [[6, 56], [6, 63]]
       expect(matches[0].lineText).toBe '      current < pivot ? left.push(current) : right.push(current);'
       expect(matches[0].lineTextOffset).toBe 0
+      expect(matches[0].leadingContextLines.length).toBe 0
+      expect(matches[0].trailingContextLines.length).toBe 0
 
       expect(matches[1].matchText).toBe 'current'
       expect(matches[1].range).toEqual [[6, 34], [6, 41]]
       expect(matches[1].lineText).toBe '      current < pivot ? left.push(current) : right.push(current);'
       expect(matches[1].lineTextOffset).toBe 0
+      expect(matches[1].leadingContextLines.length).toBe 0
+      expect(matches[1].trailingContextLines.length).toBe 0
 
   describe "::scanInRange(range, regex, fn)", ->
     beforeEach ->

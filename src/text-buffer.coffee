@@ -1099,6 +1099,11 @@ class TextBuffer
   # {::backwardsScan} to avoid tripping over your own changes.
   #
   # * `regex` A {RegExp} to search for.
+  # * `options` (optional) {Object}
+  #   * `leadingContextLineCount` {Number} default `0`; The number of lines before the
+  #      matched line to include in the results object.
+  #   * `trailingContextLineCount` {Number} default `0`; The number of lines after the
+  #      matched line to include in the results object.
   # * `iterator` A {Function} that's called on each match with an {Object}
   #   containing the following keys:
   #   * `match` The current regular expression match.
@@ -1106,13 +1111,24 @@ class TextBuffer
   #   * `range` The {Range} of the match.
   #   * `stop` Call this {Function} to terminate the scan.
   #   * `replace` Call this {Function} with a {String} to replace the match.
-  scan: (regex, iterator) ->
-    @scanInRange(regex, @getRange(), iterator)
+  #   * `leadingContextLines` An {Array} with `leadingContextLineCount` lines before the match.
+  #   * `trailingContextLines` An {Array} with `trailingContextLineCount` lines after the match.
+  scan: (regex, options={}, iterator) ->
+    if _.isFunction(options)
+      iterator = options
+      options = {}
+
+    @scanInRange(regex, @getRange(), options, iterator)
 
   # Public: Scan regular expression matches in the entire buffer in reverse
   # order, calling the given iterator function on each match.
   #
   # * `regex` A {RegExp} to search for.
+  # * `options` (optional) {Object}
+  #   * `leadingContextLineCount` {Number} default `0`; The number of lines before the
+  #      matched line to include in the results object.
+  #   * `trailingContextLineCount` {Number} default `0`; The number of lines after the
+  #      matched line to include in the results object.
   # * `iterator` A {Function} that's called on each match with an {Object}
   #   containing the following keys:
   #   * `match` The current regular expression match.
@@ -1120,14 +1136,25 @@ class TextBuffer
   #   * `range` The {Range} of the match.
   #   * `stop` Call this {Function} to terminate the scan.
   #   * `replace` Call this {Function} with a {String} to replace the match.
-  backwardsScan: (regex, iterator) ->
-    @backwardsScanInRange(regex, @getRange(), iterator)
+  #   * `leadingContextLines` An {Array} with `leadingContextLineCount` lines before the match.
+  #   * `trailingContextLines` An {Array} with `trailingContextLineCount` lines after the match.
+  backwardsScan: (regex, options={}, iterator) ->
+    if _.isFunction(options)
+      iterator = options
+      options = {}
+
+    @backwardsScanInRange(regex, @getRange(), options, iterator)
 
   # Public: Scan regular expression matches in a given range , calling the given
   # iterator function on each match.
   #
   # * `regex` A {RegExp} to search for.
   # * `range` A {Range} in which to search.
+  # * `options` (optional) {Object}
+  #   * `leadingContextLineCount` {Number} default `0`; The number of lines before the
+  #      matched line to include in the results object.
+  #   * `trailingContextLineCount` {Number} default `0`; The number of lines after the
+  #      matched line to include in the results object.
   # * `callback` A {Function} that's called on each match with an {Object}
   #   containing the following keys:
   #   * `match` The current regular expression match.
@@ -1135,7 +1162,14 @@ class TextBuffer
   #   * `range` The {Range} of the match.
   #   * `stop` Call this {Function} to terminate the scan.
   #   * `replace` Call this {Function} with a {String} to replace the match.
-  scanInRange: (regex, range, callback, reverse=false) ->
+  #   * `leadingContextLines` An {Array} with `leadingContextLineCount` lines before the match.
+  #   * `trailingContextLines` An {Array} with `trailingContextLineCount` lines after the match.
+  scanInRange: (regex, range, options={}, callback, reverse=false) ->
+    if _.isFunction(options)
+      reverse = callback
+      callback = options
+      options = {}
+
     range = @clipRange(range)
     global = regex.global
     flags = "gm"
@@ -1144,14 +1178,14 @@ class TextBuffer
 
     if regexIsSingleLine(regex)
       if reverse
-        iterator = new MatchIterator.BackwardsSingleLine(this, regex, range)
+        iterator = new MatchIterator.BackwardsSingleLine(this, regex, range, options)
       else
-        iterator = new MatchIterator.ForwardsSingleLine(this, regex, range)
+        iterator = new MatchIterator.ForwardsSingleLine(this, regex, range, options)
     else
       if reverse
-        iterator = new MatchIterator.BackwardsMultiLine(this, regex, range, @backwardsScanChunkSize)
+        iterator = new MatchIterator.BackwardsMultiLine(this, regex, range, @backwardsScanChunkSize, options)
       else
-        iterator = new MatchIterator.ForwardsMultiLine(this, regex, range)
+        iterator = new MatchIterator.ForwardsMultiLine(this, regex, range, options)
 
     iterator.iterate(callback, global)
 
@@ -1160,6 +1194,11 @@ class TextBuffer
   #
   # * `regex` A {RegExp} to search for.
   # * `range` A {Range} in which to search.
+  # * `options` (optional) {Object}
+  #   * `leadingContextLineCount` {Number} default `0`; The number of lines before the
+  #      matched line to include in the results object.
+  #   * `trailingContextLineCount` {Number} default `0`; The number of lines after the
+  #      matched line to include in the results object.
   # * `iterator` A {Function} that's called on each match with an {Object}
   #   containing the following keys:
   #   * `match` The current regular expression match.
@@ -1167,8 +1206,12 @@ class TextBuffer
   #   * `range` The {Range} of the match.
   #   * `stop` Call this {Function} to terminate the scan.
   #   * `replace` Call this {Function} with a {String} to replace the match.
-  backwardsScanInRange: (regex, range, iterator) ->
-    @scanInRange regex, range, iterator, true
+  backwardsScanInRange: (regex, range, options={}, iterator) ->
+    if _.isFunction(options)
+      iterator = options
+      options = {}
+
+    @scanInRange regex, range, options, iterator, true
 
   # Public: Replace all regular expression matches in the entire buffer.
   #
