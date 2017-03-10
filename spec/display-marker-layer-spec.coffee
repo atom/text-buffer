@@ -349,6 +349,30 @@ describe "DisplayMarkerLayer", ->
       displayLayer.foldBufferRange([[4, 0], [7, 0]])
       expect(markerLayer.findMarkers(class: 'a', intersectsScreenRange: [[5, 0], [10, 0]])).toEqual [marker2]
 
+    it "allows containsBufferPosition to be specified", ->
+      marker1 = markerLayer.markBufferRange([[5, 0], [5, 0]], class: 'a')
+      marker2 = markerLayer.markBufferRange([[8, 0], [8, 0]], class: 'a')
+      displayLayer.foldBufferRange([[4, 0], [7, 0]])
+      expect(markerLayer.findMarkers(class: 'a', containsBufferPosition: [8, 0])).toEqual [marker2]
+
+    it "allows containsScreenPosition to be specified", ->
+      marker1 = markerLayer.markBufferRange([[5, 0], [5, 0]], class: 'a')
+      marker2 = markerLayer.markBufferRange([[8, 0], [8, 0]], class: 'a')
+      displayLayer.foldBufferRange([[4, 0], [7, 0]])
+      expect(markerLayer.findMarkers(class: 'a', containsScreenPosition: [5, 0])).toEqual [marker2]
+
+    it "allows containsBufferRange to be specified", ->
+      marker1 = markerLayer.markBufferRange([[5, 0], [5, 10]], class: 'a')
+      marker2 = markerLayer.markBufferRange([[8, 0], [8, 10]], class: 'a')
+      displayLayer.foldBufferRange([[4, 0], [7, 0]])
+      expect(markerLayer.findMarkers(class: 'a', containsBufferRange: [[8, 2], [8, 4]])).toEqual [marker2]
+
+    it "allows containsScreenRange to be specified", ->
+      marker1 = markerLayer.markBufferRange([[5, 0], [5, 10]], class: 'a')
+      marker2 = markerLayer.markBufferRange([[8, 0], [8, 10]], class: 'a')
+      displayLayer.foldBufferRange([[4, 0], [7, 0]])
+      expect(markerLayer.findMarkers(class: 'a', containsScreenRange: [[5, 2], [5, 4]])).toEqual [marker2]
+
     it "works when used from within a Marker.onDidDestroy callback (regression)", ->
       displayMarker = markerLayer.markBufferRange([[0, 3], [0, 6]])
       displayMarker.onDidDestroy ->

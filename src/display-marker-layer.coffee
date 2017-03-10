@@ -361,8 +361,14 @@ class DisplayMarkerLayer
           value = [startBufferRow, endBufferRow]
         when 'containsBufferRange'
           key = 'containsRange'
+        when 'containsScreenRange'
+          key = 'containsRange'
+          value = @displayLayer.translateScreenRange(value)
         when 'containsBufferPosition'
           key = 'containsPosition'
+        when 'containsScreenPosition'
+          key = 'containsPosition'
+          value = @displayLayer.translateScreenPosition(value)
         when 'containedInBufferRange'
           key = 'containedInRange'
         when 'containedInScreenRange'
