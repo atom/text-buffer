@@ -177,6 +177,19 @@ class TextBuffer
   onDidChange: (callback) ->
     @emitter.on 'did-change', callback
 
+  # Public: Invoke the given callback synchronously when a transaction finishes
+  # with a list of all the changes in the transaction.
+  #
+  # * `callback` {Function} to be called when a transaction finishes.
+  #   * `event` {Object} with the following keys:
+  #     * `changes` {Array} of patch {Object}s:
+  #       * `start` Start {Point} of the change.
+  #       * `oldExtent` {Point} difference between the replaced start/end points.
+  #       * `newExtent` {Point} difference between the inserted start/end points.
+  #       * `oldText` {String} containing the text that was replaced.
+  #       * `newText` {String} containing the text that was inserted.
+  #
+  # Returns a {Disposable} on which `.dispose()` can be called to unsubscribe.
   onDidChangeText: (callback) ->
     @emitter.on 'did-change-text', callback
 
