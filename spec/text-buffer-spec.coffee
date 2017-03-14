@@ -649,8 +649,8 @@ describe "TextBuffer", ->
 
         expect(buffer.getText()).toBe 'abc\nyzf\nghi\njkl\nmno\npqr\nstu\nvwx\n'
         expect(buffer.getChangesSinceCheckpoint(checkpoint)).toEqual [
-          {start: [1, 0], oldExtent: [0, 2], newExtent: [0, 2], newText: 'yz'},
-          {start: [5, 0], oldExtent: [0, 0], newExtent: [3, 0], newText: 'pqr\nstu\nvwx\n'}
+          {start: [1, 0], oldExtent: [0, 2], newExtent: [0, 2], oldText: 'de', newText: 'yz'},
+          {start: [5, 0], oldExtent: [0, 0], newExtent: [3, 0], oldText: '', newText: 'pqr\nstu\nvwx\n'}
         ]
 
       it "returns an empty list of changes when no change has been made since the checkpoint", ->
@@ -2623,12 +2623,14 @@ describe "TextBuffer", ->
           start: {row: 0, column: 0},
           oldExtent: {row: 0, column: 0},
           newExtent: {row: 0, column: 3},
+          oldText: "",
           newText: "abc"
         },
         {
           start: {row: 0, column: 0},
           oldExtent: {row: 0, column: 1},
           newExtent: {row: 0, column: 0},
+          oldText: "a",
           newText: ""
         }
       ])
@@ -2645,12 +2647,14 @@ describe "TextBuffer", ->
           start: {row: 1, column: 0},
           oldExtent: {row: 0, column: 0},
           newExtent: {row: 0, column: 2},
+          oldText: "",
           newText: "xy"
         },
         {
           start: {row: 2, column: 3},
           oldExtent: {row: 0, column: 0},
           newExtent: {row: 0, column: 1},
+          oldText: "",
           newText: "w"
         }
       ])
@@ -2662,12 +2666,14 @@ describe "TextBuffer", ->
           start: {row: 1, column: 0},
           oldExtent: {row: 0, column: 2},
           newExtent: {row: 0, column: 0},
+          oldText: "xy",
           newText: ""
         },
         {
           start: {row: 2, column: 3},
           oldExtent: {row: 0, column: 1},
           newExtent: {row: 0, column: 0},
+          oldText: "w",
           newText: ""
         }
       ])
@@ -2679,12 +2685,14 @@ describe "TextBuffer", ->
           start: {row: 1, column: 0},
           oldExtent: {row: 0, column: 0},
           newExtent: {row: 0, column: 2},
+          oldText: "",
           newText: "xy"
         },
         {
           start: {row: 2, column: 3},
           oldExtent: {row: 0, column: 0},
           newExtent: {row: 0, column: 1},
+          oldText: "",
           newText: "w"
         }
       ])
@@ -2700,6 +2708,7 @@ describe "TextBuffer", ->
           start: {row: 0, column: 0},
           oldExtent: {row: 0, column: 0},
           newExtent: {row: 0, column: 1},
+          oldText: "",
           newText: "j"
         }
       ])
@@ -2756,12 +2765,14 @@ describe "TextBuffer", ->
           start: {row: 0, column: 0},
           oldExtent: {row: 0, column: 0},
           newExtent: {row: 0, column: 2},
+          oldText: '',
           newText: 'ba'
         },
         {
           start: {row: 1, column: 0},
           oldExtent: {row: 0, column: 0},
           newExtent: {row: 0, column: 1},
+          oldText: '',
           newText: 'c'
         }
       ]

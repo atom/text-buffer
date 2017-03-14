@@ -31,6 +31,7 @@ module.exports =
       start: Point.fromObject(change.newStart)
       oldExtent: traversal(change.oldEnd, change.oldStart)
       newExtent: traversal(change.newEnd, change.newStart)
+      oldText: change.oldText
       newText: change.newText
     }
 
