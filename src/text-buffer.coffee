@@ -20,6 +20,48 @@ class TransactionAbortedError extends Error
 
 # Extended: A mutable text container with undo/redo support and the ability to
 # annotate logical regions in the text.
+#
+# ## Working With Aggregated Changes
+#
+# When observing changes to the buffer's textual content, it is important to use
+# change-aggregating methods such as {::onDidChangeText}, {::onDidStopChanging},
+# and {::getChangesSinceCheckpoint} in order to maintain high performance. These
+# methods allows your code to respond to *sets* of changes rather than each
+# individual change.
+#
+# These methods report aggregated buffer updates as arrays of change objects
+# containing the following fields: `oldRange`, `newRange`, `oldText`, and
+# `newText`. The `oldText`, `newText`, and `newRange` fields are
+# self-explanatory, but the interepretation of `oldRange` is more nuanced:
+#
+# The reported `oldRange` is the range of the replaced text in the original
+# contents of the buffer *irrespective of the spatial impact of any other
+# reported change*. So, for example, if you wanted to apply all the changes made
+# in a transaction to a clone of the observed buffer, the easiest approach would
+# be to apply the changes in reverse:
+#
+# ```js
+# buffer1.onDidChangeText(({changes}) => {
+#   for (const {oldRange, newText} of changes.reverse()) {
+#     buffer2.setTextInRange(oldRange, newText)
+#   }
+# })
+#
+# If you needed to apply the changes in the forwards order, you would need to
+# incorporate the impact of preceding changes into the range passed to
+# {::setTextInRange}, as follows:
+#
+# ```js
+# buffer1.onDidChangeText(({changes}) => {
+#   for (const {oldRange, newRange, newText} of changes) {
+#     const rangeToReplace = Range(
+#       newRange.start,
+#       newRange.start.traverse(oldRange.getExtent())
+#     )
+#     buffer2.setTextInRange(rangeToReplace, newText)
+#   }
+# })
+# ```
 module.exports =
 class TextBuffer
   @version: 5
@@ -180,14 +222,19 @@ class TextBuffer
   # Public: Invoke the given callback synchronously when a transaction finishes
   # with a list of all the changes in the transaction.
   #
-  # * `callback` {Function} to be called when a transaction finishes.
+  # * `callback` {Function} to be called when a transaction in which textual
+  #   changes occurred is completed.
   #   * `event` {Object} with the following keys:
-  #     * `changes` {Array} of patch {Object}s:
-  #       * `start` Start {Point} of the change.
-  #       * `oldExtent` {Point} difference between the replaced start/end points.
-  #       * `newExtent` {Point} difference between the inserted start/end points.
-  #       * `oldText` {String} containing the text that was replaced.
-  #       * `newText` {String} containing the text that was inserted.
+  #     * `changes` {Array} of {Object}s summarizing the aggregated changes
+  #       that occurred during the transaction. See *Working With Aggregated
+  #       Changes* in the description of the {TextBuffer} class for details.
+  #       * `oldRange` The {Range} of the deleted text in the contents of the
+  #         buffer as it existed *before* the batch of changes reported by this
+  #         event.
+  #       * `newRange`: The {Range} of the inserted text in the current contents
+  #         of the buffer.
+  #       * `oldText`: A {String} representing the deleted text.
+  #       * `newText`: A {String} representing the ineserted text.
   #
   # Returns a {Disposable} on which `.dispose()` can be called to unsubscribe.
   onDidChangeText: (callback) ->
@@ -202,9 +249,20 @@ class TextBuffer
   #
   # This method can be used to perform potentially expensive operations that
   # don't need to be performed synchronously. If you need to run your callback
-  # synchronously, use {::onDidChange} instead.
+  # synchronously, use {::onDidChangeText} instead.
   #
   # * `callback` {Function} to be called when the buffer stops changing.
+  #   * `event` {Object} with the following keys:
+  #     * `changes` An {Array} containing {Object}s summarizing the aggregated
+  #       changes. See *Working With Aggregated Changes* in the description of
+  #       the {TextBuffer} class for details.
+  #       * `oldRange` The {Range} of the deleted text in the contents of the
+  #         buffer as it existed *before* the batch of changes reported by this
+  #         event.
+  #       * `newRange`: The {Range} of the inserted text in the current contents
+  #         of the buffer.
+  #       * `oldText`: A {String} representing the deleted text.
+  #       * `newText`: A {String} representing the ineserted text.
   #
   # Returns a {Disposable} on which `.dispose()` can be called to unsubscribe.
   onDidStopChanging: (callback) ->
@@ -1090,11 +1148,14 @@ class TextBuffer
   # If the given checkpoint is no longer present in the undo history, this
   # method will return an empty {Array}.
   #
-  # Returns an {Array} containing the following change {Object}s:
-  # * `start` A {Point} representing where the change started.
-  # * `oldExtent` A {Point} representing the replaced extent.
-  # * `newExtent`: A {Point} representing the replacement extent.
-  # * `newText`: A {String} representing the replacement text.
+  # Returns an {Array} of {Object}s with the following fields that summarize
+  #  the aggregated changes since the checkpoint. See *Working With Aggregated
+  # Changes* in the description of the {TextBuffer} class for details.
+  # * `oldRange` The {Range} of the deleted text in the text as it existed when
+  #   the checkpoint was created.
+  # * `newRange`: The {Range} of the inserted text in the current text.
+  # * `oldText`: A {String} representing the deleted text.
+  # * `newText`: A {String} representing the ineserted text.
   getChangesSinceCheckpoint: (checkpoint) ->
     if patch = @history.getChangesSinceCheckpoint(checkpoint)
       normalizePatchChanges(patch.getHunks())
