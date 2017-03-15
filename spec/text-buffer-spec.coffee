@@ -648,10 +648,20 @@ describe "TextBuffer", ->
         buffer.setTextInRange([[1, 0], [1, 2]], 'yz')
 
         expect(buffer.getText()).toBe 'abc\nyzf\nghi\njkl\nmno\npqr\nstu\nvwx\n'
-        expect(buffer.getChangesSinceCheckpoint(checkpoint)).toEqual [
-          {start: [1, 0], oldExtent: [0, 2], newExtent: [0, 2], oldText: 'de', newText: 'yz'},
-          {start: [5, 0], oldExtent: [0, 0], newExtent: [3, 0], oldText: '', newText: 'pqr\nstu\nvwx\n'}
-        ]
+        assertChangesEqual(buffer.getChangesSinceCheckpoint(checkpoint), [
+          {
+            oldRange: [[1, 0], [1, 2]],
+            newRange: [[1, 0], [1, 2]],
+            oldText: "de",
+            newText: "yz",
+          },
+          {
+            oldRange: [[5, 0], [5, 0]],
+            newRange: [[5, 0], [8, 0]],
+            oldText: "",
+            newText: "pqr\nstu\nvwx\n",
+          }
+        ])
 
       it "returns an empty list of changes when no change has been made since the checkpoint", ->
         checkpoint = buffer.createCheckpoint()
@@ -2618,18 +2628,16 @@ describe "TextBuffer", ->
 
       buffer.insert([0, 0], "abc")
       buffer.delete([[0, 0], [0, 1]])
-      expect(textChanges).toEqual([
+      assertChangesEqual(textChanges, [
         {
-          start: {row: 0, column: 0},
-          oldExtent: {row: 0, column: 0},
-          newExtent: {row: 0, column: 3},
+          oldRange: [[0, 0], [0, 0]],
+          newRange: [[0, 0], [0, 3]]
           oldText: "",
           newText: "abc"
         },
         {
-          start: {row: 0, column: 0},
-          oldExtent: {row: 0, column: 1},
-          newExtent: {row: 0, column: 0},
+          oldRange: [[0, 0], [0, 1]],
+          newRange: [[0, 0], [0, 0]],
           oldText: "a",
           newText: ""
         }
@@ -2642,58 +2650,53 @@ describe "TextBuffer", ->
         buffer.insert([2, 3], "zw")
         buffer.delete([[2, 3], [2, 4]])
 
-      expect(textChanges).toEqual([
+
+      assertChangesEqual(textChanges, [
         {
-          start: {row: 1, column: 0},
-          oldExtent: {row: 0, column: 0},
-          newExtent: {row: 0, column: 2},
+          oldRange: [[1, 0], [1, 0]],
+          newRange: [[1, 0], [1, 2]],
           oldText: "",
-          newText: "xy"
+          newText: "xy",
         },
         {
-          start: {row: 2, column: 3},
-          oldExtent: {row: 0, column: 0},
-          newExtent: {row: 0, column: 1},
+          oldRange: [[2, 3], [2, 3]],
+          newRange: [[2, 3], [2, 4]],
           oldText: "",
-          newText: "w"
+          newText: "w",
         }
       ])
 
       textChanges = []
       buffer.undo()
-      expect(textChanges).toEqual([
+      assertChangesEqual(textChanges, [
         {
-          start: {row: 1, column: 0},
-          oldExtent: {row: 0, column: 2},
-          newExtent: {row: 0, column: 0},
+          oldRange: [[1, 0], [1, 2]],
+          newRange: [[1, 0], [1, 0]],
           oldText: "xy",
-          newText: ""
+          newText: "",
         },
         {
-          start: {row: 2, column: 3},
-          oldExtent: {row: 0, column: 1},
-          newExtent: {row: 0, column: 0},
+          oldRange: [[2, 3], [2, 4]],
+          newRange: [[2, 3], [2, 3]],
           oldText: "w",
-          newText: ""
+          newText: "",
         }
       ])
 
       textChanges = []
       buffer.redo()
-      expect(textChanges).toEqual([
+      assertChangesEqual(textChanges, [
         {
-          start: {row: 1, column: 0},
-          oldExtent: {row: 0, column: 0},
-          newExtent: {row: 0, column: 2},
+          oldRange: [[1, 0], [1, 0]],
+          newRange: [[1, 0], [1, 2]],
           oldText: "",
-          newText: "xy"
+          newText: "xy",
         },
         {
-          start: {row: 2, column: 3},
-          oldExtent: {row: 0, column: 0},
-          newExtent: {row: 0, column: 1},
+          oldRange: [[2, 3], [2, 3]],
+          newRange: [[2, 3], [2, 4]],
           oldText: "",
-          newText: "w"
+          newText: "w",
         }
       ])
 
@@ -2703,13 +2706,12 @@ describe "TextBuffer", ->
           buffer.insert([0, 0], "j")
 
       # we emit only one event for nested transactions
-      expect(textChanges).toEqual([
+      assertChangesEqual(textChanges, [
         {
-          start: {row: 0, column: 0},
-          oldExtent: {row: 0, column: 0},
-          newExtent: {row: 0, column: 1},
+          oldRange: [[0, 0], [0, 0]],
+          newRange: [[0, 0], [0, 1]],
           oldText: "",
-          newText: "j"
+          newText: "j",
         }
       ])
 
@@ -2760,22 +2762,21 @@ describe "TextBuffer", ->
 
     beforeEach (done) ->
       expect(didStopChangingCallback).toHaveBeenCalled()
-      expect(didStopChangingCallback.calls.mostRecent().args[0].changes).toEqual [
+
+      assertChangesEqual(didStopChangingCallback.calls.mostRecent().args[0].changes, [
         {
-          start: {row: 0, column: 0},
-          oldExtent: {row: 0, column: 0},
-          newExtent: {row: 0, column: 2},
-          oldText: '',
-          newText: 'ba'
+          oldRange: [[0, 0], [0, 0]],
+          newRange: [[0, 0], [0, 2]],
+          oldText: "",
+          newText: "ba",
         },
         {
-          start: {row: 1, column: 0},
-          oldExtent: {row: 0, column: 0},
-          newExtent: {row: 0, column: 1},
-          oldText: '',
-          newText: 'c'
-        }
-      ]
+          oldRange: [[1, 0], [1, 0]],
+          newRange: [[1, 0], [1, 1]],
+          oldText: "",
+          newText: "c",
+        },
+      ])
 
       didStopChangingCallback.calls.reset()
       buffer.undo()
@@ -2955,3 +2956,12 @@ describe "TextBuffer", ->
       it "does not push the encoding change onto the undo stack", ->
         buffer.undo()
         expect(buffer.getText()).toBe 'тест 1234 абвгдеёжз'
+
+assertChangesEqual = (actualChanges, expectedChanges) ->
+  expect(actualChanges.length).toBe(expectedChanges.length)
+  for actualChange, i in actualChanges
+    expectedChange = expectedChanges[i]
+    expect(actualChange.oldRange).toEqual(expectedChange.oldRange)
+    expect(actualChange.newRange).toEqual(expectedChange.newRange)
+    expect(actualChange.oldText).toEqual(expectedChange.oldText)
+    expect(actualChange.newText).toEqual(expectedChange.newText)

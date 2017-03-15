@@ -1,9 +1,14 @@
 const Point = require('./point')
+const Range = require('./range')
 const {traversal} = require('./point-helpers')
 
 const MULTI_LINE_REGEX_REGEX = /\\s|\\r|\\n|\r|\n|^\[\^|[^\\]\[\^/
 
 exports.newlineRegex = /\r\n|\n|\r/g
+
+exports.regexIsSingleLine = function (regex) {
+  return !MULTI_LINE_REGEX_REGEX.test(regex.source)
+}
 
 exports.spliceArray = function (array, start, removedCount, insertedItems = []) {
   const oldLength = array.length
@@ -30,15 +35,41 @@ exports.spliceArray = function (array, start, removedCount, insertedItems = []) 
 }
 
 exports.normalizePatchChanges = function (changes) {
-  return changes.map((change) => ({
-    start: Point.fromObject(change.newStart),
-    oldExtent: traversal(change.oldEnd, change.oldStart),
-    newExtent: traversal(change.newEnd, change.newStart),
-    oldText: change.oldText,
-    newText: change.newText
-  }))
+  return changes.map((change) =>
+    new TextChange(
+      Range(change.oldStart, change.oldEnd),
+      Range(change.newStart, change.newEnd),
+      change.oldText, change.newText
+    )
+  )
 }
 
-exports.regexIsSingleLine = function (regex) {
-  return !MULTI_LINE_REGEX_REGEX.test(regex.source)
+class TextChange {
+  constructor (oldRange, newRange, oldText, newText) {
+    this.oldRange = oldRange
+    this.newRange = newRange
+    this.oldText = oldText
+    this.newText = newText
+  }
 }
+
+Object.defineProperty(TextChange.prototype, 'start', {
+  get: function () {
+    return this.newRange.start
+  },
+  enumerable: false
+})
+
+Object.defineProperty(TextChange.prototype, 'oldExtent', {
+  get: function () {
+    return this.oldRange.getExtent()
+  },
+  enumerable: false
+})
+
+Object.defineProperty(TextChange.prototype, 'newExtent', {
+  get: function () {
+    return this.newRange.getExtent()
+  },
+  enumerable: false
+})
