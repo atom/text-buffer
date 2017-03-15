@@ -202,11 +202,16 @@ class TextBuffer
     @emitter.on 'will-change', callback
 
   # Public: Invoke the given callback synchronously when the content of the
-  # buffer changes.
+  # buffer changes. **You should probably not be using this in packages**.
   #
   # Because observers are invoked synchronously, it's important not to perform
   # any expensive operations via this method. Consider {::onDidStopChanging} to
-  # delay expensive operations until after changes stop occurring.
+  # delay expensive operations until after changes stop occurring, or at the
+  # very least use {::onDidChangeText} to invoke your callback once *per
+  # transaction* rather than *once per change*. This will help prevent
+  # performance degredation when users of your package are typing with multiple
+  # cursors, and other scenarios in which multiple changes occur within
+  # transactions.
   #
   # * `callback` {Function} to be called when the buffer changes.
   #   * `event` {Object} with the following keys:
