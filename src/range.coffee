@@ -1,5 +1,5 @@
 Point = require './point'
-{newlineRegex} = require './helpers'
+newlineRegex = null
 
 # Public: Represents a region in a buffer in row/column coordinates.
 #
@@ -57,6 +57,8 @@ class Range
   #
   # Returns: A {Range}
   @fromText: (args...) ->
+    newlineRegex ?= require('./helpers').newlineRegex
+
     if args.length > 1
       startPoint = Point.fromObject(args.shift())
     else
