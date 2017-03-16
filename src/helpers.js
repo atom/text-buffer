@@ -1,6 +1,4 @@
-const Point = require('./point')
 const Range = require('./range')
-const {traversal} = require('./point-helpers')
 
 const MULTI_LINE_REGEX_REGEX = /\\s|\\r|\\n|\r|\n|^\[\^|[^\\]\[\^/
 
