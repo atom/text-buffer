@@ -1,5 +1,6 @@
 const Range = require('./range')
 
+const NEWLINE_REGEX = /\n/g
 const MULTI_LINE_REGEX_REGEX = /\\s|\\r|\\n|\r|\n|^\[\^|[^\\]\[\^/
 
 exports.newlineRegex = /\r\n|\n|\r/g
@@ -40,6 +41,17 @@ exports.normalizePatchChanges = function (changes) {
       change.oldText, change.newText
     )
   )
+}
+
+exports.extentForText = function (text) {
+  let lastLineStartIndex = 0
+  let row = 0
+  NEWLINE_REGEX.lastIndex = 0
+  while (NEWLINE_REGEX.exec(text)) {
+    row++
+    lastLineStartIndex = NEWLINE_REGEX.lastIndex
+  }
+  return {row, column: text.length - lastLineStartIndex}
 }
 
 class TextChange {

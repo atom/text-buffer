@@ -5,14 +5,14 @@ _ = require 'underscore-plus'
 fs = require 'fs-plus'
 path = require 'path'
 crypto = require 'crypto'
-{BufferOffsetIndex, Patch} = require 'superstring'
+{BufferOffsetIndex, Patch, TextBuffer: NativeTextBuffer} = require 'superstring'
 Point = require './point'
 Range = require './range'
 History = require './history'
 MarkerLayer = require './marker-layer'
 MatchIterator = require './match-iterator'
 DisplayLayer = require './display-layer'
-{spliceArray, newlineRegex, normalizePatchChanges, regexIsSingleLine} = require './helpers'
+{spliceArray, newlineRegex, normalizePatchChanges, regexIsSingleLine, extentForText} = require './helpers'
 {traversal} = require './point-helpers'
 
 class TransactionAbortedError extends Error
@@ -69,11 +69,9 @@ class TextBuffer
   @Range: Range
   @newlineRegex: newlineRegex
 
-  cachedText: null
   encoding: null
   stoppedChangingDelay: 300
   stoppedChangingTimeout: null
-  cachedDiskContents: null
   conflict: false
   file: null
   refcount: 0
@@ -97,16 +95,16 @@ class TextBuffer
   #     indicating whether the buffer should be destroyed if its file is
   #     deleted.
   constructor: (params) ->
-    text = params if typeof params is 'string'
+    text = if typeof params is 'string'
+      params
+    else
+      params?.text
 
     @emitter = new Emitter
     @patchesSinceLastStoppedChangingEvent = []
     @id = params?.id ? crypto.randomBytes(16).toString('hex')
-    @lines = ['']
-    @lineEndings = ['']
-    @offsetIndex = new BufferOffsetIndex()
+    @buffer = new NativeTextBuffer(text)
     @textDecorationLayers = new Set()
-    @setTextInRange([[0, 0], [0, 0]], text ? params?.text ? '', normalizeLineEndings: false)
     maxUndoEntries = params?.maxUndoEntries ? @defaultMaxUndoEntries
     @history = params?.history ? new History(this, maxUndoEntries)
     @nextMarkerLayerId = params?.nextMarkerLayerId ? 0
@@ -128,8 +126,10 @@ class TextBuffer
 
     @shouldDestroyOnFileDelete = params?.shouldDestroyOnFileDelete ? -> false
 
-    @setPath(params.filePath) if params?.filePath
-    @load() if params?.load
+    if params?.filePath
+      @serializedChanges = params.outstandingChanges
+      @setPath(params.filePath)
+      @load() if params?.load
 
   @deserialize: (params) ->
     return if params.version isnt TextBuffer.prototype.version
@@ -141,7 +141,7 @@ class TextBuffer
     params.markerLayers = markerLayers
     params.defaultMarkerLayer = params.markerLayers[params.defaultMarkerLayerId]
     params.history = History.deserialize(params.history, buffer)
-    params.load = true if params.filePath
+    params.load ?= true if params.filePath
     TextBuffer.call(buffer, params)
     displayLayers = {}
     for layerId, layerState of params.displayLayers
@@ -166,19 +166,27 @@ class TextBuffer
     for id, layer of @displayLayers
       displayLayers[id] = layer.serialize()
 
-    id: @getId()
-    text: @getText()
-    defaultMarkerLayerId: @defaultMarkerLayer.id
-    markerLayers: markerLayers
-    displayLayers: displayLayers
-    nextMarkerLayerId: @nextMarkerLayerId
-    nextDisplayLayerId: @nextDisplayLayerId
-    history: @history.serialize(options)
-    encoding: @getEncoding()
-    filePath: @getPath()
-    digestWhenLastPersisted: @file?.getDigestSync()
-    preferredLineEnding: @preferredLineEnding
-    nextMarkerId: @nextMarkerId
+    result = {
+      id: @getId()
+      defaultMarkerLayerId: @defaultMarkerLayer.id
+      markerLayers: markerLayers
+      displayLayers: displayLayers
+      nextMarkerLayerId: @nextMarkerLayerId
+      nextDisplayLayerId: @nextDisplayLayerId
+      history: @history.serialize(options)
+      encoding: @getEncoding()
+      preferredLineEnding: @preferredLineEnding
+      nextMarkerId: @nextMarkerId
+    }
+
+    if filePath = @getPath()
+      result.filePath = filePath
+      result.digestWhenLastPersisted = @buffer.baseTextDigest()
+      result.outstandingChanges = @buffer.serializeChanges()
+    else
+      result.text = @getText()
+
+    result
 
   ###
   Section: Event Subscription
@@ -421,14 +429,7 @@ class TextBuffer
   # If the buffer is unsaved, always returns `true` unless the buffer is empty.
   #
   # Returns a {Boolean}.
-  isModified: ->
-    if @file
-      return false unless @loaded
-
-      if @file.existsSync()
-        return @getText() isnt @cachedDiskContents
-
-    not @isEmpty()
+  isModified: -> @buffer.isModified()
 
   # Public: Determine if the in-memory contents of the buffer conflict with the
   # on-disk contents of its associated file.
@@ -467,9 +468,7 @@ class TextBuffer
     if @file?
       @file.setEncoding(encoding)
       @emitter.emit 'did-change-encoding', encoding
-
-      unless @isModified()
-        @updateCachedDiskContents true, => @reload(true)
+      @load() unless @isModified()
     else
       @emitter.emit 'did-change-encoding', encoding
 
@@ -506,52 +505,24 @@ class TextBuffer
   # Public: Determine whether the buffer is empty.
   #
   # Returns a {Boolean}.
-  isEmpty: ->
-    @getLastRow() is 0 and @lineLengthForRow(0) is 0
+  isEmpty: -> @buffer.getLength() is 0
 
   # Public: Get the entire text of the buffer.
   #
   # Returns a {String}.
-  getText: ->
-    if @cachedText?
-      @cachedText
-    else
-      text = ''
-      for row in [0..@getLastRow()]
-        text += (@lineForRow(row) + @lineEndingForRow(row))
-      @cachedText = text
+  getText: -> @buffer.getText()
 
   # Public: Get the text in a range.
   #
   # * `range` A {Range}
   #
   # Returns a {String}
-  getTextInRange: (range) ->
-    range = @clipRange(Range.fromObject(range))
-    startRow = range.start.row
-    endRow = range.end.row
-
-    if startRow is endRow
-      @lineForRow(startRow)[range.start.column...range.end.column]
-    else
-      text = ''
-      for row in [startRow..endRow]
-        line = @lineForRow(row)
-        if row is startRow
-          text += line[range.start.column...]
-        else if row is endRow
-          text += line[0...range.end.column]
-          continue
-        else
-          text += line
-        text += @lineEndingForRow(row)
-      text
+  getTextInRange: (range) -> @buffer.getTextInRange(Range.fromObject(range))
 
   # Public: Get the text of all lines in the buffer, without their line endings.
   #
   # Returns an {Array} of {String}s.
-  getLines: ->
-    @lines.slice()
+  getLines: -> @buffer.getLines()
 
   # Public: Get the text of the last line of the buffer, without its line
   # ending.
@@ -565,18 +536,16 @@ class TextBuffer
   # * `row` A {Number} representing a 0-indexed row.
   #
   # Returns a {String}.
-  lineForRow: (row) ->
-    @lines[row]
+  lineForRow: (row) -> @buffer.lineForRow(row)
 
   # Public: Get the line ending for the given 0-indexed row.
   #
   # * `row` A {Number} indicating the row.
   #
   # Returns a {String}. The returned newline is represented as a literal string:
-  # `'\n'`, `'\r'`, `'\r\n'`, or `''` for the last line of the buffer, which
+  # `'\n'`, `'\r\n'`, or `''` for the last line of the buffer, which
   # doesn't end in a newline.
-  lineEndingForRow: (row) ->
-    @lineEndings[row]
+  lineEndingForRow: (row) -> @buffer.lineEndingForRow(row)
 
   # Public: Get the length of the line for the given 0-indexed row, without its
   # line ending.
@@ -584,8 +553,7 @@ class TextBuffer
   # * `row` A {Number} indicating the row.
   #
   # Returns a {Number}.
-  lineLengthForRow: (row) ->
-    @lines[row].length
+  lineLengthForRow: (row) -> @buffer.lineLengthForRow(row)
 
   # Public: Determine if the given row contains only whitespace.
   #
@@ -593,7 +561,7 @@ class TextBuffer
   #
   # Returns a {Boolean}.
   isRowBlank: (row) ->
-    not /\S/.test @lineForRow(row)
+    not /\S/.test(@lineForRow(row))
 
   # Public: Given a row, find the first preceding row that's not blank.
   #
@@ -737,44 +705,22 @@ class TextBuffer
   # Applies a change to the buffer based on its old range and new text.
   applyChange: (change, pushToHistory = false) ->
     {newStart, oldStart, oldEnd, oldText, newText, normalizeLineEndings} = change
-    @cachedText = null
 
     oldExtent = traversal(oldEnd, oldStart)
     start = Point.fromObject(newStart)
     oldRange = Range(start, start.traverse(oldExtent))
     oldRange.freeze()
-    startRow = oldRange.start.row
-    endRow = oldRange.end.row
-    rowCount = endRow - startRow + 1
 
     # Determine how to normalize the line endings of inserted text if enabled
     if normalizeLineEndings
-      normalizedEnding = @preferredLineEnding ? @lineEndingForRow(startRow)
-      unless normalizedEnding
-        if startRow > 0
-          normalizedEnding = @lineEndingForRow(startRow - 1)
-        else
-          normalizedEnding = null
+      startRow = oldRange.start.row
+      normalizedEnding = @preferredLineEnding ?
+        @lineEndingForRow(startRow) ?
+        @lineEndingForRow(startRow - 1)
+      if normalizedEnding
+        newText = newText.replace(newlineRegex, normalizedEnding)
 
-    # Split inserted text into lines and line endings
-    lines = []
-    lineEndings = []
-    lineStartIndex = 0
-    normalizedNewText = ""
-    while result = newlineRegex.exec(newText)
-      line = newText[lineStartIndex...result.index]
-      ending = normalizedEnding ? result[0]
-      lines.push(line)
-      lineEndings.push(ending)
-      normalizedNewText += line + ending
-      lineStartIndex = newlineRegex.lastIndex
-
-    lastLine = newText[lineStartIndex..]
-    lines.push(lastLine)
-    lineEndings.push('')
-    normalizedNewText += lastLine
-
-    newExtent = Point(lines.length - 1, lastLine.length)
+    newExtent = extentForText(newText)
     newRange = Range(start, start.traverse(newExtent))
     newRange.freeze()
 
@@ -783,36 +729,14 @@ class TextBuffer
       change.newExtent ?= newExtent
       @history?.pushChange(change)
 
-    newText = normalizedNewText
-    changeEvent = Object.freeze({oldRange, newRange, oldText, newText})
+    changeEvent = {oldRange, newRange, oldText, newText}
     for id, displayLayer of @displayLayers
       displayLayer.bufferWillChange(changeEvent)
     @emitter.emit 'will-change', changeEvent
 
-    # Update first and last line so replacement preserves existing prefix and suffix of oldRange
-    prefix = @lineForRow(startRow)[0...oldRange.start.column]
-    lines[0] = prefix + lines[0]
-    suffix = @lineForRow(endRow)[oldRange.end.column...]
-    lastIndex = lines.length - 1
-    lines[lastIndex] += suffix
-    lastLineEnding = @lineEndingForRow(endRow)
-    lastLineEnding = normalizedEnding if lastLineEnding isnt '' and normalizedEnding?
-    lineEndings[lastIndex] = lastLineEnding
-
-    # Replace lines in oldRange with new lines
-    if @lines.length > 1 or @lines[0].length > 0
-      spliceArray(@lines, startRow, rowCount, lines)
-      spliceArray(@lineEndings, startRow, rowCount, lineEndings)
-    else
-      @lines = lines
-      @lineEndings = lineEndings
-
-    # Update the offset index for position <-> character offset translation
-    @offsetIndex.splice(startRow, rowCount, lines.map((line, i) -> line.length + lineEndings[i].length))
+    @buffer.setTextInRange(oldRange, newText)
 
     if @markerLayers?
-      oldExtent = oldRange.getExtent()
-      newExtent = newRange.getExtent()
       for id, markerLayer of @markerLayers
         markerLayer.splice(oldRange.start, oldExtent, newExtent)
 
@@ -1324,8 +1248,7 @@ class TextBuffer
   # Public: Get the number of lines in the buffer.
   #
   # Returns a {Number}.
-  getLineCount: ->
-    @lines.length
+  getLineCount: -> @buffer.getExtent().row + 1
 
   # Public: Get the last 0-indexed row in the buffer.
   #
@@ -1343,9 +1266,7 @@ class TextBuffer
   # appended.
   #
   # Returns a {Point}.
-  getEndPosition: ->
-    lastRow = @getLastRow()
-    new Point(lastRow, @lineLengthForRow(lastRow))
+  getEndPosition: -> Point.fromObject(@buffer.getExtent())
 
   # Public: Get the length of the buffer in characters.
   #
@@ -1379,8 +1300,7 @@ class TextBuffer
   #
   # Returns a {Number}.
   characterIndexForPosition: (position) ->
-    position = @clipPosition(Point.fromObject(position))
-    @offsetIndex.characterIndexForPosition(position)
+    @buffer.characterIndexForPosition(Point.fromObject(position))
 
   # Public: Convert an absolute character offset, inclusive of newlines, to a
   # position in the buffer in row/column coordinates.
@@ -1391,8 +1311,7 @@ class TextBuffer
   #
   # Returns a {Point}.
   positionForCharacterIndex: (offset) ->
-    position = @offsetIndex.positionForCharacterIndex(Math.max(0, offset))
-    new Point(position.row, position.column)
+    Point.fromObject(@buffer.positionForCharacterIndex(offset))
 
   # Public: Clip the given range so it starts and ends at valid positions.
   #
@@ -1455,13 +1374,11 @@ class TextBuffer
     unless filePath then throw new Error("Can't save buffer with no file path")
 
     @emitter.emit 'will-save', {path: filePath}
-    @setPath(filePath)
 
     if options?.backup
       backupFile = @backUpFileContentsBeforeWriting()
-
     try
-      @file.writeSync(@getText())
+      @buffer.saveSync(filePath, @getEncoding())
       if backupFile?
         backupFile.safeRemoveSync()
     catch error
@@ -1469,48 +1386,14 @@ class TextBuffer
         @file.writeSync(backupFile.readSync())
       throw error
 
-    @cachedDiskContents = @getText()
+    @setPath(filePath)
     @conflict = false
     @loaded = true
     @emitModifiedStatusChanged(false)
     @emitter.emit 'did-save', {path: filePath}
 
-  # Public: Reload the buffer's contents from disk.
-  #
-  # Sets the buffer's content to the cached disk contents
-  reload: (clearHistory=false) ->
-    return if @destroyed
-    @emitter.emit 'will-reload'
-    if clearHistory
-      @clearUndoStack()
-      @setTextInRange(@getRange(), @cachedDiskContents ? "", normalizeLineEndings: false, undo: 'skip')
-    else
-      @setTextViaDiff(@cachedDiskContents ? "")
-    @emitModifiedStatusChanged(false)
-    @emitter.emit 'did-reload'
-
-  # Rereads the contents of the file, and stores them in the cache.
-  updateCachedDiskContentsSync: ->
-    @cachedDiskContents = @file?.readSync() ? ""
-
-  # Rereads the contents of the file, and stores them in the cache.
-  #
-  # * `flushCache` (optional) {Boolean} flush option to pass through to
-  #                {File::read} (default: false).
-  # * `callback`   (optional) {Function} to call after the cached contents have
-  #                been updated.
-  updateCachedDiskContents: (flushCache=false, callback) ->
-    if @file?
-      promise = @file.read(flushCache)
-    else
-      promise = Promise.resolve("")
-
-    promise.then (contents) =>
-      @cachedDiskContents = contents
-      callback?()
-
   backUpFileContentsBeforeWriting: ->
-    return unless @file.existsSync()
+    return unless fs.existsSync(@getPath())
 
     backupFilePath = @getPath() + '~'
 
@@ -1546,19 +1429,40 @@ class TextBuffer
   ###
 
   loadSync: ->
-    @updateCachedDiskContentsSync()
-    @finishLoading()
+    oldExtent = @buffer.getExtent()
+    @buffer.loadSync(@getPath(), @getEncoding())
+    @finishLoading(oldExtent)
 
   load: ->
-    @updateCachedDiskContents().then => @finishLoading()
+    oldExtent = @buffer.getExtent()
+    @buffer.load(@getPath(), @getEncoding()).then =>
+      @finishLoading(oldExtent)
 
-  finishLoading: ->
+  reload: ->
+    @conflict = false
+    @loadSync()
+
+  finishLoading: (oldExtent) ->
     if @isAlive()
       @loaded = true
-      if @digestWhenLastPersisted is @file?.getDigestSync()
+      digest = @buffer.baseTextDigest()
+      outstandingChanges = @serializedChanges
+      @serializedChanges = null
+      if digest is @digestWhenLastPersisted
+        @buffer.deserializeChanges(outstandingChanges) if outstandingChanges
         @emitModifiedStatusChanged(@isModified())
       else
-        @reload(true)
+        @digestWhenLastPersisted = digest
+        @emitter.emit 'will-reload'
+        @clearUndoStack()
+        @emitModifiedStatusChanged(false)
+        @emitDidChangeEvent({
+          oldRange: new Range(Point.ZERO, oldExtent),
+          newRange: new Range(Point.ZERO, @buffer.getExtent()),
+          oldText: null,
+          newText: null
+        })
+        @emitter.emit 'did-reload'
     this
 
   destroy: ->
@@ -1598,29 +1502,27 @@ class TextBuffer
       # consistent behavior with Mac/Windows.
       return unless @file.existsSync()
 
-      @conflict = true if @isModified()
-      previousContents = @cachedDiskContents
-
-      # Synchrounously update the disk contents because the {File} has already cached them. If the
-      # contents updated asynchrounously multiple `conflict` events could trigger for the same disk
-      # contents.
-      @updateCachedDiskContentsSync()
-      return if previousContents is @cachedDiskContents
-
-      if @conflict
+      if @isModified()
         @emitter.emit 'did-conflict'
       else
-        @reload()
+        oldExtent = @buffer.getExtent()
+        previousDigest = @buffer.baseTextDigest()
+        @buffer.load(@getPath(), @getEncoding()).then =>
+          return if @buffer.baseTextDigest() is previousDigest
+          @emitDidChangeEvent({
+            oldRange: new Range(Point.ZERO, oldExtent),
+            newRange: new Range(Point.ZERO, @buffer.getExtent()),
+            oldText: null,
+            newText: null
+          })
 
     @fileSubscriptions.add @file.onDidDelete =>
-      modified = @getText() isnt @cachedDiskContents
+      modified = @isModified()
       @emitter.emit 'did-delete'
-      @updateCachedDiskContents()
       if not modified and @shouldDestroyOnFileDelete()
         @destroy()
       else
         @emitModifiedStatusChanged(true)
-
 
     @fileSubscriptions.add @file.onDidRename =>
       @emitter.emit 'did-change-path', @getPath()

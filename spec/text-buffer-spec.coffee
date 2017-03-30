@@ -32,7 +32,7 @@ describe "TextBuffer", ->
       expect(buffer.lineEndingForRow(0)).toBe ''
 
     it "can be constructed with initial text containing no trailing newline", ->
-      text = "hello\nworld\r\nhow are you doing?\rlast"
+      text = "hello\nworld\r\nhow are you doing?\r\nlast"
       buffer = new TextBuffer(text)
       expect(buffer.getLineCount()).toBe 4
       expect(buffer.getText()).toBe text
@@ -41,7 +41,7 @@ describe "TextBuffer", ->
       expect(buffer.lineForRow(1)).toBe 'world'
       expect(buffer.lineEndingForRow(1)).toBe '\r\n'
       expect(buffer.lineForRow(2)).toBe 'how are you doing?'
-      expect(buffer.lineEndingForRow(2)).toBe '\r'
+      expect(buffer.lineEndingForRow(2)).toBe '\r\n'
       expect(buffer.lineForRow(3)).toBe 'last'
       expect(buffer.lineEndingForRow(3)).toBe ''
 
@@ -1117,15 +1117,15 @@ describe "TextBuffer", ->
               done()
 
         describe "when the disk contents are the same since serialization", ->
-          [previousText] = []
+          previousText = null
+
           beforeEach (done) ->
             previousText = buffer.getText()
             buffer.setText("abc")
             buffer.append("d")
 
-            buffer2 = TextBuffer.deserialize(buffer.serialize())
-            buffer2.load().then ->
-              done()
+            buffer2 = TextBuffer.deserialize(Object.assign(buffer.serialize(), {load: false}))
+            buffer2.load().then(done)
 
           it "restores the previous unsaved state of the buffer", ->
             expect(buffer2.getPath()).toBe(buffer.getPath())
@@ -1539,7 +1539,7 @@ describe "TextBuffer", ->
         expect(buffer.getLines().join('\n')).toBe fileContents
         done()
 
-  describe "::change(range, string)", ->
+  describe "::setTextInRange(range, string)", ->
     changeHandler = null
 
     beforeEach (done) ->
@@ -1667,7 +1667,7 @@ describe "TextBuffer", ->
         changeHandler = jasmine.createSpy('changeHandler')
         buffer.onDidChange changeHandler
 
-        newText = "I know you are.\rBut what am I?"
+        newText = "I know you are.\nBut what am I?"
         buffer.setText(newText)
 
         expect(buffer.getText()).toBe newText
@@ -2869,20 +2869,22 @@ describe "TextBuffer", ->
   describe "character set encoding support", ->
     it "allows the encoding to be set on creation", (done) ->
       filePath = join(__dirname, 'fixtures', 'win1251.txt')
-      buffer = new TextBuffer({filePath, load: false, encoding: 'win1251'})
-      buffer.load().then ->
-        expect(buffer.getEncoding()).toBe 'win1251'
+      buffer = new TextBuffer({filePath, load: false, encoding: 'WINDOWS-1251'})
+      buffer.load().then(->
+        expect(buffer.getEncoding()).toBe 'WINDOWS-1251'
         expect(buffer.getText()).toBe 'тест 1234 абвгдеёжз'
         done()
+      ).catch(console.error)
 
     it "serializes the encoding", (done) ->
       filePath = join(__dirname, 'fixtures', 'win1251.txt')
-      bufferA = new TextBuffer({filePath, load: false, encoding: 'win1251'})
+      bufferA = new TextBuffer({filePath, load: false, encoding: 'WINDOWS-1251'})
       bufferA.load().then ->
         bufferB = TextBuffer.deserialize(bufferA.serialize())
-        expect(bufferB.getEncoding()).toBe 'win1251'
-        expect(bufferB.getText()).toBe 'тест 1234 абвгдеёжз'
-        done()
+        bufferB.load().then ->
+          expect(bufferB.getEncoding()).toBe 'WINDOWS-1251'
+          expect(bufferB.getText()).toBe 'тест 1234 абвгдеёжз'
+          done()
 
     describe "when the buffer is modified", ->
       describe "when the encoding of the buffer is changed", ->
@@ -2893,10 +2895,10 @@ describe "TextBuffer", ->
             done()
 
         it "does not reload the contents from the disk", ->
-          spyOn(buffer, 'updateCachedDiskContents')
+          spyOn(buffer, 'load')
           buffer.setText('ch ch changes')
           buffer.setEncoding('win1251')
-          expect(buffer.updateCachedDiskContents.calls.count()).toBe 0
+          expect(buffer.load.calls.count()).toBe 0
 
     describe "when the buffer is unmodified", ->
       describe "when the encoding of the buffer is changed", ->
@@ -2912,8 +2914,8 @@ describe "TextBuffer", ->
 
           reloadHandler = ->
             done()
-          buffer.setEncoding('win1251')
-          expect(buffer.getEncoding()).toBe 'win1251'
+          buffer.setEncoding('WINDOWS-1251')
+          expect(buffer.getEncoding()).toBe 'WINDOWS-1251'
           buffer.onDidReload(reloadHandler)
 
         it "reloads the contents from the disk", ->
@@ -2925,22 +2927,22 @@ describe "TextBuffer", ->
 
       buffer = new TextBuffer({filePath, load: true})
       buffer.onDidChangeEncoding(encodingChangeHandler)
-      buffer.setEncoding('win1251')
-      expect(encodingChangeHandler).toHaveBeenCalledWith('win1251')
+      buffer.setEncoding('WINDOWS-1251')
+      expect(encodingChangeHandler).toHaveBeenCalledWith('WINDOWS-1251')
 
       encodingChangeHandler.calls.reset()
-      buffer.setEncoding('win1251')
+      buffer.setEncoding('WINDOWS-1251')
       expect(encodingChangeHandler.calls.count()).toBe 0
 
       encodingChangeHandler.calls.reset()
 
       buffer = new TextBuffer()
       buffer.onDidChangeEncoding(encodingChangeHandler)
-      buffer.setEncoding('win1251')
-      expect(encodingChangeHandler).toHaveBeenCalledWith('win1251')
+      buffer.setEncoding('WINDOWS-1251')
+      expect(encodingChangeHandler).toHaveBeenCalledWith('WINDOWS-1251')
 
       encodingChangeHandler.calls.reset()
-      buffer.setEncoding('win1251')
+      buffer.setEncoding('WINDOWS-1251')
       expect(encodingChangeHandler.calls.count()).toBe 0
 
     describe "when a buffer's encoding is changed", ->
@@ -2951,7 +2953,7 @@ describe "TextBuffer", ->
           done()
         buffer.load().then ->
           buffer.onDidReload(reloadHandler)
-          buffer.setEncoding('win1251')
+          buffer.setEncoding('WINDOWS-1251')
 
       it "does not push the encoding change onto the undo stack", ->
         buffer.undo()
