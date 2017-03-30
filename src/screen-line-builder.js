@@ -31,7 +31,7 @@ class ScreenLineBuilder {
     endScreenRow = this.displayLayer.findBoundaryFollowingScreenRow(endScreenRow)
 
     let decorationIterator
-    const hunks = this.displayLayer.spatialIndex.getHunksInNewRange(Point(this.screenRow, 0), Point(endScreenRow, 0))
+    const hunks = this.displayLayer.spatialIndex.getChangesInNewRange(Point(this.screenRow, 0), Point(endScreenRow, 0))
     let hunkIndex = 0
 
     this.containingTags = []

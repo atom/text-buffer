@@ -285,7 +285,7 @@ class DisplayLayer {
   }
 
   translateBufferPositionWithSpatialIndex (bufferPosition, clipDirection) {
-    let hunk = this.spatialIndex.hunkForOldPosition(bufferPosition)
+    let hunk = this.spatialIndex.changeForOldPosition(bufferPosition)
     if (hunk) {
       if (compare(bufferPosition, hunk.oldEnd) < 0) {
         if (compare(hunk.oldStart, bufferPosition) === 0) {
@@ -350,7 +350,7 @@ class DisplayLayer {
   }
 
   translateScreenPositionWithSpatialIndex (screenPosition, clipDirection, skipSoftWrapIndentation) {
-    let hunk = this.spatialIndex.hunkForNewPosition(screenPosition)
+    let hunk = this.spatialIndex.changeForNewPosition(screenPosition)
     if (hunk) {
       if (compare(screenPosition, hunk.newEnd) < 0) {
         if (this.isSoftWrapHunk(hunk)) {
@@ -416,7 +416,7 @@ class DisplayLayer {
 
   expandHardTabs (targetScreenPosition, targetBufferPosition, tabCount) {
     const screenRowStart = Point(targetScreenPosition.row, 0)
-    const hunks = this.spatialIndex.getHunksInNewRange(screenRowStart, targetScreenPosition)
+    const hunks = this.spatialIndex.getChangesInNewRange(screenRowStart, targetScreenPosition)
     let hunkIndex = 0
     let unexpandedScreenColumn = 0
     let expandedScreenColumn = 0
@@ -467,7 +467,7 @@ class DisplayLayer {
     const screenRowStart = Point(targetScreenPosition.row, 0)
     const screenRowEnd = Point(targetScreenPosition.row, this.screenLineLengths[targetScreenPosition.row])
 
-    const hunks = this.spatialIndex.getHunksInNewRange(screenRowStart, screenRowEnd)
+    const hunks = this.spatialIndex.getChangesInNewRange(screenRowStart, screenRowEnd)
     let hunkIndex = 0
     let unexpandedScreenColumn = 0
     let expandedScreenColumn = 0
@@ -746,7 +746,7 @@ class DisplayLayer {
       combinedChanges.splice(Point(startRow, 0), extent, extent)
     }
 
-    return Object.freeze(combinedChanges.getHunks().map((hunk) => {
+    return Object.freeze(combinedChanges.getChanges().map((hunk) => {
       return {
         start: Point.fromObject(hunk.newStart),
         oldExtent: traversal(hunk.oldEnd, hunk.oldStart),
