@@ -127,7 +127,7 @@ class TextBuffer
     @shouldDestroyOnFileDelete = params?.shouldDestroyOnFileDelete ? -> false
 
     if params?.filePath
-      @serializedChanges = params.outstandingChanges
+      @serializedChanges = Buffer.from(params.outstandingChanges, 'base64')
       @setPath(params.filePath)
       @load() if params?.load
 
@@ -182,7 +182,7 @@ class TextBuffer
     if filePath = @getPath()
       result.filePath = filePath
       result.digestWhenLastPersisted = @buffer.baseTextDigest()
-      result.outstandingChanges = @buffer.serializeChanges()
+      result.outstandingChanges = @buffer.serializeChanges().toString('base64')
     else
       result.text = @getText()
 
@@ -1459,8 +1459,8 @@ class TextBuffer
         @emitDidChangeEvent({
           oldRange: new Range(Point.ZERO, oldExtent),
           newRange: new Range(Point.ZERO, @buffer.getExtent()),
-          oldText: null,
-          newText: null
+          oldText: '',
+          newText: ''
         })
         @emitter.emit 'did-reload'
     this
@@ -1512,8 +1512,8 @@ class TextBuffer
           @emitDidChangeEvent({
             oldRange: new Range(Point.ZERO, oldExtent),
             newRange: new Range(Point.ZERO, @buffer.getExtent()),
-            oldText: null,
-            newText: null
+            oldText: '',
+            newText: ''
           })
 
     @fileSubscriptions.add @file.onDidDelete =>
