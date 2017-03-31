@@ -127,7 +127,8 @@ class TextBuffer
     @shouldDestroyOnFileDelete = params?.shouldDestroyOnFileDelete ? -> false
 
     if params?.filePath
-      @serializedChanges = Buffer.from(params.outstandingChanges, 'base64')
+      if params.outstandingChanges
+        @serializedChanges = Buffer.from(params.outstandingChanges, 'base64')
       @setPath(params.filePath)
       @load() if params?.load
 
