@@ -239,7 +239,7 @@ class TextBuffer
   #       * `newRange`: The {Range} of the inserted text in the current contents
   #         of the buffer.
   #       * `oldText`: A {String} representing the deleted text.
-  #       * `newText`: A {String} representing the ineserted text.
+  #       * `newText`: A {String} representing the inserted text.
   #
   # Returns a {Disposable} on which `.dispose()` can be called to unsubscribe.
   onDidChangeText: (callback) ->
@@ -267,7 +267,7 @@ class TextBuffer
   #       * `newRange`: The {Range} of the inserted text in the current contents
   #         of the buffer.
   #       * `oldText`: A {String} representing the deleted text.
-  #       * `newText`: A {String} representing the ineserted text.
+  #       * `newText`: A {String} representing the inserted text.
   #
   # Returns a {Disposable} on which `.dispose()` can be called to unsubscribe.
   onDidStopChanging: (callback) ->
@@ -1160,7 +1160,7 @@ class TextBuffer
   #   the checkpoint was created.
   # * `newRange`: The {Range} of the inserted text in the current text.
   # * `oldText`: A {String} representing the deleted text.
-  # * `newText`: A {String} representing the ineserted text.
+  # * `newText`: A {String} representing the inserted text.
   getChangesSinceCheckpoint: (checkpoint) ->
     if patch = @history.getChangesSinceCheckpoint(checkpoint)
       normalizePatchChanges(patch.getHunks())
