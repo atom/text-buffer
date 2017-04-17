@@ -8,6 +8,15 @@
 # new Point(1, 2)
 # [1, 2] # Point compatible Array
 # ```
+#
+# You can also create a Point by specifying just a row number, either by 
+# instantiating a new Point with one argument or with a Point-compatible 
+# 1-element array. Points created this way will have a `column` value of `0`.
+#
+# ```coffee
+# new Point(1) # Creates a Point at row 1, column 0
+# [1] # Creates a Point at row 1, column 0
+# ```
 module.exports =
 class Point
   ###
