@@ -430,7 +430,11 @@ class TextBuffer
   # If the buffer is unsaved, always returns `true` unless the buffer is empty.
   #
   # Returns a {Boolean}.
-  isModified: -> @buffer.isModified()
+  isModified: ->
+    if @file?.existsSync()
+      @buffer.isModified()
+    else
+      @buffer.getLength() > 0
 
   # Public: Determine if the in-memory contents of the buffer conflict with the
   # on-disk contents of its associated file.
