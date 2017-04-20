@@ -1257,29 +1257,19 @@ describe "TextBuffer", ->
       , 30)
 
     describe "when the buffer is in an unmodified state before the file is modified on disk", ->
-      [event1, event2] = []
-      beforeEach (done) ->
-        calls = 0
-        buffer.onDidChange (args) ->
-          calls = calls + 1
-          event1 = args if calls is 1
-          event2 = args if calls is 2
-          done() if calls > 1
+      it "changes the in-memory contents of the buffer to match the new disk contents and notifies ::onDidChange observers", (done) ->
+        buffer.onDidChange (event) ->
+          expect(event.oldRange).toEqual [[0, 0], [0, 5]]
+          expect(event.newRange).toEqual [[0, 0], [0, 6]]
+
+          # expect(event.oldText).toBe "first"
+
+          expect(event.oldText.length).toBe "first".length
+          expect(event.newText).toBe "second"
+          expect(buffer.isModified()).toBeFalsy()
+          done()
+
         fs.writeFileSync(filePath, "second")
-        expect(calls).toBe(0)
-
-      it "changes the in-memory contents of the buffer to match the new disk contents and notifies ::onDidChange observers", ->
-        expect(event1.oldRange).toEqual [[0, 0], [0, 5]]
-        expect(event1.newRange).toEqual [[0, 0], [0, 0]]
-        expect(event1.oldText).toBe "first"
-        expect(event1.newText).toBe ""
-
-        expect(event2.oldRange).toEqual [[0, 0], [0, 0]]
-        expect(event2.newRange).toEqual [[0, 0], [0, 6]]
-        expect(event2.oldText).toBe ""
-        expect(event2.newText).toBe "second"
-
-        expect(buffer.isModified()).toBeFalsy()
 
     describe "when the buffer's memory contents differ from the *previous* disk contents", ->
       it "leaves the buffer in a modified state (does not update its memory contents)", (done) ->

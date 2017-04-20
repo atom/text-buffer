@@ -1506,16 +1506,24 @@ class TextBuffer
       if @isModified()
         @emitter.emit 'did-conflict'
       else
+        oldLength = @buffer.getLength()
         oldExtent = @buffer.getExtent()
         previousDigest = @buffer.baseTextDigest()
-        @buffer.load(@getPath(), @getEncoding()).then =>
-          return if @buffer.baseTextDigest() is previousDigest
-          @emitDidChangeEvent({
+        @buffer.load(@getPath(), @getEncoding()).then (patch) =>
+          return if patch.getChangeCount() is 0
+          buffer = @buffer
+
+          event = {
             oldRange: new Range(Point.ZERO, oldExtent),
             newRange: new Range(Point.ZERO, @buffer.getExtent()),
-            oldText: '',
-            newText: ''
+            oldText: {length: oldLength}
+          }
+
+          Object.defineProperty(event, 'newText', {
+            get: -> @_newText ?= buffer.getText()
           })
+
+          @emitDidChangeEvent(event)
 
     @fileSubscriptions.add @file.onDidDelete =>
       modified = @isModified()
