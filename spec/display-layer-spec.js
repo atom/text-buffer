@@ -1919,7 +1919,7 @@ describe('DisplayLayer', () => {
         }
       })
 
-      expect(displayLayer.getScreenLines(0, 1)[0].tagCodes).toEqual([-1, -3, 2, -4, -2, -1, -3, 3, -4, -2])
+      expect(displayLayer.getScreenLines(0, 1)[0].tags).toEqual([-1, -3, 2, -4, -2, -1, -3, 3, -4, -2])
     })
 
     it('emits update events from the display layer when text decoration ranges are invalidated', () => {
@@ -2563,25 +2563,25 @@ const getTokens = function (displayLayer, startRow = 0, endRow = displayLayer.ge
 function getTokenBoundaries (displayLayer, startRow = 0, endRow = displayLayer.getScreenLineCount()) {
   const tokenLines = []
 
-  for (const {lineText, tagCodes} of displayLayer.getScreenLines(startRow, endRow)) {
+  for (const {lineText, tags} of displayLayer.getScreenLines(startRow, endRow)) {
     const tokens = []
     let startIndex = 0
     let closeTags = []
     let openTags = []
 
-    for (const tagCode of tagCodes) {
-      if (displayLayer.isCloseTagCode(tagCode)) {
-        closeTags.push(displayLayer.tagForCode(tagCode))
-      } else if (displayLayer.isOpenTagCode(tagCode)) {
-        openTags.push(displayLayer.tagForCode(tagCode))
+    for (const tag of tags) {
+      if (displayLayer.isCloseTag(tag)) {
+        closeTags.push(displayLayer.classNameForTag(tag))
+      } else if (displayLayer.isOpenTag(tag)) {
+        openTags.push(displayLayer.classNameForTag(tag))
       } else {
         tokens.push({
           closeTags: closeTags,
           openTags: openTags,
-          text: lineText.substr(startIndex, tagCode)
+          text: lineText.substr(startIndex, tag)
         })
 
-        startIndex += tagCode
+        startIndex += tag
         closeTags = []
         openTags = []
       }

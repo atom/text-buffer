@@ -17,9 +17,9 @@ class DisplayLayer {
     this.emitter = new Emitter()
     this.screenLineBuilder = new ScreenLineBuilder(this)
     this.cachedScreenLines = []
-    this.tagsByCode = new Map()
-    this.codesByTag = new Map()
-    this.nextOpenTagCode = -1
+    this.classNamesByTag = new Map()
+    this.openTagsByClassName = new Map()
+    this.nextOpenTag = -1
     this.textDecorationLayer = new EmptyDecorationLayer()
     this.displayMarkerLayersById = new Map()
     this.destroyed = false
@@ -671,33 +671,33 @@ class DisplayLayer {
     return column
   }
 
-  tagForCode (tagCode) {
-    if (this.isCloseTagCode(tagCode)) tagCode++
-    return this.tagsByCode.get(tagCode)
+  classNameForTag (tag) {
+    if (this.isCloseTag(tag)) tag++
+    return this.classNamesByTag.get(tag)
   }
 
-  codeForOpenTag (tag) {
-    if (this.codesByTag.has(tag)) {
-      return this.codesByTag.get(tag)
+  openTagForClassName (className) {
+    if (this.openTagsByClassName.has(className)) {
+      return this.openTagsByClassName.get(className)
     } else {
-      const tagCode = this.nextOpenTagCode
-      this.codesByTag.set(tag, tagCode)
-      this.tagsByCode.set(tagCode, tag)
-      this.nextOpenTagCode -= 2
-      return tagCode
+      const tag = this.nextOpenTag
+      this.openTagsByClassName.set(className, tag)
+      this.classNamesByTag.set(tag, className)
+      this.nextOpenTag -= 2
+      return tag
     }
   }
 
-  codeForCloseTag (tag) {
-    return this.codeForOpenTag(tag) - 1
+  closeTagForClassName (className) {
+    return this.openTagForClassName(className) - 1
   }
 
-  isOpenTagCode (tagCode) {
-    return tagCode < 0 && tagCode % 2 === -1
+  isOpenTag (tag) {
+    return tag < 0 && tag % 2 === -1
   }
 
-  isCloseTagCode (tagCode) {
-    return tagCode < 0 && tagCode % 2 === 0
+  isCloseTag (tag) {
+    return tag < 0 && tag % 2 === 0
   }
 
   bufferWillChange (change) {

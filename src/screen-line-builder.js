@@ -10,7 +10,7 @@ const INDENT_GUIDE = 1 << 5
 const LINE_ENDING = 1 << 6
 const FOLD = 1 << 7
 
-const builtInTagCache = new Map()
+const builtInClassNameCache = new Map()
 let nextScreenLineId = 1
 
 module.exports =
@@ -116,7 +116,7 @@ class ScreenLineBuilder {
         this.updateCurrentTokenFlags(nextCharacter)
 
         if (this.emitBuiltInTagBoundary) {
-          this.emitCloseTag(this.getBuiltInTag(previousBuiltInTagFlags))
+          this.emitCloseTag(this.getBuiltInClassName(previousBuiltInTagFlags))
         }
 
         this.emitDecorationBoundaries(decorationIterator)
@@ -128,7 +128,7 @@ class ScreenLineBuilder {
         }
 
         if (this.emitBuiltInTagBoundary) {
-          this.emitOpenTag(this.getBuiltInTag(this.currentBuiltInTagFlags))
+          this.emitOpenTag(this.getBuiltInClassName(this.currentBuiltInTagFlags))
         }
 
         // Emit the next character, handling hard tabs whitespace invisibles
@@ -148,28 +148,28 @@ class ScreenLineBuilder {
     return this.screenLines
   }
 
-  getBuiltInTag (flags) {
-    let tag = builtInTagCache.get(flags)
-    if (tag) {
-      return tag
+  getBuiltInClassName (flags) {
+    let className = builtInClassNameCache.get(flags)
+    if (className) {
+      return className
     } else {
-      let tag = ''
-      if (flags & INVISIBLE_CHARACTER) tag += 'invisible-character '
-      if (flags & HARD_TAB) tag += 'hard-tab '
-      if (flags & LEADING_WHITESPACE) tag += 'leading-whitespace '
-      if (flags & TRAILING_WHITESPACE) tag += 'trailing-whitespace '
-      if (flags & LINE_ENDING) tag += 'eol '
-      if (flags & INDENT_GUIDE) tag += 'indent-guide '
-      if (flags & FOLD) tag += 'fold-marker '
-      tag = tag.trim()
-      builtInTagCache.set(flags, tag)
-      return tag
+      let className = ''
+      if (flags & INVISIBLE_CHARACTER) className += 'invisible-character '
+      if (flags & HARD_TAB) className += 'hard-tab '
+      if (flags & LEADING_WHITESPACE) className += 'leading-whitespace '
+      if (flags & TRAILING_WHITESPACE) className += 'trailing-whitespace '
+      if (flags & LINE_ENDING) className += 'eol '
+      if (flags & INDENT_GUIDE) className += 'indent-guide '
+      if (flags & FOLD) className += 'fold-marker '
+      className = className.trim()
+      builtInClassNameCache.set(flags, className)
+      return className
     }
   }
 
   beginLine () {
     this.currentScreenLineText = ''
-    this.currentScreenLineTagCodes = []
+    this.currentScreenLineTags = []
     this.screenColumn = 0
     this.currentTokenLength = 0
   }
@@ -226,15 +226,15 @@ class ScreenLineBuilder {
   }
 
   emitFold (nextHunk, decorationIterator) {
-    this.emitCloseTag(this.getBuiltInTag(this.currentBuiltInTagFlags))
+    this.emitCloseTag(this.getBuiltInClassName(this.currentBuiltInTagFlags))
     this.currentBuiltInTagFlags = 0
 
     this.closeContainingTags()
     this.tagsToReopen.length = 0
 
-    this.emitOpenTag(this.getBuiltInTag(FOLD))
+    this.emitOpenTag(this.getBuiltInClassName(FOLD))
     this.emitText(this.displayLayer.foldCharacter)
-    this.emitCloseTag(this.getBuiltInTag(FOLD))
+    this.emitCloseTag(this.getBuiltInClassName(FOLD))
 
     this.bufferRow = nextHunk.oldEnd.row
     this.bufferColumn = nextHunk.oldEnd.column
@@ -246,7 +246,7 @@ class ScreenLineBuilder {
   }
 
   emitSoftWrap (nextHunk) {
-    this.emitCloseTag(this.getBuiltInTag(this.currentBuiltInTagFlags))
+    this.emitCloseTag(this.getBuiltInClassName(this.currentBuiltInTagFlags))
     this.currentBuiltInTagFlags = 0
     this.closeContainingTags()
     this.emitNewline()
@@ -254,16 +254,16 @@ class ScreenLineBuilder {
   }
 
   emitLineEnding () {
-    this.emitCloseTag(this.getBuiltInTag(this.currentBuiltInTagFlags))
+    this.emitCloseTag(this.getBuiltInClassName(this.currentBuiltInTagFlags))
 
     let lineEnding = this.displayLayer.buffer.lineEndingForRow(this.bufferRow)
     const eolInvisible = this.displayLayer.eolInvisibles[lineEnding]
     if (eolInvisible) {
       let eolFlags = INVISIBLE_CHARACTER | LINE_ENDING
       if (this.bufferLine.length === 0 && this.displayLayer.showIndentGuides) eolFlags |= INDENT_GUIDE
-      this.emitOpenTag(this.getBuiltInTag(eolFlags))
+      this.emitOpenTag(this.getBuiltInClassName(eolFlags))
       this.emitText(eolInvisible, false)
-      this.emitCloseTag(this.getBuiltInTag(eolFlags))
+      this.emitCloseTag(this.getBuiltInClassName(eolFlags))
     }
 
     if (this.bufferLine.length === 0 && this.displayLayer.showIndentGuides) {
@@ -275,7 +275,7 @@ class ScreenLineBuilder {
 
     // Ensure empty lines have at least one empty token to make it easier on
     // the caller
-    if (this.currentScreenLineTagCodes.length === 0) this.currentScreenLineTagCodes.push(0)
+    if (this.currentScreenLineTags.length === 0) this.currentScreenLineTags.push(0)
     this.emitNewline()
     this.bufferRow++
     this.bufferColumn = 0
@@ -285,7 +285,7 @@ class ScreenLineBuilder {
     const screenLine = {
       id: nextScreenLineId++,
       lineText: this.currentScreenLineText,
-      tagCodes: this.currentScreenLineTagCodes
+      tags: this.currentScreenLineTags
     }
     this.pushScreenLine(screenLine)
     this.displayLayer.cachedScreenLines[this.screenRow] = screenLine
@@ -299,16 +299,16 @@ class ScreenLineBuilder {
       while (this.screenColumn < endColumn) {
         if (this.screenColumn % this.displayLayer.tabLength === 0) {
           if (openedIndentGuide) {
-            this.emitCloseTag(this.getBuiltInTag(INDENT_GUIDE))
+            this.emitCloseTag(this.getBuiltInClassName(INDENT_GUIDE))
           }
 
-          this.emitOpenTag(this.getBuiltInTag(INDENT_GUIDE))
+          this.emitOpenTag(this.getBuiltInClassName(INDENT_GUIDE))
           openedIndentGuide = true
         }
         this.emitText(' ', false)
       }
 
-      if (openedIndentGuide) this.emitCloseTag(this.getBuiltInTag(INDENT_GUIDE))
+      if (openedIndentGuide) this.emitCloseTag(this.getBuiltInClassName(INDENT_GUIDE))
     } else {
       this.emitText(' '.repeat(endColumn - this.screenColumn), false)
     }
@@ -334,15 +334,15 @@ class ScreenLineBuilder {
 
   emitTokenBoundary () {
     if (this.currentTokenLength > 0) {
-      this.currentScreenLineTagCodes.push(this.currentTokenLength)
+      this.currentScreenLineTags.push(this.currentTokenLength)
       this.currentTokenLength = 0
     }
   }
 
   emitEmptyTokenIfNeeded () {
-    const lastTagCode = this.currentScreenLineTagCodes[this.currentScreenLineTagCodes.length - 1]
-    if (this.displayLayer.isOpenTagCode(lastTagCode)) {
-      this.currentScreenLineTagCodes.push(0)
+    const lastTag = this.currentScreenLineTags[this.currentScreenLineTags.length - 1]
+    if (this.displayLayer.isOpenTag(lastTag)) {
+      this.currentScreenLineTags.push(0)
     }
   }
 
@@ -362,7 +362,7 @@ class ScreenLineBuilder {
 
     let containingTag
     while ((containingTag = this.containingTags.pop())) {
-      this.currentScreenLineTagCodes.push(this.displayLayer.codeForCloseTag(containingTag))
+      this.currentScreenLineTags.push(this.displayLayer.closeTagForClassName(containingTag))
       if (containingTag === closeTag) {
         return
       } else {
@@ -376,7 +376,7 @@ class ScreenLineBuilder {
     this.emitTokenBoundary()
     if (openTag.length > 0) {
       this.containingTags.push(openTag)
-      this.currentScreenLineTagCodes.push(this.displayLayer.codeForOpenTag(openTag))
+      this.currentScreenLineTags.push(this.displayLayer.openTagForClassName(openTag))
     }
   }
 
@@ -385,7 +385,7 @@ class ScreenLineBuilder {
 
     for (let i = this.containingTags.length - 1; i >= 0; i--) {
       const containingTag = this.containingTags[i]
-      this.currentScreenLineTagCodes.push(this.displayLayer.codeForCloseTag(containingTag))
+      this.currentScreenLineTags.push(this.displayLayer.closeTagForClassName(containingTag))
       this.tagsToReopen.unshift(containingTag)
     }
     this.containingTags.length = 0
@@ -395,7 +395,7 @@ class ScreenLineBuilder {
     for (let i = 0, n = this.tagsToReopen.length; i < n; i++) {
       const tagToReopen = this.tagsToReopen[i]
       this.containingTags.push(tagToReopen)
-      this.currentScreenLineTagCodes.push(this.displayLayer.codeForOpenTag(tagToReopen))
+      this.currentScreenLineTags.push(this.displayLayer.openTagForClassName(tagToReopen))
     }
     this.tagsToReopen.length = 0
   }
