@@ -8,6 +8,7 @@ const {traverse, traversal, compare, max, isEqual} = require('./point-helpers')
 const isCharacterPair = require('./is-character-pair')
 const ScreenLineBuilder = require('./screen-line-builder')
 const {spliceArray} = require('./helpers')
+const {MAX_BUILT_IN_SCOPE_ID} = require('./constants')
 
 module.exports =
 class DisplayLayer {
@@ -17,9 +18,9 @@ class DisplayLayer {
     this.emitter = new Emitter()
     this.screenLineBuilder = new ScreenLineBuilder(this)
     this.cachedScreenLines = []
-    this.classNamesByTag = new Map()
-    this.openTagsByClassName = new Map()
-    this.nextOpenTag = -1
+    this.builtInScopeIdsByFlags = new Map()
+    this.builtInClassNamesByScopeId = new Map()
+    this.nextBuiltInScopeId = 1
     this.textDecorationLayer = new EmptyDecorationLayer()
     this.displayMarkerLayersById = new Map()
     this.destroyed = false
@@ -671,25 +672,53 @@ class DisplayLayer {
     return column
   }
 
-  classNameForTag (tag) {
-    if (this.isCloseTag(tag)) tag++
-    return this.classNamesByTag.get(tag)
+  registerBuiltInScope (flags, className) {
+    if (this.nextBuiltInScopeId > MAX_BUILT_IN_SCOPE_ID) {
+      throw new Error('Built in scope ids exhausted')
+    }
+
+    let scopeId
+    if (className.length > 0) {
+      scopeId = this.nextBuiltInScopeId += 2
+      this.builtInClassNamesByScopeId.set(scopeId, className)
+    } else {
+      scopeId = 0
+    }
+    this.builtInScopeIdsByFlags.set(flags, scopeId)
+    return scopeId
   }
 
-  openTagForClassName (className) {
-    if (this.openTagsByClassName.has(className)) {
-      return this.openTagsByClassName.get(className)
+  getBuiltInScopeId (flags) {
+    if (this.builtInScopeIdsByFlags.has(flags)) {
+      return this.builtInScopeIdsByFlags.get(flags)
     } else {
-      const tag = this.nextOpenTag
-      this.openTagsByClassName.set(className, tag)
-      this.classNamesByTag.set(tag, className)
-      this.nextOpenTag -= 2
-      return tag
+      return -1
     }
   }
 
-  closeTagForClassName (className) {
-    return this.openTagForClassName(className) - 1
+  classNameForScopeId (scopeId) {
+    if (scopeId <= MAX_BUILT_IN_SCOPE_ID) {
+      return this.builtInClassNamesByScopeId.get(scopeId)
+    } else {
+      return this.textDecorationLayer.classNameForScopeId(scopeId)
+    }
+  }
+
+  scopeIdForTag (tag) {
+    if (this.isCloseTag(tag)) tag++
+    return -tag
+  }
+
+  classNameForTag (tag) {
+    return this.classNameForScopeId(this.scopeIdForTag(tag))
+  }
+
+  openTagForScopeId (scopeId) {
+    return -scopeId
+  }
+
+  closeTagForScopeId (scopeId) {
+    return -scopeId - 1
   }
 
   isOpenTag (tag) {

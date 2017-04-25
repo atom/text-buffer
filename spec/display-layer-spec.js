@@ -1883,21 +1883,21 @@ describe('DisplayLayer', () => {
 
       const boundaries = [{
         position: Point(0, 0),
-        closeTags: [],
-        openTags: ['a', 'b']
+        closeScopeIds: [],
+        openScopeIds: [1, 3]
       }, {
         position: Point(0, 2),
-        closeTags: ['c'],
-        openTags: []
+        closeScopeIds: [5],
+        openScopeIds: []
       }]
 
       const iterator = {
-        getOpenTags () {
-          return boundaries[0].openTags
+        getOpenScopeIds () {
+          return boundaries[0].openScopeIds
         },
 
-        getCloseTags () {
-          return boundaries[0].closeTags
+        getCloseScopeIds () {
+          return boundaries[0].closeScopeIds
         },
 
         getPosition () {

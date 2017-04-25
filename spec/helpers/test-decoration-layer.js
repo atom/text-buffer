@@ -3,28 +3,40 @@ const {Emitter} = require('event-kit')
 const {compare: comparePoints, isEqual: isEqualPoint, min: minPoint} = require('../../src/point-helpers')
 const Point = require('../../src/point')
 const Range = require('../../src/range')
+const {MAX_BUILT_IN_SCOPE_ID} = require('../../src/constants')
 
 module.exports =
 class TestDecorationLayer {
   constructor (decorations, buffer, random) {
     this.buffer = buffer
     this.random = random
-    this.nextMarkerId = 1
+    // TODO: Set this back to 1 when we introduce the composite decoration layer
+    this.nextMarkerId = MAX_BUILT_IN_SCOPE_ID + 1
     this.markerIndex = new MarkerIndex()
-    this.tagsByMarkerId = {}
+    this.classNamesByScopeId = new Map()
     this.emitter = new Emitter()
 
     for (let value of decorations) {
-      const tag = value[0]
+      const className = value[0]
       const [rangeStart, rangeEnd] = Array.from(value[1])
-      const markerId = this.nextMarkerId++
+      const markerId = this.getNextMarkerId()
       this.markerIndex.insert(markerId, Point.fromObject(rangeStart), Point.fromObject(rangeEnd))
-      this.tagsByMarkerId[markerId] = tag
+      this.classNamesByScopeId.set(markerId, className)
     }
 
     if (this.buffer) {
       this.buffer.registerTextDecorationLayer(this)
     }
+  }
+
+  getNextMarkerId () {
+    const nextMarkerId = this.nextMarkerId
+    this.nextMarkerId += 2
+    return nextMarkerId
+  }
+
+  classNameForScopeId (scopeId) {
+    return this.classNamesByScopeId.get(scopeId)
   }
 
   buildIterator () {
@@ -41,12 +53,6 @@ class TestDecorationLayer {
     return this.emitter.emit('did-invalidate-range', range)
   }
 
-  containingTagsForPosition (position) {
-    const containingIds = this.markerIndex.findContaining(position)
-    this.markerIndex.findEndingAt(position).forEach((id) => containingIds.delete(id))
-    return Array.from(containingIds).map((id) => this.tagsByMarkerId[id])
-  }
-
   bufferDidChange ({oldRange, newRange}) {
     this.invalidatedRanges = [Range.fromObject(newRange)]
     const {inside, overlap} = this.markerIndex.splice(oldRange.start, oldRange.getExtent(), newRange.getExtent())
@@ -61,9 +67,9 @@ class TestDecorationLayer {
 
     const j = this.random(5)
     for (let i = 0; i < j; i++) {
-      const markerId = this.nextMarkerId++
-      const tag = String.fromCharCode('a'.charCodeAt(0) + this.random(27))
-      this.tagsByMarkerId[markerId] = tag
+      const markerId = this.getNextMarkerId()
+      const className = String.fromCharCode('a'.charCodeAt(0) + this.random(27))
+      this.classNamesByScopeId.set(markerId, className)
       const range = this.getRandomRangeCloseTo(oldRange.union(newRange))
       this.markerIndex.insert(markerId, range.start, range.end)
       this.invalidatedRanges.push(range)
@@ -100,11 +106,11 @@ class TestDecorationLayer {
 class TestDecorationLayerIterator {
   constructor (layer) {
     this.layer = layer
-    const {markerIndex, tagsByMarkerId} = this.layer
+    const {markerIndex, classNamesByScopeId} = this.layer
 
     const emptyMarkers = []
     const nonEmptyMarkers = []
-    for (let key of Object.keys(tagsByMarkerId)) {
+    for (let key of classNamesByScopeId.keys()) {
       const id = parseInt(key)
       if (isEqualPoint(markerIndex.getStart(id), markerIndex.getEnd(id))) {
         emptyMarkers.push(id)
@@ -128,8 +134,8 @@ class TestDecorationLayerIterator {
     while ((emptyMarkers.length > 0) || (markersSortedByStart.length > 0) || (markersSortedByEnd.length > 0)) {
       let boundary = {
         position: Point.INFINITY,
-        closeTags: [],
-        openTags: []
+        closeScopeIds: [],
+        openScopeIds: []
       }
 
       if (nextMarkerStart()) {
@@ -143,27 +149,27 @@ class TestDecorationLayerIterator {
       }
 
       while (nextMarkerEnd() && isEqualPoint(nextMarkerEnd(), boundary.position)) {
-        boundary.closeTags.push(tagsByMarkerId[markersSortedByEnd.shift()])
+        boundary.closeScopeIds.push(markersSortedByEnd.shift())
       }
 
-      const emptyTags = []
+      const emptyScopeIds = []
       while (nextEmptyMarkerStart() && isEqualPoint(nextEmptyMarkerStart(), boundary.position)) {
-        emptyTags.push(tagsByMarkerId[emptyMarkers.shift()])
+        emptyScopeIds.push(emptyMarkers.shift())
       }
 
-      if (emptyTags.length > 0) {
-        boundary.openTags.push(...emptyTags)
+      if (emptyScopeIds.length > 0) {
+        boundary.openScopeIds.push(...emptyScopeIds)
         this.boundaries.push(boundary)
         boundary = {
           position: boundary.position,
-          closeTags: [],
-          openTags: []
+          closeScopeIds: [],
+          openScopeIds: []
         }
-        boundary.closeTags.push(...emptyTags)
+        boundary.closeScopeIds.push(...emptyScopeIds)
       }
 
       while (nextMarkerStart() && isEqualPoint(nextMarkerStart(), boundary.position)) {
-        boundary.openTags.push(tagsByMarkerId[markersSortedByStart.shift()])
+        boundary.openScopeIds.push(markersSortedByStart.shift())
       }
 
       this.boundaries.push(boundary)
@@ -171,21 +177,21 @@ class TestDecorationLayerIterator {
   }
 
   seek (position) {
-    const containingTags = []
+    const containingScopeIds = []
     for (let index = 0; index < this.boundaries.length; index++) {
       const boundary = this.boundaries[index]
       if (comparePoints(boundary.position, position) >= 0) {
         this.boundaryIndex = index
-        return containingTags
+        return containingScopeIds
       } else {
-        for (let tag of boundary.closeTags) {
-          containingTags.splice(containingTags.lastIndexOf(tag), 1)
+        for (let scopeId of boundary.closeScopeIds) {
+          containingScopeIds.splice(containingScopeIds.lastIndexOf(scopeId), 1)
         }
-        containingTags.push(...boundary.openTags)
+        containingScopeIds.push(...boundary.openScopeIds)
       }
     }
     this.boundaryIndex = this.boundaries.length
-    return containingTags
+    return containingScopeIds
   }
 
   moveToSuccessor () {
@@ -197,13 +203,13 @@ class TestDecorationLayerIterator {
     return boundary ? boundary.position : Point.INFINITY
   }
 
-  getCloseTags () {
+  getCloseScopeIds () {
     const boundary = this.boundaries[this.boundaryIndex]
-    return boundary ? boundary.closeTags : []
+    return boundary ? boundary.closeScopeIds : []
   }
 
-  getOpenTags () {
+  getOpenScopeIds () {
     const boundary = this.boundaries[this.boundaryIndex]
-    return boundary ? boundary.openTags : []
+    return boundary ? boundary.openScopeIds : []
   }
 }
