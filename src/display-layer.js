@@ -3,12 +3,13 @@ const {Emitter} = require('event-kit')
 const Point = require('./point')
 const Range = require('./range')
 const EmptyDecorationLayer = require('./empty-decoration-layer')
+const CompositeTextDecorationLayer = require('./composite-text-decoration-layer')
 const DisplayMarkerLayer = require('./display-marker-layer')
 const {traverse, traversal, compare, max, isEqual} = require('./point-helpers')
 const isCharacterPair = require('./is-character-pair')
 const ScreenLineBuilder = require('./screen-line-builder')
 const {spliceArray} = require('./helpers')
-const {MAX_BUILT_IN_SCOPE_ID} = require('./constants')
+const MAX_BUILT_IN_SCOPE_ID = 256
 
 module.exports =
 class DisplayLayer {
@@ -141,7 +142,8 @@ class DisplayLayer {
 
   setTextDecorationLayer (textDecorationLayer) {
     this.cachedScreenLines.length = 0
-    this.textDecorationLayer = textDecorationLayer
+    this.textDecorationLayer = new CompositeTextDecorationLayer(MAX_BUILT_IN_SCOPE_ID + 1)
+    this.textDecorationLayer.addLayer(textDecorationLayer)
     if (typeof textDecorationLayer.onDidInvalidateRange === 'function') {
       this.decorationLayerDisposable = textDecorationLayer.onDidInvalidateRange((bufferRange) => {
         const screenRange = this.translateBufferRange(bufferRange)

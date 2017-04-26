@@ -1919,7 +1919,7 @@ describe('DisplayLayer', () => {
         }
       })
 
-      expect(displayLayer.getScreenLines(0, 1)[0].tags).toEqual([-1, -3, 2, -4, -2, -1, -3, 3, -4, -2])
+      expect(displayLayer.getScreenLines(0, 1)[0].tags).toEqual([-257, -259, 2, -260, -258, -257, -259, 3, -260, -258])
     })
 
     it('emits update events from the display layer when text decoration ranges are invalidated', () => {

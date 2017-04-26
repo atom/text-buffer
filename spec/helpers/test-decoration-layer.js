@@ -3,15 +3,13 @@ const {Emitter} = require('event-kit')
 const {compare: comparePoints, isEqual: isEqualPoint, min: minPoint} = require('../../src/point-helpers')
 const Point = require('../../src/point')
 const Range = require('../../src/range')
-const {MAX_BUILT_IN_SCOPE_ID} = require('../../src/constants')
 
 module.exports =
 class TestDecorationLayer {
   constructor (decorations, buffer, random) {
     this.buffer = buffer
     this.random = random
-    // TODO: Set this back to 1 when we introduce the composite decoration layer
-    this.nextMarkerId = MAX_BUILT_IN_SCOPE_ID + 1
+    this.nextMarkerId = 1
     this.markerIndex = new MarkerIndex()
     this.classNamesByScopeId = new Map()
     this.emitter = new Emitter()
