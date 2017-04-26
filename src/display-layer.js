@@ -2,7 +2,6 @@ const {Patch} = require('superstring')
 const {Emitter} = require('event-kit')
 const Point = require('./point')
 const Range = require('./range')
-const EmptyDecorationLayer = require('./empty-decoration-layer')
 const CompositeTextDecorationLayer = require('./composite-text-decoration-layer')
 const DisplayMarkerLayer = require('./display-marker-layer')
 const {traverse, traversal, compare, max, isEqual} = require('./point-helpers')
@@ -22,7 +21,22 @@ class DisplayLayer {
     this.builtInScopeIdsByFlags = new Map()
     this.builtInClassNamesByScopeId = new Map()
     this.nextBuiltInScopeId = 1
-    this.textDecorationLayer = new EmptyDecorationLayer()
+    this.textDecorationLayer = new CompositeTextDecorationLayer(MAX_BUILT_IN_SCOPE_ID + 1)
+    this.decorationLayerDisposable = this.textDecorationLayer.onDidInvalidateRange((bufferRange) => {
+      const screenRange = this.translateBufferRange(bufferRange)
+      const extent = screenRange.getExtent()
+      spliceArray(
+        this.cachedScreenLines,
+        screenRange.start.row,
+        extent.row + 1,
+        new Array(extent.row + 1)
+      )
+      this.emitDidChangeSyncEvent([{
+        start: screenRange.start,
+        oldExtent: extent,
+        newExtent: extent
+      }])
+    })
     this.displayMarkerLayersById = new Map()
     this.destroyed = false
 
@@ -115,10 +129,8 @@ class DisplayLayer {
     this.clearSpatialIndex()
     this.foldsMarkerLayer.destroy()
     this.displayMarkerLayersById.forEach((layer) => layer.destroy())
-    if (this.decorationLayerDisposable) this.decorationLayerDisposable.dispose()
-    if (this.textDecorationLayer instanceof CompositeTextDecorationLayer) {
-      this.textDecorationLayer.dispose()
-    }
+    this.decorationLayerDisposable.dispose()
+    this.textDecorationLayer.dispose()
     delete this.buffer.displayLayers[this.id]
   }
 
@@ -140,34 +152,17 @@ class DisplayLayer {
   }
 
   getTextDecorationLayers () {
-    if (this.textDecorationLayer instanceof CompositeTextDecorationLayer) {
-      return this.textDecorationLayer.getLayers()
-    } else {
-      return [this.textDecorationLayer]
-    }
+    return this.textDecorationLayer.getLayers()
   }
 
   addTextDecorationLayer (textDecorationLayer) {
     this.cachedScreenLines.length = 0
-    if (this.textDecorationLayer instanceof EmptyDecorationLayer) {
-      this.textDecorationLayer = new CompositeTextDecorationLayer(MAX_BUILT_IN_SCOPE_ID + 1)
-      this.decorationLayerDisposable = this.textDecorationLayer.onDidInvalidateRange((bufferRange) => {
-        const screenRange = this.translateBufferRange(bufferRange)
-        const extent = screenRange.getExtent()
-        spliceArray(
-          this.cachedScreenLines,
-          screenRange.start.row,
-          extent.row + 1,
-          new Array(extent.row + 1)
-        )
-        this.emitDidChangeSyncEvent([{
-          start: screenRange.start,
-          oldExtent: extent,
-          newExtent: extent
-        }])
-      })
-    }
     this.textDecorationLayer.addLayer(textDecorationLayer)
+  }
+
+  removeTextDecorationLayer (textDecorationLayer) {
+    this.cachedScreenLines.length = 0
+    this.textDecorationLayer.removeLayer(textDecorationLayer)
   }
 
   addMarkerLayer (options) {

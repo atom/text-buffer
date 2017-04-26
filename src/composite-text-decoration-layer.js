@@ -1,11 +1,13 @@
 const {CompositeDisposable, Emitter} = require('event-kit')
+const {compare: comparePoints} = require('./point-helpers')
+const Point = require('./point')
 
 module.exports = class CompositeTextDecorationLayer {
   constructor (nextScopeId) {
     this.nextScopeId = nextScopeId
     this.layerScopeIdsByCompositeScopeId = new Map()
     this.compositeScopeIdsByLayerAndScopeId = new Map()
-    this.layers = []
+    this.layers = new Set()
     this.emitter = new Emitter()
     this.disposables = new CompositeDisposable()
     this.didInvalidateRangeDisposablesByLayer = new Map()
@@ -13,10 +15,10 @@ module.exports = class CompositeTextDecorationLayer {
 
   dispose () {
     this.disposables.dispose()
-    this.didInvalidateRangeDisposablesByLayer = null
-    this.layerScopeIdsByCompositeScopeId = null
-    this.compositeScopeIdsByLayerAndScopeId = null
-    this.layers = null
+    this.didInvalidateRangeDisposablesByLayer.clear()
+    this.layerScopeIdsByCompositeScopeId.clear()
+    this.compositeScopeIdsByLayerAndScopeId.clear()
+    this.layers.clear()
   }
 
   buildIterator () {
@@ -24,7 +26,7 @@ module.exports = class CompositeTextDecorationLayer {
   }
 
   addLayer (layer) {
-    this.layers.push(layer)
+    this.layers.add(layer)
     if (typeof layer.onDidInvalidateRange === 'function') {
       const disposable = layer.onDidInvalidateRange((range) => {
         this.emitter.emit('did-invalidate-range', range)
@@ -35,15 +37,33 @@ module.exports = class CompositeTextDecorationLayer {
   }
 
   removeLayer (layer) {
-    // TODO: implement this.
+    const didInvalidateRangeDisposable = this.didInvalidateRangeDisposablesByLayer.get(layer)
+    if (didInvalidateRangeDisposable) {
+      didInvalidateRangeDisposable.dispose()
+      this.didInvalidateRangeDisposablesByLayer.delete(layer)
+    }
+
+    const compositeScopeIdsByLayerScopeId = this.compositeScopeIdsByLayerAndScopeId.get(layer)
+    if (compositeScopeIdsByLayerScopeId) {
+      compositeScopeIdsByLayerScopeId.forEach((compositeScopeId) => {
+        this.layerScopeIdsByCompositeScopeId.delete(compositeScopeId)
+      })
+      this.compositeScopeIdsByLayerAndScopeId.delete(layer)
+    }
+
+    this.layers.delete(layer)
   }
 
   getLayers () {
-    return this.layers.slice()
+    return Array.from(this.layers)
   }
 
   getInvalidatedRanges () {
-    return this.layers[0].getInvalidatedRanges()
+    let invalidatedRanges = []
+    this.layers.forEach((layer) => {
+      invalidatedRanges = invalidatedRanges.concat(layer.getInvalidatedRanges())
+    })
+    return invalidatedRanges
   }
 
   onDidInvalidateRange (callback) {
@@ -77,30 +97,89 @@ module.exports = class CompositeTextDecorationLayer {
 class CompositeTextDecorationIterator {
   constructor (compositeDecorationLayer) {
     this.compositeDecorationLayer = compositeDecorationLayer
-    this.layer = this.compositeDecorationLayer.layers[0]
-    this.iterator = this.layer.buildIterator()
+    this.iterators = []
+    this.layersByIterator = new WeakMap()
+    this.compositeDecorationLayer.layers.forEach((layer) => {
+      const iterator = layer.buildIterator()
+      this.iterators.push(iterator)
+      this.layersByIterator.set(iterator, layer)
+    })
   }
 
   seek (position) {
-    const containingScopeIds = this.iterator.seek(position)
-    return containingScopeIds.map(id => this.compositeDecorationLayer.compositeScopeIdForLayerScopeId(this.layer, id))
+    let containingScopeIds = []
+    for (let i = 0; i < this.iterators.length; i++) {
+      const iterator = this.iterators[i]
+      const layer = this.layersByIterator.get(iterator)
+      const iteratorScopeIds = iterator.seek(position)
+      const compositeScopeIds = iteratorScopeIds.map(id => this.compositeDecorationLayer.compositeScopeIdForLayerScopeId(layer, id))
+      containingScopeIds = containingScopeIds.concat(compositeScopeIds)
+    }
+
+    this.iteratorsWithMinimumPosition = null
+    return containingScopeIds
   }
 
   moveToSuccessor () {
-    return this.iterator.moveToSuccessor()
+    const iteratorsWithMinimumPosition = this.getIteratorsWithMinimumPosition()
+    for (let i = 0; i < iteratorsWithMinimumPosition.length; i++) {
+      const iterator = iteratorsWithMinimumPosition[i]
+      iterator.moveToSuccessor()
+    }
+
+    this.iteratorsWithMinimumPosition = null
   }
 
   getPosition () {
-    return this.iterator.getPosition()
+    const iteratorsWithMinimumPosition = this.getIteratorsWithMinimumPosition()
+    if (iteratorsWithMinimumPosition.length > 0) {
+      return iteratorsWithMinimumPosition[0].getPosition()
+    } else {
+      return Point.INFINITY
+    }
   }
 
   getCloseScopeIds () {
-    const scopeIds = this.iterator.getCloseScopeIds()
-    return scopeIds.map(id => this.compositeDecorationLayer.compositeScopeIdForLayerScopeId(this.layer, id))
+    const iteratorsWithMinimumPosition = this.getIteratorsWithMinimumPosition()
+    let scopeIds = []
+    for (let i = 0; i < iteratorsWithMinimumPosition.length; i++) {
+      const iterator = iteratorsWithMinimumPosition[i]
+      const layer = this.layersByIterator.get(iterator)
+      const iteratorScopeIds = iterator.getCloseScopeIds()
+      const compositeScopeIds = iteratorScopeIds.map(id => this.compositeDecorationLayer.compositeScopeIdForLayerScopeId(layer, id))
+      scopeIds = scopeIds.concat(compositeScopeIds)
+    }
+    return scopeIds
   }
 
   getOpenScopeIds () {
-    const scopeIds = this.iterator.getOpenScopeIds()
-    return scopeIds.map(id => this.compositeDecorationLayer.compositeScopeIdForLayerScopeId(this.layer, id))
+    const iteratorsWithMinimumPosition = this.getIteratorsWithMinimumPosition()
+    let scopeIds = []
+    for (let i = 0; i < iteratorsWithMinimumPosition.length; i++) {
+      const iterator = iteratorsWithMinimumPosition[i]
+      const layer = this.layersByIterator.get(iterator)
+      const iteratorScopeIds = iterator.getOpenScopeIds()
+      const compositeScopeIds = iteratorScopeIds.map(id => this.compositeDecorationLayer.compositeScopeIdForLayerScopeId(layer, id))
+      scopeIds = scopeIds.concat(compositeScopeIds)
+    }
+    return scopeIds
+  }
+
+  getIteratorsWithMinimumPosition () {
+    if (this.iteratorsWithMinimumPosition == null) {
+      this.iteratorsWithMinimumPosition = this.iterators.length > 0 ? [this.iterators[0]] : []
+      for (let i = 1; i < this.iterators.length; i++) {
+        const iterator = this.iterators[i]
+        const minimumPosition = this.iteratorsWithMinimumPosition[0].getPosition()
+        const comparison = comparePoints(iterator.getPosition(), minimumPosition)
+        if (comparison < 0) {
+          this.iteratorsWithMinimumPosition = [iterator]
+        } else if (comparison === 0) {
+          this.iteratorsWithMinimumPosition.push(iterator)
+        }
+      }
+    }
+
+    return this.iteratorsWithMinimumPosition
   }
 }

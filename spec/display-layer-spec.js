@@ -1744,35 +1744,56 @@ describe('DisplayLayer', () => {
   })
 
   describe('text decorations', () => {
-    it('exposes open and close tags from the text decoration layer in the token iterator', () => {
+    it('exposes open and close tags from multiple text decoration layers', () => {
       const buffer = new TextBuffer({
         text: 'abcde\nfghij\nklmno'
       })
-
       const displayLayer = buffer.addDisplayLayer()
-
-      displayLayer.addTextDecorationLayer(new TestDecorationLayer([
-        ['aa', [[0, 1], [0, 4]]],
-        ['ab', [[0, 2], [1, 2]]],
-        ['ac', [[0, 3], [1, 2]]],
-        ['ad', [[1, 3], [2, 0]]],
-        ['ae', [[2, 3], [2, 5]]]
-      ]))
-
+      const textDecorationLayer1 = new TestDecorationLayer([
+        ['a1', [[0, 1], [0, 4]]],
+        ['a2', [[2, 3], [2, 5]]]
+      ])
+      const textDecorationLayer2 = new TestDecorationLayer([
+        ['b1', [[0, 2], [1, 2]]],
+        ['b2', [[1, 3], [2, 0]]],
+      ])
+      const textDecorationLayer3 = new TestDecorationLayer([
+        ['c1', [[0, 3], [1, 2]]],
+        ['c2', [[1, 3], [2, 0]]],
+      ])
+      displayLayer.addTextDecorationLayer(textDecorationLayer1)
+      displayLayer.addTextDecorationLayer(textDecorationLayer2)
+      displayLayer.addTextDecorationLayer(textDecorationLayer3)
       expectTokenBoundaries(displayLayer, [
         {text: 'a', close: [], open: []},
-        {text: 'b', close: [], open: ['aa']},
-        {text: 'c', close: [], open: ['ab']},
-        {text: 'd', close: [], open: ['ac']},
-        {text: 'e', close: ['ac', 'ab', 'aa'], open: ['ab', 'ac']},
-        {text: '', close: ['ac', 'ab'], open: []},
-        {text: 'fg', close: [], open: ['ab', 'ac']},
-        {text: 'h', close: ['ac', 'ab'], open: []},
-        {text: 'ij', close: [], open: ['ad']},
-        {text: '', close: ['ad'], open: []},
+        {text: 'b', close: [], open: ['a1']},
+        {text: 'c', close: [], open: ['b1']},
+        {text: 'd', close: [], open: ['c1']},
+        {text: 'e', close: ['c1', 'b1', 'a1'], open: ['b1', 'c1']},
+        {text: '', close: ['c1', 'b1'], open: []},
+        {text: 'fg', close: [], open: ['b1', 'c1']},
+        {text: 'h', close: ['c1', 'b1'], open: []},
+        {text: 'ij', close: [], open: ['b2', 'c2']},
+        {text: '', close: ['c2', 'b2'], open: []},
         {text: 'klm', close: [], open: []},
-        {text: 'no', close: [], open: ['ae']},
-        {text: '', close: ['ae'], open: []}
+        {text: 'no', close: [], open: ['a2']},
+        {text: '', close: ['a2'], open: []}
+      ])
+
+      displayLayer.removeTextDecorationLayer(textDecorationLayer2)
+      expectTokenBoundaries(displayLayer, [
+        {text: 'a', close: [], open: []},
+        {text: 'bc', close: [], open: ['a1']},
+        {text: 'd', close: [], open: ['c1']},
+        {text: 'e', close: ['c1', 'a1'], open: ['c1']},
+        {text: '', close: ['c1'], open: []},
+        {text: 'fg', close: [], open: ['c1']},
+        {text: 'h', close: ['c1'], open: []},
+        {text: 'ij', close: [], open: ['c2']},
+        {text: '', close: ['c2'], open: []},
+        {text: 'klm', close: [], open: []},
+        {text: 'no', close: [], open: ['a2']},
+        {text: '', close: ['a2'], open: []}
       ])
     })
 
@@ -1826,10 +1847,12 @@ describe('DisplayLayer', () => {
 
       displayLayer.addTextDecorationLayer(new TestDecorationLayer([
         ['preceding-fold', [[0, 1], [0, 2]]],
-        ['ending-at-fold-start', [[0, 1], [0, 3]]],
         ['overlapping-fold-start', [[0, 1], [1, 1]]],
         ['inside-fold', [[0, 4], [1, 4]]],
-        ['overlapping-fold-end', [[1, 4], [2, 4]]],
+        ['overlapping-fold-end', [[1, 4], [2, 4]]]
+      ]))
+      displayLayer.addTextDecorationLayer(new TestDecorationLayer([
+        ['ending-at-fold-start', [[0, 1], [0, 3]]],
         ['starting-at-fold-end', [[2, 2], [2, 4]]],
         ['following-fold', [[2, 4], [2, 5]]],
         ['surrounding-fold', [[0, 1], [2, 5]]]
@@ -1844,27 +1867,27 @@ describe('DisplayLayer', () => {
         {
           text: 'b',
           close: [],
-          open: ['preceding-fold', 'ending-at-fold-start', 'overlapping-fold-start', 'surrounding-fold']
+          open: ['preceding-fold', 'overlapping-fold-start', 'ending-at-fold-start', 'surrounding-fold']
         },
         {
           text: 'c',
-          close: ['surrounding-fold', 'overlapping-fold-start', 'ending-at-fold-start', 'preceding-fold'],
-          open: ['ending-at-fold-start', 'overlapping-fold-start', 'surrounding-fold']
+          close: ['surrounding-fold', 'ending-at-fold-start', 'overlapping-fold-start', 'preceding-fold'],
+          open: ['overlapping-fold-start', 'ending-at-fold-start', 'surrounding-fold']
         },
         {
           text: '⋯',
-          close: ['surrounding-fold', 'overlapping-fold-start', 'ending-at-fold-start'],
+          close: ['surrounding-fold', 'ending-at-fold-start', 'overlapping-fold-start'],
           open: ['fold-marker']
         },
         {
           text: 'mn',
           close: ['fold-marker'],
-          open: ['surrounding-fold', 'overlapping-fold-end', 'starting-at-fold-end']
+          open: ['overlapping-fold-end', 'surrounding-fold', 'starting-at-fold-end']
         },
         {
           text: 'o',
-          close: ['starting-at-fold-end', 'overlapping-fold-end'],
-          open: ['following-fold']
+          close: ['starting-at-fold-end', 'surrounding-fold', 'overlapping-fold-end'],
+          open: ['surrounding-fold', 'following-fold']
         },
         {
           text: '',
@@ -1929,19 +1952,33 @@ describe('DisplayLayer', () => {
 
       const displayLayer = buffer.addDisplayLayer()
       displayLayer.foldBufferRange([[1, 3], [2, 0]])
-      const decorationLayer = new TestDecorationLayer([])
-      displayLayer.addTextDecorationLayer(decorationLayer)
-      const allChanges = []
-
+      const decorationLayer1 = new TestDecorationLayer([])
+      const decorationLayer2 = new TestDecorationLayer([])
+      displayLayer.addTextDecorationLayer(decorationLayer1)
+      displayLayer.addTextDecorationLayer(decorationLayer2)
+      let allChanges
       displayLayer.onDidChangeSync((changes) => allChanges.push(...changes))
 
-      decorationLayer.emitInvalidateRangeEvent([[2, 1], [3, 2]])
-
+      allChanges = []
+      decorationLayer1.emitInvalidateRangeEvent([[2, 1], [3, 2]])
       expect(allChanges).toEqual([{
         start: Point(1, 5),
         oldExtent: Point(1, 2),
         newExtent: Point(1, 2)
       }])
+
+      allChanges = []
+      decorationLayer2.emitInvalidateRangeEvent([[1, 3], [4, 2]])
+      expect(allChanges).toEqual([{
+        start: Point(1, 3),
+        oldExtent: Point(2, 2),
+        newExtent: Point(2, 2)
+      }])
+
+      allChanges = []
+      displayLayer.removeTextDecorationLayer(decorationLayer1)
+      decorationLayer1.emitInvalidateRangeEvent([[0, 0], [2, 7]])
+      expect(allChanges).toEqual([])
     })
 
     it('gracefully handles the text decoration iterator reporting decoration boundaries beyond the end of a line', () => {
@@ -2236,8 +2273,11 @@ describe('DisplayLayer', () => {
           foldsMarkerLayer: foldsMarkerLayer
         })
 
-        const textDecorationLayer = new TestDecorationLayer([], buffer, random)
-        displayLayer.addTextDecorationLayer(textDecorationLayer)
+        const decorationLayersCount = random(4)
+        for (let i = 0; i < decorationLayersCount; i++) {
+          const textDecorationLayer = new TestDecorationLayer([], buffer, random)
+          displayLayer.addTextDecorationLayer(textDecorationLayer)
+        }
         displayLayer.getText(0, 3)
         let undoableChanges = 0
         let redoableChanges = 0
