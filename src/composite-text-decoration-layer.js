@@ -1,9 +1,22 @@
+const {CompositeDisposable, Emitter} = require('event-kit')
+
 module.exports = class CompositeTextDecorationLayer {
   constructor (nextScopeId) {
     this.nextScopeId = nextScopeId
     this.layerScopeIdsByCompositeScopeId = new Map()
     this.compositeScopeIdsByLayerAndScopeId = new Map()
     this.layers = []
+    this.emitter = new Emitter()
+    this.disposables = new CompositeDisposable()
+    this.didInvalidateRangeDisposablesByLayer = new Map()
+  }
+
+  dispose () {
+    this.disposables.dispose()
+    this.didInvalidateRangeDisposablesByLayer = null
+    this.layerScopeIdsByCompositeScopeId = null
+    this.compositeScopeIdsByLayerAndScopeId = null
+    this.layers = null
   }
 
   buildIterator () {
@@ -12,10 +25,21 @@ module.exports = class CompositeTextDecorationLayer {
 
   addLayer (layer) {
     this.layers.push(layer)
+    if (typeof layer.onDidInvalidateRange === 'function') {
+      const disposable = layer.onDidInvalidateRange((range) => {
+        this.emitter.emit('did-invalidate-range', range)
+      })
+      this.disposables.add(disposable)
+      this.didInvalidateRangeDisposablesByLayer.set(layer, disposable)
+    }
   }
 
   removeLayer (layer) {
     // TODO: implement this.
+  }
+
+  getLayers () {
+    return this.layers.slice()
   }
 
   getInvalidatedRanges () {
@@ -23,7 +47,7 @@ module.exports = class CompositeTextDecorationLayer {
   }
 
   onDidInvalidateRange (callback) {
-    return this.layers[0].onDidInvalidateRange(callback)
+    return this.emitter.on('did-invalidate-range', callback)
   }
 
   classNameForScopeId (scopeId) {

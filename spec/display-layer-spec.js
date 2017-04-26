@@ -1751,7 +1751,7 @@ describe('DisplayLayer', () => {
 
       const displayLayer = buffer.addDisplayLayer()
 
-      displayLayer.setTextDecorationLayer(new TestDecorationLayer([
+      displayLayer.addTextDecorationLayer(new TestDecorationLayer([
         ['aa', [[0, 1], [0, 4]]],
         ['ab', [[0, 2], [1, 2]]],
         ['ac', [[0, 3], [1, 2]]],
@@ -1798,7 +1798,7 @@ describe('DisplayLayer', () => {
         '  '
       ])
 
-      displayLayer.setTextDecorationLayer(new TestDecorationLayer([
+      displayLayer.addTextDecorationLayer(new TestDecorationLayer([
         ['a', [[0, 0], [4, 0]]]
       ]))
 
@@ -1824,7 +1824,7 @@ describe('DisplayLayer', () => {
       const displayLayer = buffer.addDisplayLayer()
       displayLayer.foldBufferRange([[0, 3], [2, 2]])
 
-      displayLayer.setTextDecorationLayer(new TestDecorationLayer([
+      displayLayer.addTextDecorationLayer(new TestDecorationLayer([
         ['preceding-fold', [[0, 1], [0, 2]]],
         ['ending-at-fold-start', [[0, 1], [0, 3]]],
         ['overlapping-fold-start', [[0, 1], [1, 1]]],
@@ -1913,7 +1913,7 @@ describe('DisplayLayer', () => {
         }
       }
 
-      displayLayer.setTextDecorationLayer({
+      displayLayer.addTextDecorationLayer({
         buildIterator () {
           return iterator
         }
@@ -1930,7 +1930,7 @@ describe('DisplayLayer', () => {
       const displayLayer = buffer.addDisplayLayer()
       displayLayer.foldBufferRange([[1, 3], [2, 0]])
       const decorationLayer = new TestDecorationLayer([])
-      displayLayer.setTextDecorationLayer(decorationLayer)
+      displayLayer.addTextDecorationLayer(decorationLayer)
       const allChanges = []
 
       displayLayer.onDidChangeSync((changes) => allChanges.push(...changes))
@@ -1957,7 +1957,7 @@ describe('DisplayLayer', () => {
         ['a', [[0, 1], [0, 10]]],
         ['b', [[0, 10], [1, 5]]]
       ])
-      displayLayer.setTextDecorationLayer(decorationLayer)
+      displayLayer.addTextDecorationLayer(decorationLayer)
       expectTokenBoundaries(displayLayer, [
         {
           text: 'a',
@@ -2237,7 +2237,7 @@ describe('DisplayLayer', () => {
         })
 
         const textDecorationLayer = new TestDecorationLayer([], buffer, random)
-        displayLayer.setTextDecorationLayer(textDecorationLayer)
+        displayLayer.addTextDecorationLayer(textDecorationLayer)
         displayLayer.getText(0, 3)
         let undoableChanges = 0
         let redoableChanges = 0
@@ -2271,7 +2271,9 @@ describe('DisplayLayer', () => {
           }
 
           const freshDisplayLayer = displayLayer.copy()
-          freshDisplayLayer.setTextDecorationLayer(displayLayer.getTextDecorationLayer())
+          for (const layer of displayLayer.getTextDecorationLayers()) {
+            freshDisplayLayer.addTextDecorationLayer(layer)
+          }
           freshDisplayLayer.getScreenLines()
           if (!Number.isFinite(displayLayer.softWrapColumn) && !displayLayer.showIndentGuides) {
             verifyLineLengths(displayLayer)
@@ -2357,7 +2359,9 @@ function log (message) {}
 
 function verifyChangeEvent (displayLayer, fn) {
   let displayLayerCopy = displayLayer.copy()
-  displayLayerCopy.setTextDecorationLayer(displayLayer.getTextDecorationLayer())
+  for (const layer of displayLayer.getTextDecorationLayers()) {
+    displayLayerCopy.addTextDecorationLayer(layer)
+  }
   const previousTokenLines = getTokens(displayLayerCopy)
   displayLayerCopy.destroy()
   let lastChanges = null
@@ -2369,7 +2373,9 @@ function verifyChangeEvent (displayLayer, fn) {
   fn()
   disposable.dispose()
   displayLayerCopy = displayLayer.copy()
-  displayLayerCopy.setTextDecorationLayer(displayLayer.getTextDecorationLayer())
+  for (const layer of displayLayer.getTextDecorationLayers()) {
+    displayLayerCopy.addTextDecorationLayer(layer)
+  }
   const expectedTokenLines = getTokens(displayLayerCopy)
   updateTokenLines(previousTokenLines, displayLayerCopy, lastChanges)
   displayLayerCopy.destroy()

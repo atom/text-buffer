@@ -116,6 +116,9 @@ class DisplayLayer {
     this.foldsMarkerLayer.destroy()
     this.displayMarkerLayersById.forEach((layer) => layer.destroy())
     if (this.decorationLayerDisposable) this.decorationLayerDisposable.dispose()
+    if (this.textDecorationLayer instanceof CompositeTextDecorationLayer) {
+      this.textDecorationLayer.dispose()
+    }
     delete this.buffer.displayLayers[this.id]
   }
 
@@ -136,16 +139,19 @@ class DisplayLayer {
     return this.indexedBufferRowCount < this.buffer.getLineCount()
   }
 
-  getTextDecorationLayer () {
-    return this.textDecorationLayer
+  getTextDecorationLayers () {
+    if (this.textDecorationLayer instanceof CompositeTextDecorationLayer) {
+      return this.textDecorationLayer.getLayers()
+    } else {
+      return [this.textDecorationLayer]
+    }
   }
 
-  setTextDecorationLayer (textDecorationLayer) {
+  addTextDecorationLayer (textDecorationLayer) {
     this.cachedScreenLines.length = 0
-    this.textDecorationLayer = new CompositeTextDecorationLayer(MAX_BUILT_IN_SCOPE_ID + 1)
-    this.textDecorationLayer.addLayer(textDecorationLayer)
-    if (typeof textDecorationLayer.onDidInvalidateRange === 'function') {
-      this.decorationLayerDisposable = textDecorationLayer.onDidInvalidateRange((bufferRange) => {
+    if (this.textDecorationLayer instanceof EmptyDecorationLayer) {
+      this.textDecorationLayer = new CompositeTextDecorationLayer(MAX_BUILT_IN_SCOPE_ID + 1)
+      this.decorationLayerDisposable = this.textDecorationLayer.onDidInvalidateRange((bufferRange) => {
         const screenRange = this.translateBufferRange(bufferRange)
         const extent = screenRange.getExtent()
         spliceArray(
@@ -161,6 +167,7 @@ class DisplayLayer {
         }])
       })
     }
+    this.textDecorationLayer.addLayer(textDecorationLayer)
   }
 
   addMarkerLayer (options) {
