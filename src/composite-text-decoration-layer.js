@@ -104,19 +104,16 @@ class CompositeTextDecorationIterator {
     this.compositeDecorationLayer = compositeDecorationLayer
     this.iterators = []
     this.iteratorsWithMinimumPosition = []
-    this.layersByIterator = new WeakMap()
     this.compositeDecorationLayer.layers.forEach((layer) => {
       const iterator = layer.buildIterator()
-      this.iterators.push(iterator)
-      this.layersByIterator.set(iterator, layer)
+      this.iterators.push({iterator, layer})
     })
   }
 
   seek (position) {
     let containingScopeIds = []
     for (let i = 0; i < this.iterators.length; i++) {
-      const iterator = this.iterators[i]
-      const layer = this.layersByIterator.get(iterator)
+      const {iterator, layer} = this.iterators[i]
       const iteratorScopeIds = iterator.seek(position)
       for (let j = 0; j < iteratorScopeIds.length; j++) {
         const compositeScopeId = this.compositeDecorationLayer.compositeScopeIdForLayerScopeId(layer, iteratorScopeIds[j])
@@ -131,7 +128,7 @@ class CompositeTextDecorationIterator {
   moveToSuccessor () {
     const iteratorsWithMinimumPosition = this.getIteratorsWithMinimumPosition()
     for (let i = 0; i < iteratorsWithMinimumPosition.length; i++) {
-      const iterator = iteratorsWithMinimumPosition[i]
+      const {iterator} = iteratorsWithMinimumPosition[i]
       iterator.moveToSuccessor()
     }
 
@@ -141,7 +138,8 @@ class CompositeTextDecorationIterator {
   getPosition () {
     const iteratorsWithMinimumPosition = this.getIteratorsWithMinimumPosition()
     if (iteratorsWithMinimumPosition.length > 0) {
-      return iteratorsWithMinimumPosition[0].getPosition()
+      const {iterator} = iteratorsWithMinimumPosition[0]
+      return iterator.getPosition()
     } else {
       return Point.INFINITY
     }
@@ -151,8 +149,7 @@ class CompositeTextDecorationIterator {
     const iteratorsWithMinimumPosition = this.getIteratorsWithMinimumPosition()
     let scopeIds = []
     for (let i = 0; i < iteratorsWithMinimumPosition.length; i++) {
-      const iterator = iteratorsWithMinimumPosition[i]
-      const layer = this.layersByIterator.get(iterator)
+      const {iterator, layer} = iteratorsWithMinimumPosition[i]
       const iteratorScopeIds = iterator.getCloseScopeIds()
       for (let j = 0; j < iteratorScopeIds.length; j++) {
         const compositeScopeId = this.compositeDecorationLayer.compositeScopeIdForLayerScopeId(layer, iteratorScopeIds[j])
@@ -166,8 +163,7 @@ class CompositeTextDecorationIterator {
     const iteratorsWithMinimumPosition = this.getIteratorsWithMinimumPosition()
     let scopeIds = []
     for (let i = 0; i < iteratorsWithMinimumPosition.length; i++) {
-      const iterator = iteratorsWithMinimumPosition[i]
-      const layer = this.layersByIterator.get(iterator)
+      const {iterator, layer} = iteratorsWithMinimumPosition[i]
       const iteratorScopeIds = iterator.getOpenScopeIds()
       for (let j = 0; j < iteratorScopeIds.length; j++) {
         const compositeScopeId = this.compositeDecorationLayer.compositeScopeIdForLayerScopeId(layer, iteratorScopeIds[j])
@@ -178,17 +174,19 @@ class CompositeTextDecorationIterator {
   }
 
   getIteratorsWithMinimumPosition () {
-    if (this.iteratorsWithMinimumPosition.length === 0 && this.iterators.length > 0) {
+    if (this.iterators.length <= 1) {
+      return this.iterators
+    } else if (this.iteratorsWithMinimumPosition.length === 0) {
       this.iteratorsWithMinimumPosition.push(this.iterators[0])
       for (let i = 1; i < this.iterators.length; i++) {
-        const iterator = this.iterators[i]
-        const minimumPosition = this.iteratorsWithMinimumPosition[0].getPosition()
+        const {iterator} = this.iterators[i]
+        const minimumPosition = this.iteratorsWithMinimumPosition[0].iterator.getPosition()
         const comparison = comparePoints(iterator.getPosition(), minimumPosition)
         if (comparison < 0) {
           this.iteratorsWithMinimumPosition.length = 1
-          this.iteratorsWithMinimumPosition[0] = iterator
+          this.iteratorsWithMinimumPosition[0] = this.iterators[i]
         } else if (comparison === 0) {
-          this.iteratorsWithMinimumPosition.push(iterator)
+          this.iteratorsWithMinimumPosition.push(this.iterators[i])
         }
       }
     }
