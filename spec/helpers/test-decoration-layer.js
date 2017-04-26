@@ -193,7 +193,7 @@ class TestDecorationLayerIterator {
   }
 
   moveToSuccessor () {
-    return this.boundaryIndex++
+    this.boundaryIndex++
   }
 
   getPosition () {
