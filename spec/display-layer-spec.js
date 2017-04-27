@@ -5,7 +5,7 @@ const Point = require('../src/point')
 const Range = require('../src/range')
 const {buildRandomLines, getRandomBufferRange} = require('./helpers/random')
 const SAMPLE_TEXT = require('./helpers/sample-text')
-const TestDecorationLayer = require('./helpers/test-decoration-layer')
+const MarkerTextDecorationLayer = require('../src/marker-text-decoration-layer')
 
 const EOL_INVISIBLE = '¬'
 const CR_INVISIBLE = '¤'
@@ -1749,15 +1749,15 @@ describe('DisplayLayer', () => {
         text: 'abcde\nfghij\nklmno'
       })
       const displayLayer = buffer.addDisplayLayer()
-      const textDecorationLayer1 = new TestDecorationLayer([
+      const textDecorationLayer1 = new MarkerTextDecorationLayer([
         ['a1', [[0, 1], [0, 4]]],
         ['a2', [[2, 3], [2, 5]]]
       ])
-      const textDecorationLayer2 = new TestDecorationLayer([
+      const textDecorationLayer2 = new MarkerTextDecorationLayer([
         ['b1', [[0, 2], [1, 2]]],
         ['b2', [[1, 3], [2, 0]]]
       ])
-      const textDecorationLayer3 = new TestDecorationLayer([
+      const textDecorationLayer3 = new MarkerTextDecorationLayer([
         ['c1', [[0, 3], [1, 2]]],
         ['c2', [[1, 3], [2, 0]]]
       ])
@@ -1819,7 +1819,7 @@ describe('DisplayLayer', () => {
         '  '
       ])
 
-      displayLayer.addTextDecorationLayer(new TestDecorationLayer([
+      displayLayer.addTextDecorationLayer(new MarkerTextDecorationLayer([
         ['a', [[0, 0], [4, 0]]]
       ]))
 
@@ -1845,13 +1845,13 @@ describe('DisplayLayer', () => {
       const displayLayer = buffer.addDisplayLayer()
       displayLayer.foldBufferRange([[0, 3], [2, 2]])
 
-      displayLayer.addTextDecorationLayer(new TestDecorationLayer([
+      displayLayer.addTextDecorationLayer(new MarkerTextDecorationLayer([
         ['preceding-fold', [[0, 1], [0, 2]]],
         ['overlapping-fold-start', [[0, 1], [1, 1]]],
         ['inside-fold', [[0, 4], [1, 4]]],
         ['overlapping-fold-end', [[1, 4], [2, 4]]]
       ]))
-      displayLayer.addTextDecorationLayer(new TestDecorationLayer([
+      displayLayer.addTextDecorationLayer(new MarkerTextDecorationLayer([
         ['ending-at-fold-start', [[0, 1], [0, 3]]],
         ['starting-at-fold-end', [[2, 2], [2, 4]]],
         ['following-fold', [[2, 4], [2, 5]]],
@@ -1952,8 +1952,8 @@ describe('DisplayLayer', () => {
 
       const displayLayer = buffer.addDisplayLayer()
       displayLayer.foldBufferRange([[1, 3], [2, 0]])
-      const decorationLayer1 = new TestDecorationLayer([])
-      const decorationLayer2 = new TestDecorationLayer([])
+      const decorationLayer1 = new MarkerTextDecorationLayer([])
+      const decorationLayer2 = new MarkerTextDecorationLayer([])
       displayLayer.addTextDecorationLayer(decorationLayer1)
       displayLayer.addTextDecorationLayer(decorationLayer2)
       let allChanges
@@ -1990,7 +1990,7 @@ describe('DisplayLayer', () => {
         tabLength: 2
       })
 
-      const decorationLayer = new TestDecorationLayer([
+      const decorationLayer = new MarkerTextDecorationLayer([
         ['a', [[0, 1], [0, 10]]],
         ['b', [[0, 10], [1, 5]]]
       ])
@@ -2275,7 +2275,7 @@ describe('DisplayLayer', () => {
 
         const decorationLayersCount = random(4)
         for (let i = 0; i < decorationLayersCount; i++) {
-          const textDecorationLayer = new TestDecorationLayer([], buffer, random)
+          const textDecorationLayer = new MarkerTextDecorationLayer([], buffer, random)
           displayLayer.addTextDecorationLayer(textDecorationLayer)
         }
         displayLayer.getText(0, 3)

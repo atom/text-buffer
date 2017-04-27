@@ -1,11 +1,10 @@
 const {MarkerIndex} = require('superstring')
 const {Emitter} = require('event-kit')
-const {compare: comparePoints, isEqual: isEqualPoint, min: minPoint} = require('../../src/point-helpers')
-const Point = require('../../src/point')
-const Range = require('../../src/range')
+const Point = require('./point')
+const Range = require('./range')
 
 module.exports =
-class TestDecorationLayer {
+class MarkerTextDecorationLayer {
   constructor (decorations, buffer, random) {
     this.buffer = buffer
     this.random = random
@@ -38,7 +37,7 @@ class TestDecorationLayer {
   }
 
   buildIterator () {
-    return new TestDecorationLayerIterator(this)
+    return new MarkerTextDecorationLayerIterator(this)
   }
 
   getInvalidatedRanges () { return this.invalidatedRanges }
@@ -101,7 +100,7 @@ class TestDecorationLayer {
   }
 }
 
-class TestDecorationLayerIterator {
+class MarkerTextDecorationLayerIterator {
   constructor (layer) {
     this.layer = layer
   }
