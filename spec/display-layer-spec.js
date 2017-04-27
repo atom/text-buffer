@@ -1749,21 +1749,18 @@ describe('DisplayLayer', () => {
         text: 'abcde\nfghij\nklmno'
       })
       const displayLayer = buffer.addDisplayLayer()
-      const textDecorationLayer1 = new MarkerTextDecorationLayer([
+      const textDecorationLayer1 = addMarkerTextDecorationLayer(displayLayer, [
         ['a1', [[0, 1], [0, 4]]],
         ['a2', [[2, 3], [2, 5]]]
       ])
-      const textDecorationLayer2 = new MarkerTextDecorationLayer([
+      const textDecorationLayer2 = addMarkerTextDecorationLayer(displayLayer, [
         ['b1', [[0, 2], [1, 2]]],
         ['b2', [[1, 3], [2, 0]]]
       ])
-      const textDecorationLayer3 = new MarkerTextDecorationLayer([
+      const textDecorationLayer3 = addMarkerTextDecorationLayer(displayLayer, [
         ['c1', [[0, 3], [1, 2]]],
         ['c2', [[1, 3], [2, 0]]]
       ])
-      displayLayer.addTextDecorationLayer(textDecorationLayer1)
-      displayLayer.addTextDecorationLayer(textDecorationLayer2)
-      displayLayer.addTextDecorationLayer(textDecorationLayer3)
       expectTokenBoundaries(displayLayer, [
         {text: 'a', close: [], open: []},
         {text: 'b', close: [], open: ['a1']},
@@ -1797,7 +1794,7 @@ describe('DisplayLayer', () => {
       ])
     })
 
-    it('includes indent guides and EOL characters within containing decoration tags', function () {
+    fit('includes indent guides and EOL characters within containing decoration tags', function () {
       const buffer = new TextBuffer({
         text: [
           '',   // empty line with no indent guide
@@ -1819,9 +1816,9 @@ describe('DisplayLayer', () => {
         '  '
       ])
 
-      displayLayer.addTextDecorationLayer(new MarkerTextDecorationLayer([
+      addMarkerTextDecorationLayer(displayLayer, [
         ['a', [[0, 0], [4, 0]]]
-      ]))
+      ])
 
       expectTokenBoundaries(displayLayer, [
         {text: '¬', close: [], open: ['a', 'invisible-character eol indent-guide']},
@@ -1832,8 +1829,8 @@ describe('DisplayLayer', () => {
         {text: '  ', close: [], open: ['a', 'trailing-whitespace indent-guide']},
         {text: '¬', close: ['trailing-whitespace indent-guide'], open: ['invisible-character eol']},
         {text: '', close: ['invisible-character eol', 'a'], open: []},
-        {text: '  ', close: [], open: ['a', 'indent-guide']},
-        {text: '', close: ['indent-guide', 'a'], open: []}
+        {text: '  ', close: [], open: ['indent-guide']},
+        {text: '', close: ['indent-guide'], open: []}
       ])
     })
 
@@ -1845,18 +1842,18 @@ describe('DisplayLayer', () => {
       const displayLayer = buffer.addDisplayLayer()
       displayLayer.foldBufferRange([[0, 3], [2, 2]])
 
-      displayLayer.addTextDecorationLayer(new MarkerTextDecorationLayer([
+      addMarkerTextDecorationLayer(displayLayer, [
         ['preceding-fold', [[0, 1], [0, 2]]],
         ['overlapping-fold-start', [[0, 1], [1, 1]]],
         ['inside-fold', [[0, 4], [1, 4]]],
         ['overlapping-fold-end', [[1, 4], [2, 4]]]
-      ]))
-      displayLayer.addTextDecorationLayer(new MarkerTextDecorationLayer([
+      ])
+      addMarkerTextDecorationLayer(displayLayer, [
         ['ending-at-fold-start', [[0, 1], [0, 3]]],
         ['starting-at-fold-end', [[2, 2], [2, 4]]],
         ['following-fold', [[2, 4], [2, 5]]],
         ['surrounding-fold', [[0, 1], [2, 5]]]
-      ]))
+      ])
 
       expectTokenBoundaries(displayLayer, [
         {
@@ -2674,4 +2671,14 @@ function hasComputedAllScreenRows (displayLayer) {
 
 function getComputedScreenLineCount (displayLayer) {
   return displayLayer.screenLineLengths.length
+}
+
+function addMarkerTextDecorationLayer (displayLayer, decorations, random) {
+  const markerLayer = displayLayer.buffer.addMarkerLayer()
+  const decorationLayer = displayLayer.addMarkerTextDecorationLayer(markerLayer)
+  for (const [className, range] of decorations) {
+    const marker = markerLayer.markRange(range)
+    decorationLayer.setClassNameForMarker(marker, className)
+  }
+  return decorationLayer
 }

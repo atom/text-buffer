@@ -1,9 +1,10 @@
 const {Patch} = require('superstring')
-const {Emitter} = require('event-kit')
+const {Emitter, Disposable} = require('event-kit')
 const Point = require('./point')
 const Range = require('./range')
 const CompositeTextDecorationLayer = require('./composite-text-decoration-layer')
 const DisplayMarkerLayer = require('./display-marker-layer')
+const MarkerTextDecorationLayer = require('./marker-text-decoration-layer')
 const {traverse, traversal, compare, max, isEqual} = require('./point-helpers')
 const isCharacterPair = require('./is-character-pair')
 const ScreenLineBuilder = require('./screen-line-builder')
@@ -169,6 +170,12 @@ class DisplayLayer {
     const markerLayer = new DisplayMarkerLayer(this, this.buffer.addMarkerLayer(options), true)
     this.displayMarkerLayersById.set(markerLayer.id, markerLayer)
     return markerLayer
+  }
+
+  addMarkerTextDecorationLayer (markerLayer) {
+    const decorationLayer = new MarkerTextDecorationLayer(markerLayer)
+    this.addTextDecorationLayer(decorationLayer)
+    return decorationLayer
   }
 
   getMarkerLayer (id) {
