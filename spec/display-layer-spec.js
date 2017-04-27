@@ -1755,11 +1755,11 @@ describe('DisplayLayer', () => {
       ])
       const textDecorationLayer2 = new TestDecorationLayer([
         ['b1', [[0, 2], [1, 2]]],
-        ['b2', [[1, 3], [2, 0]]],
+        ['b2', [[1, 3], [2, 0]]]
       ])
       const textDecorationLayer3 = new TestDecorationLayer([
         ['c1', [[0, 3], [1, 2]]],
-        ['c2', [[1, 3], [2, 0]]],
+        ['c2', [[1, 3], [2, 0]]]
       ])
       displayLayer.addTextDecorationLayer(textDecorationLayer1)
       displayLayer.addTextDecorationLayer(textDecorationLayer2)
