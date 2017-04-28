@@ -11,24 +11,6 @@ class MarkerTextDecorationLayer {
     this.classNamesByMarkerId = new Map()
     this.emitter = new Emitter()
     this.invalidatedRanges = []
-
-    // this.buffer = buffer
-    // this.random = random
-    // this.nextMarkerId = 1
-    // this.markerIndex = new MarkerIndex()
-    // this.classNamesByScopeId = new Map()
-    //
-    // for (let value of decorations) {
-    //   const className = value[0]
-    //   const [rangeStart, rangeEnd] = Array.from(value[1])
-    //   const markerId = this.getNextMarkerId()
-    //   this.markerIndex.insert(markerId, Point.fromObject(rangeStart), Point.fromObject(rangeEnd))
-    //   this.classNamesByScopeId.set(markerId, className)
-    // }
-    //
-    // if (this.buffer) {
-    //   this.buffer.registerTextDecorationLayer(this)
-    // }
   }
 
   setClassNameForMarker (marker, className) {

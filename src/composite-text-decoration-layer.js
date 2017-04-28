@@ -69,6 +69,10 @@ module.exports = class CompositeTextDecorationLayer {
     return invalidatedRanges
   }
 
+  clearInvalidatedRanges () {
+    this.layers.forEach((layer) => { layer.getInvalidatedRanges() })
+  }
+
   onDidInvalidateRange (callback) {
     return this.emitter.on('did-invalidate-range', callback)
   }

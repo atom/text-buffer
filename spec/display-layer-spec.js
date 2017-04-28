@@ -5,6 +5,7 @@ const Point = require('../src/point')
 const Range = require('../src/range')
 const {buildRandomLines, getRandomBufferRange} = require('./helpers/random')
 const SAMPLE_TEXT = require('./helpers/sample-text')
+const WORDS = require('./helpers/words')
 const MarkerTextDecorationLayer = require('../src/marker-text-decoration-layer')
 
 const EOL_INVISIBLE = '¬'
@@ -1794,7 +1795,7 @@ describe('DisplayLayer', () => {
       ])
     })
 
-    fit('includes indent guides and EOL characters within containing decoration tags', function () {
+    it('includes indent guides and EOL characters within containing decoration tags', function () {
       const buffer = new TextBuffer({
         text: [
           '',   // empty line with no indent guide
@@ -1949,48 +1950,52 @@ describe('DisplayLayer', () => {
 
       const displayLayer = buffer.addDisplayLayer()
       displayLayer.foldBufferRange([[1, 3], [2, 0]])
-      const decorationLayer1 = new MarkerTextDecorationLayer([])
-      const decorationLayer2 = new MarkerTextDecorationLayer([])
-      displayLayer.addTextDecorationLayer(decorationLayer1)
-      displayLayer.addTextDecorationLayer(decorationLayer2)
+      const decorationLayer1 = addMarkerTextDecorationLayer(displayLayer, [
+        ['a', [[1, 0], [3, 0]]]
+      ])
+      const decorationLayer2 = addMarkerTextDecorationLayer(displayLayer, [
+        ['b', [[1, 0], [2, 3]]]
+      ])
       let allChanges
       displayLayer.onDidChangeSync((changes) => allChanges.push(...changes))
 
       allChanges = []
-      decorationLayer1.emitInvalidateRangeEvent([[2, 1], [3, 2]])
-      expect(allChanges).toEqual([{
-        start: Point(1, 5),
-        oldExtent: Point(1, 2),
-        newExtent: Point(1, 2)
-      }])
+      decorationLayer1.markerLayer.getMarkers()[0].setRange([[1, 5], [3, 0]])
+      expect(allChanges).toEqual([
+        {start: Point(1, 0), oldExtent: Point(1, 0), newExtent: Point(1, 0)},
+        {start: Point(1, 3), oldExtent: Point(1, 0), newExtent: Point(1, 0)},
+      ])
 
       allChanges = []
-      decorationLayer2.emitInvalidateRangeEvent([[1, 3], [4, 2]])
-      expect(allChanges).toEqual([{
-        start: Point(1, 3),
-        oldExtent: Point(2, 2),
-        newExtent: Point(2, 2)
-      }])
+      decorationLayer2.markerLayer.getMarkers()[0].setRange([[1, 3], [4, 2]])
+      expect(allChanges).toEqual([
+        {start: Point(1, 0), oldExtent: Point(0, 7), newExtent: Point(0, 7)},
+        {start: Point(1, 3), oldExtent: Point(2, 2), newExtent: Point(2, 2)}
+      ])
 
       allChanges = []
       displayLayer.removeTextDecorationLayer(decorationLayer1)
-      decorationLayer1.emitInvalidateRangeEvent([[0, 0], [2, 7]])
+      decorationLayer1.markerLayer.getMarkers()[0].setRange([[0, 0], [2, 5]])
       expect(allChanges).toEqual([])
     })
 
     it('gracefully handles the text decoration iterator reporting decoration boundaries beyond the end of a line', () => {
-      const buffer = new TextBuffer({
-        text: 'abc\ndef'
-      })
-
-      const displayLayer = buffer.addDisplayLayer({
-        tabLength: 2
-      })
-
-      const decorationLayer = new MarkerTextDecorationLayer([
+      const buffer = new TextBuffer({text: 'abc\ndef'})
+      const displayLayer = buffer.addDisplayLayer({tabLength: 2})
+      const decorationLayer = addMarkerTextDecorationLayer(displayLayer, [
         ['a', [[0, 1], [0, 10]]],
         ['b', [[0, 10], [1, 5]]]
       ])
+      // The marker with 'b' will be automatically clipped because it represents
+      // a position that does not exist on the buffer line. Since we are testing
+      // this precise behavior, we will bypass clipping by reaching into the
+      // index and modifying the range manually.
+      const clippedMarker = decorationLayer.markerLayer.getMarkers()[1]
+      expect(clippedMarker.getRange()).toEqual([[0, 3], [1, 3]])
+      decorationLayer.markerLayer.index.remove(clippedMarker.id)
+      decorationLayer.markerLayer.index.insert(clippedMarker.id, Point(0, 10), Point(1, 5))
+      expect(clippedMarker.getRange()).toEqual([[0, 10], [1, 5]])
+
       displayLayer.addTextDecorationLayer(decorationLayer)
       expectTokenBoundaries(displayLayer, [
         {
@@ -2272,8 +2277,7 @@ describe('DisplayLayer', () => {
 
         const decorationLayersCount = random(4)
         for (let i = 0; i < decorationLayersCount; i++) {
-          const textDecorationLayer = new MarkerTextDecorationLayer([], buffer, random)
-          displayLayer.addTextDecorationLayer(textDecorationLayer)
+          addMarkerTextDecorationLayer(displayLayer, [])
         }
         displayLayer.getText(0, 3)
         let undoableChanges = 0
@@ -2283,18 +2287,31 @@ describe('DisplayLayer', () => {
         for (let j = 0; j < 10; j++) {
           const k = random(10)
 
-          if (k < 2) {
+          if (k < 1 && decorationLayersCount > 0) {
+            const markerTextDecorationLayer = getRandomMarkerTextDecorationLayer(displayLayer, random)
+            switch (random(3)) {
+              case 0:
+                createRandomMarkerDecorations(buffer, markerTextDecorationLayer, random)
+                break
+              case 1:
+                moveRandomMarkerDecorations(buffer, markerTextDecorationLayer, random)
+                break
+              case 2:
+                deleteRandomMarkerDecorations(buffer, markerTextDecorationLayer, random)
+                break
+            }
+          } else if (k < 3) {
             createRandomFold(random, displayLayer, foldIds)
-          } else if (k < 4 && foldIds.length > 0) {
-            destroyRandomFold(random, displayLayer, foldIds)
           } else if (k < 5 && foldIds.length > 0) {
+            destroyRandomFold(random, displayLayer, foldIds)
+          } else if (k < 6 && foldIds.length > 0) {
             displayLayer.destroyAllFolds()
             foldIds.length = 0
-          } else if (k < 6 && undoableChanges > 0) {
+          } else if (k < 7 && undoableChanges > 0) {
             undoableChanges--
             redoableChanges++
             performUndo(random, displayLayer)
-          } else if (k < 7 && redoableChanges > 0) {
+          } else if (k < 8 && redoableChanges > 0) {
             undoableChanges++
             redoableChanges--
             performRedo(random, displayLayer)
@@ -2673,7 +2690,7 @@ function getComputedScreenLineCount (displayLayer) {
   return displayLayer.screenLineLengths.length
 }
 
-function addMarkerTextDecorationLayer (displayLayer, decorations, random) {
+function addMarkerTextDecorationLayer (displayLayer, decorations) {
   const markerLayer = displayLayer.buffer.addMarkerLayer()
   const decorationLayer = displayLayer.addMarkerTextDecorationLayer(markerLayer)
   for (const [className, range] of decorations) {
@@ -2681,4 +2698,55 @@ function addMarkerTextDecorationLayer (displayLayer, decorations, random) {
     decorationLayer.setClassNameForMarker(marker, className)
   }
   return decorationLayer
+}
+
+function getRandomMarkerTextDecorationLayer (displayLayer, random) {
+  const decorationLayers = displayLayer.getTextDecorationLayers()
+  const decorationLayerIndex = random(decorationLayers.length)
+  return decorationLayers[decorationLayerIndex]
+}
+
+function createRandomMarkerDecorations (buffer, markerTextDecorationLayer, random) {
+  log('create random marker decorations')
+  for (var i = 0; i < random(10); i++) {
+    const range = getRandomBufferRange(random, buffer)
+    const invalidate = getRandomInvalidationStrategy(random)
+    const marker = markerTextDecorationLayer.markerLayer.markRange(range, {invalidate})
+    const className = WORDS[random(WORDS.length)]
+    markerTextDecorationLayer.setClassNameForMarker(marker, className)
+  }
+}
+
+function moveRandomMarkerDecorations (buffer, markerTextDecorationLayer, random) {
+  log('move random marker decorations')
+  const markers = markerTextDecorationLayer.markerLayer.getMarkers()
+  for (var i = 0; i < random(5); i++) {
+    const index = random(markers.length)
+    const marker = markers[index]
+    if (marker) {
+      marker.setRange(getRandomBufferRange(random, buffer))
+      markers.splice(index, 1)
+    } else {
+      break
+    }
+  }
+}
+
+function deleteRandomMarkerDecorations (buffer, markerTextDecorationLayer, random) {
+  log('delete random marker decorations')
+  const markers = markerTextDecorationLayer.markerLayer.getMarkers()
+  for (var i = 0; i < random(5); i++) {
+    const index = random(markers.length)
+    const marker = markers[index]
+    if (marker) {
+      marker.destroy()
+    } else {
+      break
+    }
+  }
+}
+
+function getRandomInvalidationStrategy (random) {
+  const strategies = ['never', 'surround', 'overlap', 'inside', 'touch']
+  return strategies[random(strategies.length)]
 }
