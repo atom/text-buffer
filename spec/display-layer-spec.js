@@ -1938,9 +1938,9 @@ describe('DisplayLayer', () => {
       decorationLayer.emitInvalidateRangeEvent([[2, 1], [3, 2]])
 
       expect(allChanges).toEqual([{
-        start: Point(1, 5),
-        oldExtent: Point(1, 2),
-        newExtent: Point(1, 2)
+        start: Point(1, 0),
+        oldExtent: Point(2, 0),
+        newExtent: Point(2, 0)
       }])
     })
 
@@ -2261,6 +2261,8 @@ describe('DisplayLayer', () => {
             undoableChanges++
             redoableChanges--
             performRedo(random, displayLayer)
+          } else if (k < 8) {
+            textDecorationLayer.emitInvalidateRangeEvent(getRandomBufferRange(random, buffer))
           } else {
             undoableChanges++
             performRandomChange(random, displayLayer)
