@@ -785,6 +785,7 @@ class DisplayLayer {
       spliceArray(this.cachedScreenLines, startRow, extent.row, new Array(extent.row))
       combinedChanges.splice(Point(startRow, 0), extent, extent)
     }
+    this.textDecorationLayer.clearInvalidatedRanges()
 
     return Object.freeze(combinedChanges.getHunks().map((hunk) => {
       return {

@@ -7,8 +7,10 @@ module.exports =
 class MarkerTextDecorationLayer {
   constructor (markerLayer) {
     this.markerLayer = markerLayer
+    this.markerLayer.registerMarkerTextDecorationLayer(this)
     this.classNamesByMarkerId = new Map()
     this.emitter = new Emitter()
+    this.invalidatedRanges = []
 
     // this.buffer = buffer
     // this.random = random
@@ -41,24 +43,34 @@ class MarkerTextDecorationLayer {
     return new MarkerTextDecorationLayerIterator(this)
   }
 
-  getInvalidatedRanges () { return [] }
+  didInvalidatedMarkersInRanges (ranges) {
+    this.invalidatedRanges.push(...ranges)
+  }
+
+  clearInvalidatedRanges () {
+    this.invalidatedRanges = []
+  }
+
+  getInvalidatedRanges () {
+    return this.invalidatedRanges
+  }
 
   onDidInvalidateRange (fn) {
     return this.emitter.on('did-invalidate-range', fn)
   }
-  //
-  // emitInvalidateRangeEvent (range) {
-  //   return this.emitter.emit('did-invalidate-range', range)
-  // }
 
-  // bufferDidChange ({oldRange, newRange}) {
-  //   this.invalidatedRanges = [Range.fromObject(newRange)]
-  //   const {inside, overlap} = this.markerIndex.splice(oldRange.start, oldRange.getExtent(), newRange.getExtent())
-  //   overlap.forEach((id) => this.invalidatedRanges.push(this.markerIndex.getRange(id)))
-  //   inside.forEach((id) => this.invalidatedRanges.push(this.markerIndex.getRange(id)))
-  //
-  //   this.insertRandomDecorations(oldRange, newRange)
-  // }
+  didCreateMarker (range) {
+    this.emitter.emit('did-invalidate-range', range)
+  }
+
+  didMoveMarker (oldRange, newRange) {
+    this.didDestroyMarker(oldRange)
+    this.didCreateMarker(newRange)
+  }
+
+  didDestroyMarker (range) {
+    this.emitter.emit('did-invalidate-range', range)
+  }
 }
 
 class MarkerTextDecorationLayerIterator {
@@ -69,6 +81,13 @@ class MarkerTextDecorationLayerIterator {
   seek (position) {
     const {containingStart, boundaries} = this.layer.markerLayer.index.findBoundariesIn(position, Point.INFINITY)
     this.boundaries = boundaries
+    for (let i = 0; i < containingStart.length; i++) {
+      const marker = this.layer.markerLayer.getMarker(containingStart[i])
+      if (!marker.isValid()) {
+        containingStart.splice(i, 1)
+        i--
+      }
+    }
     this.boundaryIndex = 0
     return containingStart
   }
@@ -79,7 +98,7 @@ class MarkerTextDecorationLayerIterator {
 
   getPosition () {
     const boundary = this.boundaries[this.boundaryIndex]
-    return boundary ? boundary.position : Point.INFINITY
+    return boundary ? Point.fromObject(boundary.position) : Point.INFINITY
   }
 
   getCloseScopeIds () {
@@ -87,7 +106,8 @@ class MarkerTextDecorationLayerIterator {
     const boundary = this.boundaries[this.boundaryIndex]
     if (boundary) {
       boundary.ending.forEach((markerId) => {
-        if (!boundary.starting.has(markerId)) {
+        const marker = this.layer.markerLayer.getMarker(markerId)
+        if (!boundary.starting.has(markerId) && marker.isValid()) {
           result.push(markerId)
         }
       })
@@ -100,7 +120,8 @@ class MarkerTextDecorationLayerIterator {
     const boundary = this.boundaries[this.boundaryIndex]
     if (boundary) {
       boundary.starting.forEach((markerId) => {
-        if (!boundary.ending.has(markerId)) {
+        const marker = this.layer.markerLayer.getMarker(markerId)
+        if (!boundary.ending.has(markerId) && marker.isValid()) {
           result.push(markerId)
         }
       })
