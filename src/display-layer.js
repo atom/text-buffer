@@ -1,5 +1,5 @@
 const {Patch} = require('superstring')
-const {Emitter, Disposable} = require('event-kit')
+const {Emitter} = require('event-kit')
 const Point = require('./point')
 const Range = require('./range')
 const CompositeTextDecorationLayer = require('./composite-text-decoration-layer')

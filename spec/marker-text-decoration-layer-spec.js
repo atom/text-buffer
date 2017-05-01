@@ -9,7 +9,7 @@ describe('MarkerTextDecorationLayer', () => {
     it('reports scope ids containing the sought position and can be advanced to retrieve opening and closing scope ids at each boundary', () => {
       const buffer = new TextBuffer({text: SAMPLE_TEXT})
       const markerLayer = buffer.addMarkerLayer()
-      const marker1 = markerLayer.markPosition([0, 3])
+      markerLayer.markPosition([0, 3])
       const marker2 = markerLayer.markRange([[0, 2], [1, 4]])
       const marker3 = markerLayer.markRange([[0, 4], [1, 4]])
       const marker4 = markerLayer.markRange([[0, 4], [2, 3]])
@@ -107,11 +107,11 @@ describe('MarkerTextDecorationLayer', () => {
     ])
 
     rangeInvalidationEvents = []
-    marker2.setRange(Range(Point(0, 1) , Point(2, 7)))
+    marker2.setRange(Range(Point(0, 1), Point(2, 7)))
     expect(textDecorationLayer.getInvalidatedRanges()).toEqual([])
     expect(rangeInvalidationEvents).toEqual([
       Range(Point(2, 4), Point(3, 6)),
-      Range(Point(0, 1) , Point(2, 7))
+      Range(Point(0, 1), Point(2, 7))
     ])
 
     rangeInvalidationEvents = []

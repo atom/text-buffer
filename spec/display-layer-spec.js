@@ -6,7 +6,6 @@ const Range = require('../src/range')
 const {buildRandomLines, getRandomBufferRange} = require('./helpers/random')
 const SAMPLE_TEXT = require('./helpers/sample-text')
 const WORDS = require('./helpers/words')
-const MarkerTextDecorationLayer = require('../src/marker-text-decoration-layer')
 
 const EOL_INVISIBLE = '¬'
 const CR_INVISIBLE = '¤'
@@ -1750,7 +1749,7 @@ describe('DisplayLayer', () => {
         text: 'abcde\nfghij\nklmno'
       })
       const displayLayer = buffer.addDisplayLayer()
-      const textDecorationLayer1 = addMarkerTextDecorationLayer(displayLayer, [
+      addMarkerTextDecorationLayer(displayLayer, [
         ['a1', [[0, 1], [0, 4]]],
         ['a2', [[2, 3], [2, 5]]]
       ])
@@ -1758,7 +1757,7 @@ describe('DisplayLayer', () => {
         ['b1', [[0, 2], [1, 2]]],
         ['b2', [[1, 3], [2, 0]]]
       ])
-      const textDecorationLayer3 = addMarkerTextDecorationLayer(displayLayer, [
+      addMarkerTextDecorationLayer(displayLayer, [
         ['c1', [[0, 3], [1, 2]]],
         ['c2', [[1, 3], [2, 0]]]
       ])
@@ -1960,7 +1959,7 @@ describe('DisplayLayer', () => {
       decorationLayer1.markerLayer.getMarkers()[0].setRange([[4, 5], [6, 5]])
       expect(allChanges).toEqual([
         {start: Point(1, 0), oldExtent: Point(2, 0), newExtent: Point(2, 0)},
-        {start: Point(3, 0), oldExtent: Point(3, 0), newExtent: Point(3, 0)},
+        {start: Point(3, 0), oldExtent: Point(3, 0), newExtent: Point(3, 0)}
       ])
 
       allChanges = []

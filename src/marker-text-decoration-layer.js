@@ -1,7 +1,5 @@
-const {MarkerIndex} = require('superstring')
 const {Emitter} = require('event-kit')
 const Point = require('./point')
-const Range = require('./range')
 
 module.exports =
 class MarkerTextDecorationLayer {
