@@ -21,7 +21,7 @@ Set.prototype.jasmineToString = () => { // eslint-disable-line no-extend-native
     return result
   })
   first = false
-  result + '}'
+  result += '}'
 }
 
 let toEqualSet = (expectedItems, customMessage) => {

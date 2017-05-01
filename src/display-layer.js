@@ -270,7 +270,7 @@ class DisplayLayer {
   translateBufferPosition (bufferPosition, options) {
     bufferPosition = this.buffer.clipPosition(bufferPosition)
     this.populateSpatialIndexIfNeeded(bufferPosition.row + 1, Infinity)
-    const clipDirection = options && options.clipDirection || 'closest'
+    const clipDirection = (options && options.clipDirection) || 'closest'
     let screenPosition = this.translateBufferPositionWithSpatialIndex(bufferPosition, clipDirection)
     const tabCount = this.tabCounts[screenPosition.row]
     if (tabCount > 0) {
@@ -324,7 +324,7 @@ class DisplayLayer {
   translateScreenPosition (screenPosition, options) {
     screenPosition = Point.fromObject(screenPosition)
     Point.assertValid(screenPosition)
-    const clipDirection = options && options.clipDirection || 'closest'
+    const clipDirection = (options && options.clipDirection) || 'closest'
     const skipSoftWrapIndentation = options && options.skipSoftWrapIndentation
     this.populateSpatialIndexIfNeeded(this.buffer.getLineCount(), screenPosition.row + 1)
     screenPosition = this.constrainScreenPosition(screenPosition, clipDirection)
@@ -354,8 +354,8 @@ class DisplayLayer {
     if (hunk) {
       if (compare(screenPosition, hunk.newEnd) < 0) {
         if (this.isSoftWrapHunk(hunk)) {
-          if (clipDirection === 'backward' && !skipSoftWrapIndentation ||
-              clipDirection === 'closest' && isEqual(hunk.newStart, screenPosition)) {
+          if ((clipDirection === 'backward' && !skipSoftWrapIndentation) ||
+              (clipDirection === 'closest' && isEqual(hunk.newStart, screenPosition))) {
             return this.translateScreenPositionWithSpatialIndex(traverse(hunk.newStart, Point(0, -1)), clipDirection, skipSoftWrapIndentation)
           } else {
             return hunk.oldStart

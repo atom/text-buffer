@@ -3,7 +3,6 @@ const TextBuffer = require('..')
 
 let text = helpers.getRandomText(100)
 let buffer = new TextBuffer({text})
-let displayLayer = buffer.addDisplayLayer({})
 
 let t0 = Date.now()
 
