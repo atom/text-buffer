@@ -150,34 +150,6 @@ class MarkerLayer
       result.push(marker)
     result.sort (a, b) -> a.compare(b)
 
-  # Experimental: Find marker boundaries in the given range.
-  #
-  # A boundary is a position in the layer where at least one marker starts or
-  # ends. Multiple markers starting and/or ending at the same position describe
-  # only a single boundary.
-  #
-  # * `range` A {Range}-like object identifying the region you want to query.
-  #
-  # Returns an {Object} with the following fields:
-  # * `containingStart` An {Array} of {Marker}s that overlap the range start.
-  # * `boundaries` An {Array} of {Object}s, each with the following fields:
-  #   * `position` A {Point} representing the location of the boundary.
-  #   * `starting` A {Set} of {Marker}s that start at the current boundary.
-  #   * `ending` A {Set} of {Marker}s that end at the current boundary.
-  findBoundariesInRange: (range) ->
-    range = Range.fromObject(range)
-    result = @index.findBoundariesIn(range.start, range.end)
-    containingStart = result.containingStart.map((markerId) => @getMarker(markerId))
-    boundaries = result.boundaries.map (boundary) =>
-      position = new Point(boundary.position.row, boundary.position.column)
-      starting = new Set()
-      boundary.starting.forEach((markerId) => starting.add(@getMarker(markerId)))
-      ending = new Set()
-      boundary.ending.forEach((markerId) => ending.add(@getMarker(markerId)))
-      {position, starting, ending}
-
-    {containingStart, boundaries}
-
   ###
   Section: Marker creation
   ###

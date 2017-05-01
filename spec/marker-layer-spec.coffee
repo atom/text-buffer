@@ -176,23 +176,6 @@ describe "MarkerLayer", ->
       expect(layer1.findMarkers(containsPoint: [0, 4])).toEqual [layer1Marker]
       expect(layer2.findMarkers(containsPoint: [0, 4])).toEqual [layer2Marker]
 
-  describe "::findBoundariesInRange(range)", ->
-    it "returns all the boundaries occurring at the given range", ->
-      buffer.setText('abcde\nfghij\nklmno\npqrst\nuvwxy\n01234\n56789')
-      marker1 = layer1.markPosition([3, 0])
-      marker2 = layer1.markRange([[2, 0], [4, 0]])
-      marker3 = layer1.markRange([[4, 0], [9, 0]])
-      marker4 = layer1.markRange([[1, 0], [4, 0]])
-      marker5 = layer1.markRange([[0, 0], [8, 0]])
-
-      {containingStart, boundaries} = layer1.findBoundariesInRange([[1, 5], [6, 5]])
-      expect(containingStart).toEqual([marker5, marker4])
-      expect(boundaries).toEqual([
-        {position: Point(2, 0), starting: new Set([marker2]), ending: new Set()},
-        {position: Point(3, 0), starting: new Set([marker1]), ending: new Set([marker1])},
-        {position: Point(4, 0), starting: new Set([marker3]), ending: new Set([marker2, marker4])}
-      ])
-
   describe "::onDidUpdate", ->
     it "notifies observers at the end of the outermost transaction when markers are created, updated, or destroyed", ->
       [marker1, marker2] = []
