@@ -1944,10 +1944,7 @@ describe('DisplayLayer', () => {
     })
 
     it('emits update events from the display layer when text decoration ranges are invalidated', () => {
-      const buffer = new TextBuffer({
-        text: 'abc\ndef\nghi\njkl\nmno'
-      })
-
+      const buffer = new TextBuffer({text: SAMPLE_TEXT})
       const displayLayer = buffer.addDisplayLayer()
       displayLayer.foldBufferRange([[1, 3], [2, 0]])
       const decorationLayer1 = addMarkerTextDecorationLayer(displayLayer, [
@@ -1960,17 +1957,17 @@ describe('DisplayLayer', () => {
       displayLayer.onDidChangeSync((changes) => allChanges.push(...changes))
 
       allChanges = []
-      decorationLayer1.markerLayer.getMarkers()[0].setRange([[1, 5], [3, 0]])
+      decorationLayer1.markerLayer.getMarkers()[0].setRange([[4, 5], [6, 5]])
       expect(allChanges).toEqual([
-        {start: Point(1, 0), oldExtent: Point(1, 0), newExtent: Point(1, 0)},
-        {start: Point(1, 3), oldExtent: Point(1, 0), newExtent: Point(1, 0)},
+        {start: Point(1, 0), oldExtent: Point(2, 0), newExtent: Point(2, 0)},
+        {start: Point(3, 0), oldExtent: Point(3, 0), newExtent: Point(3, 0)},
       ])
 
       allChanges = []
       decorationLayer2.markerLayer.getMarkers()[0].setRange([[1, 3], [4, 2]])
       expect(allChanges).toEqual([
-        {start: Point(1, 0), oldExtent: Point(0, 7), newExtent: Point(0, 7)},
-        {start: Point(1, 3), oldExtent: Point(2, 2), newExtent: Point(2, 2)}
+        {start: Point(1, 0), oldExtent: Point(1, 0), newExtent: Point(1, 0)},
+        {start: Point(1, 0), oldExtent: Point(3, 0), newExtent: Point(3, 0)}
       ])
 
       allChanges = []

@@ -24,16 +24,16 @@ class DisplayLayer {
     this.nextBuiltInScopeId = 1
     this.textDecorationLayer = new CompositeTextDecorationLayer(MAX_BUILT_IN_SCOPE_ID + 1)
     this.decorationLayerDisposable = this.textDecorationLayer.onDidInvalidateRange((bufferRange) => {
-      const screenRange = this.translateBufferRange(bufferRange)
-      const extent = screenRange.getExtent()
-      spliceArray(
-        this.cachedScreenLines,
-        screenRange.start.row,
-        extent.row + 1,
-        new Array(extent.row + 1)
-      )
+      bufferRange = Range.fromObject(bufferRange)
+      this.populateSpatialIndexIfNeeded(bufferRange.end.row + 1, Infinity)
+      const startBufferRow = this.findBoundaryPrecedingBufferRow(bufferRange.start.row)
+      const endBufferRow = this.findBoundaryFollowingBufferRow(bufferRange.end.row + 1)
+      const startRow = this.translateBufferPositionWithSpatialIndex(Point(startBufferRow, 0), 'backward').row
+      const endRow = this.translateBufferPositionWithSpatialIndex(Point(endBufferRow, 0), 'backward').row
+      const extent = Point(endRow - startRow, 0)
+      spliceArray(this.cachedScreenLines, startRow, extent.row, new Array(extent.row))
       this.emitDidChangeSyncEvent([{
-        start: screenRange.start,
+        start: Point(startRow, 0),
         oldExtent: extent,
         newExtent: extent
       }])
