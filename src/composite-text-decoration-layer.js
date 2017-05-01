@@ -83,6 +83,12 @@ module.exports = class CompositeTextDecorationLayer {
     return layer.classNameForScopeId(layerScopeId)
   }
 
+  inlineStyleForScopeId (scopeId) {
+    const layer = this.layersByCompositeScopeId.get(scopeId)
+    const layerScopeId = this.layerScopeIdsByCompositeScopeId.get(scopeId)
+    return layer.inlineStyleForScopeId(layerScopeId)
+  }
+
   compositeScopeIdForLayerScopeId (layer, scopeId) {
     let compositeScopeIdsByLayerScopeId = this.compositeScopeIdsByLayerAndScopeId.get(layer)
     if (compositeScopeIdsByLayerScopeId == null) {

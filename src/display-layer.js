@@ -715,6 +715,14 @@ class DisplayLayer {
     }
   }
 
+  inlineStyleForScopeId (scopeId) {
+    if (scopeId <= MAX_BUILT_IN_SCOPE_ID) {
+      return null
+    } else {
+      return this.textDecorationLayer.inlineStyleForScopeId(scopeId)
+    }
+  }
+
   scopeIdForTag (tag) {
     if (this.isCloseTag(tag)) tag++
     return -tag
@@ -722,6 +730,10 @@ class DisplayLayer {
 
   classNameForTag (tag) {
     return this.classNameForScopeId(this.scopeIdForTag(tag))
+  }
+
+  inlineStyleForTag (tag) {
+    return this.inlineStyleForScopeId(this.scopeIdForTag(tag))
   }
 
   openTagForScopeId (scopeId) {

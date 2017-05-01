@@ -1745,9 +1745,7 @@ describe('DisplayLayer', () => {
 
   describe('text decorations', () => {
     it('exposes open and close tags from multiple text decoration layers', () => {
-      const buffer = new TextBuffer({
-        text: 'abcde\nfghij\nklmno'
-      })
+      const buffer = new TextBuffer({text: 'abcde\nfghij\nklmno'})
       const displayLayer = buffer.addDisplayLayer()
       addMarkerTextDecorationLayer(displayLayer, [
         ['a1', [[0, 1], [0, 4]]],
@@ -1792,6 +1790,35 @@ describe('DisplayLayer', () => {
         {text: 'no', close: [], open: ['a2']},
         {text: '', close: ['a2'], open: []}
       ])
+    })
+
+    it('supports adding an inline style and/or a class name for a given decoration tag', () => {
+      const buffer = new TextBuffer({text: 'abcde\nfghij\nklmno'})
+      const displayLayer = buffer.addDisplayLayer()
+      const markerLayer = buffer.addMarkerLayer()
+      const textDecorationLayer = displayLayer.addMarkerTextDecorationLayer(markerLayer)
+      const marker1 = markerLayer.markRange([[0, 0], [0, 1]])
+      textDecorationLayer.setClassNameForMarker(marker1, 'a')
+      const marker2 = markerLayer.markRange([[1, 0], [1, 3]])
+      textDecorationLayer.setInlineStyleForMarker(marker1, {color: 'b'})
+      textDecorationLayer.setInlineStyleForMarker(marker2, {color: 'c'})
+
+      const [screenLine1, screenLine2] = displayLayer.getScreenLines(0, 2)
+      expect(screenLine1.tags.length).toBe(4)
+      expect(displayLayer.classNameForTag(screenLine1.tags[0])).toBe('a')
+      expect(displayLayer.inlineStyleForTag(screenLine1.tags[0])).toEqual({color: 'b'})
+      expect(screenLine1.tags[1]).toBe(1)
+      expect(displayLayer.classNameForTag(screenLine1.tags[2])).toBe('a')
+      expect(displayLayer.inlineStyleForTag(screenLine1.tags[2])).toEqual({color: 'b'})
+      expect(screenLine1.tags[3]).toBe(4)
+
+      expect(screenLine2.tags.length).toBe(4)
+      expect(displayLayer.classNameForTag(screenLine2.tags[0])).toBeUndefined()
+      expect(displayLayer.inlineStyleForTag(screenLine2.tags[0])).toEqual({color: 'c'})
+      expect(screenLine2.tags[1]).toBe(3)
+      expect(displayLayer.classNameForTag(screenLine2.tags[2])).toBeUndefined()
+      expect(displayLayer.inlineStyleForTag(screenLine2.tags[2])).toEqual({color: 'c'})
+      expect(screenLine2.tags[3]).toBe(2)
     })
 
     it('includes indent guides and EOL characters within containing decoration tags', function () {

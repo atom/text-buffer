@@ -7,6 +7,7 @@ class MarkerTextDecorationLayer {
     this.markerLayer = markerLayer
     this.markerLayer.registerMarkerTextDecorationLayer(this)
     this.classNamesByMarkerId = new Map()
+    this.inlineStylesByMarkerId = new Map()
     this.emitter = new Emitter()
     this.invalidatedRanges = []
   }
@@ -15,8 +16,16 @@ class MarkerTextDecorationLayer {
     this.classNamesByMarkerId.set(marker.id, className)
   }
 
+  setInlineStyleForMarker (marker, style) {
+    this.inlineStylesByMarkerId.set(marker.id, style)
+  }
+
   classNameForScopeId (markerId) {
     return this.classNamesByMarkerId.get(markerId)
+  }
+
+  inlineStyleForScopeId (markerId) {
+    return this.inlineStylesByMarkerId.get(markerId)
   }
 
   buildIterator () {
