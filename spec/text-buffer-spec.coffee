@@ -135,9 +135,6 @@ describe "TextBuffer", ->
         buffer.setTextInRange([[0, 2], [2, 3]], "y there\r\ncat\nwhat", normalizeLineEndings: false)
         expect(changes).toEqual [{
           oldRange: [[0, 2], [2, 3]]
-          newRange: [[0, 2], [2, 4]]
-          oldText: "llo\nworld\r\nhow"
-          newText: "y there\r\ncat\nwhat"
         }]
 
     describe "after a change", ->
@@ -1848,21 +1845,26 @@ describe "TextBuffer", ->
             expect(buffer.getText()).toBe("def")
             done()
 
-    it "notifies onDidChange and onDidChangeText observers", (done) ->
+    it "notifies onWillChange, onDidChange, and onDidChangeText observers", (done) ->
       filePath = temp.openSync("atom").path
       fs.writeFileSync(filePath, "abc")
 
       buffer = new TextBuffer({filePath, load: false})
       buffer.setText('bcde')
 
+      willChangeEvents = []
       didChangeEvents = []
       didChangeTextEvents = []
 
+      buffer.onWillChange (e) -> willChangeEvents.push(e)
       buffer.onDidChange (e) -> didChangeEvents.push(e)
       buffer.onDidChangeText (e) -> didChangeTextEvents.push(e)
 
       buffer.load().then ->
         expect(buffer.getText()).toBe('abc')
+        expect(willChangeEvents).toEqual([{
+          oldRange: Range(Point(0, 0), Point(0, 4))
+        }])
         expect(JSON.parse(JSON.stringify(didChangeEvents))).toEqual([{
           oldRange: Range(Point(0, 0), Point(0, 4)),
           newRange: Range(Point(0, 0), Point(0, 3)),

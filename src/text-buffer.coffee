@@ -19,8 +19,7 @@ class TransactionAbortedError extends Error
   constructor: -> super
 
 class DidChangeOnLoadEvent
-  constructor: (buffer, patch, oldExtent) ->
-    @oldRange = new Range(Point.ZERO, oldExtent)
+  constructor: (buffer, patch, @oldRange) ->
     @newRange = new Range(Point.ZERO, buffer.getExtent())
 
     oldText = null
@@ -232,9 +231,6 @@ class TextBuffer
   # * `callback` {Function} to be called when the buffer changes.
   #   * `event` {Object} with the following keys:
   #     * `oldRange` {Range} of the old text.
-  #     * `newRange` {Range} of the new text.
-  #     * `oldText` {String} containing the text that was replaced.
-  #     * `newText` {String} containing the text that was inserted.
   #
   # Returns a {Disposable} on which `.dispose()` can be called to unsubscribe.
   onWillChange: (callback) ->
@@ -767,7 +763,7 @@ class TextBuffer
     changeEvent = {oldRange, newRange, oldText, newText}
     for id, displayLayer of @displayLayers
       displayLayer.bufferWillChange(changeEvent)
-    @emitter.emit 'will-change', changeEvent
+    @emitter.emit 'will-change', {oldRange}
 
     @buffer.setTextInRange(oldRange, newText)
 
@@ -1463,19 +1459,21 @@ class TextBuffer
 
   loadSync: ->
     @emitter.emit 'will-reload'
-    oldExtent = @buffer.getExtent()
+    oldRange = new Range(Point.ZERO, @buffer.getExtent())
+    @emitter.emit 'will-change', {oldRange}
     patch = @buffer.loadSync(@getPath(), @getEncoding())
-    @finishLoading(oldExtent, patch)
+    @finishLoading(oldRange, patch)
 
   load: ->
     @emitter.emit 'will-reload'
-    oldExtent = @buffer.getExtent()
+    oldRange = new Range(Point.ZERO, @buffer.getExtent())
+    @emitter.emit 'will-change', {oldRange}
     @buffer.load(@getPath(), @getEncoding()).then (patch) =>
-      @finishLoading(oldExtent, patch)
+      @finishLoading(oldRange, patch)
 
   reload: -> @load()
 
-  finishLoading: (oldExtent, patch) ->
+  finishLoading: (oldRange, patch) ->
     return if @isDestroyed()
 
     @loaded = true
@@ -1490,7 +1488,7 @@ class TextBuffer
         @buffer.deserializeChanges(serializedChanges)
       else
         @digestWhenLastPersisted = digest
-        @emitDidChangeEvent(new DidChangeOnLoadEvent(@buffer, patch, oldExtent))
+        @emitDidChangeEvent(new DidChangeOnLoadEvent(@buffer, patch, oldRange))
         @emitDidChangeTextEvent(patch)
       @emitModifiedStatusChanged(@isModified())
 
