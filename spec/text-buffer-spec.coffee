@@ -1887,6 +1887,23 @@ describe "TextBuffer", ->
         }])
         done()
 
+    it "updates markers", (done) ->
+      filePath = temp.openSync("atom").path
+      fs.writeFileSync(filePath, "abc")
+
+      buffer = new TextBuffer({filePath, load: false})
+      buffer.setText('bcdef')
+
+      markerC = buffer.markRange([[0, 1], [0, 2]])
+      markerE = buffer.markRange([[0, 4], [0, 5]])
+
+      buffer.load().then ->
+        expect(markerC.getRange()).toEqual([[0, 2], [0, 3]])
+        expect(markerE.getRange()).toEqual([[0, 3], [0, 3]])
+        expect(markerC.isValid()).toBe(true)
+        expect(markerE.isValid()).toBe(false)
+        done()
+
     it "does not throw if the buffer has no backing file", (done) ->
       buffer = new TextBuffer()
       buffer.load().then(done)

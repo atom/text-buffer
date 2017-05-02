@@ -1494,6 +1494,15 @@ class TextBuffer
         @emitDidChangeTextEvent(patch)
       @emitModifiedStatusChanged(@isModified())
 
+      if @markerLayers?
+        for change in patch.getChanges()
+          for id, markerLayer of @markerLayers
+            markerLayer.splice(
+              change.newStart,
+              traversal(change.oldEnd, change.oldStart),
+              traversal(change.newEnd, change.newStart)
+            )
+
     @emitter.emit 'did-reload'
     this
 
