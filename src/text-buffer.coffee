@@ -1492,7 +1492,7 @@ class TextBuffer
         @digestWhenLastPersisted = digest
         @emitDidChangeEvent(new DidChangeOnLoadEvent(@buffer, patch, oldExtent))
         @emitDidChangeTextEvent(patch)
-        @emitModifiedStatusChanged(@isModified())
+      @emitModifiedStatusChanged(@isModified())
 
     @emitter.emit 'did-reload'
     this
