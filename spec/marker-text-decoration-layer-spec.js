@@ -14,14 +14,11 @@ describe('MarkerTextDecorationLayer', () => {
       const marker3 = markerLayer.markRange([[0, 4], [1, 4]])
       const marker4 = markerLayer.markRange([[0, 4], [2, 3]])
 
-      const textDecorationLayer = new MarkerTextDecorationLayer(markerLayer, {})
+      const textDecorationLayer = new MarkerTextDecorationLayer(markerLayer, {
+        classNameForMarkerId: () => 'foo'
+      })
       const iterator = textDecorationLayer.buildIterator()
       expect(iterator.seek(Point(0, 3))).toEqual([marker2.id])
-      expect(iterator.getPosition()).toEqual(Point(0, 3))
-      expect(iterator.getCloseScopeIds()).toEqual([])
-      expect(iterator.getOpenScopeIds()).toEqual([])
-
-      iterator.moveToSuccessor()
       expect(iterator.getPosition()).toEqual(Point(0, 4))
       expect(iterator.getCloseScopeIds()).toEqual([])
       expect(iterator.getOpenScopeIds()).toEqual([marker3.id, marker4.id])
@@ -60,14 +57,11 @@ describe('MarkerTextDecorationLayer', () => {
       expect(marker1.isValid()).toBe(false)
       const marker2 = markerLayer.markRange([[0, 4], [2, 3]])
 
-      const textDecorationLayer = new MarkerTextDecorationLayer(markerLayer, {})
+      const textDecorationLayer = new MarkerTextDecorationLayer(markerLayer, {
+        classNameForMarkerId: () => 'foo'
+      })
       const iterator = textDecorationLayer.buildIterator()
       expect(iterator.seek(Point(0, 5))).toEqual([marker2.id])
-      expect(iterator.getPosition()).toEqual(Point(1, 4))
-      expect(iterator.getCloseScopeIds()).toEqual([])
-      expect(iterator.getOpenScopeIds()).toEqual([])
-
-      iterator.moveToSuccessor()
       expect(iterator.getPosition()).toEqual(Point(2, 3))
       expect(iterator.getCloseScopeIds()).toEqual([marker2.id])
       expect(iterator.getOpenScopeIds()).toEqual([])
@@ -76,6 +70,34 @@ describe('MarkerTextDecorationLayer', () => {
       expect(iterator.getPosition()).toEqual(Point.INFINITY)
       expect(iterator.getCloseScopeIds()).toEqual([])
       expect(iterator.getOpenScopeIds()).toEqual([])
+    })
+
+    it('does not report boundaries that are not associated with the start/end of a decorated marker', () => {
+      const buffer = new TextBuffer({text: SAMPLE_TEXT})
+      const markerLayer = buffer.addMarkerLayer()
+      const marker1 = markerLayer.markRange([[0, 1], [0, 3]])
+      const marker2 = markerLayer.markRange([[0, 2], [0, 5]])
+      const marker3 = markerLayer.markRange([[0, 5], [0, 7]])
+      const marker4 = markerLayer.markRange([[0, 9], [0, 12]])
+      const textDecorationLayer = new MarkerTextDecorationLayer(markerLayer, {
+        classNameForMarkerId: (markerId) => {
+          if (marker2.id === markerId) return 'foo'
+        },
+        inlineStyleForMarkerId: (markerId) => {
+          if (marker4.id === markerId) return {color: 'bar'}
+        }
+      })
+
+      const iterator = textDecorationLayer.buildIterator()
+      expect(iterator.seek(Point(0, 3))).toEqual([marker2.id])
+      expect(iterator.getPosition()).toEqual(Point(0, 5))
+      expect(iterator.getCloseScopeIds()).toEqual([marker2.id])
+      expect(iterator.getOpenScopeIds()).toEqual([])
+
+      iterator.moveToSuccessor()
+      expect(iterator.getPosition()).toEqual(Point(0, 9))
+      expect(iterator.getCloseScopeIds()).toEqual([])
+      expect(iterator.getOpenScopeIds()).toEqual([marker4.id])
     })
   })
 

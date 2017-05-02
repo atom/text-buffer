@@ -54,6 +54,8 @@ class MarkerTextDecorationLayer {
 class MarkerTextDecorationLayerIterator {
   constructor (layer) {
     this.layer = layer
+    this.openScopeIds = []
+    this.closeScopeIds = []
   }
 
   seek (position) {
@@ -61,17 +63,27 @@ class MarkerTextDecorationLayerIterator {
     this.boundaries = boundaries
     for (let i = 0; i < containingStart.length; i++) {
       const marker = this.layer.markerLayer.getMarker(containingStart[i])
-      if (!marker.isValid()) {
+      if (!marker.isValid() || !this.hasInlineStyleOrClassName(marker.id)) {
         containingStart.splice(i, 1)
         i--
       }
     }
+
     this.boundaryIndex = 0
+    this.computeScopeIds()
+    if (this.openScopeIds.length === 0 && this.closeScopeIds.length === 0) {
+      this.moveToSuccessor()
+    }
     return containingStart
   }
 
   moveToSuccessor () {
-    this.boundaryIndex++
+    if (this.boundaryIndex === this.boundaries.length) return
+
+    do {
+      this.boundaryIndex++
+      this.computeScopeIds()
+    } while (this.openScopeIds.length === 0 && this.closeScopeIds.length === 0 && this.boundaryIndex < this.boundaries.length)
   }
 
   getPosition () {
@@ -80,30 +92,39 @@ class MarkerTextDecorationLayerIterator {
   }
 
   getCloseScopeIds () {
-    const result = []
-    const boundary = this.boundaries[this.boundaryIndex]
-    if (boundary) {
-      boundary.ending.forEach((markerId) => {
-        const marker = this.layer.markerLayer.getMarker(markerId)
-        if (!boundary.starting.has(markerId) && marker.isValid()) {
-          result.push(markerId)
-        }
-      })
-    }
-    return result
+    return this.closeScopeIds
   }
 
   getOpenScopeIds () {
-    const result = []
+    return this.openScopeIds
+  }
+
+  computeScopeIds () {
     const boundary = this.boundaries[this.boundaryIndex]
+    this.openScopeIds.length = 0
+    this.closeScopeIds.length = 0
+
     if (boundary) {
       boundary.starting.forEach((markerId) => {
         const marker = this.layer.markerLayer.getMarker(markerId)
-        if (!boundary.ending.has(markerId) && marker.isValid()) {
-          result.push(markerId)
+        if (!boundary.ending.has(markerId) && marker.isValid() && this.hasInlineStyleOrClassName(markerId)) {
+          this.openScopeIds.push(markerId)
+        }
+      })
+
+      boundary.ending.forEach((markerId) => {
+        const marker = this.layer.markerLayer.getMarker(markerId)
+        if (!boundary.starting.has(markerId) && marker.isValid() && this.hasInlineStyleOrClassName(markerId)) {
+          this.closeScopeIds.push(markerId)
         }
       })
     }
-    return result
+  }
+
+  hasInlineStyleOrClassName (scopeId) {
+    return (
+      this.layer.classNameForScopeId(scopeId) ||
+      this.layer.inlineStyleForScopeId(scopeId)
+    )
   }
 }
