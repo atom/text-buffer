@@ -172,12 +172,6 @@ class DisplayLayer {
     return markerLayer
   }
 
-  addMarkerTextDecorationLayer (markerLayer) {
-    const decorationLayer = new MarkerTextDecorationLayer(markerLayer)
-    this.addTextDecorationLayer(decorationLayer)
-    return decorationLayer
-  }
-
   getMarkerLayer (id) {
     if (this.displayMarkerLayersById.has(id)) {
       return this.displayMarkerLayersById.get(id)

@@ -1,6 +1,7 @@
 const Random = require('random-seed')
 const dedent = require('dedent')
 const TextBuffer = require('../src/text-buffer')
+const MarkerTextDecorationLayer = require('../src/marker-text-decoration-layer')
 const Point = require('../src/point')
 const Range = require('../src/range')
 const {buildRandomLines, getRandomBufferRange} = require('./helpers/random')
@@ -1796,12 +1797,21 @@ describe('DisplayLayer', () => {
       const buffer = new TextBuffer({text: 'abcde\nfghij\nklmno'})
       const displayLayer = buffer.addDisplayLayer()
       const markerLayer = buffer.addMarkerLayer()
-      const textDecorationLayer = displayLayer.addMarkerTextDecorationLayer(markerLayer)
+
+      const classNamesByMarkerId = new Map()
+      const inlineStylesByMarkerId = new Map()
+      displayLayer.addTextDecorationLayer(new MarkerTextDecorationLayer(
+        markerLayer,
+        {
+          classNameForMarkerId: (id) => classNamesByMarkerId.get(id),
+          inlineStyleForMarkerId: (id) => inlineStylesByMarkerId.get(id)
+        }
+      ))
       const marker1 = markerLayer.markRange([[0, 0], [0, 1]])
-      textDecorationLayer.setClassNameForMarker(marker1, 'a')
+      classNamesByMarkerId.set(marker1.id, 'a')
+      inlineStylesByMarkerId.set(marker1.id, {color: 'b'})
       const marker2 = markerLayer.markRange([[1, 0], [1, 3]])
-      textDecorationLayer.setInlineStyleForMarker(marker1, {color: 'b'})
-      textDecorationLayer.setInlineStyleForMarker(marker2, {color: 'c'})
+      inlineStylesByMarkerId.set(marker2.id, {color: 'c'})
 
       const [screenLine1, screenLine2] = displayLayer.getScreenLines(0, 2)
       expect(screenLine1.tags.length).toBe(4)
@@ -1813,10 +1823,10 @@ describe('DisplayLayer', () => {
       expect(screenLine1.tags[3]).toBe(4)
 
       expect(screenLine2.tags.length).toBe(4)
-      expect(displayLayer.classNameForTag(screenLine2.tags[0])).toBeNull()
+      expect(displayLayer.classNameForTag(screenLine2.tags[0])).toBeUndefined()
       expect(displayLayer.inlineStyleForTag(screenLine2.tags[0])).toEqual({color: 'c'})
       expect(screenLine2.tags[1]).toBe(3)
-      expect(displayLayer.classNameForTag(screenLine2.tags[2])).toBeNull()
+      expect(displayLayer.classNameForTag(screenLine2.tags[2])).toBeUndefined()
       expect(displayLayer.inlineStyleForTag(screenLine2.tags[2])).toEqual({color: 'c'})
       expect(screenLine2.tags[3]).toBe(2)
     })
@@ -2266,29 +2276,15 @@ describe('DisplayLayer', () => {
 
       try {
         const random = new Random(seed)
-
-        const buffer = new TextBuffer({
-          text: buildRandomLines(random, 20)
-        })
-
-        const invisibles = {}
-
-        if (random(2) > 0) {
-          invisibles.space = '•'
-        }
-
-        if (random(2) > 0) {
-          invisibles.eol = EOL_INVISIBLE
-        }
-
-        if (random(2) > 0) {
-          invisibles.cr = CR_INVISIBLE
-        }
-
+        const buffer = new TextBuffer({text: buildRandomLines(random, 20)})
         const foldIds = []
         const showIndentGuides = Boolean(random(2))
         const softWrapColumn = random(2) ? random.intBetween(5, 80) : null
         const foldsMarkerLayer = random(2) ? createFoldsMarkerLayer(random, buffer, foldIds) : null
+        const invisibles = {}
+        if (random(2) > 0) invisibles.space = '•'
+        if (random(2) > 0) invisibles.eol = EOL_INVISIBLE
+        if (random(2) > 0) invisibles.cr = CR_INVISIBLE
 
         const displayLayer = buffer.addDisplayLayer({
           tabLength: 4,
@@ -2298,9 +2294,10 @@ describe('DisplayLayer', () => {
           foldsMarkerLayer: foldsMarkerLayer
         })
 
+        const classNamesByMarkerId = new Map()
         const decorationLayersCount = random(4)
         for (let i = 0; i < decorationLayersCount; i++) {
-          addMarkerTextDecorationLayer(displayLayer, [])
+          addMarkerTextDecorationLayer(displayLayer, [], classNamesByMarkerId)
         }
         displayLayer.getText(0, 3)
         let undoableChanges = 0
@@ -2314,7 +2311,7 @@ describe('DisplayLayer', () => {
             const markerTextDecorationLayer = getRandomMarkerTextDecorationLayer(displayLayer, random)
             switch (random(3)) {
               case 0:
-                createRandomMarkerDecorations(buffer, markerTextDecorationLayer, random)
+                createRandomMarkerDecorations(buffer, markerTextDecorationLayer, classNamesByMarkerId, random)
                 break
               case 1:
                 moveRandomMarkerDecorations(buffer, markerTextDecorationLayer, random)
@@ -2713,13 +2710,17 @@ function getComputedScreenLineCount (displayLayer) {
   return displayLayer.screenLineLengths.length
 }
 
-function addMarkerTextDecorationLayer (displayLayer, decorations) {
+function addMarkerTextDecorationLayer (displayLayer, decorations, classNamesByMarkerId = new Map()) {
   const markerLayer = displayLayer.buffer.addMarkerLayer()
-  const decorationLayer = displayLayer.addMarkerTextDecorationLayer(markerLayer)
+  const decorationLayer = new MarkerTextDecorationLayer(
+    markerLayer,
+    {classNameForMarkerId: (id) => classNamesByMarkerId.get(id)}
+  )
   for (const [className, range] of decorations) {
     const marker = markerLayer.markRange(range)
-    decorationLayer.setClassNameForMarker(marker, className)
+    classNamesByMarkerId.set(marker.id, className)
   }
+  displayLayer.addTextDecorationLayer(decorationLayer)
   return decorationLayer
 }
 
@@ -2729,14 +2730,14 @@ function getRandomMarkerTextDecorationLayer (displayLayer, random) {
   return decorationLayers[decorationLayerIndex]
 }
 
-function createRandomMarkerDecorations (buffer, markerTextDecorationLayer, random) {
+function createRandomMarkerDecorations (buffer, markerTextDecorationLayer, classNamesByMarkerId, random) {
   log('create random marker decorations')
   for (var i = 0; i < random(10); i++) {
     const range = getRandomBufferRange(random, buffer)
     const invalidate = getRandomInvalidationStrategy(random)
     const marker = markerTextDecorationLayer.markerLayer.markRange(range, {invalidate})
     const className = WORDS[random(WORDS.length)]
-    markerTextDecorationLayer.setClassNameForMarker(marker, className)
+    classNamesByMarkerId.set(marker.id, className)
   }
 }
 

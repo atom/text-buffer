@@ -1,41 +1,16 @@
 const {Emitter} = require('event-kit')
 const Point = require('./point')
+const NOOP = function () {}
 
 module.exports =
 class MarkerTextDecorationLayer {
-  constructor (markerLayer) {
+  constructor (markerLayer, {classNameForMarkerId, inlineStyleForMarkerId}) {
     this.markerLayer = markerLayer
     this.markerLayer.registerMarkerTextDecorationLayer(this)
-    this.classNamesByMarkerId = new Map()
-    this.inlineStylesByMarkerId = new Map()
     this.emitter = new Emitter()
     this.invalidatedRanges = []
-    this.defaultClassName = null
-    this.defaultInlineStyle = null
-  }
-
-  setDefaultClassName (className) {
-    this.defaultClassName = className
-  }
-
-  setClassNameForMarker (marker, className) {
-    this.classNamesByMarkerId.set(marker.id, className)
-  }
-
-  setDefaultInlineStyle (style) {
-    this.defaultInlineStyle = style
-  }
-
-  setInlineStyleForMarker (marker, style) {
-    this.inlineStylesByMarkerId.set(marker.id, style)
-  }
-
-  classNameForScopeId (markerId) {
-    return this.classNamesByMarkerId.get(markerId) || this.defaultClassName
-  }
-
-  inlineStyleForScopeId (markerId) {
-    return this.inlineStylesByMarkerId.get(markerId) || this.defaultInlineStyle
+    this.classNameForScopeId = classNameForMarkerId || NOOP
+    this.inlineStyleForScopeId = inlineStyleForMarkerId || NOOP
   }
 
   buildIterator () {

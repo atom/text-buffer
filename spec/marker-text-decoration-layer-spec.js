@@ -14,7 +14,7 @@ describe('MarkerTextDecorationLayer', () => {
       const marker3 = markerLayer.markRange([[0, 4], [1, 4]])
       const marker4 = markerLayer.markRange([[0, 4], [2, 3]])
 
-      const textDecorationLayer = new MarkerTextDecorationLayer(markerLayer)
+      const textDecorationLayer = new MarkerTextDecorationLayer(markerLayer, {})
       const iterator = textDecorationLayer.buildIterator()
       expect(iterator.seek(Point(0, 3))).toEqual([marker2.id])
       expect(iterator.getPosition()).toEqual(Point(0, 3))
@@ -60,7 +60,7 @@ describe('MarkerTextDecorationLayer', () => {
       expect(marker1.isValid()).toBe(false)
       const marker2 = markerLayer.markRange([[0, 4], [2, 3]])
 
-      const textDecorationLayer = new MarkerTextDecorationLayer(markerLayer)
+      const textDecorationLayer = new MarkerTextDecorationLayer(markerLayer, {})
       const iterator = textDecorationLayer.buildIterator()
       expect(iterator.seek(Point(0, 5))).toEqual([marker2.id])
       expect(iterator.getPosition()).toEqual(Point(1, 4))
@@ -83,7 +83,7 @@ describe('MarkerTextDecorationLayer', () => {
     const buffer = new TextBuffer({text: SAMPLE_TEXT})
     const markerLayer = buffer.addMarkerLayer()
     const marker1 = markerLayer.markRange([[0, 3], [1, 4]])
-    const textDecorationLayer = new MarkerTextDecorationLayer(markerLayer)
+    const textDecorationLayer = new MarkerTextDecorationLayer(markerLayer, {})
     let rangeInvalidationEvents
     textDecorationLayer.onDidInvalidateRange((range) => rangeInvalidationEvents.push(range))
 
@@ -122,33 +122,5 @@ describe('MarkerTextDecorationLayer', () => {
     expect(rangeInvalidationEvents).toEqual([])
     textDecorationLayer.clearInvalidatedRanges()
     expect(textDecorationLayer.getInvalidatedRanges()).toEqual([])
-  })
-
-  it('supports setting a default class name for all the markers in the underlying layer', () => {
-    const buffer = new TextBuffer({text: SAMPLE_TEXT})
-    const markerLayer = buffer.addMarkerLayer()
-    const marker = markerLayer.markRange([[0, 3], [1, 4]])
-    const textDecorationLayer = new MarkerTextDecorationLayer(markerLayer)
-    expect(textDecorationLayer.classNameForScopeId(marker.id)).toBeNull()
-
-    textDecorationLayer.setDefaultClassName('default')
-    expect(textDecorationLayer.classNameForScopeId(marker.id)).toBe('default')
-
-    textDecorationLayer.setClassNameForMarker(marker, 'class-name')
-    expect(textDecorationLayer.classNameForScopeId(marker.id)).toBe('class-name')
-  })
-
-  it('supports setting a default inline style for all the markers in the underlying layer', () => {
-    const buffer = new TextBuffer({text: SAMPLE_TEXT})
-    const markerLayer = buffer.addMarkerLayer()
-    const marker = markerLayer.markRange([[0, 3], [1, 4]])
-    const textDecorationLayer = new MarkerTextDecorationLayer(markerLayer)
-    expect(textDecorationLayer.inlineStyleForScopeId(marker.id)).toBeNull()
-
-    textDecorationLayer.setDefaultInlineStyle({color: 'default'})
-    expect(textDecorationLayer.inlineStyleForScopeId(marker.id)).toEqual({color: 'default'})
-
-    textDecorationLayer.setInlineStyleForMarker(marker, {fontSize: '15px'})
-    expect(textDecorationLayer.inlineStyleForScopeId(marker.id)).toEqual({fontSize: '15px'})
   })
 })
