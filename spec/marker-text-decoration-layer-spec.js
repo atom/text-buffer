@@ -123,4 +123,32 @@ describe('MarkerTextDecorationLayer', () => {
     textDecorationLayer.clearInvalidatedRanges()
     expect(textDecorationLayer.getInvalidatedRanges()).toEqual([])
   })
+
+  it('supports setting a default class name for all the markers in the underlying layer', () => {
+    const buffer = new TextBuffer({text: SAMPLE_TEXT})
+    const markerLayer = buffer.addMarkerLayer()
+    const marker = markerLayer.markRange([[0, 3], [1, 4]])
+    const textDecorationLayer = new MarkerTextDecorationLayer(markerLayer)
+    expect(textDecorationLayer.classNameForScopeId(marker.id)).toBeNull()
+
+    textDecorationLayer.setDefaultClassName('default')
+    expect(textDecorationLayer.classNameForScopeId(marker.id)).toBe('default')
+
+    textDecorationLayer.setClassNameForMarker(marker, 'class-name')
+    expect(textDecorationLayer.classNameForScopeId(marker.id)).toBe('class-name')
+  })
+
+  it('supports setting a default inline style for all the markers in the underlying layer', () => {
+    const buffer = new TextBuffer({text: SAMPLE_TEXT})
+    const markerLayer = buffer.addMarkerLayer()
+    const marker = markerLayer.markRange([[0, 3], [1, 4]])
+    const textDecorationLayer = new MarkerTextDecorationLayer(markerLayer)
+    expect(textDecorationLayer.inlineStyleForScopeId(marker.id)).toBeNull()
+
+    textDecorationLayer.setDefaultInlineStyle({color: 'default'})
+    expect(textDecorationLayer.inlineStyleForScopeId(marker.id)).toEqual({color: 'default'})
+
+    textDecorationLayer.setInlineStyleForMarker(marker, {fontSize: '15px'})
+    expect(textDecorationLayer.inlineStyleForScopeId(marker.id)).toEqual({fontSize: '15px'})
+  })
 })

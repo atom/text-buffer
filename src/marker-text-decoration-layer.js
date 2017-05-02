@@ -10,10 +10,20 @@ class MarkerTextDecorationLayer {
     this.inlineStylesByMarkerId = new Map()
     this.emitter = new Emitter()
     this.invalidatedRanges = []
+    this.defaultClassName = null
+    this.defaultInlineStyle = null
+  }
+
+  setDefaultClassName (className) {
+    this.defaultClassName = className
   }
 
   setClassNameForMarker (marker, className) {
     this.classNamesByMarkerId.set(marker.id, className)
+  }
+
+  setDefaultInlineStyle (style) {
+    this.defaultInlineStyle = style
   }
 
   setInlineStyleForMarker (marker, style) {
@@ -21,11 +31,11 @@ class MarkerTextDecorationLayer {
   }
 
   classNameForScopeId (markerId) {
-    return this.classNamesByMarkerId.get(markerId)
+    return this.classNamesByMarkerId.get(markerId) || this.defaultClassName
   }
 
   inlineStyleForScopeId (markerId) {
-    return this.inlineStylesByMarkerId.get(markerId)
+    return this.inlineStylesByMarkerId.get(markerId) || this.defaultInlineStyle
   }
 
   buildIterator () {

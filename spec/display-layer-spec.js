@@ -1813,10 +1813,10 @@ describe('DisplayLayer', () => {
       expect(screenLine1.tags[3]).toBe(4)
 
       expect(screenLine2.tags.length).toBe(4)
-      expect(displayLayer.classNameForTag(screenLine2.tags[0])).toBeUndefined()
+      expect(displayLayer.classNameForTag(screenLine2.tags[0])).toBeNull()
       expect(displayLayer.inlineStyleForTag(screenLine2.tags[0])).toEqual({color: 'c'})
       expect(screenLine2.tags[1]).toBe(3)
-      expect(displayLayer.classNameForTag(screenLine2.tags[2])).toBeUndefined()
+      expect(displayLayer.classNameForTag(screenLine2.tags[2])).toBeNull()
       expect(displayLayer.inlineStyleForTag(screenLine2.tags[2])).toEqual({color: 'c'})
       expect(screenLine2.tags[3]).toBe(2)
     })
