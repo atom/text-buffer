@@ -13,6 +13,10 @@ class MarkerTextDecorationLayer {
     this.inlineStyleForScopeId = inlineStyleForMarkerId || NOOP
   }
 
+  destroy () {
+    this.markerLayer.unregisterMarkerTextDecorationLayer(this)
+  }
+
   buildIterator () {
     return new MarkerTextDecorationLayerIterator(this)
   }

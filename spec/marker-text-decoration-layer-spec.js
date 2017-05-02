@@ -122,5 +122,11 @@ describe('MarkerTextDecorationLayer', () => {
     expect(rangeInvalidationEvents).toEqual([])
     textDecorationLayer.clearInvalidatedRanges()
     expect(textDecorationLayer.getInvalidatedRanges()).toEqual([])
+
+    rangeInvalidationEvents = []
+    textDecorationLayer.destroy()
+    marker2.setRange(Range(Point(2, 1), Point(2, 7)))
+    expect(textDecorationLayer.getInvalidatedRanges()).toEqual([])
+    expect(rangeInvalidationEvents).toEqual([])
   })
 })

@@ -410,6 +410,9 @@ class MarkerLayer
   registerMarkerTextDecorationLayer: (markerTextDecorationLayer) ->
     @markerTextDecorationLayers.add(markerTextDecorationLayer)
 
+  unregisterMarkerTextDecorationLayer: (markerTextDecorationLayer) ->
+    @markerTextDecorationLayers.delete(markerTextDecorationLayer)
+
 filterSet = (set1, set2) ->
   if set1
     intersectSet(set1, set2)
