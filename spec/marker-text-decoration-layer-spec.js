@@ -99,6 +99,41 @@ describe('MarkerTextDecorationLayer', () => {
       expect(iterator.getCloseScopeIds()).toEqual([])
       expect(iterator.getOpenScopeIds()).toEqual([marker4.id])
     })
+
+    it('fetches boundaries as needed based on the boundariesPerQuery parameter', () => {
+      const buffer = new TextBuffer({text: 'abcdef\n'.repeat(20)})
+      const markerLayer = buffer.addMarkerLayer()
+      markerLayer.markRange([[0, 2], [1, 2]])
+      markerLayer.markRange([[2, 2], [3, 2]])
+      markerLayer.markRange([[3, 2], [4, 2]])
+      markerLayer.markRange([[10, 2], [11, 2]])
+      markerLayer.markRange([[12, 2], [13, 2]])
+
+      const textDecorationLayer = new MarkerTextDecorationLayer(markerLayer, {
+        boundariesPerQuery: 3,
+        classNameForMarkerId: () => 'foo'
+      })
+
+      const iterator = textDecorationLayer.buildIterator()
+      iterator.seek(Point(0, 0))
+      expect(iterator.getPosition()).toEqual(Point(0, 2))
+      iterator.moveToSuccessor()
+      expect(iterator.getPosition()).toEqual(Point(1, 2))
+      iterator.moveToSuccessor()
+      expect(iterator.getPosition()).toEqual(Point(2, 2))
+      iterator.moveToSuccessor()
+      expect(iterator.getPosition()).toEqual(Point(3, 2))
+      iterator.moveToSuccessor()
+      expect(iterator.getPosition()).toEqual(Point(4, 2))
+      iterator.moveToSuccessor()
+      expect(iterator.getPosition()).toEqual(Point(10, 2))
+      iterator.moveToSuccessor()
+      expect(iterator.getPosition()).toEqual(Point(11, 2))
+      iterator.moveToSuccessor()
+      expect(iterator.getPosition()).toEqual(Point(12, 2))
+      iterator.moveToSuccessor()
+      expect(iterator.getPosition()).toEqual(Point(13, 2))
+    })
   })
 
   it('emits invalidation range events when a marker is added, destroyed or updated manually', () => {

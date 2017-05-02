@@ -4,11 +4,12 @@ const NOOP = function () {}
 
 module.exports =
 class MarkerTextDecorationLayer {
-  constructor (markerLayer, {classNameForMarkerId, inlineStyleForMarkerId}) {
+  constructor (markerLayer, {boundariesPerQuery, classNameForMarkerId, inlineStyleForMarkerId}) {
     this.markerLayer = markerLayer
     this.markerLayer.registerMarkerTextDecorationLayer(this)
     this.emitter = new Emitter()
     this.invalidatedRanges = []
+    this.boundariesPerQuery = boundariesPerQuery || 50
     this.classNameForScopeId = classNameForMarkerId || NOOP
     this.inlineStyleForScopeId = inlineStyleForMarkerId || NOOP
   }
@@ -58,8 +59,8 @@ class MarkerTextDecorationLayerIterator {
     this.closeScopeIds = []
   }
 
-  seek (position) {
-    const {containingStart, boundaries} = this.layer.markerLayer.index.findBoundariesIn(position, Point.INFINITY)
+  seek (start) {
+    const {containingStart, boundaries} = this.layer.markerLayer.index.findBoundariesAfter(start, this.layer.boundariesPerQuery)
     this.boundaries = boundaries
     for (let i = 0; i < containingStart.length; i++) {
       const marker = this.layer.markerLayer.getMarker(containingStart[i])
@@ -79,6 +80,13 @@ class MarkerTextDecorationLayerIterator {
 
   moveToSuccessor () {
     if (this.boundaryIndex === this.boundaries.length) return
+
+    // Fetch more marker boundaries if needed
+    if (this.boundaryIndex === this.boundaries.length - 1) {
+      const {row, column} = this.getPosition()
+      const {boundaries} = this.layer.markerLayer.index.findBoundariesAfter(Point(row, column + 1), this.layer.boundariesPerQuery)
+      this.boundaries.push(...boundaries)
+    }
 
     do {
       this.boundaryIndex++
