@@ -1426,21 +1426,20 @@ describe "TextBuffer", ->
         buffer.onDidChangeModified modifiedHandler
         buffer.insert([0, 0], "hi")
 
-      it "reports the modified status changing to false after a modified buffer is reloaded", ->
+      it "reports the modified status changing to false after a modified buffer is reloaded", (done) ->
         expect(buffer.isModified()).toBe true
 
         modifiedHandler.calls.reset()
-        buffer.reload()
+        buffer.reload().then ->
+          expect(modifiedHandler).toHaveBeenCalledWith(false)
+          expect(buffer.isModified()).toBe false
 
-        expect(modifiedHandler).toHaveBeenCalledWith(false)
-        expect(buffer.isModified()).toBe false
-
-        modifiedHandler.calls.reset()
-        doneFunc = ->
-          expect(modifiedHandler).toHaveBeenCalledWith(true)
-          expect(buffer.isModified()).toBe true
-          done()
-        buffer.insert([0, 0], 'x')
+          modifiedHandler.calls.reset()
+          doneFunc = ->
+            expect(modifiedHandler).toHaveBeenCalledWith(true)
+            expect(buffer.isModified()).toBe true
+            done()
+          buffer.insert([0, 0], 'x')
 
     describe "after a buffer to a non-existent file is saved", ->
       beforeEach (done) ->
@@ -1687,24 +1686,6 @@ describe "TextBuffer", ->
         expect(event.oldRange).toEqual expectedPreRange
         expect(event.newRange).toEqual [[0, 0], [1, 8]]
 
-    describe "when the buffer contains carriage returns for newlines", ->
-      it "changes the entire contents of the buffer", ->
-        buffer = new TextBuffer("first\rlast")
-        lastRow = buffer.getLastRow()
-        expectedPreRange = [[0, 0], [lastRow, buffer.lineForRow(lastRow).length]]
-        changeHandler = jasmine.createSpy('changeHandler')
-        buffer.onDidChange changeHandler
-
-        newText = "new first\rnew last"
-        buffer.setText(newText)
-
-        expect(buffer.getText()).toBe newText
-        expect(changeHandler).toHaveBeenCalled()
-        [event] = changeHandler.calls.allArgs()[0]
-        expect(event.newText).toBe newText
-        expect(event.oldRange).toEqual expectedPreRange
-        expect(event.newRange).toEqual [[0, 0], [1, 8]]
-
   describe "::setTextViaDiff(text)", ->
     beforeEach (done) ->
       filePath = require.resolve('./fixtures/sample.js')
@@ -1773,19 +1754,6 @@ describe "TextBuffer", ->
         buffer.setTextViaDiff(newText)
         expect(buffer.getText()).toBe newText
 
-    describe "when the buffer contains carriage returns for newlines", ->
-      it "can replace the contents of the buffer", ->
-        originalText = "beginning\rmiddle\rlast"
-        newText = "new beginning\rnew last"
-        buffer = new TextBuffer(originalText)
-        expect(buffer.getText()).toBe originalText
-
-        buffer.setTextViaDiff(newText)
-        expect(buffer.getText()).toBe newText
-
-        buffer.setTextViaDiff(originalText)
-        expect(buffer.getText()).toBe originalText
-
   describe "::save()", ->
     saveBuffer = null
 
@@ -1811,34 +1779,30 @@ describe "TextBuffer", ->
 
       it "notifies ::onWillSave and ::onDidSave observers around the call to File::writeSync", ->
         events = []
-        willSave1 = (event) -> events.push(['will-save-1', event])
-        willSave2 = (event) -> events.push(['will-save-2', event])
-        didSave1 = (event) -> events.push(['did-save-1', event])
-        didSave2 = (event) -> events.push(['did-save-2', event])
-
-        saveBuffer.onWillSave willSave1
-        saveBuffer.onWillSave willSave2
-        spyOn(File.prototype, 'writeSync').and.callFake -> events.push 'File::writeSync'
-        saveBuffer.onDidSave didSave1
-        saveBuffer.onDidSave didSave2
+        saveBuffer.onWillSave (event) -> events.push(['will-save-1', event])
+        saveBuffer.onWillSave (event) -> events.push(['will-save-2', event])
+        spyOn(saveBuffer.buffer, 'saveSync').and.callFake -> events.push 'saveSync'
+        saveBuffer.onDidSave (event) -> events.push(['did-save-1', event])
+        saveBuffer.onDidSave (event) -> events.push(['did-save-2', event])
 
         saveBuffer.save()
         path = saveBuffer.getPath()
         expect(events).toEqual [
           ['will-save-1', {path}]
           ['will-save-2', {path}]
-          'File::writeSync'
+          'saveSync'
           ['did-save-1', {path}]
           ['did-save-2', {path}]
         ]
 
-      it "notifies ::onWillReload and ::onDidReload observers when reloaded", ->
+      it "notifies ::onWillReload and ::onDidReload observers when reloaded", (done) ->
         events = []
 
         saveBuffer.onWillReload -> events.push 'will-reload'
         saveBuffer.onDidReload -> events.push 'did-reload'
-        saveBuffer.reload()
-        expect(events).toEqual ['will-reload', 'did-reload']
+        saveBuffer.reload().then ->
+          expect(events).toEqual ['will-reload', 'did-reload']
+          done()
 
       describe "when a conflict is created", ->
         beforeEach (done) ->
@@ -1862,24 +1826,70 @@ describe "TextBuffer", ->
           expect(-> saveBuffer.save()).toThrowError()
           done()
 
-  describe "::reload()", ->
+  describe "::load()", ->
     it "reloads current text from disk and clears any conflicts", (done) ->
-      filePath = require.resolve('./fixtures/sample.js')
-      fileContents = fs.readFileSync(filePath, 'utf8')
+      filePath = temp.openSync("atom").path
+      fs.writeFileSync(filePath, "one")
       buffer = new TextBuffer({filePath, load: false})
       buffer.load().then ->
         buffer.setText("abc")
-        buffer.conflict = true
+        expect(buffer.isModified()).toBe(true)
+        expect(buffer.isInConflict()).toBe(false)
+        fs.writeFileSync(filePath, "def")
 
-        buffer.reload()
-        expect(buffer.isModified()).toBeFalsy()
-        expect(buffer.isInConflict()).toBeFalsy()
-        expect(buffer.getText()).toBe(fileContents)
+        subscription = buffer.onDidConflict ->
+          subscription.dispose()
+          expect(buffer.isModified()).toBe(true)
+          expect(buffer.isInConflict()).toBe(true)
+
+          buffer.load().then ->
+            expect(buffer.isModified()).toBe(false)
+            expect(buffer.isInConflict()).toBe(false)
+            expect(buffer.getText()).toBe("def")
+            done()
+
+    it "notifies onDidChange and onDidChangeText observers", (done) ->
+      filePath = temp.openSync("atom").path
+      fs.writeFileSync(filePath, "abc")
+
+      buffer = new TextBuffer({filePath, load: false})
+      buffer.setText('bcde')
+
+      didChangeEvents = []
+      didChangeTextEvents = []
+
+      buffer.onDidChange (e) -> didChangeEvents.push(e)
+      buffer.onDidChangeText (e) -> didChangeTextEvents.push(e)
+
+      buffer.load().then ->
+        expect(buffer.getText()).toBe('abc')
+        expect(JSON.parse(JSON.stringify(didChangeEvents))).toEqual([{
+          oldRange: Range(Point(0, 0), Point(0, 4)),
+          newRange: Range(Point(0, 0), Point(0, 3)),
+          oldText: 'bcde',
+          newText: 'abc'
+        }])
+        expect(JSON.parse(JSON.stringify(didChangeTextEvents))).toEqual([{
+          changes: [
+            {
+              oldRange: Range(Point(0, 0), Point(0, 0)),
+              newRange: Range(Point(0, 0), Point(0, 1)),
+              oldText: '',
+              newText: 'a'
+            },
+            {
+              oldRange: Range(Point(0, 2), Point(0, 4)),
+              newRange: Range(Point(0, 3), Point(0, 3)),
+              oldText: 'de',
+              newText: ''
+            }
+          ]
+        }])
         done()
 
-    it "does not throw if the buffer has no backing file", ->
+    it "does not throw if the buffer has no backing file", (done) ->
       buffer = new TextBuffer()
-      buffer.reload()
+      buffer.load().then(done)
 
   describe "::saveAs(path, {backup})", ->
     [filePath, saveAsBuffer, tempDir] = []
@@ -1962,9 +1972,8 @@ describe "TextBuffer", ->
         describe "if an exception is thrown while writing to the file", ->
           it "restores the file's original contents from the backup copy, preserves the backup copy just in case, and re-throws the exception", ->
             saveAsBuffer.setPath(filePath)
-            originalWriteSync = saveAsBuffer.file.writeSync
-            saveAsBuffer.file.writeSync = (args...) ->
-              originalWriteSync.apply(saveAsBuffer.file, args)
+
+            spyOn(saveAsBuffer.buffer, 'saveSync').and.callFake ->
               throw new Error('Something broke')
 
             expect(-> saveAsBuffer.saveAs(filePath, backup: true)).toThrowError 'Something broke'

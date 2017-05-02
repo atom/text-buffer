@@ -18,6 +18,36 @@ DisplayLayer = require './display-layer'
 class TransactionAbortedError extends Error
   constructor: -> super
 
+class DidChangeOnLoadEvent
+  constructor: (buffer, patch, oldExtent) ->
+    @oldRange = new Range(Point.ZERO, oldExtent)
+    @newRange = new Range(Point.ZERO, buffer.getExtent())
+
+    oldText = null
+    newText = null
+
+    Object.defineProperty(this, 'oldText', {
+      enumerable: true,
+      get: ->
+        unless oldText?
+          oldBuffer = new NativeTextBuffer(@newText)
+          for change in patch.getChanges() by -1
+            oldBuffer.setTextInRange(
+              new Range(change.newStart, change.newEnd),
+              change.oldText
+            )
+          oldText = oldBuffer.getText()
+        oldText
+    })
+
+    Object.defineProperty(this, 'newText', {
+      enumerable: true,
+      get: ->
+        unless newText?
+          newText = buffer.getText()
+        newText
+    })
+
 # Extended: A mutable text container with undo/redo support and the ability to
 # annotate logical regions in the text.
 #
@@ -440,7 +470,7 @@ class TextBuffer
   # on-disk contents of its associated file.
   #
   # Returns a {Boolean}.
-  isInConflict: -> @conflict
+  isInConflict: -> @isModified() and @fileHasChangedSinceLastLoad
 
   # Public: Get the path of the associated file.
   #
@@ -744,8 +774,6 @@ class TextBuffer
     if @markerLayers?
       for id, markerLayer of @markerLayers
         markerLayer.splice(oldRange.start, oldExtent, newExtent)
-
-    @conflict = false if @conflict and not @isModified()
 
     @changeCount++
     @emitDidChangeEvent(changeEvent)
@@ -1392,7 +1420,7 @@ class TextBuffer
       throw error
 
     @setPath(filePath)
-    @conflict = false
+    @fileHasChangedSinceLastLoad = false
     @loaded = true
     @emitModifiedStatusChanged(false)
     @emitter.emit 'did-save', {path: filePath}
@@ -1434,40 +1462,39 @@ class TextBuffer
   ###
 
   loadSync: ->
+    @emitter.emit 'will-reload'
     oldExtent = @buffer.getExtent()
-    @buffer.loadSync(@getPath(), @getEncoding())
-    @finishLoading(oldExtent)
+    patch = @buffer.loadSync(@getPath(), @getEncoding())
+    @finishLoading(oldExtent, patch)
 
   load: ->
+    @emitter.emit 'will-reload'
     oldExtent = @buffer.getExtent()
-    @buffer.load(@getPath(), @getEncoding()).then =>
-      @finishLoading(oldExtent)
+    @buffer.load(@getPath(), @getEncoding()).then (patch) =>
+      @finishLoading(oldExtent, patch)
 
-  reload: ->
-    @conflict = false
-    @loadSync()
+  reload: -> @load()
 
-  finishLoading: (oldExtent) ->
-    if @isAlive()
-      @loaded = true
+  finishLoading: (oldExtent, patch) ->
+    return if @isDestroyed()
+
+    @loaded = true
+    @fileHasChangedSinceLastLoad = false
+
+    serializedChanges = @serializedChanges
+    @serializedChanges = null
+
+    if patch.getChangeCount() > 0
       digest = @buffer.baseTextDigest()
-      outstandingChanges = @serializedChanges
-      @serializedChanges = null
-      if digest is @digestWhenLastPersisted
-        @buffer.deserializeChanges(outstandingChanges) if outstandingChanges
-        @emitModifiedStatusChanged(@isModified())
+      if digest is @digestWhenLastPersisted and serializedChanges
+        @buffer.deserializeChanges(serializedChanges)
       else
         @digestWhenLastPersisted = digest
-        @emitter.emit 'will-reload'
-        @clearUndoStack()
-        @emitModifiedStatusChanged(false)
-        @emitDidChangeEvent({
-          oldRange: new Range(Point.ZERO, oldExtent),
-          newRange: new Range(Point.ZERO, @buffer.getExtent()),
-          oldText: '',
-          newText: ''
-        })
-        @emitter.emit 'did-reload'
+        @emitDidChangeEvent(new DidChangeOnLoadEvent(@buffer, patch, oldExtent))
+        @emitDidChangeTextEvent(patch)
+        @emitModifiedStatusChanged(@isModified())
+
+    @emitter.emit 'did-reload'
     this
 
   destroy: ->
@@ -1506,28 +1533,12 @@ class TextBuffer
       # On Linux we get change events when the file is deleted. This yields
       # consistent behavior with Mac/Windows.
       return unless @file.existsSync()
+      @fileHasChangedSinceLastLoad = true
 
       if @isModified()
         @emitter.emit 'did-conflict'
       else
-        oldLength = @buffer.getLength()
-        oldExtent = @buffer.getExtent()
-        previousDigest = @buffer.baseTextDigest()
-        @buffer.load(@getPath(), @getEncoding()).then (patch) =>
-          return if patch.getChangeCount() is 0
-          buffer = @buffer
-
-          event = {
-            oldRange: new Range(Point.ZERO, oldExtent),
-            newRange: new Range(Point.ZERO, @buffer.getExtent()),
-            oldText: {length: oldLength}
-          }
-
-          Object.defineProperty(event, 'newText', {
-            get: -> @_newText ?= buffer.getText()
-          })
-
-          @emitDidChangeEvent(event)
+        @load()
 
     @fileSubscriptions.add @file.onDidDelete =>
       modified = @isModified()
