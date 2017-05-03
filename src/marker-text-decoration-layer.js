@@ -79,23 +79,24 @@ class MarkerTextDecorationLayerIterator {
   }
 
   moveToSuccessor () {
-    if (this.boundaryIndex === this.boundaries.length) return
-
-    // Fetch more marker boundaries if needed
-    if (this.boundaryIndex === this.boundaries.length - 1) {
-      const {row, column} = this.getPosition()
-      const {boundaries} = this.layer.markerLayer.index.findBoundariesAfter(
-        Point(row, column + 1),
-        this.layer.boundariesPerQuery
-      )
-      this.boundaries = boundaries
-      this.boundaryIndex = -1
-    }
+    if (this.boundaries.length === 0) return
 
     do {
-      this.boundaryIndex++
+      // Fetch more marker boundaries if needed
+      if (this.boundaryIndex === this.boundaries.length - 1) {
+        const {row, column} = this.getPosition()
+        const {boundaries} = this.layer.markerLayer.index.findBoundariesAfter(
+          Point(row, column + 1),
+          this.layer.boundariesPerQuery
+        )
+        this.boundaries = boundaries
+        this.boundaryIndex = 0
+      } else {
+        this.boundaryIndex++
+      }
+
       this.computeScopeIds()
-    } while (this.openScopeIds.length === 0 && this.closeScopeIds.length === 0 && this.boundaryIndex < this.boundaries.length)
+    } while (this.openScopeIds.length === 0 && this.closeScopeIds.length === 0 && this.boundaries.length > 0)
   }
 
   getPosition () {

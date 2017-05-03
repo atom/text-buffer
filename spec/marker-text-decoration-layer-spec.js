@@ -103,15 +103,16 @@ describe('MarkerTextDecorationLayer', () => {
     it('fetches boundaries as needed based on the boundariesPerQuery parameter', () => {
       const buffer = new TextBuffer({text: 'abcdef\n'.repeat(20)})
       const markerLayer = buffer.addMarkerLayer()
-      markerLayer.markRange([[0, 2], [1, 2]])
-      markerLayer.markRange([[2, 2], [3, 2]])
-      markerLayer.markRange([[3, 2], [4, 2]])
-      markerLayer.markRange([[10, 2], [11, 2]])
-      markerLayer.markRange([[12, 2], [13, 2]])
+      const marker1 = markerLayer.markRange([[0, 2], [1, 2]])
+      const marker2 = markerLayer.markRange([[2, 2], [3, 2]])
+      const marker3 = markerLayer.markRange([[3, 2], [4, 2]])
+      const marker4 = markerLayer.markRange([[10, 2], [11, 2]])
+      const marker5 = markerLayer.markRange([[12, 2], [13, 2]])
 
+      const decoratedMarkerIds = new Set([marker1.id, marker2.id, marker3.id, marker4.id, marker5.id])
       const textDecorationLayer = new MarkerTextDecorationLayer(markerLayer, {
         boundariesPerQuery: 3,
-        classNameForMarkerId: () => 'foo'
+        classNameForMarkerId: (markerId) => decoratedMarkerIds.has(markerId) ? 'foo' : null
       })
 
       const iterator = textDecorationLayer.buildIterator()
@@ -133,6 +134,14 @@ describe('MarkerTextDecorationLayer', () => {
       expect(iterator.getPosition()).toEqual(Point(12, 2))
       iterator.moveToSuccessor()
       expect(iterator.getPosition()).toEqual(Point(13, 2))
+
+      // Ensure skipping more empty boundaries than the size of the query works correctly.
+      decoratedMarkerIds.delete(marker1.id)
+      decoratedMarkerIds.delete(marker2.id)
+      iterator.seek(Point(0, 0))
+      expect(iterator.getPosition()).toEqual(Point(3, 2))
+      iterator.moveToSuccessor()
+      expect(iterator.getPosition()).toEqual(Point(4, 2))
     })
   })
 
