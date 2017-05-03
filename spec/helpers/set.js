@@ -2,7 +2,7 @@
 
 const setEqual = require('../../src/set-helpers').setEqual
 
-Set.prototype.isEqual = (other) => { // eslint-disable-line no-extend-native
+Set.prototype.isEqual = function (other) { // eslint-disable-line no-extend-native
   if (other instanceof Set) {
     return setEqual(this, other)
   } else {
@@ -10,7 +10,7 @@ Set.prototype.isEqual = (other) => { // eslint-disable-line no-extend-native
   }
 }
 
-Set.prototype.jasmineToString = () => { // eslint-disable-line no-extend-native
+Set.prototype.jasmineToString = function () { // eslint-disable-line no-extend-native
   let result = 'Set {'
   let first = true
   this.forEach((element) => {
@@ -21,7 +21,7 @@ Set.prototype.jasmineToString = () => { // eslint-disable-line no-extend-native
     return result
   })
   first = false
-  result + '}'
+  return result + '}'
 }
 
 let toEqualSet = (expectedItems, customMessage) => {

@@ -10,6 +10,7 @@ Point = require './point'
 Range = require './range'
 History = require './history'
 MarkerLayer = require './marker-layer'
+MarkerTextDecorationLayer = require './marker-text-decoration-layer'
 MatchIterator = require './match-iterator'
 DisplayLayer = require './display-layer'
 {spliceArray, newlineRegex, normalizePatchChanges, regexIsSingleLine} = require './helpers'
@@ -67,6 +68,7 @@ class TextBuffer
   @version: 5
   @Point: Point
   @Range: Range
+  @MarkerTextDecorationLayer: MarkerTextDecorationLayer
   @newlineRegex: newlineRegex
 
   cachedText: null

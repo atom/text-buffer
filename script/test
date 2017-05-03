@@ -26,6 +26,7 @@ if (argv.rebuild) {
       npm_config_target: electronVersion,
       npm_config_disturl: 'https://atom.io/download/atom-shell'
     })
+    console.log(`Rebuilding native modules against Electron ${electronVersion}`)
   } else {
     env = process.env
   }

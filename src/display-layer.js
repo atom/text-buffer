@@ -2,12 +2,13 @@ const {Patch} = require('superstring')
 const {Emitter} = require('event-kit')
 const Point = require('./point')
 const Range = require('./range')
-const EmptyDecorationLayer = require('./empty-decoration-layer')
+const CompositeTextDecorationLayer = require('./composite-text-decoration-layer')
 const DisplayMarkerLayer = require('./display-marker-layer')
 const {traverse, traversal, compare, max, isEqual} = require('./point-helpers')
 const isCharacterPair = require('./is-character-pair')
 const ScreenLineBuilder = require('./screen-line-builder')
 const {spliceArray} = require('./helpers')
+const MAX_BUILT_IN_SCOPE_ID = 256
 
 module.exports =
 class DisplayLayer {
@@ -17,10 +18,25 @@ class DisplayLayer {
     this.emitter = new Emitter()
     this.screenLineBuilder = new ScreenLineBuilder(this)
     this.cachedScreenLines = []
-    this.tagsByCode = new Map()
-    this.codesByTag = new Map()
-    this.nextOpenTagCode = -1
-    this.textDecorationLayer = new EmptyDecorationLayer()
+    this.builtInScopeIdsByFlags = new Map()
+    this.builtInClassNamesByScopeId = new Map()
+    this.nextBuiltInScopeId = 1
+    this.textDecorationLayer = new CompositeTextDecorationLayer(MAX_BUILT_IN_SCOPE_ID + 1)
+    this.decorationLayerDisposable = this.textDecorationLayer.onDidInvalidateRange((bufferRange) => {
+      bufferRange = Range.fromObject(bufferRange)
+      this.populateSpatialIndexIfNeeded(bufferRange.end.row + 1, Infinity)
+      const startBufferRow = this.findBoundaryPrecedingBufferRow(bufferRange.start.row)
+      const endBufferRow = this.findBoundaryFollowingBufferRow(bufferRange.end.row + 1)
+      const startRow = this.translateBufferPositionWithSpatialIndex(Point(startBufferRow, 0), 'backward').row
+      const endRow = this.translateBufferPositionWithSpatialIndex(Point(endBufferRow, 0), 'backward').row
+      const extent = Point(endRow - startRow, 0)
+      spliceArray(this.cachedScreenLines, startRow, extent.row, new Array(extent.row))
+      this.emitDidChangeSyncEvent([{
+        start: Point(startRow, 0),
+        oldExtent: extent,
+        newExtent: extent
+      }])
+    })
     this.displayMarkerLayersById = new Map()
     this.destroyed = false
 
@@ -113,7 +129,8 @@ class DisplayLayer {
     this.clearSpatialIndex()
     this.foldsMarkerLayer.destroy()
     this.displayMarkerLayersById.forEach((layer) => layer.destroy())
-    if (this.decorationLayerDisposable) this.decorationLayerDisposable.dispose()
+    this.decorationLayerDisposable.dispose()
+    this.textDecorationLayer.dispose()
     delete this.buffer.displayLayers[this.id]
   }
 
@@ -134,30 +151,18 @@ class DisplayLayer {
     return this.indexedBufferRowCount < this.buffer.getLineCount()
   }
 
-  getTextDecorationLayer () {
-    return this.textDecorationLayer
+  getTextDecorationLayers () {
+    return this.textDecorationLayer.getLayers()
   }
 
-  setTextDecorationLayer (textDecorationLayer) {
+  addTextDecorationLayer (textDecorationLayer) {
     this.cachedScreenLines.length = 0
-    this.textDecorationLayer = textDecorationLayer
-    if (typeof textDecorationLayer.onDidInvalidateRange === 'function') {
-      this.decorationLayerDisposable = textDecorationLayer.onDidInvalidateRange((bufferRange) => {
-        bufferRange = Range.fromObject(bufferRange)
-        this.populateSpatialIndexIfNeeded(bufferRange.end.row + 1, Infinity)
-        const startBufferRow = this.findBoundaryPrecedingBufferRow(bufferRange.start.row)
-        const endBufferRow = this.findBoundaryFollowingBufferRow(bufferRange.end.row + 1)
-        const startRow = this.translateBufferPositionWithSpatialIndex(Point(startBufferRow, 0), 'backward').row
-        const endRow = this.translateBufferPositionWithSpatialIndex(Point(endBufferRow, 0), 'backward').row
-        const extent = Point(endRow - startRow, 0)
-        spliceArray(this.cachedScreenLines, startRow, extent.row, new Array(extent.row))
-        this.emitDidChangeSyncEvent([{
-          start: Point(startRow, 0),
-          oldExtent: extent,
-          newExtent: extent
-        }])
-      })
-    }
+    this.textDecorationLayer.addLayer(textDecorationLayer)
+  }
+
+  removeTextDecorationLayer (textDecorationLayer) {
+    this.cachedScreenLines.length = 0
+    this.textDecorationLayer.removeLayer(textDecorationLayer)
   }
 
   addMarkerLayer (options) {
@@ -671,33 +676,73 @@ class DisplayLayer {
     return column
   }
 
-  tagForCode (tagCode) {
-    if (this.isCloseTagCode(tagCode)) tagCode++
-    return this.tagsByCode.get(tagCode)
+  registerBuiltInScope (flags, className) {
+    if (this.nextBuiltInScopeId > MAX_BUILT_IN_SCOPE_ID) {
+      throw new Error('Built in scope ids exhausted')
+    }
+
+    let scopeId
+    if (className.length > 0) {
+      scopeId = this.nextBuiltInScopeId += 2
+      this.builtInClassNamesByScopeId.set(scopeId, className)
+    } else {
+      scopeId = 0
+    }
+    this.builtInScopeIdsByFlags.set(flags, scopeId)
+    return scopeId
   }
 
-  codeForOpenTag (tag) {
-    if (this.codesByTag.has(tag)) {
-      return this.codesByTag.get(tag)
+  getBuiltInScopeId (flags) {
+    if (this.builtInScopeIdsByFlags.has(flags)) {
+      return this.builtInScopeIdsByFlags.get(flags)
     } else {
-      const tagCode = this.nextOpenTagCode
-      this.codesByTag.set(tag, tagCode)
-      this.tagsByCode.set(tagCode, tag)
-      this.nextOpenTagCode -= 2
-      return tagCode
+      return -1
     }
   }
 
-  codeForCloseTag (tag) {
-    return this.codeForOpenTag(tag) - 1
+  classNameForScopeId (scopeId) {
+    if (scopeId <= MAX_BUILT_IN_SCOPE_ID) {
+      return this.builtInClassNamesByScopeId.get(scopeId)
+    } else {
+      return this.textDecorationLayer.classNameForScopeId(scopeId)
+    }
   }
 
-  isOpenTagCode (tagCode) {
-    return tagCode < 0 && tagCode % 2 === -1
+  inlineStyleForScopeId (scopeId) {
+    if (scopeId <= MAX_BUILT_IN_SCOPE_ID) {
+      return null
+    } else {
+      return this.textDecorationLayer.inlineStyleForScopeId(scopeId)
+    }
   }
 
-  isCloseTagCode (tagCode) {
-    return tagCode < 0 && tagCode % 2 === 0
+  scopeIdForTag (tag) {
+    if (this.isCloseTag(tag)) tag++
+    return -tag
+  }
+
+  classNameForTag (tag) {
+    return this.classNameForScopeId(this.scopeIdForTag(tag))
+  }
+
+  inlineStyleForTag (tag) {
+    return this.inlineStyleForScopeId(this.scopeIdForTag(tag))
+  }
+
+  openTagForScopeId (scopeId) {
+    return -scopeId
+  }
+
+  closeTagForScopeId (scopeId) {
+    return -scopeId - 1
+  }
+
+  isOpenTag (tag) {
+    return tag < 0 && tag % 2 === -1
+  }
+
+  isCloseTag (tag) {
+    return tag < 0 && tag % 2 === 0
   }
 
   bufferWillChange (change) {
@@ -745,6 +790,7 @@ class DisplayLayer {
       spliceArray(this.cachedScreenLines, startRow, extent.row, new Array(extent.row))
       combinedChanges.splice(Point(startRow, 0), extent, extent)
     }
+    this.textDecorationLayer.clearInvalidatedRanges()
 
     return Object.freeze(combinedChanges.getHunks().map((hunk) => {
       return {

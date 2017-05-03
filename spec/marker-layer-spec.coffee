@@ -1,5 +1,6 @@
 {uniq, times} = require 'underscore-plus'
 TextBuffer = require '../src/text-buffer'
+Point = require '../src/point'
 
 describe "MarkerLayer", ->
   [buffer, layer1, layer2] = []
