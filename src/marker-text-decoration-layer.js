@@ -84,8 +84,12 @@ class MarkerTextDecorationLayerIterator {
     // Fetch more marker boundaries if needed
     if (this.boundaryIndex === this.boundaries.length - 1) {
       const {row, column} = this.getPosition()
-      const {boundaries} = this.layer.markerLayer.index.findBoundariesAfter(Point(row, column + 1), this.layer.boundariesPerQuery)
-      this.boundaries.push(...boundaries)
+      const {boundaries} = this.layer.markerLayer.index.findBoundariesAfter(
+        Point(row, column + 1),
+        this.layer.boundariesPerQuery
+      )
+      this.boundaries = boundaries
+      this.boundaryIndex = -1
     }
 
     do {
