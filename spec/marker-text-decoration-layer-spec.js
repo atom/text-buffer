@@ -19,6 +19,11 @@ describe('MarkerTextDecorationLayer', () => {
       })
       const iterator = textDecorationLayer.buildIterator()
       expect(iterator.seek(Point(0, 3))).toEqual([marker2.id])
+      expect(iterator.getPosition()).toEqual(Point(0, 3))
+      expect(iterator.getCloseScopeIds()).toEqual([])
+      expect(iterator.getOpenScopeIds()).toEqual([])
+
+      iterator.moveToSuccessor()
       expect(iterator.getPosition()).toEqual(Point(0, 4))
       expect(iterator.getCloseScopeIds()).toEqual([])
       expect(iterator.getOpenScopeIds()).toEqual([marker3.id, marker4.id])
@@ -62,6 +67,11 @@ describe('MarkerTextDecorationLayer', () => {
       })
       const iterator = textDecorationLayer.buildIterator()
       expect(iterator.seek(Point(0, 5))).toEqual([marker2.id])
+      expect(iterator.getPosition()).toEqual(Point(1, 4))
+      expect(iterator.getCloseScopeIds()).toEqual([])
+      expect(iterator.getOpenScopeIds()).toEqual([])
+
+      iterator.moveToSuccessor()
       expect(iterator.getPosition()).toEqual(Point(2, 3))
       expect(iterator.getCloseScopeIds()).toEqual([marker2.id])
       expect(iterator.getOpenScopeIds()).toEqual([])
@@ -70,34 +80,6 @@ describe('MarkerTextDecorationLayer', () => {
       expect(iterator.getPosition()).toEqual(Point.INFINITY)
       expect(iterator.getCloseScopeIds()).toEqual([])
       expect(iterator.getOpenScopeIds()).toEqual([])
-    })
-
-    it('does not report boundaries that are not associated with the start/end of a decorated marker', () => {
-      const buffer = new TextBuffer({text: SAMPLE_TEXT})
-      const markerLayer = buffer.addMarkerLayer()
-      const marker1 = markerLayer.markRange([[0, 1], [0, 3]]) // eslint-disable-line no-unused-vars
-      const marker2 = markerLayer.markRange([[0, 2], [0, 5]])
-      const marker3 = markerLayer.markRange([[0, 5], [0, 7]]) // eslint-disable-line no-unused-vars
-      const marker4 = markerLayer.markRange([[0, 9], [0, 12]])
-      const textDecorationLayer = new MarkerTextDecorationLayer(markerLayer, {
-        classNameForMarkerId: (markerId) => {
-          if (marker2.id === markerId) return 'foo'
-        },
-        inlineStyleForMarkerId: (markerId) => {
-          if (marker4.id === markerId) return {color: 'bar'}
-        }
-      })
-
-      const iterator = textDecorationLayer.buildIterator()
-      expect(iterator.seek(Point(0, 3))).toEqual([marker2.id])
-      expect(iterator.getPosition()).toEqual(Point(0, 5))
-      expect(iterator.getCloseScopeIds()).toEqual([marker2.id])
-      expect(iterator.getOpenScopeIds()).toEqual([])
-
-      iterator.moveToSuccessor()
-      expect(iterator.getPosition()).toEqual(Point(0, 9))
-      expect(iterator.getCloseScopeIds()).toEqual([])
-      expect(iterator.getOpenScopeIds()).toEqual([marker4.id])
     })
 
     it('fetches boundaries as needed based on the boundariesPerQuery parameter', () => {
@@ -134,14 +116,6 @@ describe('MarkerTextDecorationLayer', () => {
       expect(iterator.getPosition()).toEqual(Point(12, 2))
       iterator.moveToSuccessor()
       expect(iterator.getPosition()).toEqual(Point(13, 2))
-
-      // Ensure skipping more empty boundaries than the size of the query works correctly.
-      decoratedMarkerIds.delete(marker1.id)
-      decoratedMarkerIds.delete(marker2.id)
-      iterator.seek(Point(0, 0))
-      expect(iterator.getPosition()).toEqual(Point(3, 2))
-      iterator.moveToSuccessor()
-      expect(iterator.getPosition()).toEqual(Point(4, 2))
     })
   })
 
