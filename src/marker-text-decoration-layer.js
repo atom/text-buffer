@@ -43,8 +43,8 @@ class MarkerTextDecorationLayer {
   }
 
   didMoveMarker (oldRange, newRange) {
-    this.didDestroyMarker(oldRange)
-    this.didCreateMarker(newRange)
+    this.emitter.emit('did-invalidate-range', oldRange)
+    this.emitter.emit('did-invalidate-range', newRange)
   }
 
   didDestroyMarker (range) {

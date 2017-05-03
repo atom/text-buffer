@@ -400,9 +400,10 @@ class MarkerLayer
     Point.assertValid(range.end)
     @index.insert(id, range.start, range.end)
     marker = new Marker(id, this, range, params)
+    @markersById[id] = marker
     @markerTextDecorationLayers.forEach (markerTextDecorationLayer) ->
       markerTextDecorationLayer.didCreateMarker(range)
-    @markersById[id] = marker
+    marker
 
   emitUpdateEvent: ->
     @emitter.emit('did-update')
