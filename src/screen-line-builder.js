@@ -10,6 +10,7 @@ const INDENT_GUIDE = 1 << 5
 const LINE_ENDING = 1 << 6
 const FOLD = 1 << 7
 
+const builtInTagCache = new Map()
 let nextScreenLineId = 1
 
 module.exports =
@@ -33,8 +34,8 @@ class ScreenLineBuilder {
     const hunks = this.displayLayer.spatialIndex.getHunksInNewRange(Point(this.screenRow, 0), Point(endScreenRow, 0))
     let hunkIndex = 0
 
-    this.containingScopeIds = []
-    this.scopeIdsToReopen = []
+    this.containingTags = []
+    this.tagsToReopen = []
     this.screenLines = []
     this.bufferColumn = 0
     this.beginLine()
@@ -71,7 +72,7 @@ class ScreenLineBuilder {
         continue
       }
 
-      this.currentBuiltInClassNameFlags = 0
+      this.currentBuiltInTagFlags = 0
       this.bufferLine = this.displayLayer.buffer.lineForRow(this.bufferRow)
       if (this.bufferLine == null) break
       this.trailingWhitespaceStartColumn = this.displayLayer.findTrailingWhitespaceStartColumn(this.bufferLine)
@@ -80,9 +81,9 @@ class ScreenLineBuilder {
 
       if (!decorationIterator) {
         decorationIterator = this.displayLayer.textDecorationLayer.buildIterator()
-        this.scopeIdsToReopen = decorationIterator.seek(Point(this.bufferRow, this.bufferColumn))
+        this.tagsToReopen = decorationIterator.seek(Point(this.bufferRow, this.bufferColumn))
       } else if (this.compareBufferPosition(decorationIterator.getPosition()) > 0) {
-        this.scopeIdsToReopen = decorationIterator.seek(Point(this.bufferRow, this.bufferColumn))
+        this.tagsToReopen = decorationIterator.seek(Point(this.bufferRow, this.bufferColumn))
       }
 
       // This loop may visit multiple buffer rows if there are folds and
@@ -111,11 +112,11 @@ class ScreenLineBuilder {
 
         // Compute a token flags describing built-in decorations for the token
         // containing the next character
-        const previousBuiltInTagFlags = this.currentBuiltInClassNameFlags
+        const previousBuiltInTagFlags = this.currentBuiltInTagFlags
         this.updateCurrentTokenFlags(nextCharacter)
 
         if (this.emitBuiltInTagBoundary) {
-          this.emitCloseTag(this.getBuiltInScopeId(previousBuiltInTagFlags))
+          this.emitCloseTag(this.getBuiltInTag(previousBuiltInTagFlags))
         }
 
         this.emitDecorationBoundaries(decorationIterator)
@@ -127,7 +128,7 @@ class ScreenLineBuilder {
         }
 
         if (this.emitBuiltInTagBoundary) {
-          this.emitOpenTag(this.getBuiltInScopeId(this.currentBuiltInClassNameFlags))
+          this.emitOpenTag(this.getBuiltInTag(this.currentBuiltInTagFlags))
         }
 
         // Emit the next character, handling hard tabs whitespace invisibles
@@ -147,56 +148,56 @@ class ScreenLineBuilder {
     return this.screenLines
   }
 
-  getBuiltInScopeId (flags) {
-    if (flags === 0) return 0
-
-    let scopeId = this.displayLayer.getBuiltInScopeId(flags)
-    if (scopeId === -1) {
-      let className = ''
-      if (flags & INVISIBLE_CHARACTER) className += 'invisible-character '
-      if (flags & HARD_TAB) className += 'hard-tab '
-      if (flags & LEADING_WHITESPACE) className += 'leading-whitespace '
-      if (flags & TRAILING_WHITESPACE) className += 'trailing-whitespace '
-      if (flags & LINE_ENDING) className += 'eol '
-      if (flags & INDENT_GUIDE) className += 'indent-guide '
-      if (flags & FOLD) className += 'fold-marker '
-      className = className.trim()
-      scopeId = this.displayLayer.registerBuiltInScope(flags, className)
+  getBuiltInTag (flags) {
+    let tag = builtInTagCache.get(flags)
+    if (tag) {
+      return tag
+    } else {
+      let tag = ''
+      if (flags & INVISIBLE_CHARACTER) tag += 'invisible-character '
+      if (flags & HARD_TAB) tag += 'hard-tab '
+      if (flags & LEADING_WHITESPACE) tag += 'leading-whitespace '
+      if (flags & TRAILING_WHITESPACE) tag += 'trailing-whitespace '
+      if (flags & LINE_ENDING) tag += 'eol '
+      if (flags & INDENT_GUIDE) tag += 'indent-guide '
+      if (flags & FOLD) tag += 'fold-marker '
+      tag = tag.trim()
+      builtInTagCache.set(flags, tag)
+      return tag
     }
-    return scopeId
   }
 
   beginLine () {
     this.currentScreenLineText = ''
-    this.currentScreenLineTags = []
+    this.currentScreenLineTagCodes = []
     this.screenColumn = 0
     this.currentTokenLength = 0
   }
 
   updateCurrentTokenFlags (nextCharacter) {
-    const previousBuiltInTagFlags = this.currentBuiltInClassNameFlags
-    this.currentBuiltInClassNameFlags = 0
+    const previousBuiltInTagFlags = this.currentBuiltInTagFlags
+    this.currentBuiltInTagFlags = 0
     this.emitBuiltInTagBoundary = false
 
     if (nextCharacter === ' ' || nextCharacter === '\t') {
       const showIndentGuides = this.displayLayer.showIndentGuides && (this.inLeadingWhitespace || this.trailingWhitespaceStartColumn === 0)
-      if (this.inLeadingWhitespace) this.currentBuiltInClassNameFlags |= LEADING_WHITESPACE
-      if (this.inTrailingWhitespace) this.currentBuiltInClassNameFlags |= TRAILING_WHITESPACE
+      if (this.inLeadingWhitespace) this.currentBuiltInTagFlags |= LEADING_WHITESPACE
+      if (this.inTrailingWhitespace) this.currentBuiltInTagFlags |= TRAILING_WHITESPACE
 
       if (nextCharacter === ' ') {
         if ((this.inLeadingWhitespace || this.inTrailingWhitespace) && this.displayLayer.invisibles.space) {
-          this.currentBuiltInClassNameFlags |= INVISIBLE_CHARACTER
+          this.currentBuiltInTagFlags |= INVISIBLE_CHARACTER
         }
 
         if (showIndentGuides) {
-          this.currentBuiltInClassNameFlags |= INDENT_GUIDE
+          this.currentBuiltInTagFlags |= INDENT_GUIDE
           if (this.screenColumn % this.displayLayer.tabLength === 0) this.emitBuiltInTagBoundary = true
         }
       } else { // nextCharacter === \t
-        this.currentBuiltInClassNameFlags |= HARD_TAB
-        if (this.displayLayer.invisibles.tab) this.currentBuiltInClassNameFlags |= INVISIBLE_CHARACTER
+        this.currentBuiltInTagFlags |= HARD_TAB
+        if (this.displayLayer.invisibles.tab) this.currentBuiltInTagFlags |= INVISIBLE_CHARACTER
         if (showIndentGuides && this.screenColumn % this.displayLayer.tabLength === 0) {
-          this.currentBuiltInClassNameFlags |= INDENT_GUIDE
+          this.currentBuiltInTagFlags |= INDENT_GUIDE
         }
 
         this.emitBuiltInTagBoundary = true
@@ -204,20 +205,20 @@ class ScreenLineBuilder {
     }
 
     if (!this.emitBuiltInTagBoundary) {
-      this.emitBuiltInTagBoundary = this.currentBuiltInClassNameFlags !== previousBuiltInTagFlags
+      this.emitBuiltInTagBoundary = this.currentBuiltInTagFlags !== previousBuiltInTagFlags
     }
   }
 
   emitDecorationBoundaries (decorationIterator) {
     while (this.compareBufferPosition(decorationIterator.getPosition()) === 0) {
-      const closeScopeIds = decorationIterator.getCloseScopeIds()
-      for (let i = 0, n = closeScopeIds.length; i < n; i++) {
-        this.emitCloseTag(closeScopeIds[i])
+      const closeTags = decorationIterator.getCloseTags()
+      for (let i = 0, n = closeTags.length; i < n; i++) {
+        this.emitCloseTag(closeTags[i])
       }
 
-      const openScopeIds = decorationIterator.getOpenScopeIds()
-      for (let i = 0, n = openScopeIds.length; i < n; i++) {
-        this.emitOpenTag(openScopeIds[i])
+      const openTags = decorationIterator.getOpenTags()
+      for (let i = 0, n = openTags.length; i < n; i++) {
+        this.emitOpenTag(openTags[i])
       }
 
       decorationIterator.moveToSuccessor()
@@ -225,44 +226,44 @@ class ScreenLineBuilder {
   }
 
   emitFold (nextHunk, decorationIterator) {
-    this.emitCloseTag(this.getBuiltInScopeId(this.currentBuiltInClassNameFlags))
-    this.currentBuiltInClassNameFlags = 0
+    this.emitCloseTag(this.getBuiltInTag(this.currentBuiltInTagFlags))
+    this.currentBuiltInTagFlags = 0
 
-    this.closeContainingScopes()
-    this.scopeIdsToReopen.length = 0
+    this.closeContainingTags()
+    this.tagsToReopen.length = 0
 
-    this.emitOpenTag(this.getBuiltInScopeId(FOLD))
+    this.emitOpenTag(this.getBuiltInTag(FOLD))
     this.emitText(this.displayLayer.foldCharacter)
-    this.emitCloseTag(this.getBuiltInScopeId(FOLD))
+    this.emitCloseTag(this.getBuiltInTag(FOLD))
 
     this.bufferRow = nextHunk.oldEnd.row
     this.bufferColumn = nextHunk.oldEnd.column
 
-    this.scopeIdsToReopen = decorationIterator.seek(Point(this.bufferRow, this.bufferColumn))
+    this.tagsToReopen = decorationIterator.seek(Point(this.bufferRow, this.bufferColumn))
 
     this.bufferLine = this.displayLayer.buffer.lineForRow(this.bufferRow)
     this.trailingWhitespaceStartColumn = this.displayLayer.findTrailingWhitespaceStartColumn(this.bufferLine)
   }
 
   emitSoftWrap (nextHunk) {
-    this.emitCloseTag(this.getBuiltInScopeId(this.currentBuiltInClassNameFlags))
-    this.currentBuiltInClassNameFlags = 0
-    this.closeContainingScopes()
+    this.emitCloseTag(this.getBuiltInTag(this.currentBuiltInTagFlags))
+    this.currentBuiltInTagFlags = 0
+    this.closeContainingTags()
     this.emitNewline()
     this.emitIndentWhitespace(nextHunk.newEnd.column)
   }
 
   emitLineEnding () {
-    this.emitCloseTag(this.getBuiltInScopeId(this.currentBuiltInClassNameFlags))
+    this.emitCloseTag(this.getBuiltInTag(this.currentBuiltInTagFlags))
 
     let lineEnding = this.displayLayer.buffer.lineEndingForRow(this.bufferRow)
     const eolInvisible = this.displayLayer.eolInvisibles[lineEnding]
     if (eolInvisible) {
       let eolFlags = INVISIBLE_CHARACTER | LINE_ENDING
       if (this.bufferLine.length === 0 && this.displayLayer.showIndentGuides) eolFlags |= INDENT_GUIDE
-      this.emitOpenTag(this.getBuiltInScopeId(eolFlags))
+      this.emitOpenTag(this.getBuiltInTag(eolFlags))
       this.emitText(eolInvisible, false)
-      this.emitCloseTag(this.getBuiltInScopeId(eolFlags))
+      this.emitCloseTag(this.getBuiltInTag(eolFlags))
     }
 
     if (this.bufferLine.length === 0 && this.displayLayer.showIndentGuides) {
@@ -270,11 +271,11 @@ class ScreenLineBuilder {
       this.emitIndentWhitespace(whitespaceLength)
     }
 
-    this.closeContainingScopes()
+    this.closeContainingTags()
 
     // Ensure empty lines have at least one empty token to make it easier on
     // the caller
-    if (this.currentScreenLineTags.length === 0) this.currentScreenLineTags.push(0)
+    if (this.currentScreenLineTagCodes.length === 0) this.currentScreenLineTagCodes.push(0)
     this.emitNewline()
     this.bufferRow++
     this.bufferColumn = 0
@@ -284,7 +285,7 @@ class ScreenLineBuilder {
     const screenLine = {
       id: nextScreenLineId++,
       lineText: this.currentScreenLineText,
-      tags: this.currentScreenLineTags
+      tagCodes: this.currentScreenLineTagCodes
     }
     this.pushScreenLine(screenLine)
     this.displayLayer.cachedScreenLines[this.screenRow] = screenLine
@@ -298,16 +299,16 @@ class ScreenLineBuilder {
       while (this.screenColumn < endColumn) {
         if (this.screenColumn % this.displayLayer.tabLength === 0) {
           if (openedIndentGuide) {
-            this.emitCloseTag(this.getBuiltInScopeId(INDENT_GUIDE))
+            this.emitCloseTag(this.getBuiltInTag(INDENT_GUIDE))
           }
 
-          this.emitOpenTag(this.getBuiltInScopeId(INDENT_GUIDE))
+          this.emitOpenTag(this.getBuiltInTag(INDENT_GUIDE))
           openedIndentGuide = true
         }
         this.emitText(' ', false)
       }
 
-      if (openedIndentGuide) this.emitCloseTag(this.getBuiltInScopeId(INDENT_GUIDE))
+      if (openedIndentGuide) this.emitCloseTag(this.getBuiltInTag(INDENT_GUIDE))
     } else {
       this.emitText(' '.repeat(endColumn - this.screenColumn), false)
     }
@@ -333,70 +334,70 @@ class ScreenLineBuilder {
 
   emitTokenBoundary () {
     if (this.currentTokenLength > 0) {
-      this.currentScreenLineTags.push(this.currentTokenLength)
+      this.currentScreenLineTagCodes.push(this.currentTokenLength)
       this.currentTokenLength = 0
     }
   }
 
   emitEmptyTokenIfNeeded () {
-    const lastTag = this.currentScreenLineTags[this.currentScreenLineTags.length - 1]
-    if (this.displayLayer.isOpenTag(lastTag)) {
-      this.currentScreenLineTags.push(0)
+    const lastTagCode = this.currentScreenLineTagCodes[this.currentScreenLineTagCodes.length - 1]
+    if (this.displayLayer.isOpenTagCode(lastTagCode)) {
+      this.currentScreenLineTagCodes.push(0)
     }
   }
 
-  emitCloseTag (scopeId) {
+  emitCloseTag (closeTag) {
     this.emitTokenBoundary()
 
-    if (scopeId === 0) return
+    if (closeTag.length === 0) return
 
-    for (let i = this.scopeIdsToReopen.length - 1; i >= 0; i--) {
-      if (this.scopeIdsToReopen[i] === scopeId) {
-        this.scopeIdsToReopen.splice(i, 1)
+    for (let i = this.tagsToReopen.length - 1; i >= 0; i--) {
+      if (this.tagsToReopen[i] === closeTag) {
+        this.tagsToReopen.splice(i, 1)
         return
       }
     }
 
     this.emitEmptyTokenIfNeeded()
 
-    let containingScopeId
-    while ((containingScopeId = this.containingScopeIds.pop())) {
-      this.currentScreenLineTags.push(this.displayLayer.closeTagForScopeId(containingScopeId))
-      if (containingScopeId === scopeId) {
+    let containingTag
+    while ((containingTag = this.containingTags.pop())) {
+      this.currentScreenLineTagCodes.push(this.displayLayer.codeForCloseTag(containingTag))
+      if (containingTag === closeTag) {
         return
       } else {
-        this.scopeIdsToReopen.unshift(containingScopeId)
+        this.tagsToReopen.unshift(containingTag)
       }
     }
   }
 
-  emitOpenTag (scopeId, reopenTags = true) {
+  emitOpenTag (openTag, reopenTags = true) {
     if (reopenTags) this.reopenTags()
     this.emitTokenBoundary()
-    if (scopeId > 0) {
-      this.containingScopeIds.push(scopeId)
-      this.currentScreenLineTags.push(this.displayLayer.openTagForScopeId(scopeId))
+    if (openTag.length > 0) {
+      this.containingTags.push(openTag)
+      this.currentScreenLineTagCodes.push(this.displayLayer.codeForOpenTag(openTag))
     }
   }
 
-  closeContainingScopes () {
-    if (this.containingScopeIds.length > 0) this.emitEmptyTokenIfNeeded()
+  closeContainingTags () {
+    if (this.containingTags.length > 0) this.emitEmptyTokenIfNeeded()
 
-    for (let i = this.containingScopeIds.length - 1; i >= 0; i--) {
-      const containingScopeId = this.containingScopeIds[i]
-      this.currentScreenLineTags.push(this.displayLayer.closeTagForScopeId(containingScopeId))
-      this.scopeIdsToReopen.unshift(containingScopeId)
+    for (let i = this.containingTags.length - 1; i >= 0; i--) {
+      const containingTag = this.containingTags[i]
+      this.currentScreenLineTagCodes.push(this.displayLayer.codeForCloseTag(containingTag))
+      this.tagsToReopen.unshift(containingTag)
     }
-    this.containingScopeIds.length = 0
+    this.containingTags.length = 0
   }
 
   reopenTags () {
-    for (let i = 0, n = this.scopeIdsToReopen.length; i < n; i++) {
-      const scopeIdToReopen = this.scopeIdsToReopen[i]
-      this.containingScopeIds.push(scopeIdToReopen)
-      this.currentScreenLineTags.push(this.displayLayer.openTagForScopeId(scopeIdToReopen))
+    for (let i = 0, n = this.tagsToReopen.length; i < n; i++) {
+      const tagToReopen = this.tagsToReopen[i]
+      this.containingTags.push(tagToReopen)
+      this.currentScreenLineTagCodes.push(this.displayLayer.codeForOpenTag(tagToReopen))
     }
-    this.scopeIdsToReopen.length = 0
+    this.tagsToReopen.length = 0
   }
 
   pushScreenLine (screenLine) {

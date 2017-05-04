@@ -1,12 +1,11 @@
 const Random = require('random-seed')
 const dedent = require('dedent')
 const TextBuffer = require('../src/text-buffer')
-const MarkerTextDecorationLayer = require('../src/marker-text-decoration-layer')
 const Point = require('../src/point')
 const Range = require('../src/range')
 const {buildRandomLines, getRandomBufferRange} = require('./helpers/random')
 const SAMPLE_TEXT = require('./helpers/sample-text')
-const WORDS = require('./helpers/words')
+const TestDecorationLayer = require('./helpers/test-decoration-layer')
 
 const EOL_INVISIBLE = '¬'
 const CR_INVISIBLE = '¤'
@@ -1745,90 +1744,36 @@ describe('DisplayLayer', () => {
   })
 
   describe('text decorations', () => {
-    it('exposes open and close tags from multiple text decoration layers', () => {
-      const buffer = new TextBuffer({text: 'abcde\nfghij\nklmno'})
+    it('exposes open and close tags from the text decoration layer in the token iterator', () => {
+      const buffer = new TextBuffer({
+        text: 'abcde\nfghij\nklmno'
+      })
+
       const displayLayer = buffer.addDisplayLayer()
-      addMarkerTextDecorationLayer(displayLayer, [
-        ['a1', [[0, 1], [0, 4]]],
-        ['a2', [[2, 3], [2, 5]]]
-      ])
-      const textDecorationLayer2 = addMarkerTextDecorationLayer(displayLayer, [
-        ['b1', [[0, 2], [1, 2]]],
-        ['b2', [[1, 3], [2, 0]]]
-      ])
-      addMarkerTextDecorationLayer(displayLayer, [
-        ['c1', [[0, 3], [1, 2]]],
-        ['c2', [[1, 3], [2, 0]]]
-      ])
+
+      displayLayer.setTextDecorationLayer(new TestDecorationLayer([
+        ['aa', [[0, 1], [0, 4]]],
+        ['ab', [[0, 2], [1, 2]]],
+        ['ac', [[0, 3], [1, 2]]],
+        ['ad', [[1, 3], [2, 0]]],
+        ['ae', [[2, 3], [2, 5]]]
+      ]))
+
       expectTokenBoundaries(displayLayer, [
         {text: 'a', close: [], open: []},
-        {text: 'b', close: [], open: ['a1']},
-        {text: 'c', close: [], open: ['b1']},
-        {text: 'd', close: [], open: ['c1']},
-        {text: 'e', close: ['c1', 'b1', 'a1'], open: ['b1', 'c1']},
-        {text: '', close: ['c1', 'b1'], open: []},
-        {text: 'fg', close: [], open: ['b1', 'c1']},
-        {text: 'h', close: ['c1', 'b1'], open: []},
-        {text: 'ij', close: [], open: ['b2', 'c2']},
-        {text: '', close: ['c2', 'b2'], open: []},
+        {text: 'b', close: [], open: ['aa']},
+        {text: 'c', close: [], open: ['ab']},
+        {text: 'd', close: [], open: ['ac']},
+        {text: 'e', close: ['ac', 'ab', 'aa'], open: ['ab', 'ac']},
+        {text: '', close: ['ac', 'ab'], open: []},
+        {text: 'fg', close: [], open: ['ab', 'ac']},
+        {text: 'h', close: ['ac', 'ab'], open: []},
+        {text: 'ij', close: [], open: ['ad']},
+        {text: '', close: ['ad'], open: []},
         {text: 'klm', close: [], open: []},
-        {text: 'no', close: [], open: ['a2']},
-        {text: '', close: ['a2'], open: []}
+        {text: 'no', close: [], open: ['ae']},
+        {text: '', close: ['ae'], open: []}
       ])
-
-      displayLayer.removeTextDecorationLayer(textDecorationLayer2)
-      expectTokenBoundaries(displayLayer, [
-        {text: 'a', close: [], open: []},
-        {text: 'bc', close: [], open: ['a1']},
-        {text: 'd', close: [], open: ['c1']},
-        {text: 'e', close: ['c1', 'a1'], open: ['c1']},
-        {text: '', close: ['c1'], open: []},
-        {text: 'fg', close: [], open: ['c1']},
-        {text: 'h', close: ['c1'], open: []},
-        {text: 'ij', close: [], open: ['c2']},
-        {text: '', close: ['c2'], open: []},
-        {text: 'klm', close: [], open: []},
-        {text: 'no', close: [], open: ['a2']},
-        {text: '', close: ['a2'], open: []}
-      ])
-    })
-
-    it('supports adding an inline style and/or a class name for a given decoration tag', () => {
-      const buffer = new TextBuffer({text: 'abcde\nfghij\nklmno'})
-      const displayLayer = buffer.addDisplayLayer()
-      const markerLayer = buffer.addMarkerLayer()
-
-      const classNamesByMarkerId = new Map()
-      const inlineStylesByMarkerId = new Map()
-      displayLayer.addTextDecorationLayer(new MarkerTextDecorationLayer(
-        markerLayer,
-        {
-          classNameForMarkerId: (id) => classNamesByMarkerId.get(id),
-          inlineStyleForMarkerId: (id) => inlineStylesByMarkerId.get(id)
-        }
-      ))
-      const marker1 = markerLayer.markRange([[0, 0], [0, 1]])
-      classNamesByMarkerId.set(marker1.id, 'a')
-      inlineStylesByMarkerId.set(marker1.id, {color: 'b'})
-      const marker2 = markerLayer.markRange([[1, 0], [1, 3]])
-      inlineStylesByMarkerId.set(marker2.id, {color: 'c'})
-
-      const [screenLine1, screenLine2] = displayLayer.getScreenLines(0, 2)
-      expect(screenLine1.tags.length).toBe(4)
-      expect(displayLayer.classNameForTag(screenLine1.tags[0])).toBe('a')
-      expect(displayLayer.inlineStyleForTag(screenLine1.tags[0])).toEqual({color: 'b'})
-      expect(screenLine1.tags[1]).toBe(1)
-      expect(displayLayer.classNameForTag(screenLine1.tags[2])).toBe('a')
-      expect(displayLayer.inlineStyleForTag(screenLine1.tags[2])).toEqual({color: 'b'})
-      expect(screenLine1.tags[3]).toBe(4)
-
-      expect(screenLine2.tags.length).toBe(4)
-      expect(displayLayer.classNameForTag(screenLine2.tags[0])).toBeUndefined()
-      expect(displayLayer.inlineStyleForTag(screenLine2.tags[0])).toEqual({color: 'c'})
-      expect(screenLine2.tags[1]).toBe(3)
-      expect(displayLayer.classNameForTag(screenLine2.tags[2])).toBeUndefined()
-      expect(displayLayer.inlineStyleForTag(screenLine2.tags[2])).toEqual({color: 'c'})
-      expect(screenLine2.tags[3]).toBe(2)
     })
 
     it('includes indent guides and EOL characters within containing decoration tags', function () {
@@ -1853,9 +1798,9 @@ describe('DisplayLayer', () => {
         '  '
       ])
 
-      addMarkerTextDecorationLayer(displayLayer, [
+      displayLayer.setTextDecorationLayer(new TestDecorationLayer([
         ['a', [[0, 0], [4, 0]]]
-      ])
+      ]))
 
       expectTokenBoundaries(displayLayer, [
         {text: '¬', close: [], open: ['a', 'invisible-character eol indent-guide']},
@@ -1866,8 +1811,8 @@ describe('DisplayLayer', () => {
         {text: '  ', close: [], open: ['a', 'trailing-whitespace indent-guide']},
         {text: '¬', close: ['trailing-whitespace indent-guide'], open: ['invisible-character eol']},
         {text: '', close: ['invisible-character eol', 'a'], open: []},
-        {text: '  ', close: [], open: ['indent-guide']},
-        {text: '', close: ['indent-guide'], open: []}
+        {text: '  ', close: [], open: ['a', 'indent-guide']},
+        {text: '', close: ['indent-guide', 'a'], open: []}
       ])
     })
 
@@ -1879,18 +1824,16 @@ describe('DisplayLayer', () => {
       const displayLayer = buffer.addDisplayLayer()
       displayLayer.foldBufferRange([[0, 3], [2, 2]])
 
-      addMarkerTextDecorationLayer(displayLayer, [
+      displayLayer.setTextDecorationLayer(new TestDecorationLayer([
         ['preceding-fold', [[0, 1], [0, 2]]],
+        ['ending-at-fold-start', [[0, 1], [0, 3]]],
         ['overlapping-fold-start', [[0, 1], [1, 1]]],
         ['inside-fold', [[0, 4], [1, 4]]],
-        ['overlapping-fold-end', [[1, 4], [2, 4]]]
-      ])
-      addMarkerTextDecorationLayer(displayLayer, [
-        ['ending-at-fold-start', [[0, 1], [0, 3]]],
+        ['overlapping-fold-end', [[1, 4], [2, 4]]],
         ['starting-at-fold-end', [[2, 2], [2, 4]]],
         ['following-fold', [[2, 4], [2, 5]]],
         ['surrounding-fold', [[0, 1], [2, 5]]]
-      ])
+      ]))
 
       expectTokenBoundaries(displayLayer, [
         {
@@ -1901,27 +1844,27 @@ describe('DisplayLayer', () => {
         {
           text: 'b',
           close: [],
-          open: ['preceding-fold', 'overlapping-fold-start', 'ending-at-fold-start', 'surrounding-fold']
+          open: ['preceding-fold', 'ending-at-fold-start', 'overlapping-fold-start', 'surrounding-fold']
         },
         {
           text: 'c',
-          close: ['surrounding-fold', 'ending-at-fold-start', 'overlapping-fold-start', 'preceding-fold'],
-          open: ['overlapping-fold-start', 'ending-at-fold-start', 'surrounding-fold']
+          close: ['surrounding-fold', 'overlapping-fold-start', 'ending-at-fold-start', 'preceding-fold'],
+          open: ['ending-at-fold-start', 'overlapping-fold-start', 'surrounding-fold']
         },
         {
           text: '⋯',
-          close: ['surrounding-fold', 'ending-at-fold-start', 'overlapping-fold-start'],
+          close: ['surrounding-fold', 'overlapping-fold-start', 'ending-at-fold-start'],
           open: ['fold-marker']
         },
         {
           text: 'mn',
           close: ['fold-marker'],
-          open: ['overlapping-fold-end', 'surrounding-fold', 'starting-at-fold-end']
+          open: ['surrounding-fold', 'overlapping-fold-end', 'starting-at-fold-end']
         },
         {
           text: 'o',
-          close: ['starting-at-fold-end', 'surrounding-fold', 'overlapping-fold-end'],
-          open: ['surrounding-fold', 'following-fold']
+          close: ['starting-at-fold-end', 'overlapping-fold-end'],
+          open: ['following-fold']
         },
         {
           text: '',
@@ -1940,21 +1883,21 @@ describe('DisplayLayer', () => {
 
       const boundaries = [{
         position: Point(0, 0),
-        closeScopeIds: [],
-        openScopeIds: [1, 3]
+        closeTags: [],
+        openTags: ['a', 'b']
       }, {
         position: Point(0, 2),
-        closeScopeIds: [5],
-        openScopeIds: []
+        closeTags: ['c'],
+        openTags: []
       }]
 
       const iterator = {
-        getOpenScopeIds () {
-          return boundaries[0].openScopeIds
+        getOpenTags () {
+          return boundaries[0].openTags
         },
 
-        getCloseScopeIds () {
-          return boundaries[0].closeScopeIds
+        getCloseTags () {
+          return boundaries[0].closeTags
         },
 
         getPosition () {
@@ -1970,66 +1913,51 @@ describe('DisplayLayer', () => {
         }
       }
 
-      displayLayer.addTextDecorationLayer({
+      displayLayer.setTextDecorationLayer({
         buildIterator () {
           return iterator
         }
       })
 
-      expect(displayLayer.getScreenLines(0, 1)[0].tags).toEqual([-257, -259, 2, -260, -258, -257, -259, 3, -260, -258])
+      expect(displayLayer.getScreenLines(0, 1)[0].tagCodes).toEqual([-1, -3, 2, -4, -2, -1, -3, 3, -4, -2])
     })
 
     it('emits update events from the display layer when text decoration ranges are invalidated', () => {
-      const buffer = new TextBuffer({text: SAMPLE_TEXT})
+      const buffer = new TextBuffer({
+        text: 'abc\ndef\nghi\njkl\nmno'
+      })
+
       const displayLayer = buffer.addDisplayLayer()
       displayLayer.foldBufferRange([[1, 3], [2, 0]])
-      const decorationLayer1 = addMarkerTextDecorationLayer(displayLayer, [
-        ['a', [[1, 0], [3, 0]]]
-      ])
-      const decorationLayer2 = addMarkerTextDecorationLayer(displayLayer, [
-        ['b', [[1, 0], [2, 3]]]
-      ])
-      let allChanges
+      const decorationLayer = new TestDecorationLayer([])
+      displayLayer.setTextDecorationLayer(decorationLayer)
+      const allChanges = []
+
       displayLayer.onDidChangeSync((changes) => allChanges.push(...changes))
 
-      allChanges = []
-      decorationLayer1.markerLayer.getMarkers()[0].setRange([[4, 5], [6, 5]])
-      expect(allChanges).toEqual([
-        {start: Point(1, 0), oldExtent: Point(2, 0), newExtent: Point(2, 0)},
-        {start: Point(3, 0), oldExtent: Point(3, 0), newExtent: Point(3, 0)}
-      ])
+      decorationLayer.emitInvalidateRangeEvent([[2, 1], [3, 2]])
 
-      allChanges = []
-      decorationLayer2.markerLayer.getMarkers()[0].setRange([[1, 3], [4, 2]])
-      expect(allChanges).toEqual([
-        {start: Point(1, 0), oldExtent: Point(1, 0), newExtent: Point(1, 0)},
-        {start: Point(1, 0), oldExtent: Point(3, 0), newExtent: Point(3, 0)}
-      ])
-
-      allChanges = []
-      displayLayer.removeTextDecorationLayer(decorationLayer1)
-      decorationLayer1.markerLayer.getMarkers()[0].setRange([[0, 0], [2, 5]])
-      expect(allChanges).toEqual([])
+      expect(allChanges).toEqual([{
+        start: Point(1, 0),
+        oldExtent: Point(2, 0),
+        newExtent: Point(2, 0)
+      }])
     })
 
     it('gracefully handles the text decoration iterator reporting decoration boundaries beyond the end of a line', () => {
-      const buffer = new TextBuffer({text: 'abc\ndef'})
-      const displayLayer = buffer.addDisplayLayer({tabLength: 2})
-      const decorationLayer = addMarkerTextDecorationLayer(displayLayer, [
+      const buffer = new TextBuffer({
+        text: 'abc\ndef'
+      })
+
+      const displayLayer = buffer.addDisplayLayer({
+        tabLength: 2
+      })
+
+      const decorationLayer = new TestDecorationLayer([
         ['a', [[0, 1], [0, 10]]],
         ['b', [[0, 10], [1, 5]]]
       ])
-      // The marker with 'b' will be automatically clipped because it represents
-      // a position that does not exist on the buffer line. Since we are testing
-      // this precise behavior, we will bypass clipping by reaching into the
-      // index and modifying the range manually.
-      const clippedMarker = decorationLayer.markerLayer.getMarkers()[1]
-      expect(clippedMarker.getRange()).toEqual([[0, 3], [1, 3]])
-      decorationLayer.markerLayer.index.remove(clippedMarker.id)
-      decorationLayer.markerLayer.index.insert(clippedMarker.id, Point(0, 10), Point(1, 5))
-      expect(clippedMarker.getRange()).toEqual([[0, 10], [1, 5]])
-
-      displayLayer.addTextDecorationLayer(decorationLayer)
+      displayLayer.setTextDecorationLayer(decorationLayer)
       expectTokenBoundaries(displayLayer, [
         {
           text: 'a',
@@ -2276,15 +2204,29 @@ describe('DisplayLayer', () => {
 
       try {
         const random = new Random(seed)
-        const buffer = new TextBuffer({text: buildRandomLines(random, 20)})
+
+        const buffer = new TextBuffer({
+          text: buildRandomLines(random, 20)
+        })
+
+        const invisibles = {}
+
+        if (random(2) > 0) {
+          invisibles.space = '•'
+        }
+
+        if (random(2) > 0) {
+          invisibles.eol = EOL_INVISIBLE
+        }
+
+        if (random(2) > 0) {
+          invisibles.cr = CR_INVISIBLE
+        }
+
         const foldIds = []
         const showIndentGuides = Boolean(random(2))
         const softWrapColumn = random(2) ? random.intBetween(5, 80) : null
         const foldsMarkerLayer = random(2) ? createFoldsMarkerLayer(random, buffer, foldIds) : null
-        const invisibles = {}
-        if (random(2) > 0) invisibles.space = '•'
-        if (random(2) > 0) invisibles.eol = EOL_INVISIBLE
-        if (random(2) > 0) invisibles.cr = CR_INVISIBLE
 
         const displayLayer = buffer.addDisplayLayer({
           tabLength: 4,
@@ -2294,11 +2236,8 @@ describe('DisplayLayer', () => {
           foldsMarkerLayer: foldsMarkerLayer
         })
 
-        const classNamesByMarkerId = new Map()
-        const decorationLayersCount = random(4)
-        for (let i = 0; i < decorationLayersCount; i++) {
-          addMarkerTextDecorationLayer(displayLayer, [], classNamesByMarkerId)
-        }
+        const textDecorationLayer = new TestDecorationLayer([], buffer, random)
+        displayLayer.setTextDecorationLayer(textDecorationLayer)
         displayLayer.getText(0, 3)
         let undoableChanges = 0
         let redoableChanges = 0
@@ -2307,34 +2246,23 @@ describe('DisplayLayer', () => {
         for (let j = 0; j < 10; j++) {
           const k = random(10)
 
-          if (k < 1 && decorationLayersCount > 0) {
-            const markerTextDecorationLayer = getRandomMarkerTextDecorationLayer(displayLayer, random)
-            switch (random(3)) {
-              case 0:
-                createRandomMarkerDecorations(buffer, markerTextDecorationLayer, classNamesByMarkerId, random)
-                break
-              case 1:
-                moveRandomMarkerDecorations(buffer, markerTextDecorationLayer, random)
-                break
-              case 2:
-                deleteRandomMarkerDecorations(buffer, markerTextDecorationLayer, random)
-                break
-            }
-          } else if (k < 3) {
+          if (k < 2) {
             createRandomFold(random, displayLayer, foldIds)
-          } else if (k < 5 && foldIds.length > 0) {
+          } else if (k < 4 && foldIds.length > 0) {
             destroyRandomFold(random, displayLayer, foldIds)
-          } else if (k < 6 && foldIds.length > 0) {
+          } else if (k < 5 && foldIds.length > 0) {
             displayLayer.destroyAllFolds()
             foldIds.length = 0
-          } else if (k < 7 && undoableChanges > 0) {
+          } else if (k < 6 && undoableChanges > 0) {
             undoableChanges--
             redoableChanges++
             performUndo(random, displayLayer)
-          } else if (k < 8 && redoableChanges > 0) {
+          } else if (k < 7 && redoableChanges > 0) {
             undoableChanges++
             redoableChanges--
             performRedo(random, displayLayer)
+          } else if (k < 8) {
+            textDecorationLayer.emitInvalidateRangeEvent(getRandomBufferRange(random, buffer))
           } else {
             undoableChanges++
             performRandomChange(random, displayLayer)
@@ -2345,9 +2273,7 @@ describe('DisplayLayer', () => {
           }
 
           const freshDisplayLayer = displayLayer.copy()
-          for (const layer of displayLayer.getTextDecorationLayers()) {
-            freshDisplayLayer.addTextDecorationLayer(layer)
-          }
+          freshDisplayLayer.setTextDecorationLayer(displayLayer.getTextDecorationLayer())
           freshDisplayLayer.getScreenLines()
           if (!Number.isFinite(displayLayer.softWrapColumn) && !displayLayer.showIndentGuides) {
             verifyLineLengths(displayLayer)
@@ -2433,9 +2359,7 @@ function log (message) {}
 
 function verifyChangeEvent (displayLayer, fn) {
   let displayLayerCopy = displayLayer.copy()
-  for (const layer of displayLayer.getTextDecorationLayers()) {
-    displayLayerCopy.addTextDecorationLayer(layer)
-  }
+  displayLayerCopy.setTextDecorationLayer(displayLayer.getTextDecorationLayer())
   const previousTokenLines = getTokens(displayLayerCopy)
   displayLayerCopy.destroy()
   let lastChanges = null
@@ -2447,9 +2371,7 @@ function verifyChangeEvent (displayLayer, fn) {
   fn()
   disposable.dispose()
   displayLayerCopy = displayLayer.copy()
-  for (const layer of displayLayer.getTextDecorationLayers()) {
-    displayLayerCopy.addTextDecorationLayer(layer)
-  }
+  displayLayerCopy.setTextDecorationLayer(displayLayer.getTextDecorationLayer())
   const expectedTokenLines = getTokens(displayLayerCopy)
   updateTokenLines(previousTokenLines, displayLayerCopy, lastChanges)
   displayLayerCopy.destroy()
@@ -2643,25 +2565,25 @@ const getTokens = function (displayLayer, startRow = 0, endRow = displayLayer.ge
 function getTokenBoundaries (displayLayer, startRow = 0, endRow = displayLayer.getScreenLineCount()) {
   const tokenLines = []
 
-  for (const {lineText, tags} of displayLayer.getScreenLines(startRow, endRow)) {
+  for (const {lineText, tagCodes} of displayLayer.getScreenLines(startRow, endRow)) {
     const tokens = []
     let startIndex = 0
     let closeTags = []
     let openTags = []
 
-    for (const tag of tags) {
-      if (displayLayer.isCloseTag(tag)) {
-        closeTags.push(displayLayer.classNameForTag(tag))
-      } else if (displayLayer.isOpenTag(tag)) {
-        openTags.push(displayLayer.classNameForTag(tag))
+    for (const tagCode of tagCodes) {
+      if (displayLayer.isCloseTagCode(tagCode)) {
+        closeTags.push(displayLayer.tagForCode(tagCode))
+      } else if (displayLayer.isOpenTagCode(tagCode)) {
+        openTags.push(displayLayer.tagForCode(tagCode))
       } else {
         tokens.push({
           closeTags: closeTags,
           openTags: openTags,
-          text: lineText.substr(startIndex, tag)
+          text: lineText.substr(startIndex, tagCode)
         })
 
-        startIndex += tag
+        startIndex += tagCode
         closeTags = []
         openTags = []
       }
@@ -2708,69 +2630,4 @@ function hasComputedAllScreenRows (displayLayer) {
 
 function getComputedScreenLineCount (displayLayer) {
   return displayLayer.screenLineLengths.length
-}
-
-function addMarkerTextDecorationLayer (displayLayer, decorations, classNamesByMarkerId = new Map()) {
-  const markerLayer = displayLayer.buffer.addMarkerLayer()
-  const decorationLayer = new MarkerTextDecorationLayer(
-    markerLayer,
-    {classNameForMarkerId: (id) => classNamesByMarkerId.get(id)}
-  )
-  for (const [className, range] of decorations) {
-    const marker = markerLayer.markRange(range)
-    classNamesByMarkerId.set(marker.id, className)
-  }
-  displayLayer.addTextDecorationLayer(decorationLayer)
-  return decorationLayer
-}
-
-function getRandomMarkerTextDecorationLayer (displayLayer, random) {
-  const decorationLayers = displayLayer.getTextDecorationLayers()
-  const decorationLayerIndex = random(decorationLayers.length)
-  return decorationLayers[decorationLayerIndex]
-}
-
-function createRandomMarkerDecorations (buffer, markerTextDecorationLayer, classNamesByMarkerId, random) {
-  log('create random marker decorations')
-  for (var i = 0; i < random(10); i++) {
-    const range = getRandomBufferRange(random, buffer)
-    const invalidate = getRandomInvalidationStrategy(random)
-    const marker = markerTextDecorationLayer.markerLayer.markRange(range, {invalidate})
-    const className = WORDS[random(WORDS.length)]
-    classNamesByMarkerId.set(marker.id, className)
-  }
-}
-
-function moveRandomMarkerDecorations (buffer, markerTextDecorationLayer, random) {
-  log('move random marker decorations')
-  const markers = markerTextDecorationLayer.markerLayer.getMarkers()
-  for (var i = 0; i < random(5); i++) {
-    const index = random(markers.length)
-    const marker = markers[index]
-    if (marker) {
-      marker.setRange(getRandomBufferRange(random, buffer))
-      markers.splice(index, 1)
-    } else {
-      break
-    }
-  }
-}
-
-function deleteRandomMarkerDecorations (buffer, markerTextDecorationLayer, random) {
-  log('delete random marker decorations')
-  const markers = markerTextDecorationLayer.markerLayer.getMarkers()
-  for (var i = 0; i < random(5); i++) {
-    const index = random(markers.length)
-    const marker = markers[index]
-    if (marker) {
-      marker.destroy()
-    } else {
-      break
-    }
-  }
-}
-
-function getRandomInvalidationStrategy (random) {
-  const strategies = ['never', 'surround', 'overlap', 'inside', 'touch']
-  return strategies[random(strategies.length)]
 }

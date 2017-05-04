@@ -41,7 +41,6 @@ class MarkerLayer
     @markersWithChangeListeners = new Set
     @markersWithDestroyListeners = new Set
     @displayMarkerLayers = new Set
-    @markerTextDecorationLayers = new Set
     @destroyed = false
     @emitCreateMarkerEvents = false
 
@@ -61,7 +60,6 @@ class MarkerLayer
     @delegate.markerLayerDestroyed(this)
     @displayMarkerLayers.forEach (displayMarkerLayer) -> displayMarkerLayer.destroy()
     @displayMarkerLayers.clear()
-    @markerTextDecorationLayers.clear()
     @destroyed = true
     @emitter.emit 'did-destroy'
     @emitter.clear()
@@ -267,7 +265,6 @@ class MarkerLayer
 
   splice: (start, oldExtent, newExtent) ->
     invalidated = @index.splice(start, oldExtent, newExtent)
-    invalidatedRanges = []
     invalidated.touch.forEach (id) =>
       marker = @markersById[id]
       if invalidated[marker.getInvalidationStrategy()]?.has(id)
@@ -275,11 +272,6 @@ class MarkerLayer
           marker.destroy()
         else
           marker.valid = false
-
-        invalidatedRanges.push(@getMarkerRange(marker.id))
-
-    @markerTextDecorationLayers.forEach (markerTextDecorationLayer) ->
-      markerTextDecorationLayer.didInvalidatedMarkersInRanges(invalidatedRanges)
 
   restoreFromSnapshot: (snapshots) ->
     return unless snapshots?
@@ -341,16 +333,11 @@ class MarkerLayer
 
   destroyMarker: (marker) ->
     if @markersById.hasOwnProperty(marker.id)
-      range = null
-      if @markerTextDecorationLayers.size > 0
-        range = @getMarkerRange(marker.id)
       delete @markersById[marker.id]
       @index.remove(marker.id)
       @markersWithChangeListeners.delete(marker)
       @markersWithDestroyListeners.delete(marker)
       @displayMarkerLayers.forEach (displayMarkerLayer) -> displayMarkerLayer.destroyMarker(marker.id)
-      @markerTextDecorationLayers.forEach (markerTextDecorationLayer) ->
-        markerTextDecorationLayer.didDestroyMarker(range)
       @delegate.markersUpdated(this)
 
   hasMarker: (id) ->
@@ -368,15 +355,12 @@ class MarkerLayer
   compareMarkers: (id1, id2) ->
     @index.compare(id1, id2)
 
-  setMarkerRange: (id, oldRange, newRange) ->
-    {start, end} = Range.fromObject(newRange)
+  setMarkerRange: (id, range) ->
+    {start, end} = Range.fromObject(range)
     start = @delegate.clipPosition(start)
     end = @delegate.clipPosition(end)
     @index.remove(id)
     @index.insert(id, start, end)
-    @markerTextDecorationLayers.forEach (markerTextDecorationLayer) ->
-      markerTextDecorationLayer.didMoveMarker(oldRange, newRange)
-    return
 
   setMarkerIsExclusive: (id, exclusive) ->
     @index.setExclusive(id, exclusive)
@@ -399,20 +383,10 @@ class MarkerLayer
     Point.assertValid(range.start)
     Point.assertValid(range.end)
     @index.insert(id, range.start, range.end)
-    marker = new Marker(id, this, range, params)
-    @markersById[id] = marker
-    @markerTextDecorationLayers.forEach (markerTextDecorationLayer) ->
-      markerTextDecorationLayer.didCreateMarker(range)
-    marker
+    @markersById[id] = new Marker(id, this, range, params)
 
   emitUpdateEvent: ->
     @emitter.emit('did-update')
-
-  registerMarkerTextDecorationLayer: (markerTextDecorationLayer) ->
-    @markerTextDecorationLayers.add(markerTextDecorationLayer)
-
-  unregisterMarkerTextDecorationLayer: (markerTextDecorationLayer) ->
-    @markerTextDecorationLayers.delete(markerTextDecorationLayer)
 
 filterSet = (set1, set2) ->
   if set1
