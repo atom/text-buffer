@@ -1967,60 +1967,6 @@ describe "TextBuffer", ->
           done()
         fs.writeFileSync(newPath, "should trigger buffer event")
 
-    describe "if the 'backup' option is true", ->
-      [backupFilePath, saveAsBuffer] = []
-
-      beforeEach ->
-        tempDir = temp.mkdirSync()
-        filePath = join(tempDir, 'temp.txt')
-        saveAsBuffer = new TextBuffer()
-        saveAsBuffer.setText 'Buffer contents'
-        backupFilePath = filePath + '~'
-        fs.removeSync(backupFilePath) if fs.existsSync(backupFilePath)
-
-      describe "if there is an existing file at the specified path", ->
-        beforeEach ->
-          fs.writeFileSync(filePath, 'File contents')
-
-        describe "if the file is written cleanly", ->
-          it "deletes the backup copy after writing", ->
-            saveAsBuffer.saveAs(filePath, backup: true)
-            expect(fs.readFileSync(filePath, 'utf8')).toBe 'Buffer contents'
-            expect(fs.existsSync(backupFilePath)).toBe false
-
-        describe "if an exception is thrown while writing to the file", ->
-          it "restores the file's original contents from the backup copy, preserves the backup copy just in case, and re-throws the exception", ->
-            saveAsBuffer.setPath(filePath)
-
-            spyOn(saveAsBuffer.buffer, 'saveSync').and.callFake ->
-              throw new Error('Something broke')
-
-            expect(-> saveAsBuffer.saveAs(filePath, backup: true)).toThrowError 'Something broke'
-
-            expect(fs.readFileSync(filePath, 'utf8')).toBe 'File contents'
-            expect(fs.existsSync(backupFilePath)).toBe true
-
-        describe "if a file already exists at the default backup path", ->
-          it "chooses a different backup file name to avoid overwriting the existing file", ->
-            alternateBackupFilePath = backupFilePath + '~'
-            fs.removeSync(alternateBackupFilePath) if fs.existsSync(alternateBackupFilePath)
-
-            fs.writeFileSync(backupFilePath, 'Contents of file at default backup path')
-
-            saveAsBuffer.saveAs(filePath, backup: true)
-            expect(fs.readFileSync(filePath, 'utf8')).toBe 'Buffer contents'
-            expect(fs.readFileSync(backupFilePath, 'utf8')).toBe 'Contents of file at default backup path'
-            expect(fs.existsSync(backupFilePath)).toBe true
-            expect(fs.existsSync(alternateBackupFilePath)).toBe false
-
-      describe "if no file exists at the path", ->
-        it "does not make a backup before writing", ->
-          fs.removeSync(filePath) if fs.existsSync(filePath)
-          expect(fs.existsSync(filePath)).toBe false
-          expect(fs.existsSync(backupFilePath)).toBe false
-          saveAsBuffer.saveAs(filePath, backup: true)
-          expect(fs.existsSync(backupFilePath)).toBe false
-
   describe "::getTextInRange(range)", ->
     beforeEach (done) ->
       filePath = require.resolve('./fixtures/sample.js')

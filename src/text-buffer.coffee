@@ -484,7 +484,6 @@ class TextBuffer
 
     if filePath
       @file = new File(filePath)
-      @file.setEncoding(@getEncoding())
       @subscribeToFile()
     else
       @file = null
@@ -499,7 +498,6 @@ class TextBuffer
 
     @encoding = encoding
     if @file?
-      @file.setEncoding(encoding)
       @emitter.emit 'did-change-encoding', encoding
       @load() unless @isModified()
     else
@@ -1405,38 +1403,13 @@ class TextBuffer
     unless filePath then throw new Error("Can't save buffer with no file path")
 
     @emitter.emit 'will-save', {path: filePath}
-
-    if options?.backup
-      backupFile = @backUpFileContentsBeforeWriting()
-    try
-      @buffer.saveSync(filePath, @getEncoding())
-      if backupFile?
-        backupFile.safeRemoveSync()
-    catch error
-      if backupFile?
-        @file.writeSync(backupFile.readSync())
-      throw error
+    @buffer.saveSync(filePath, @getEncoding())
 
     @setPath(filePath)
     @fileHasChangedSinceLastLoad = false
     @loaded = true
     @emitModifiedStatusChanged(false)
     @emitter.emit 'did-save', {path: filePath}
-
-  backUpFileContentsBeforeWriting: ->
-    return unless fs.existsSync(@getPath())
-
-    backupFilePath = @getPath() + '~'
-
-    maxTildes = 10
-    while fs.existsSync(backupFilePath)
-      if --maxTildes is 0
-        throw new Error("Can't create a backup file for #{@getPath()} because files already exist at every candidate path.")
-      backupFilePath += '~'
-
-    file = new File(backupFilePath, false, false)
-    file.safeWriteSync(@file.readSync())
-    file
 
   ###
   Section: Display Layers
