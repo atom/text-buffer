@@ -161,6 +161,8 @@ class TextBuffer
       @setPath(params.filePath)
       @load() if params?.load
 
+  toString: -> "<TextBuffer #{@id}>"
+
   @deserialize: (params) ->
     return if params.version isnt TextBuffer.prototype.version
 
@@ -1459,22 +1461,33 @@ class TextBuffer
 
   loadSync: ->
     @emitter.emit 'will-reload'
-    oldRange = new Range(Point.ZERO, @buffer.getExtent())
-    @emitter.emit 'will-change', {oldRange}
-    patch = @buffer.loadSync(@getPath(), @getEncoding())
+    oldRange = null
+    patch = @buffer.loadSync(
+      @getPath(),
+      @getEncoding(),
+      (percentDone, willChange) =>
+        if willChange
+          oldRange = new Range(Point.ZERO, @buffer.getExtent())
+          @emitter.emit('will-change', {oldRange})
+    )
     @finishLoading(oldRange, patch)
 
   load: ->
     @emitter.emit 'will-reload'
-    oldRange = new Range(Point.ZERO, @buffer.getExtent())
-    @emitter.emit 'will-change', {oldRange}
-    @buffer.load(@getPath(), @getEncoding()).then (patch) =>
-      @finishLoading(oldRange, patch)
+    oldRange = null
+    @buffer.load(
+      @getPath(),
+      @getEncoding(),
+      (percentDone, willChange) =>
+        if willChange
+          oldRange = new Range(Point.ZERO, @buffer.getExtent())
+          @emitter.emit('will-change', {oldRange})
+    ).then((patch) => @finishLoading(oldRange, patch))
 
   reload: -> @load()
 
   finishLoading: (oldRange, patch) ->
-    return if @isDestroyed()
+    return false unless @isAlive() and oldRange? and patch?
 
     @loaded = true
     @fileHasChangedSinceLastLoad = false
@@ -1488,10 +1501,6 @@ class TextBuffer
         @buffer.deserializeChanges(serializedChanges)
       else
         @digestWhenLastPersisted = digest
-        @emitDidChangeEvent(new DidChangeOnLoadEvent(@buffer, patch, oldRange))
-        @emitDidChangeTextEvent(patch)
-      @emitModifiedStatusChanged(@isModified())
-
       if @markerLayers?
         for change in patch.getChanges()
           for id, markerLayer of @markerLayers
@@ -1500,9 +1509,12 @@ class TextBuffer
               traversal(change.oldEnd, change.oldStart),
               traversal(change.newEnd, change.newStart)
             )
+      @emitDidChangeEvent(new DidChangeOnLoadEvent(@buffer, patch, oldRange))
+      @emitDidChangeTextEvent(patch)
+      @emitModifiedStatusChanged(@isModified())
 
     @emitter.emit 'did-reload'
-    this
+    true
 
   destroy: ->
     unless @destroyed
