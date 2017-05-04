@@ -1,6 +1,6 @@
 {
   "name": "text-buffer",
-  "version": "11.4.0",
+  "version": "12.0.0",
   "description": "A container for large mutable strings with annotated regions",
   "main": "./lib/text-buffer",
   "scripts": {
@@ -45,7 +45,7 @@
     "yargs": "^6.5.0"
   },
   "dependencies": {
-    "superstring": "1.2.1",
+    "superstring": "1.4.0",
     "delegato": "^1.0.0",
     "diff": "^2.2.1",
     "emissary": "^1.0.0",
