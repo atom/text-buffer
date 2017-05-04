@@ -2,13 +2,13 @@ const {Patch} = require('superstring')
 const {Emitter} = require('event-kit')
 const Point = require('./point')
 const Range = require('./range')
-const CompositeTextDecorationLayer = require('./composite-text-decoration-layer')
+const EmptyDecorationLayer = require('./empty-decoration-layer')
 const DisplayMarkerLayer = require('./display-marker-layer')
 const {traverse, traversal, compare, max, isEqual} = require('./point-helpers')
 const isCharacterPair = require('./is-character-pair')
 const ScreenLineBuilder = require('./screen-line-builder')
 const {spliceArray} = require('./helpers')
-const MAX_BUILT_IN_SCOPE_ID = 256
+const {MAX_BUILT_IN_SCOPE_ID} = require('./constants')
 
 module.exports =
 class DisplayLayer {
@@ -21,22 +21,7 @@ class DisplayLayer {
     this.builtInScopeIdsByFlags = new Map()
     this.builtInClassNamesByScopeId = new Map()
     this.nextBuiltInScopeId = 1
-    this.textDecorationLayer = new CompositeTextDecorationLayer(MAX_BUILT_IN_SCOPE_ID + 1)
-    this.decorationLayerDisposable = this.textDecorationLayer.onDidInvalidateRange((bufferRange) => {
-      bufferRange = Range.fromObject(bufferRange)
-      this.populateSpatialIndexIfNeeded(bufferRange.end.row + 1, Infinity)
-      const startBufferRow = this.findBoundaryPrecedingBufferRow(bufferRange.start.row)
-      const endBufferRow = this.findBoundaryFollowingBufferRow(bufferRange.end.row + 1)
-      const startRow = this.translateBufferPositionWithSpatialIndex(Point(startBufferRow, 0), 'backward').row
-      const endRow = this.translateBufferPositionWithSpatialIndex(Point(endBufferRow, 0), 'backward').row
-      const extent = Point(endRow - startRow, 0)
-      spliceArray(this.cachedScreenLines, startRow, extent.row, new Array(extent.row))
-      this.emitDidChangeSyncEvent([{
-        start: Point(startRow, 0),
-        oldExtent: extent,
-        newExtent: extent
-      }])
-    })
+    this.textDecorationLayer = new EmptyDecorationLayer()
     this.displayMarkerLayersById = new Map()
     this.destroyed = false
 
@@ -129,8 +114,7 @@ class DisplayLayer {
     this.clearSpatialIndex()
     this.foldsMarkerLayer.destroy()
     this.displayMarkerLayersById.forEach((layer) => layer.destroy())
-    this.decorationLayerDisposable.dispose()
-    this.textDecorationLayer.dispose()
+    if (this.decorationLayerDisposable) this.decorationLayerDisposable.dispose()
     delete this.buffer.displayLayers[this.id]
   }
 
@@ -151,18 +135,30 @@ class DisplayLayer {
     return this.indexedBufferRowCount < this.buffer.getLineCount()
   }
 
-  getTextDecorationLayers () {
-    return this.textDecorationLayer.getLayers()
+  getTextDecorationLayer () {
+    return this.textDecorationLayer
   }
 
-  addTextDecorationLayer (textDecorationLayer) {
+  setTextDecorationLayer (textDecorationLayer) {
     this.cachedScreenLines.length = 0
-    this.textDecorationLayer.addLayer(textDecorationLayer)
-  }
-
-  removeTextDecorationLayer (textDecorationLayer) {
-    this.cachedScreenLines.length = 0
-    this.textDecorationLayer.removeLayer(textDecorationLayer)
+    this.textDecorationLayer = textDecorationLayer
+    if (typeof textDecorationLayer.onDidInvalidateRange === 'function') {
+      this.decorationLayerDisposable = textDecorationLayer.onDidInvalidateRange((bufferRange) => {
+        bufferRange = Range.fromObject(bufferRange)
+        this.populateSpatialIndexIfNeeded(bufferRange.end.row + 1, Infinity)
+        const startBufferRow = this.findBoundaryPrecedingBufferRow(bufferRange.start.row)
+        const endBufferRow = this.findBoundaryFollowingBufferRow(bufferRange.end.row + 1)
+        const startRow = this.translateBufferPositionWithSpatialIndex(Point(startBufferRow, 0), 'backward').row
+        const endRow = this.translateBufferPositionWithSpatialIndex(Point(endBufferRow, 0), 'backward').row
+        const extent = Point(endRow - startRow, 0)
+        spliceArray(this.cachedScreenLines, startRow, extent.row, new Array(extent.row))
+        this.emitDidChangeSyncEvent([{
+          start: Point(startRow, 0),
+          oldExtent: extent,
+          newExtent: extent
+        }])
+      })
+    }
   }
 
   addMarkerLayer (options) {
@@ -708,14 +704,6 @@ class DisplayLayer {
     }
   }
 
-  inlineStyleForScopeId (scopeId) {
-    if (scopeId <= MAX_BUILT_IN_SCOPE_ID) {
-      return null
-    } else {
-      return this.textDecorationLayer.inlineStyleForScopeId(scopeId)
-    }
-  }
-
   scopeIdForTag (tag) {
     if (this.isCloseTag(tag)) tag++
     return -tag
@@ -723,10 +711,6 @@ class DisplayLayer {
 
   classNameForTag (tag) {
     return this.classNameForScopeId(this.scopeIdForTag(tag))
-  }
-
-  inlineStyleForTag (tag) {
-    return this.inlineStyleForScopeId(this.scopeIdForTag(tag))
   }
 
   openTagForScopeId (scopeId) {
@@ -790,7 +774,6 @@ class DisplayLayer {
       spliceArray(this.cachedScreenLines, startRow, extent.row, new Array(extent.row))
       combinedChanges.splice(Point(startRow, 0), extent, extent)
     }
-    this.textDecorationLayer.clearInvalidatedRanges()
 
     return Object.freeze(combinedChanges.getHunks().map((hunk) => {
       return {

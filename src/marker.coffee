@@ -347,7 +347,7 @@ class Marker
     updated = propertiesChanged = false
 
     if range? and not range.isEqual(oldRange)
-      @layer.setMarkerRange(@id, oldRange, range)
+      @layer.setMarkerRange(@id, range)
       updated = true
 
     if reversed? and reversed isnt @reversed
