@@ -120,6 +120,9 @@ class History
   pushChange: ({newStart, oldExtent, newExtent, oldText, newText}) ->
     patch = new Patch
     patch.splice(newStart, oldExtent, newExtent, oldText, newText)
+    @pushPatch(patch)
+
+  pushPatch: (patch) ->
     @undoStack.push(patch)
     @clearRedoStack()
 

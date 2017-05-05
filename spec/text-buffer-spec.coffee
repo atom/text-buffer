@@ -1823,94 +1823,7 @@ describe "TextBuffer", ->
           expect(-> saveBuffer.save()).toThrowError()
           done()
 
-  describe "::load()", ->
-    it "reloads current text from disk and clears any conflicts", (done) ->
-      filePath = temp.openSync("atom").path
-      fs.writeFileSync(filePath, "one")
-      buffer = new TextBuffer({filePath, load: false})
-      buffer.load().then ->
-        buffer.setText("abc")
-        expect(buffer.isModified()).toBe(true)
-        expect(buffer.isInConflict()).toBe(false)
-        fs.writeFileSync(filePath, "def")
-
-        subscription = buffer.onDidConflict ->
-          subscription.dispose()
-          expect(buffer.isModified()).toBe(true)
-          expect(buffer.isInConflict()).toBe(true)
-
-          buffer.load().then ->
-            expect(buffer.isModified()).toBe(false)
-            expect(buffer.isInConflict()).toBe(false)
-            expect(buffer.getText()).toBe("def")
-            done()
-
-    it "notifies onWillChange, onDidChange, and onDidChangeText observers", (done) ->
-      filePath = temp.openSync("atom").path
-      fs.writeFileSync(filePath, "abc")
-
-      buffer = new TextBuffer({filePath, load: false})
-      buffer.setText('bcde')
-
-      willChangeEvents = []
-      didChangeEvents = []
-      didChangeTextEvents = []
-
-      buffer.onWillChange (e) -> willChangeEvents.push(e)
-      buffer.onDidChange (e) -> didChangeEvents.push(e)
-      buffer.onDidChangeText (e) -> didChangeTextEvents.push(e)
-
-      buffer.load().then ->
-        expect(buffer.getText()).toBe('abc')
-        expect(willChangeEvents).toEqual([{
-          oldRange: Range(Point(0, 0), Point(0, 4))
-        }])
-        expect(JSON.parse(JSON.stringify(didChangeEvents))).toEqual([{
-          oldRange: Range(Point(0, 0), Point(0, 4)),
-          newRange: Range(Point(0, 0), Point(0, 3)),
-          oldText: 'bcde',
-          newText: 'abc'
-        }])
-        expect(JSON.parse(JSON.stringify(didChangeTextEvents))).toEqual([{
-          changes: [
-            {
-              oldRange: Range(Point(0, 0), Point(0, 0)),
-              newRange: Range(Point(0, 0), Point(0, 1)),
-              oldText: '',
-              newText: 'a'
-            },
-            {
-              oldRange: Range(Point(0, 2), Point(0, 4)),
-              newRange: Range(Point(0, 3), Point(0, 3)),
-              oldText: 'de',
-              newText: ''
-            }
-          ]
-        }])
-        done()
-
-    it "updates markers", (done) ->
-      filePath = temp.openSync("atom").path
-      fs.writeFileSync(filePath, "abc")
-
-      buffer = new TextBuffer({filePath, load: false})
-      buffer.setText('bcdef')
-
-      markerC = buffer.markRange([[0, 1], [0, 2]])
-      markerE = buffer.markRange([[0, 4], [0, 5]])
-
-      buffer.load().then ->
-        expect(markerC.getRange()).toEqual([[0, 2], [0, 3]])
-        expect(markerE.getRange()).toEqual([[0, 3], [0, 3]])
-        expect(markerC.isValid()).toBe(true)
-        expect(markerE.isValid()).toBe(false)
-        done()
-
-    it "does not throw if the buffer has no backing file", (done) ->
-      buffer = new TextBuffer()
-      buffer.load().then(done)
-
-  describe "::saveAs(path, {backup})", ->
+  describe "::saveAs(path)", ->
     [filePath, saveAsBuffer, tempDir] = []
 
     beforeEach ->
@@ -2855,8 +2768,7 @@ describe "TextBuffer", ->
         beforeEach (done) ->
           filePath = join(__dirname, 'fixtures', 'win1251.txt')
           buffer = new TextBuffer({filePath, load: false})
-          buffer.load().then ->
-            done()
+          buffer.load().then(done)
 
         it "does not reload the contents from the disk", ->
           spyOn(buffer, 'load')
@@ -2869,18 +2781,15 @@ describe "TextBuffer", ->
         beforeEach (done) ->
           filePath = join(__dirname, 'fixtures', 'win1251.txt')
           buffer = new TextBuffer({filePath, load: false})
-          buffer.load().then ->
-            done()
+          buffer.load().then(done)
 
         beforeEach (done) ->
           expect(buffer.getEncoding()).toBe 'utf8'
           expect(buffer.getText()).not.toBe 'тест 1234 абвгдеёжз'
 
-          reloadHandler = ->
-            done()
           buffer.setEncoding('WINDOWS-1251')
           expect(buffer.getEncoding()).toBe 'WINDOWS-1251'
-          buffer.onDidReload(reloadHandler)
+          buffer.onDidChange(done)
 
         it "reloads the contents from the disk", ->
           expect(buffer.getText()).toBe 'тест 1234 абвгдеёжз'
@@ -2913,10 +2822,8 @@ describe "TextBuffer", ->
       beforeEach (done) ->
         filePath = join(__dirname, 'fixtures', 'win1251.txt')
         buffer = new TextBuffer({filePath, load: false})
-        reloadHandler = ->
-          done()
         buffer.load().then ->
-          buffer.onDidReload(reloadHandler)
+          buffer.onDidChange(done)
           buffer.setEncoding('WINDOWS-1251')
 
       it "does not push the encoding change onto the undo stack", ->

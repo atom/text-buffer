@@ -499,7 +499,7 @@ class TextBuffer
     @encoding = encoding
     if @file?
       @emitter.emit 'did-change-encoding', encoding
-      @load() unless @isModified()
+      @load(clearHistory: true) unless @isModified()
     else
       @emitter.emit 'did-change-encoding', encoding
 
@@ -1432,37 +1432,45 @@ class TextBuffer
   Section: Private Utility Methods
   ###
 
+  reload: ->
+    @emitter.emit('will-reload')
+    @load(discardChanges: true).then (result) =>
+      @emitter.emit('did-reload')
+      result
+
   loadSync: ->
-    @emitter.emit 'will-reload'
     oldRange = null
+    checkpoint = null
     patch = @buffer.loadSync(
       @getPath(),
       @getEncoding(),
       (percentDone, willChange) =>
         if willChange
           oldRange = new Range(Point.ZERO, @buffer.getExtent())
+          checkpoint = @history.createCheckpoint(@createMarkerSnapshot(), true)
           @emitter.emit('will-change', {oldRange})
     )
-    @finishLoading(oldRange, patch)
+    @finishLoading(oldRange, checkpoint, patch)
 
-  load: ->
-    @emitter.emit 'will-reload'
+  load: (options) ->
     oldRange = null
-    @buffer.load(
-      @getPath(),
-      @getEncoding(),
-      (percentDone, willChange) =>
-        if willChange
-          oldRange = new Range(Point.ZERO, @buffer.getExtent())
-          @emitter.emit('will-change', {oldRange})
-    ).then((patch) => @finishLoading(oldRange, patch))
+    checkpoint = null
+    filePath = @getPath()
+    encoding = @getEncoding()
+    progressCallback = (percentDone, willChange) =>
+      if willChange
+        oldRange = new Range(Point.ZERO, @buffer.getExtent())
+        checkpoint = @history.createCheckpoint(@createMarkerSnapshot(), true)
+        @emitter.emit('will-change', {oldRange})
+    if options?.discardChanges
+      promise = @buffer.reload(filePath, encoding, progressCallback)
+    else
+      promise = @buffer.load(filePath, encoding, progressCallback)
+    promise.then((patch) => @finishLoading(oldRange, checkpoint, patch, options))
 
-  reload: -> @load()
-
-  finishLoading: (oldRange, patch) ->
+  finishLoading: (oldRange, checkpoint, patch, options) ->
     return false unless @isAlive() and oldRange? and patch?
 
-    @loaded = true
     @fileHasChangedSinceLastLoad = false
 
     serializedChanges = @serializedChanges
@@ -1471,9 +1479,16 @@ class TextBuffer
     if patch.getChangeCount() > 0
       digest = @buffer.baseTextDigest()
       if digest is @digestWhenLastPersisted and serializedChanges
+        patch = Patch.compose([patch, Patch.deserialize(serializedChanges)])
         @buffer.deserializeChanges(serializedChanges)
       else
         @digestWhenLastPersisted = digest
+
+      if options?.clearHistory
+        @history.clearUndoStack()
+      else if @loaded
+        @history.pushPatch(patch)
+
       if @markerLayers?
         for change in patch.getChanges()
           for id, markerLayer of @markerLayers
@@ -1483,10 +1498,13 @@ class TextBuffer
               traversal(change.newEnd, change.newStart)
             )
       @emitDidChangeEvent(new DidChangeOnLoadEvent(@buffer, patch, oldRange))
+      markerSnapshot = @createMarkerSnapshot()
+      @history.groupChangesSinceCheckpoint(checkpoint, markerSnapshot, true)
+      @emitMarkerChangeEvents(markerSnapshot)
       @emitDidChangeTextEvent(patch)
       @emitModifiedStatusChanged(@isModified())
 
-    @emitter.emit 'did-reload'
+    @loaded = true
     true
 
   destroy: ->
