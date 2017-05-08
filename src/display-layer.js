@@ -128,6 +128,7 @@ class DisplayLayer {
     this.cachedScreenLines.length = 0
     this.screenLineLengths.length = 0
     this.tabCounts.length = 0
+    this.rightmostScreenPosition = Point(0, 0)
   }
 
   doBackgroundWork (deadline) {
