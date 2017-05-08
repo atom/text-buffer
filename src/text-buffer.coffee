@@ -1654,9 +1654,11 @@ class TextBuffer
   emitDidChangeTextEvent: (patch) ->
     return if @transactCallDepth isnt 0
 
-    @emitter.emit 'did-change-text', {changes: Object.freeze(normalizePatchChanges(patch.getHunks()))}
-    @patchesSinceLastStoppedChangingEvent.push(patch)
-    @scheduleDidStopChangingEvent()
+    hunks = patch.getHunks()
+    if hunks.length > 0
+      @emitter.emit 'did-change-text', {changes: Object.freeze(normalizePatchChanges(hunks))}
+      @patchesSinceLastStoppedChangingEvent.push(patch)
+      @scheduleDidStopChangingEvent()
 
   # Identifies if the buffer belongs to multiple editors.
   #
