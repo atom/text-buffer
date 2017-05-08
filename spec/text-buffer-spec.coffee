@@ -2650,7 +2650,6 @@ describe "TextBuffer", ->
         buffer.insert([2, 3], "zw")
         buffer.delete([[2, 3], [2, 4]])
 
-
       assertChangesEqual(textChanges, [
         {
           oldRange: [[1, 0], [1, 0]],
@@ -2714,6 +2713,12 @@ describe "TextBuffer", ->
           newText: "j",
         }
       ])
+
+    it "doesn't notify observers after an empty transaction", ->
+      didChangeTextSpy = jasmine.createSpy()
+      buffer.onDidChangeText(didChangeTextSpy)
+      buffer.transact(->)
+      expect(didChangeTextSpy).not.toHaveBeenCalled()
 
     it "doesn't throw an error when clearing the undo stack within a transaction", ->
       buffer.onDidChangeText(didChangeTextSpy = jasmine.createSpy())
