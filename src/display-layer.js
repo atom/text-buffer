@@ -629,11 +629,10 @@ class DisplayLayer {
     this.populateSpatialIndexIfNeeded(this.buffer.getLineCount(), endRow)
 
     const startPosition = Point(startRow, 0)
-    const endPosition = Point(endRow, 0)
     const bufferRows = []
     let lastScreenRow = startRow
     let lastBufferRow = this.translateScreenPositionWithSpatialIndex(startPosition).row
-    const hunks = this.spatialIndex.getHunksInNewRange(startPosition, endPosition)
+    const hunks = this.spatialIndex.getHunksInNewRange(startPosition, Point(endRow, 0))
     for (let i = 0; i < hunks.length; i++) {
       const hunk = hunks[i]
       while (lastScreenRow <= hunk.newStart.row) {
