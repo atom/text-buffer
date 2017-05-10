@@ -530,12 +530,12 @@ class DisplayLayer {
   }
 
   getClipColumnDelta (bufferPosition, clipDirection) {
-    const {row: bufferRow, column: bufferColumn} = bufferPosition
-    const bufferLine = this.buffer.lineForRow(bufferRow)
+    var {row: bufferRow, column: bufferColumn} = bufferPosition
+    var bufferLine = this.buffer.lineForRow(bufferRow)
 
     // Treat paired unicode characters as atomic...
-    const previousCharacter = bufferLine[bufferColumn - 1]
-    const character = bufferLine[bufferColumn]
+    var previousCharacter = bufferLine[bufferColumn - 1]
+    var character = bufferLine[bufferColumn]
     if (previousCharacter && character && isCharacterPair(previousCharacter, character)) {
       if (clipDirection === 'closest' || clipDirection === 'backward') {
         return -1
@@ -556,9 +556,9 @@ class DisplayLayer {
       if (bufferLine[column] !== ' ') return 0
     }
 
-    const previousTabStop = bufferColumn - (bufferColumn % this.tabLength)
+    var previousTabStop = bufferColumn - (bufferColumn % this.tabLength)
     if (bufferColumn === previousTabStop) return 0
-    const nextTabStop = previousTabStop + this.tabLength
+    var nextTabStop = previousTabStop + this.tabLength
 
     // If there is a non-whitespace character before the next tab stop,
     // don't this whitespace as a soft tab
@@ -566,7 +566,7 @@ class DisplayLayer {
       if (bufferLine[column] !== ' ') return 0
     }
 
-    let clippedColumn
+    var clippedColumn
     if (clipDirection === 'closest') {
       if (bufferColumn - previousTabStop > this.tabLength / 2) {
         clippedColumn = nextTabStop
@@ -623,6 +623,34 @@ class DisplayLayer {
 
   getScreenLines (screenStartRow = 0, screenEndRow = this.getScreenLineCount()) {
     return this.screenLineBuilder.buildScreenLines(screenStartRow, screenEndRow)
+  }
+
+  bufferRowsForScreenRows (startRow, endRow) {
+    this.populateSpatialIndexIfNeeded(this.buffer.getLineCount(), endRow)
+
+    const startPosition = Point(startRow, 0)
+    const bufferRows = []
+    let lastScreenRow = startRow
+    let lastBufferRow = this.translateScreenPositionWithSpatialIndex(startPosition).row
+    const hunks = this.spatialIndex.getHunksInNewRange(startPosition, Point(endRow, 0))
+    for (let i = 0; i < hunks.length; i++) {
+      const hunk = hunks[i]
+      while (lastScreenRow <= hunk.newStart.row) {
+        bufferRows.push(lastBufferRow)
+        lastScreenRow++
+        lastBufferRow++
+      }
+
+      lastBufferRow = this.isSoftWrapHunk(hunk) ? hunk.oldEnd.row : hunk.oldEnd.row + 1
+    }
+
+    while (lastScreenRow < endRow) {
+      bufferRows.push(lastBufferRow)
+      lastScreenRow++
+      lastBufferRow++
+    }
+
+    return bufferRows
   }
 
   leadingWhitespaceLengthForSurroundingLines (startBufferRow) {
@@ -723,11 +751,11 @@ class DisplayLayer {
   }
 
   isOpenTag (tag) {
-    return tag < 0 && tag % 2 === -1
+    return tag < 0 && (tag & 1) === 1
   }
 
   isCloseTag (tag) {
-    return tag < 0 && tag % 2 === 0
+    return tag < 0 && (tag & 1) === 0
   }
 
   bufferWillChange (change) {
