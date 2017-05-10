@@ -2193,6 +2193,27 @@ describe('DisplayLayer', () => {
     })
   })
 
+  describe('.bufferRowsForScreenRows(startRow, endRow)', () => {
+    it('returns an array containing the buffer rows for the given screen row range', () => {
+      const buffer = new TextBuffer({text: 'abcde\nfghij\nklmno\npqrst\nuvwxyz'})
+      const displayLayer = buffer.addDisplayLayer({softWrapColumn: 4})
+      const fold1 = displayLayer.foldBufferRange([[0, 1], [1, 1]])
+      const fold2 = displayLayer.foldBufferRange([[2, 2], [3, 2]])
+      const fold3 = displayLayer.foldBufferRange([[3, 3], [3, 4]])
+
+      expect(displayLayer.bufferRowsForScreenRows(2, 5)).toEqual([2, 3, 4])
+      expect(displayLayer.bufferRowsForScreenRows(3, 5)).toEqual([3, 4])
+      expect(displayLayer.bufferRowsForScreenRows(4, 6)).toEqual([4, 4])
+      expect(displayLayer.bufferRowsForScreenRows(0, 7)).toEqual([0, 1, 2, 3, 4, 4, 5])
+
+      displayLayer.destroyFold(fold2)
+      expect(displayLayer.bufferRowsForScreenRows(2, 5)).toEqual([2, 2, 3])
+      expect(displayLayer.bufferRowsForScreenRows(3, 5)).toEqual([2, 3])
+      expect(displayLayer.bufferRowsForScreenRows(4, 6)).toEqual([3, 3])
+      expect(displayLayer.bufferRowsForScreenRows(0, 8)).toEqual([0, 1, 2, 2, 3, 3, 4, 4])
+    })
+  })
+
   describe('.getScreenLines(startRow, endRow)', () => {
     it('returns an empty array when the given start row is greater than the screen line count', () => {
       const buffer = new TextBuffer({

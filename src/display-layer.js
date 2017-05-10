@@ -625,6 +625,35 @@ class DisplayLayer {
     return this.screenLineBuilder.buildScreenLines(screenStartRow, screenEndRow)
   }
 
+  bufferRowsForScreenRows (startRow, endRow) {
+    this.populateSpatialIndexIfNeeded(this.buffer.getLineCount(), endRow)
+
+    const startPosition = Point(startRow, 0)
+    const endPosition = Point(endRow, 0)
+    const bufferRows = []
+    let lastScreenRow = startRow
+    let lastBufferRow = this.translateScreenPositionWithSpatialIndex(startPosition).row
+    const hunks = this.spatialIndex.getHunksInNewRange(startPosition, endPosition)
+    for (let i = 0; i < hunks.length; i++) {
+      const hunk = hunks[i]
+      while (lastScreenRow <= hunk.newStart.row) {
+        bufferRows.push(lastBufferRow)
+        lastScreenRow++
+        lastBufferRow++
+      }
+
+      lastBufferRow = this.isSoftWrapHunk(hunk) ? hunk.oldEnd.row : hunk.oldEnd.row + 1
+    }
+
+    while (lastScreenRow < endRow) {
+      bufferRows.push(lastBufferRow)
+      lastScreenRow++
+      lastBufferRow++
+    }
+
+    return bufferRows
+  }
+
   leadingWhitespaceLengthForSurroundingLines (startBufferRow) {
     let length = 0
     for (let bufferRow = startBufferRow - 1; bufferRow >= 0; bufferRow--) {
