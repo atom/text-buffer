@@ -406,18 +406,7 @@ class ScreenLineBuilder {
   }
 
   compareBufferPosition (position) {
-    if (this.bufferRow < position.row) {
-      return -1
-    } else if (this.bufferRow === position.row) {
-      if (this.bufferColumn < position.column) {
-        return -1
-      } else if (this.bufferColumn === position.column) {
-        return 0
-      } else {
-        return 1
-      }
-    } else {
-      return 1
-    }
+    const rowComparison = this.bufferRow - position.row
+    return rowComparison === 0 ? (this.bufferColumn - position.column) : rowComparison
   }
 }
