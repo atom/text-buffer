@@ -1403,13 +1403,13 @@ class TextBuffer
     unless filePath then throw new Error("Can't save buffer with no file path")
 
     @emitter.emit 'will-save', {path: filePath}
-    @buffer.saveSync(filePath, @getEncoding())
-
-    @setPath(filePath)
-    @fileHasChangedSinceLastLoad = false
-    @loaded = true
-    @emitModifiedStatusChanged(false)
-    @emitter.emit 'did-save', {path: filePath}
+    @buffer.save(filePath, @getEncoding()).then =>
+      @setPath(filePath)
+      @fileHasChangedSinceLastLoad = false
+      @loaded = true
+      @emitModifiedStatusChanged(false)
+      @emitter.emit 'did-save', {path: filePath}
+      this
 
   ###
   Section: Display Layers

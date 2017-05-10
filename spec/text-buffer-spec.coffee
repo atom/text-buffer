@@ -1074,15 +1074,15 @@ describe "TextBuffer", ->
         [buffer2, buffer2ModifiedEvents] = []
         beforeEach (done) ->
           buffer.append("!")
-          buffer.save()
-          expect(buffer.isModified()).toBeFalsy()
-          params = buffer.serialize()
-          params.load = false
-          buffer2 = TextBuffer.deserialize(params)
-          buffer2ModifiedEvents = []
-          buffer2.onDidChangeModified (value) -> buffer2ModifiedEvents.push(value)
-          buffer2.load().then ->
-            done()
+          buffer.save().then ->
+            expect(buffer.isModified()).toBeFalsy()
+            params = buffer.serialize()
+            params.load = false
+            buffer2 = TextBuffer.deserialize(params)
+            buffer2ModifiedEvents = []
+            buffer2.onDidChangeModified (value) -> buffer2ModifiedEvents.push(value)
+            buffer2.load().then ->
+              done()
 
         it "loads the current contents of the file at the serialized path", (done) ->
           expect(buffer2.isModified()).toBeFalsy()
