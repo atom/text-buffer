@@ -167,123 +167,6 @@ describe("TextBuffer IO", () => {
     })
   })
 
-  describe('when the file changes on disk', () => {
-    beforeEach((done) => {
-      const filePath = temp.openSync('atom').path
-      fs.writeFileSync(filePath, 'abcde')
-      buffer = new TextBuffer({filePath})
-      buffer.load().then(done)
-    })
-
-    it('emits a conflict event if the file is modified', (done) => {
-      buffer.append('f')
-      expect(buffer.getText()).toBe('abcdef')
-      expect(buffer.isModified()).toBe(true)
-
-      fs.writeFileSync(buffer.getPath(), '  abc')
-
-      const subscription = buffer.onDidConflict(() => {
-        subscription.dispose()
-        expect(buffer.getText()).toBe('abcdef')
-        expect(buffer.isModified()).toBe(true)
-        expect(buffer.isInConflict()).toBe(true)
-        done()
-      })
-    })
-
-    it('updates the buffer and its markers and notifies change observers if the buffer is unmodified', (done) => {
-      expect(buffer.getText()).toEqual('abcde')
-
-      const newTextSuffix = '!'.repeat(1024)
-      const newText = ' abc' + newTextSuffix
-
-      const changeEvents = []
-      buffer.onWillChange(event => {
-        expect(buffer.getText()).toEqual('abcde')
-        changeEvents.push(['will-change', event])
-      })
-      buffer.onDidChange(event => {
-        expect(buffer.getText()).toEqual(newText)
-        changeEvents.push(['did-change', event])
-      })
-      buffer.onDidChangeText(event => {
-        expect(buffer.getText()).toEqual(newText)
-        changeEvents.push(['did-change-text', event])
-      })
-
-      const markerB = buffer.markRange(Range(Point(0, 1), Point(0, 2)))
-      const markerD = buffer.markRange(Range(Point(0, 3), Point(0, 4)))
-
-      fs.writeFileSync(buffer.getPath(), newText)
-
-      const subscription = buffer.onDidChangeText(() => {
-        subscription.dispose()
-
-        expect(buffer.isModified()).toBe(false)
-        expect(buffer.getText()).toBe(newText)
-
-        expect(markerB.getRange()).toEqual(Range(Point(0, 2), Point(0, 3)))
-        expect(markerD.getRange()).toEqual(Range(Point(0, 4), Point(0, newText.length)))
-        expect(markerB.isValid()).toBe(true)
-        expect(markerD.isValid()).toBe(false)
-
-        expect(toPlainObject(changeEvents)).toEqual(toPlainObject([
-          [
-            'will-change', {
-              oldRange: Range(Point(0, 0), Point(0, 5))
-            }
-          ],
-          [
-            'did-change', {
-              oldRange: Range(Point(0, 0), Point(0, 5)),
-              newRange: Range(Point(0, 0), Point(0, newText.length)),
-              oldText: 'abcde',
-              newText: newText
-            }
-          ],
-          [
-            'did-change-text', {
-              changes: [
-                {
-                  oldRange: Range(Point.ZERO, Point.ZERO),
-                  newRange: Range(Point.ZERO, Point(0, 1)),
-                  oldText: '',
-                  newText: ' '
-                },
-                {
-                  oldRange: Range(Point(0, 3), Point(0, 5)),
-                  newRange: Range(Point(0, 4), Point(0, newText.length)),
-                  oldText: 'de',
-                  newText: newTextSuffix
-                }
-              ]
-            }
-          ]
-        ]))
-
-        done()
-      })
-    })
-
-    it('does not fire duplicate change events when multiple changes happen on disk', (done) => {
-      const changeEvents = []
-      buffer.onWillChange(event => changeEvents.push(['will-change', event]))
-      buffer.onDidChange(event => changeEvents.push(['did-change', event]))
-      buffer.onDidChangeText(event => changeEvents.push(['did-change-text', event]))
-
-      fs.writeFileSync(buffer.getPath(), ' abc')
-      fs.writeFileSync(buffer.getPath(), ' abcd')
-      fs.writeFileSync(buffer.getPath(), ' abcde')
-      fs.writeFileSync(buffer.getPath(), ' abcdef')
-      fs.writeFileSync(buffer.getPath(), ' abcdefg')
-
-      setTimeout(() => {
-        expect(changeEvents.map(([type]) => type)).toEqual(['will-change', 'did-change', 'did-change-text'])
-        done()
-      }, 200)
-    })
-  })
-
   describe('.save', () => {
     let filePath
 
@@ -410,7 +293,282 @@ describe("TextBuffer IO", () => {
         })
     })
   })
+
+  describe('.isModified', () => {
+    beforeEach((done) => {
+      const filePath = temp.openSync('atom').path
+      fs.writeFileSync(filePath, '')
+      buffer = new TextBuffer({filePath})
+      buffer.load().then(done)
+    })
+
+    describe('when the buffer is changed', () => {
+      it('reports the modified status changing to true or false', (done) => {
+        const modifiedStatusChanges = []
+        buffer.onDidChangeModified((status) => modifiedStatusChanges.push(status))
+        expect(buffer.isModified()).toBeFalsy()
+
+        buffer.insert([0, 0], 'hi')
+        expect(buffer.isModified()).toBe(true)
+
+        stopChangingPromise()
+          .then(() => {
+            expect(modifiedStatusChanges).toEqual([true])
+
+            buffer.insert([0, 2], 'ho')
+            expect(buffer.isModified()).toBe(true)
+            return stopChangingPromise()
+          })
+          .then(() => {
+            expect(modifiedStatusChanges).toEqual([true])
+
+            buffer.undo()
+            buffer.undo()
+            expect(buffer.isModified()).toBe(false)
+            return stopChangingPromise()
+          })
+          .then(() => {
+            expect(modifiedStatusChanges).toEqual([true, false])
+            done()
+          })
+      })
+    })
+
+    describe('when the buffer is saved', () => {
+      it('reports the modified status changing to false', (done) => {
+        buffer.insert([0, 0], 'hi')
+        expect(buffer.isModified()).toBe(true)
+
+        const modifiedStatusChanges = []
+        buffer.onDidChangeModified((status) => modifiedStatusChanges.push(status))
+
+        buffer.save()
+        expect(buffer.isModified()).toBe(false)
+        stopChangingPromise().then(() => {
+          expect(modifiedStatusChanges).toEqual([false])
+          done()
+        })
+      })
+    })
+
+    describe('when the buffer is reloaded', () => {
+      it('reports the modified status changing to false', (done) => {
+        buffer.insert([0, 0], 'hi')
+        expect(buffer.isModified()).toBe(true)
+
+        const modifiedStatusChanges = []
+        buffer.onDidChangeModified((status) => modifiedStatusChanges.push(status))
+
+        buffer.reload().then(() => {
+          expect(buffer.isModified()).toBe(false)
+          expect(modifiedStatusChanges).toEqual([false])
+          done()
+        })
+      })
+    })
+
+    it('returns false for an empty buffer with no path', () => {
+      const buffer = new TextBuffer()
+      expect(buffer.isModified()).toBeFalsy()
+      buffer.append('hello')
+      expect(buffer.isModified()).toBeTruthy()
+    })
+
+    it('returns true for a non-empty buffer with no path', () => {
+      const buffer = new TextBuffer({text: 'something'})
+      expect(buffer.isModified()).toBeTruthy()
+
+      buffer.append('a')
+      expect(buffer.isModified()).toBeTruthy()
+
+      buffer.setText('')
+      expect(buffer.isModified()).toBeFalsy()
+    })
+
+    it('returns false until the buffer is fully loaded', () => {
+      const buffer = new TextBuffer({filePath: "/some/path"})
+      expect(buffer.isModified()).toBeFalsy()
+    })
+  })
+
+  describe('when the file changes on disk', () => {
+    beforeEach((done) => {
+      const filePath = temp.openSync('atom').path
+      fs.writeFileSync(filePath, 'abcde')
+      buffer = new TextBuffer({filePath})
+      buffer.load().then(done)
+    })
+
+    it('emits a conflict event if the file is modified', (done) => {
+      buffer.append('f')
+      expect(buffer.getText()).toBe('abcdef')
+      expect(buffer.isModified()).toBe(true)
+
+      fs.writeFileSync(buffer.getPath(), '  abc')
+
+      const subscription = buffer.onDidConflict(() => {
+        subscription.dispose()
+        expect(buffer.getText()).toBe('abcdef')
+        expect(buffer.isModified()).toBe(true)
+        expect(buffer.isInConflict()).toBe(true)
+        done()
+      })
+    })
+
+    it('updates the buffer and its markers and notifies change observers if the buffer is unmodified', (done) => {
+      expect(buffer.getText()).toEqual('abcde')
+
+      const newTextSuffix = '!'.repeat(1024)
+      const newText = ' abc' + newTextSuffix
+
+      const changeEvents = []
+      buffer.onWillChange(event => {
+        expect(buffer.getText()).toEqual('abcde')
+        changeEvents.push(['will-change', event])
+      })
+      buffer.onDidChange(event => {
+        expect(buffer.getText()).toEqual(newText)
+        changeEvents.push(['did-change', event])
+      })
+      buffer.onDidChangeText(event => {
+        expect(buffer.getText()).toEqual(newText)
+        changeEvents.push(['did-change-text', event])
+      })
+
+      const markerB = buffer.markRange(Range(Point(0, 1), Point(0, 2)))
+      const markerD = buffer.markRange(Range(Point(0, 3), Point(0, 4)))
+
+      fs.writeFileSync(buffer.getPath(), newText)
+
+      const subscription = buffer.onDidChangeText(() => {
+        subscription.dispose()
+
+        expect(buffer.isModified()).toBe(false)
+        expect(buffer.getText()).toBe(newText)
+
+        expect(markerB.getRange()).toEqual(Range(Point(0, 2), Point(0, 3)))
+        expect(markerD.getRange()).toEqual(Range(Point(0, 4), Point(0, newText.length)))
+        expect(markerB.isValid()).toBe(true)
+        expect(markerD.isValid()).toBe(false)
+
+        expect(toPlainObject(changeEvents)).toEqual(toPlainObject([
+          [
+            'will-change', {
+              oldRange: Range(Point(0, 0), Point(0, 5))
+            }
+          ],
+          [
+            'did-change', {
+              oldRange: Range(Point(0, 0), Point(0, 5)),
+              newRange: Range(Point(0, 0), Point(0, newText.length)),
+              oldText: 'abcde',
+              newText: newText
+            }
+          ],
+          [
+            'did-change-text', {
+              changes: [
+                {
+                  oldRange: Range(Point.ZERO, Point.ZERO),
+                  newRange: Range(Point.ZERO, Point(0, 1)),
+                  oldText: '',
+                  newText: ' '
+                },
+                {
+                  oldRange: Range(Point(0, 3), Point(0, 5)),
+                  newRange: Range(Point(0, 4), Point(0, newText.length)),
+                  oldText: 'de',
+                  newText: newTextSuffix
+                }
+              ]
+            }
+          ]
+        ]))
+
+        done()
+      })
+    })
+
+    it('does not fire duplicate change events when multiple changes happen on disk', (done) => {
+      const changeEvents = []
+      buffer.onWillChange(event => changeEvents.push(['will-change', event]))
+      buffer.onDidChange(event => changeEvents.push(['did-change', event]))
+      buffer.onDidChangeText(event => changeEvents.push(['did-change-text', event]))
+
+      fs.writeFileSync(buffer.getPath(), ' abc')
+      fs.writeFileSync(buffer.getPath(), ' abcd')
+      fs.writeFileSync(buffer.getPath(), ' abcde')
+      fs.writeFileSync(buffer.getPath(), ' abcdef')
+      fs.writeFileSync(buffer.getPath(), ' abcdefg')
+
+      setTimeout(() => {
+        expect(changeEvents.map(([type]) => type)).toEqual(['will-change', 'did-change', 'did-change-text'])
+        done()
+      }, 200)
+    })
+  })
+
+  describe("when the is deleted", () => {
+    let filePath
+
+    beforeEach((done) => {
+      filePath = temp.openSync('atom').path
+      fs.writeFileSync(filePath, 'delete me')
+      buffer = new TextBuffer({filePath})
+      filePath = buffer.getPath() // symlinks may have been converted
+      buffer.load().then(done)
+    })
+
+    afterEach(() => buffer && buffer.destroy())
+
+    describe('when the file is modified', () => {
+      beforeEach((done) => {
+        buffer.setText('I WAS MODIFIED')
+        expect(buffer.isModified()).toBeTruthy()
+        buffer.file.onDidDelete(() => done())
+        fs.removeSync(filePath)
+      })
+
+      it('retains its path and reports the buffer as modified', () => {
+        expect(buffer.getPath()).toBe(filePath)
+        expect(buffer.isModified()).toBeTruthy()
+      })
+    })
+
+    describe('when the file is not modified', () => {
+      beforeEach((done) => {
+        expect(buffer.isModified()).toBeFalsy()
+        buffer.file.onDidDelete(() => done())
+        fs.removeSync(filePath)
+      })
+
+      it('retains its path and reports the buffer as modified', () => {
+        expect(buffer.getPath()).toBe(filePath)
+        expect(buffer.isModified()).toBeTruthy()
+      })
+    })
+
+    describe('when the file is deleted', () =>
+      it('notifies all onDidDelete listeners ', (done) => {
+        buffer.onDidDelete(() => done())
+        fs.removeSync(filePath)
+      })
+    )
+
+    it('resumes watching of the file when it is re-saved', (done) => {
+      buffer.save()
+      expect(fs.existsSync(buffer.getPath())).toBeTruthy()
+      expect(buffer.isInConflict()).toBeFalsy()
+
+      fs.writeFileSync(filePath, 'moo')
+      buffer.onDidChange(done)
+    })
+  })
 })
+
+function stopChangingPromise () {
+  return timeoutPromise(TextBuffer.prototype.stoppedChangingDelay)
+}
 
 function timeoutPromise (duration) {
   return new Promise(resolve => setTimeout(resolve, duration))
