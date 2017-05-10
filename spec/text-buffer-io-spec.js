@@ -391,6 +391,112 @@ describe("TextBuffer IO", () => {
     })
   })
 
+  describe('encoding support', () => {
+    it('allows the encoding to be set on creation', (done) => {
+      const filePath = path.join(__dirname, 'fixtures', 'win1251.txt')
+      const buffer = new TextBuffer({filePath, load: false, encoding: 'WINDOWS-1251'})
+      buffer.load().then(() => {
+        expect(buffer.getEncoding()).toBe('WINDOWS-1251')
+        expect(buffer.getText()).toBe('тест 1234 абвгдеёжз')
+        done()
+      })
+    })
+
+    it('serializes the encoding', (done) => {
+      const filePath = path.join(__dirname, 'fixtures', 'win1251.txt')
+      const bufferA = new TextBuffer({filePath, load: false, encoding: 'WINDOWS-1251'})
+      bufferA.load().then(() => {
+        const bufferB = TextBuffer.deserialize(bufferA.serialize())
+        bufferB.load().then(() => {
+          expect(bufferB.getEncoding()).toBe('WINDOWS-1251')
+          expect(bufferB.getText()).toBe('тест 1234 абвгдеёжз')
+          done()
+        })
+      })
+    })
+
+    describe('when the buffer is modified', () => {
+      describe('when the encoding of the buffer is changed', () => {
+        beforeEach((done) => {
+          const filePath = path.join(__dirname, 'fixtures', 'win1251.txt')
+          buffer = new TextBuffer({filePath, load: false})
+          buffer.load().then(done)
+        })
+
+        it('does not reload the contents from the disk', () => {
+          spyOn(buffer, 'load')
+          buffer.setText('ch ch changes')
+          buffer.setEncoding('win1251')
+          expect(buffer.load.calls.count()).toBe(0)
+        })
+      })
+    })
+
+    describe('when the buffer is unmodified', () => {
+      describe('when the encoding of the buffer is changed', () => {
+        beforeEach((done) => {
+          const filePath = path.join(__dirname, 'fixtures', 'win1251.txt')
+          buffer = new TextBuffer({filePath, load: false})
+          buffer.load().then(done)
+        })
+
+        beforeEach((done) => {
+          expect(buffer.getEncoding()).toBe('utf8')
+          expect(buffer.getText()).not.toBe('тест 1234 абвгдеёжз')
+
+          buffer.setEncoding('WINDOWS-1251')
+          expect(buffer.getEncoding()).toBe('WINDOWS-1251')
+          buffer.onDidChange(done)
+        })
+
+        it('reloads the contents from the disk', () => {
+          expect(buffer.getText()).toBe('тест 1234 абвгдеёжз')
+        })
+      })
+    })
+
+    it('emits an event when the encoding changes', () => {
+      const filePath = path.join(__dirname, 'fixtures', 'win1251.txt')
+      const encodingChangeHandler = jasmine.createSpy('encodingChangeHandler')
+
+      let buffer = new TextBuffer({filePath, load: true})
+      buffer.onDidChangeEncoding(encodingChangeHandler)
+      buffer.setEncoding('WINDOWS-1251')
+      expect(encodingChangeHandler).toHaveBeenCalledWith('WINDOWS-1251')
+
+      encodingChangeHandler.calls.reset()
+      buffer.setEncoding('WINDOWS-1251')
+      expect(encodingChangeHandler.calls.count()).toBe(0)
+
+      encodingChangeHandler.calls.reset()
+
+      buffer = new TextBuffer()
+      buffer.onDidChangeEncoding(encodingChangeHandler)
+      buffer.setEncoding('WINDOWS-1251')
+      expect(encodingChangeHandler).toHaveBeenCalledWith('WINDOWS-1251')
+
+      encodingChangeHandler.calls.reset()
+      buffer.setEncoding('WINDOWS-1251')
+      expect(encodingChangeHandler.calls.count()).toBe(0)
+    })
+
+    describe("when a buffer's encoding is changed", () => {
+      beforeEach((done) => {
+        const filePath = path.join(__dirname, 'fixtures', 'win1251.txt')
+        buffer = new TextBuffer({filePath, load: false})
+        buffer.load().then(() => {
+          buffer.onDidChange(done)
+          buffer.setEncoding('WINDOWS-1251')
+        })
+      })
+
+      it('does not push the encoding change onto the undo stack', () => {
+        buffer.undo()
+        expect(buffer.getText()).toBe('тест 1234 абвгдеёжз')
+      })
+    })
+  })
+
   describe('when the file changes on disk', () => {
     beforeEach((done) => {
       const filePath = temp.openSync('atom').path
