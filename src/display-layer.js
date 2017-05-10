@@ -723,11 +723,11 @@ class DisplayLayer {
   }
 
   isOpenTag (tag) {
-    return tag < 0 && tag % 2 === -1
+    return tag < 0 && (tag & 1) === 1
   }
 
   isCloseTag (tag) {
-    return tag < 0 && tag % 2 === 0
+    return tag < 0 && (tag & 1) === 0
   }
 
   bufferWillChange (change) {
