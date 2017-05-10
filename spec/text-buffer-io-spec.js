@@ -1,4 +1,5 @@
 const fs = require('fs-plus')
+const path = require('path')
 const temp = require('temp')
 const Point = require('../src/point')
 const Range = require('../src/range')
@@ -11,7 +12,7 @@ describe("TextBuffer IO", () => {
     if (buffer) buffer.destroy()
   })
 
-  describe('initial load (async)', () => {
+  describe('.load', () => {
     beforeEach(() => {
       const filePath = temp.openSync('atom').path
       fs.writeFileSync(filePath, 'abc')
@@ -89,7 +90,7 @@ describe("TextBuffer IO", () => {
     })
   })
 
-  describe('initial load (sync)', () => {
+  describe('.loadSync', () => {
     beforeEach(() => {
       const filePath = temp.openSync('atom').path
       fs.writeFileSync(filePath, 'abc')
@@ -144,6 +145,25 @@ describe("TextBuffer IO", () => {
       expect(result).toBe(false)
       expect(buffer.getText()).toBe('def')
       expect(changeEvents).toEqual([])
+    })
+  })
+
+  describe('.reload', () => {
+    beforeEach(() => {
+      const filePath = temp.openSync('atom').path
+      fs.writeFileSync(filePath, 'abc')
+      buffer = new TextBuffer({filePath})
+    })
+
+    it('it updates the buffer even if it is modified', (done) => {
+      const events = []
+
+      buffer.onWillReload(() => events.push('will-reload'))
+      buffer.onDidReload(() => events.push('did-reload'))
+      buffer.reload().then(() => {
+        expect(events).toEqual(['will-reload', 'did-reload'])
+        done()
+      })
     })
   })
 
@@ -264,16 +284,25 @@ describe("TextBuffer IO", () => {
     })
   })
 
-  describe('save', () => {
-    beforeEach((done) => {
-      const filePath = temp.openSync('atom').path
-      fs.writeFileSync(filePath, 'abc')
+  describe('.save', () => {
+    let filePath
+
+    beforeEach(() => {
+      const tempDir = temp.mkdirSync()
+      filePath = path.join(tempDir, 'temp.txt')
+      fs.writeFileSync(filePath, '')
       buffer = new TextBuffer({filePath})
-      buffer.load().then(done)
+    })
+
+    it('saves the contents of the buffer to the path', () => {
+      buffer.setText('Buffer contents')
+      buffer.save()
+      expect(fs.readFileSync(filePath, 'utf8')).toEqual('Buffer contents')
     })
 
     it('does not emit a change event', (done) => {
-      buffer.append('def')
+      buffer.setText('Buffer contents')
+      expect(buffer.isModified()).toBe(true)
 
       const changeEvents = []
       buffer.onWillChange(event => changeEvents.push(['will-change', event]))
@@ -287,10 +316,105 @@ describe("TextBuffer IO", () => {
         expect(changeEvents).toEqual([])
         done()
       }, 250)
+    })
 
+    it('notifies ::onWillSave and ::onDidSave observers', () => {
+      const events = []
+      buffer.onWillSave(event => events.push(['will-save-1', event]))
+      buffer.onWillSave(event => events.push(['will-save-2', event]))
+      spyOn(buffer.buffer, 'saveSync').and.callFake(() => events.push('saveSync'))
+      buffer.onDidSave(event => events.push(['did-save-1', event]))
+      buffer.onDidSave(event => events.push(['did-save-2', event]))
+
+      buffer.setText('Buffer contents')
+      buffer.save()
+      const path = buffer.getPath()
+      expect(events).toEqual([
+        ['will-save-1', {path}],
+        ['will-save-2', {path}],
+        'saveSync',
+        ['did-save-1', {path}],
+        ['did-save-2', {path}]
+      ])
+    })
+
+    describe('when a conflict is created', () => {
+      beforeEach((done) => {
+        buffer.setText('a')
+        buffer.save()
+        buffer.setText('ab')
+        buffer.onDidConflict(() => done())
+        fs.writeFileSync(buffer.getPath(), 'c')
+      })
+
+      it('no longer reports being in conflict when the buffer is saved again', () => {
+        expect(buffer.isInConflict()).toBe(true)
+        buffer.save()
+        expect(buffer.isInConflict()).toBe(false)
+      })
+    })
+
+    describe('when the buffer has no path', () => {
+      it('throws an exception', () => {
+        buffer = new TextBuffer()
+        buffer.setText('hi')
+        expect(() => buffer.save()).toThrowError()
+      })
+    })
+  })
+
+  describe('.saveAs', () => {
+    let filePath
+
+    beforeEach((done) => {
+      filePath = temp.openSync('atom').path
+      fs.writeFileSync(filePath, 'a')
+      buffer = new TextBuffer({filePath})
+      buffer.load().then(done)
+    })
+
+    it('saves the contents of the buffer to the new path', () => {
+      const didChangePathHandler = jasmine.createSpy('didChangePathHandler')
+      buffer.onDidChangePath(didChangePathHandler)
+
+      const newPath = temp.openSync('atom').path
+      buffer.setText('b')
+      buffer.saveAs(newPath)
+      expect(fs.readFileSync(newPath, 'utf8')).toEqual('b')
+
+      expect(didChangePathHandler).toHaveBeenCalledWith(newPath)
+    })
+
+    it('stops listening for changes to the old path and starts listening for changes to the new path', (done) => {
+      const didChangeHandler = jasmine.createSpy('didChangeHandler')
+      buffer.onDidChange(didChangeHandler)
+
+      const newPath = temp.openSync('atom').path
+      buffer.saveAs(newPath)
+      expect(didChangeHandler).not.toHaveBeenCalled()
+
+      fs.writeFileSync(filePath, 'does not trigger a buffer change')
+      timeoutPromise(100)
+        .then(() => {
+          expect(didChangeHandler).not.toHaveBeenCalled()
+          expect(buffer.getText()).toBe('a')
+        })
+        .then(() => {
+          fs.writeFileSync(newPath, 'does trigger a buffer change')
+          return timeoutPromise(100)
+        })
+        .then(() => {
+          expect(didChangeHandler).toHaveBeenCalled()
+          expect(buffer.getText()).toBe('does trigger a buffer change')
+          done()
+        })
     })
   })
 })
+
+function timeoutPromise (duration) {
+  return new Promise(resolve => setTimeout(resolve, duration))
+}
 
 function toPlainObject (value) {
   return JSON.parse(JSON.stringify(value))
