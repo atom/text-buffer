@@ -29,9 +29,9 @@ class ScreenLineBuilder {
 
     endScreenRow = this.displayLayer.findBoundaryFollowingScreenRow(endScreenRow)
 
-    let decorationIterator
-    const hunks = this.displayLayer.spatialIndex.getHunksInNewRange(Point(this.screenRow, 0), Point(endScreenRow, 0))
-    let hunkIndex = 0
+    var decorationIterator
+    var hunks = this.displayLayer.spatialIndex.getHunksInNewRange(Point(this.screenRow, 0), Point(endScreenRow, 0))
+    var hunkIndex = 0
 
     this.containingScopeIds = []
     this.scopeIdsToReopen = []
@@ -44,7 +44,7 @@ class ScreenLineBuilder {
     // buffer.
     screenRowLoop:
     while (this.screenRow < endScreenRow) {
-      const cachedScreenLine = this.displayLayer.cachedScreenLines[this.screenRow]
+      var cachedScreenLine = this.displayLayer.cachedScreenLines[this.screenRow]
       if (cachedScreenLine) {
         this.pushScreenLine(cachedScreenLine)
 
@@ -89,7 +89,7 @@ class ScreenLineBuilder {
       // multiple screen rows if there are soft wraps.
       while (this.bufferColumn <= this.bufferLine.length) {
         // Handle folds or soft wraps at the current position.
-        let nextHunk = hunks[hunkIndex]
+        var nextHunk = hunks[hunkIndex]
         while (nextHunk && nextHunk.oldStart.row === this.bufferRow && nextHunk.oldStart.column === this.bufferColumn) {
           if (this.displayLayer.isSoftWrapHunk(nextHunk)) {
             this.emitSoftWrap(nextHunk)
@@ -101,7 +101,7 @@ class ScreenLineBuilder {
           nextHunk = hunks[hunkIndex]
         }
 
-        const nextCharacter = this.bufferLine[this.bufferColumn]
+        var nextCharacter = this.bufferLine[this.bufferColumn]
         if (this.bufferColumn >= this.trailingWhitespaceStartColumn) {
           this.inTrailingWhitespace = true
           this.inLeadingWhitespace = false
@@ -111,7 +111,7 @@ class ScreenLineBuilder {
 
         // Compute a token flags describing built-in decorations for the token
         // containing the next character
-        const previousBuiltInTagFlags = this.currentBuiltInClassNameFlags
+        var previousBuiltInTagFlags = this.currentBuiltInClassNameFlags
         this.updateCurrentTokenFlags(nextCharacter)
 
         if (this.emitBuiltInTagBoundary) {
@@ -210,12 +210,12 @@ class ScreenLineBuilder {
 
   emitDecorationBoundaries (decorationIterator) {
     while (this.compareBufferPosition(decorationIterator.getPosition()) === 0) {
-      const closeScopeIds = decorationIterator.getCloseScopeIds()
+      var closeScopeIds = decorationIterator.getCloseScopeIds()
       for (let i = 0, n = closeScopeIds.length; i < n; i++) {
         this.emitCloseTag(closeScopeIds[i])
       }
 
-      const openScopeIds = decorationIterator.getOpenScopeIds()
+      var openScopeIds = decorationIterator.getOpenScopeIds()
       for (let i = 0, n = openScopeIds.length; i < n; i++) {
         this.emitOpenTag(openScopeIds[i])
       }
@@ -359,7 +359,7 @@ class ScreenLineBuilder {
 
     this.emitEmptyTokenIfNeeded()
 
-    let containingScopeId
+    var containingScopeId
     while ((containingScopeId = this.containingScopeIds.pop())) {
       this.currentScreenLineTags.push(this.displayLayer.closeTagForScopeId(containingScopeId))
       if (containingScopeId === scopeId) {
