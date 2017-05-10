@@ -1392,12 +1392,16 @@ class TextBuffer
   ###
 
   # Public: Save the buffer.
+  #
+  # Returns a {Promise} that resolves when the save has completed.
   save: (options) ->
     @saveAs(@getPath(), options)
 
   # Public: Save the buffer at a specific path.
   #
   # * `filePath` The path to save at.
+  #
+  # Returns a {Promise} that resolves when the save has completed.
   saveAs: (filePath, options) ->
     if @destroyed then throw new Error("Can't save destroyed buffer")
     unless filePath then throw new Error("Can't save buffer with no file path")
