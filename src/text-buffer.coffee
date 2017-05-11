@@ -12,7 +12,7 @@ History = require './history'
 MarkerLayer = require './marker-layer'
 MatchIterator = require './match-iterator'
 DisplayLayer = require './display-layer'
-{spliceArray, newlineRegex, normalizePatchChanges, regexIsSingleLine} = require './helpers'
+{spliceArray, newlineRegex, normalizePatchChanges, regexIsSingleLine, debounce} = require './helpers'
 {traversal} = require './point-helpers'
 
 class TransactionAbortedError extends Error
@@ -105,6 +105,7 @@ class TextBuffer
     @lines = ['']
     @lineEndings = ['']
     @offsetIndex = new BufferOffsetIndex()
+    @debouncedEmitDidStopChangingEvent = debounce(@emitDidStopChangingEvent.bind(this), @stoppedChangingDelay)
     @textDecorationLayers = new Set()
     @setTextInRange([[0, 0], [0, 0]], text ? params?.text ? '', normalizeLineEndings: false)
     maxUndoEntries = params?.maxUndoEntries ? @defaultMaxUndoEntries
@@ -1567,7 +1568,6 @@ class TextBuffer
       @emitter.emit 'did-destroy'
       @emitter.clear()
 
-      @cancelStoppedChangingTimeout()
       @fileSubscriptions?.dispose()
       for id, markerLayer of @markerLayers
         markerLayer.destroy()
@@ -1658,7 +1658,7 @@ class TextBuffer
     if hunks.length > 0
       @emitter.emit 'did-change-text', {changes: Object.freeze(normalizePatchChanges(hunks))}
       @patchesSinceLastStoppedChangingEvent.push(patch)
-      @scheduleDidStopChangingEvent()
+      @debouncedEmitDidStopChangingEvent()
 
   # Identifies if the buffer belongs to multiple editors.
   #
@@ -1667,18 +1667,17 @@ class TextBuffer
   # Returns a {Boolean}.
   hasMultipleEditors: -> @refcount > 1
 
-  cancelStoppedChangingTimeout: ->
-    clearTimeout(@stoppedChangingTimeout) if @stoppedChangingTimeout
+  emitDidStopChangingEvent: ->
+    return if @destroyed
 
-  scheduleDidStopChangingEvent: ->
-    @cancelStoppedChangingTimeout()
-    stoppedChangingCallback = =>
-      @stoppedChangingTimeout = null
-      modifiedStatus = @isModified()
-      @emitter.emit 'did-stop-changing', {changes: Object.freeze(normalizePatchChanges(Patch.compose(@patchesSinceLastStoppedChangingEvent).getHunks()))}
-      @patchesSinceLastStoppedChangingEvent = []
-      @emitModifiedStatusChanged(modifiedStatus)
-    @stoppedChangingTimeout = setTimeout(stoppedChangingCallback, @stoppedChangingDelay)
+    modifiedStatus = @isModified()
+    composedChanges = Patch.compose(@patchesSinceLastStoppedChangingEvent).getHunks()
+    @emitter.emit(
+      'did-stop-changing',
+      {changes: Object.freeze(normalizePatchChanges(composedChanges))}
+    )
+    @patchesSinceLastStoppedChangingEvent = []
+    @emitModifiedStatusChanged(modifiedStatus)
 
   emitModifiedStatusChanged: (modifiedStatus) ->
     return if modifiedStatus is @previousModifiedStatus
