@@ -54,15 +54,23 @@ describe('DisplayLayer', () => {
 
   describe('reset()', () => {
     it('updates the screen lines to reflect the new parameters', () => {
-      const buffer = new TextBuffer({
-        text: 'abc def\nghi jkl\nmno pqr'
-      })
-
+      const buffer = new TextBuffer({text: 'abc def\nghi jkl\nmno pqr'})
       const displayLayer = buffer.addDisplayLayer({})
       expect(displayLayer.translateScreenPosition(Point(1, 3))).toEqual(Point(1, 3))
 
       displayLayer.reset({softWrapColumn: 4})
       expect(displayLayer.translateScreenPosition(Point(1, 3))).toEqual(Point(0, 7))
+    })
+
+    it('resets the rightmost screen position', () => {
+      const buffer = new TextBuffer({text: 'abc def\nghi jkl\nmnopqrst'})
+      const displayLayer = buffer.addDisplayLayer({softWrapColumn: 5})
+      expect(displayLayer.getApproximateRightmostScreenPosition()).toEqual(Point(0, 0))
+      expect(displayLayer.getRightmostScreenPosition()).toEqual(Point(4, 5))
+
+      displayLayer.reset({softWrapColumn: 4})
+      expect(displayLayer.getApproximateRightmostScreenPosition()).toEqual(Point(0, 0))
+      expect(displayLayer.getRightmostScreenPosition()).toEqual(Point(0, 4))
     })
   })
 
@@ -1883,21 +1891,21 @@ describe('DisplayLayer', () => {
 
       const boundaries = [{
         position: Point(0, 0),
-        closeTags: [],
-        openTags: ['a', 'b']
+        closeScopeIds: [],
+        openScopeIds: [1, 3]
       }, {
         position: Point(0, 2),
-        closeTags: ['c'],
-        openTags: []
+        closeScopeIds: [5],
+        openScopeIds: []
       }]
 
       const iterator = {
-        getOpenTags () {
-          return boundaries[0].openTags
+        getOpenScopeIds () {
+          return boundaries[0].openScopeIds
         },
 
-        getCloseTags () {
-          return boundaries[0].closeTags
+        getCloseScopeIds () {
+          return boundaries[0].closeScopeIds
         },
 
         getPosition () {
@@ -1919,7 +1927,7 @@ describe('DisplayLayer', () => {
         }
       })
 
-      expect(displayLayer.getScreenLines(0, 1)[0].tagCodes).toEqual([-1, -3, 2, -4, -2, -1, -3, 3, -4, -2])
+      expect(displayLayer.getScreenLines(0, 1)[0].tags).toEqual([-1, -3, 2, -4, -2, -1, -3, 3, -4, -2])
     })
 
     it('emits update events from the display layer when text decoration ranges are invalidated', () => {
@@ -1938,9 +1946,9 @@ describe('DisplayLayer', () => {
       decorationLayer.emitInvalidateRangeEvent([[2, 1], [3, 2]])
 
       expect(allChanges).toEqual([{
-        start: Point(1, 5),
-        oldExtent: Point(1, 2),
-        newExtent: Point(1, 2)
+        start: Point(1, 0),
+        oldExtent: Point(2, 0),
+        newExtent: Point(2, 0)
       }])
     })
 
@@ -2185,6 +2193,27 @@ describe('DisplayLayer', () => {
     })
   })
 
+  describe('.bufferRowsForScreenRows(startRow, endRow)', () => {
+    it('returns an array containing the buffer rows for the given screen row range', () => {
+      const buffer = new TextBuffer({text: 'abcde\nfghij\nklmno\npqrst\nuvwxyz'})
+      const displayLayer = buffer.addDisplayLayer({softWrapColumn: 4})
+      const fold1 = displayLayer.foldBufferRange([[0, 1], [1, 1]]) // eslint-disable-line no-unused-vars
+      const fold2 = displayLayer.foldBufferRange([[2, 2], [3, 2]])
+      const fold3 = displayLayer.foldBufferRange([[3, 3], [3, 4]]) // eslint-disable-line no-unused-vars
+
+      expect(displayLayer.bufferRowsForScreenRows(2, 5)).toEqual([2, 3, 4])
+      expect(displayLayer.bufferRowsForScreenRows(3, 5)).toEqual([3, 4])
+      expect(displayLayer.bufferRowsForScreenRows(4, 6)).toEqual([4, 4])
+      expect(displayLayer.bufferRowsForScreenRows(0, 7)).toEqual([0, 1, 2, 3, 4, 4, 5])
+
+      displayLayer.destroyFold(fold2)
+      expect(displayLayer.bufferRowsForScreenRows(2, 5)).toEqual([2, 2, 3])
+      expect(displayLayer.bufferRowsForScreenRows(3, 5)).toEqual([2, 3])
+      expect(displayLayer.bufferRowsForScreenRows(4, 6)).toEqual([3, 3])
+      expect(displayLayer.bufferRowsForScreenRows(0, 8)).toEqual([0, 1, 2, 2, 3, 3, 4, 4])
+    })
+  })
+
   describe('.getScreenLines(startRow, endRow)', () => {
     it('returns an empty array when the given start row is greater than the screen line count', () => {
       const buffer = new TextBuffer({
@@ -2261,6 +2290,8 @@ describe('DisplayLayer', () => {
             undoableChanges++
             redoableChanges--
             performRedo(random, displayLayer)
+          } else if (k < 8) {
+            textDecorationLayer.emitInvalidateRangeEvent(getRandomBufferRange(random, buffer))
           } else {
             undoableChanges++
             performRandomChange(random, displayLayer)
@@ -2563,25 +2594,25 @@ const getTokens = function (displayLayer, startRow = 0, endRow = displayLayer.ge
 function getTokenBoundaries (displayLayer, startRow = 0, endRow = displayLayer.getScreenLineCount()) {
   const tokenLines = []
 
-  for (const {lineText, tagCodes} of displayLayer.getScreenLines(startRow, endRow)) {
+  for (const {lineText, tags} of displayLayer.getScreenLines(startRow, endRow)) {
     const tokens = []
     let startIndex = 0
     let closeTags = []
     let openTags = []
 
-    for (const tagCode of tagCodes) {
-      if (displayLayer.isCloseTagCode(tagCode)) {
-        closeTags.push(displayLayer.tagForCode(tagCode))
-      } else if (displayLayer.isOpenTagCode(tagCode)) {
-        openTags.push(displayLayer.tagForCode(tagCode))
+    for (const tag of tags) {
+      if (displayLayer.isCloseTag(tag)) {
+        closeTags.push(displayLayer.classNameForTag(tag))
+      } else if (displayLayer.isOpenTag(tag)) {
+        openTags.push(displayLayer.classNameForTag(tag))
       } else {
         tokens.push({
           closeTags: closeTags,
           openTags: openTags,
-          text: lineText.substr(startIndex, tagCode)
+          text: lineText.substr(startIndex, tag)
         })
 
-        startIndex += tagCode
+        startIndex += tag
         closeTags = []
         openTags = []
       }

@@ -12,7 +12,7 @@ History = require './history'
 MarkerLayer = require './marker-layer'
 MatchIterator = require './match-iterator'
 DisplayLayer = require './display-layer'
-{spliceArray, newlineRegex, normalizePatchChanges, regexIsSingleLine, extentForText} = require './helpers'
+{spliceArray, newlineRegex, normalizePatchChanges, regexIsSingleLine, extentForText, debounce} = require './helpers'
 {traversal} = require './point-helpers'
 
 class TransactionAbortedError extends Error
@@ -133,6 +133,7 @@ class TextBuffer
     @patchesSinceLastStoppedChangingEvent = []
     @id = params?.id ? crypto.randomBytes(16).toString('hex')
     @buffer = new NativeTextBuffer(text)
+    @debouncedEmitDidStopChangingEvent = debounce(@emitDidStopChangingEvent.bind(this), @stoppedChangingDelay)
     @textDecorationLayers = new Set()
     maxUndoEntries = params?.maxUndoEntries ? @defaultMaxUndoEntries
     @history = params?.history ? new History(this, maxUndoEntries)
@@ -276,7 +277,7 @@ class TextBuffer
   #       * `newRange`: The {Range} of the inserted text in the current contents
   #         of the buffer.
   #       * `oldText`: A {String} representing the deleted text.
-  #       * `newText`: A {String} representing the ineserted text.
+  #       * `newText`: A {String} representing the inserted text.
   #
   # Returns a {Disposable} on which `.dispose()` can be called to unsubscribe.
   onDidChangeText: (callback) ->
@@ -304,7 +305,7 @@ class TextBuffer
   #       * `newRange`: The {Range} of the inserted text in the current contents
   #         of the buffer.
   #       * `oldText`: A {String} representing the deleted text.
-  #       * `newText`: A {String} representing the ineserted text.
+  #       * `newText`: A {String} representing the inserted text.
   #
   # Returns a {Disposable} on which `.dispose()` can be called to unsubscribe.
   onDidStopChanging: (callback) ->
@@ -1113,7 +1114,7 @@ class TextBuffer
   #   the checkpoint was created.
   # * `newRange`: The {Range} of the inserted text in the current text.
   # * `oldText`: A {String} representing the deleted text.
-  # * `newText`: A {String} representing the ineserted text.
+  # * `newText`: A {String} representing the inserted text.
   getChangesSinceCheckpoint: (checkpoint) ->
     if patch = @history.getChangesSinceCheckpoint(checkpoint)
       normalizePatchChanges(patch.getChanges())
@@ -1517,7 +1518,6 @@ class TextBuffer
       @emitter.emit 'did-destroy'
       @emitter.clear()
 
-      @cancelStoppedChangingTimeout()
       @fileSubscriptions?.dispose()
       for id, markerLayer of @markerLayers
         markerLayer.destroy()
@@ -1594,9 +1594,11 @@ class TextBuffer
   emitDidChangeTextEvent: (patch) ->
     return if @transactCallDepth isnt 0
 
-    @emitter.emit 'did-change-text', {changes: Object.freeze(normalizePatchChanges(patch.getChanges()))}
-    @patchesSinceLastStoppedChangingEvent.push(patch)
-    @scheduleDidStopChangingEvent()
+    hunks = patch.getChanges()
+    if hunks.length > 0
+      @emitter.emit 'did-change-text', {changes: Object.freeze(normalizePatchChanges(hunks))}
+      @patchesSinceLastStoppedChangingEvent.push(patch)
+      @debouncedEmitDidStopChangingEvent()
 
   # Identifies if the buffer belongs to multiple editors.
   #
@@ -1605,18 +1607,17 @@ class TextBuffer
   # Returns a {Boolean}.
   hasMultipleEditors: -> @refcount > 1
 
-  cancelStoppedChangingTimeout: ->
-    clearTimeout(@stoppedChangingTimeout) if @stoppedChangingTimeout
+  emitDidStopChangingEvent: ->
+    return if @destroyed
 
-  scheduleDidStopChangingEvent: ->
-    @cancelStoppedChangingTimeout()
-    stoppedChangingCallback = =>
-      @stoppedChangingTimeout = null
-      modifiedStatus = @isModified()
-      @emitter.emit 'did-stop-changing', {changes: Object.freeze(normalizePatchChanges(Patch.compose(@patchesSinceLastStoppedChangingEvent).getChanges()))}
-      @patchesSinceLastStoppedChangingEvent = []
-      @emitModifiedStatusChanged(modifiedStatus)
-    @stoppedChangingTimeout = setTimeout(stoppedChangingCallback, @stoppedChangingDelay)
+    modifiedStatus = @isModified()
+    composedChanges = Patch.compose(@patchesSinceLastStoppedChangingEvent).getChanges()
+    @emitter.emit(
+      'did-stop-changing',
+      {changes: Object.freeze(normalizePatchChanges(composedChanges))}
+    )
+    @patchesSinceLastStoppedChangingEvent = []
+    @emitModifiedStatusChanged(modifiedStatus)
 
   emitModifiedStatusChanged: (modifiedStatus) ->
     return if modifiedStatus is @previousModifiedStatus

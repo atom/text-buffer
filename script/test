@@ -26,6 +26,7 @@ if (argv.rebuild) {
       npm_config_target: electronVersion,
       npm_config_disturl: 'https://atom.io/download/atom-shell'
     })
+    console.log(`Rebuilding native modules against Electron ${electronVersion}`)
   } else {
     env = process.env
   }
@@ -40,5 +41,5 @@ normalizeCommand = (command) => {
 if (argv.interactive) {
   childProcess.spawnSync(normalizeCommand('./node_modules/.bin/electron'), ['spec/support/runner', 'spec/**/*-spec.*'], {stdio: 'inherit', cwd: path.join(__dirname, '..')})
 } else {
-  process.exit(childProcess.spawnSync(normalizeCommand('./node_modules/.bin/jasmine'), ['--captureExceptions', '--forceexit', '--stop-on-failure=true'], {stdio: 'inherit'}).status)
+  process.exit(childProcess.spawnSync(normalizeCommand('./node_modules/.bin/jasmine'), ['--stop-on-failure=true'], {stdio: 'inherit'}).status)
 }

@@ -8,6 +8,7 @@ const {traverse, traversal, compare, max, isEqual} = require('./point-helpers')
 const isCharacterPair = require('./is-character-pair')
 const ScreenLineBuilder = require('./screen-line-builder')
 const {spliceArray} = require('./helpers')
+const {MAX_BUILT_IN_SCOPE_ID} = require('./constants')
 
 module.exports =
 class DisplayLayer {
@@ -17,9 +18,9 @@ class DisplayLayer {
     this.emitter = new Emitter()
     this.screenLineBuilder = new ScreenLineBuilder(this)
     this.cachedScreenLines = []
-    this.tagsByCode = new Map()
-    this.codesByTag = new Map()
-    this.nextOpenTagCode = -1
+    this.builtInScopeIdsByFlags = new Map()
+    this.builtInClassNamesByScopeId = new Map()
+    this.nextBuiltInScopeId = 1
     this.textDecorationLayer = new EmptyDecorationLayer()
     this.displayMarkerLayersById = new Map()
     this.destroyed = false
@@ -127,6 +128,7 @@ class DisplayLayer {
     this.cachedScreenLines.length = 0
     this.screenLineLengths.length = 0
     this.tabCounts.length = 0
+    this.rightmostScreenPosition = Point(0, 0)
   }
 
   doBackgroundWork (deadline) {
@@ -143,16 +145,16 @@ class DisplayLayer {
     this.textDecorationLayer = textDecorationLayer
     if (typeof textDecorationLayer.onDidInvalidateRange === 'function') {
       this.decorationLayerDisposable = textDecorationLayer.onDidInvalidateRange((bufferRange) => {
-        const screenRange = this.translateBufferRange(bufferRange)
-        const extent = screenRange.getExtent()
-        spliceArray(
-          this.cachedScreenLines,
-          screenRange.start.row,
-          extent.row + 1,
-          new Array(extent.row + 1)
-        )
+        bufferRange = Range.fromObject(bufferRange)
+        this.populateSpatialIndexIfNeeded(bufferRange.end.row + 1, Infinity)
+        const startBufferRow = this.findBoundaryPrecedingBufferRow(bufferRange.start.row)
+        const endBufferRow = this.findBoundaryFollowingBufferRow(bufferRange.end.row + 1)
+        const startRow = this.translateBufferPositionWithSpatialIndex(Point(startBufferRow, 0), 'backward').row
+        const endRow = this.translateBufferPositionWithSpatialIndex(Point(endBufferRow, 0), 'backward').row
+        const extent = Point(endRow - startRow, 0)
+        spliceArray(this.cachedScreenLines, startRow, extent.row, new Array(extent.row))
         this.emitDidChangeSyncEvent([{
-          start: screenRange.start,
+          start: Point(startRow, 0),
           oldExtent: extent,
           newExtent: extent
         }])
@@ -528,12 +530,12 @@ class DisplayLayer {
   }
 
   getClipColumnDelta (bufferPosition, clipDirection) {
-    const {row: bufferRow, column: bufferColumn} = bufferPosition
-    const bufferLine = this.buffer.lineForRow(bufferRow)
+    var {row: bufferRow, column: bufferColumn} = bufferPosition
+    var bufferLine = this.buffer.lineForRow(bufferRow)
 
     // Treat paired unicode characters as atomic...
-    const previousCharacter = bufferLine[bufferColumn - 1]
-    const character = bufferLine[bufferColumn]
+    var previousCharacter = bufferLine[bufferColumn - 1]
+    var character = bufferLine[bufferColumn]
     if (previousCharacter && character && isCharacterPair(previousCharacter, character)) {
       if (clipDirection === 'closest' || clipDirection === 'backward') {
         return -1
@@ -554,9 +556,9 @@ class DisplayLayer {
       if (bufferLine[column] !== ' ') return 0
     }
 
-    const previousTabStop = bufferColumn - (bufferColumn % this.tabLength)
+    var previousTabStop = bufferColumn - (bufferColumn % this.tabLength)
     if (bufferColumn === previousTabStop) return 0
-    const nextTabStop = previousTabStop + this.tabLength
+    var nextTabStop = previousTabStop + this.tabLength
 
     // If there is a non-whitespace character before the next tab stop,
     // don't this whitespace as a soft tab
@@ -564,7 +566,7 @@ class DisplayLayer {
       if (bufferLine[column] !== ' ') return 0
     }
 
-    let clippedColumn
+    var clippedColumn
     if (clipDirection === 'closest') {
       if (bufferColumn - previousTabStop > this.tabLength / 2) {
         clippedColumn = nextTabStop
@@ -623,6 +625,34 @@ class DisplayLayer {
     return this.screenLineBuilder.buildScreenLines(screenStartRow, screenEndRow)
   }
 
+  bufferRowsForScreenRows (startRow, endRow) {
+    this.populateSpatialIndexIfNeeded(this.buffer.getLineCount(), endRow)
+
+    const startPosition = Point(startRow, 0)
+    const bufferRows = []
+    let lastScreenRow = startRow
+    let lastBufferRow = this.translateScreenPositionWithSpatialIndex(startPosition).row
+    const hunks = this.spatialIndex.getChangesInNewRange(startPosition, Point(endRow, 0))
+    for (let i = 0; i < hunks.length; i++) {
+      const hunk = hunks[i]
+      while (lastScreenRow <= hunk.newStart.row) {
+        bufferRows.push(lastBufferRow)
+        lastScreenRow++
+        lastBufferRow++
+      }
+
+      lastBufferRow = this.isSoftWrapHunk(hunk) ? hunk.oldEnd.row : hunk.oldEnd.row + 1
+    }
+
+    while (lastScreenRow < endRow) {
+      bufferRows.push(lastBufferRow)
+      lastScreenRow++
+      lastBufferRow++
+    }
+
+    return bufferRows
+  }
+
   leadingWhitespaceLengthForSurroundingLines (startBufferRow) {
     let length = 0
     for (let bufferRow = startBufferRow - 1; bufferRow >= 0; bufferRow--) {
@@ -671,33 +701,61 @@ class DisplayLayer {
     return column
   }
 
-  tagForCode (tagCode) {
-    if (this.isCloseTagCode(tagCode)) tagCode++
-    return this.tagsByCode.get(tagCode)
+  registerBuiltInScope (flags, className) {
+    if (this.nextBuiltInScopeId > MAX_BUILT_IN_SCOPE_ID) {
+      throw new Error('Built in scope ids exhausted')
+    }
+
+    let scopeId
+    if (className.length > 0) {
+      scopeId = this.nextBuiltInScopeId += 2
+      this.builtInClassNamesByScopeId.set(scopeId, className)
+    } else {
+      scopeId = 0
+    }
+    this.builtInScopeIdsByFlags.set(flags, scopeId)
+    return scopeId
   }
 
-  codeForOpenTag (tag) {
-    if (this.codesByTag.has(tag)) {
-      return this.codesByTag.get(tag)
+  getBuiltInScopeId (flags) {
+    if (this.builtInScopeIdsByFlags.has(flags)) {
+      return this.builtInScopeIdsByFlags.get(flags)
     } else {
-      const tagCode = this.nextOpenTagCode
-      this.codesByTag.set(tag, tagCode)
-      this.tagsByCode.set(tagCode, tag)
-      this.nextOpenTagCode -= 2
-      return tagCode
+      return -1
     }
   }
 
-  codeForCloseTag (tag) {
-    return this.codeForOpenTag(tag) - 1
+  classNameForScopeId (scopeId) {
+    if (scopeId <= MAX_BUILT_IN_SCOPE_ID) {
+      return this.builtInClassNamesByScopeId.get(scopeId)
+    } else {
+      return this.textDecorationLayer.classNameForScopeId(scopeId)
+    }
   }
 
-  isOpenTagCode (tagCode) {
-    return tagCode < 0 && tagCode % 2 === -1
+  scopeIdForTag (tag) {
+    if (this.isCloseTag(tag)) tag++
+    return -tag
   }
 
-  isCloseTagCode (tagCode) {
-    return tagCode < 0 && tagCode % 2 === 0
+  classNameForTag (tag) {
+    return this.classNameForScopeId(this.scopeIdForTag(tag))
+  }
+
+  openTagForScopeId (scopeId) {
+    return -scopeId
+  }
+
+  closeTagForScopeId (scopeId) {
+    return -scopeId - 1
+  }
+
+  isOpenTag (tag) {
+    return tag < 0 && (tag & 1) === 1
+  }
+
+  isCloseTag (tag) {
+    return tag < 0 && (tag & 1) === 0
   }
 
   bufferWillChange (change) {
