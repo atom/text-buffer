@@ -1092,11 +1092,11 @@ describe "TextBuffer", ->
 
           buffer.undo()
           buffer2.undo()
-          setTimeout(->
-            expect(buffer2.getText()).toBe('words')
+          expect(buffer2.getText()).toBe('words')
+          subscription = buffer2.onDidChangeModified ->
+            subscription.dispose()
             expect(buffer2ModifiedEvents).toEqual [false, true]
             done()
-          , buffer.stoppedChangingDelay)
 
       describe "when the serialized buffer had unsaved changes", ->
         describe "when the disk contents were changed since serialization", ->
