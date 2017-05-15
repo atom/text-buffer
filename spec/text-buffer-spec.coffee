@@ -1313,8 +1313,7 @@ describe "TextBuffer", ->
       filePath = join(tempDir, 'atom-file-to-delete.txt')
       fs.writeFileSync(filePath, 'delete me')
       bufferToDelete = new TextBuffer({filePath, load: false})
-      filePath = bufferToDelete.getPath() # symlinks may have been converted
-      expect(bufferToDelete.getPath()).toBe filePath
+      expect(bufferToDelete.getUnresolvedPath()).toBe filePath
       bufferToDelete.load().then ->
         done()
 
