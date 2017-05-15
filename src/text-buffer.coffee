@@ -746,8 +746,8 @@ class TextBuffer
     # Determine how to normalize the line endings of inserted text if enabled
     if normalizeLineEndings
       startRow = oldRange.start.row
-      normalizedEnding = @preferredLineEnding ?
-        @lineEndingForRow(startRow) ?
+      normalizedEnding = @preferredLineEnding or
+        @lineEndingForRow(startRow) or
         @lineEndingForRow(startRow - 1)
       if normalizedEnding
         newText = newText.replace(newlineRegex, normalizedEnding)
