@@ -5,7 +5,7 @@ const Point = require('../src/point')
 const Range = require('../src/range')
 const TextBuffer = require('../src/text-buffer')
 
-describe("TextBuffer IO", () => {
+describe('TextBuffer IO', () => {
   let buffer
 
   afterEach(() => {
@@ -21,11 +21,11 @@ describe("TextBuffer IO", () => {
 
     it('updates the buffer and notifies change observers', (done) => {
       const changeEvents = []
-      buffer.onWillChange(event => changeEvents.push(['will-change', event]))
-      buffer.onDidChange(event => changeEvents.push(['did-change', event]))
-      buffer.onDidChangeText(event => changeEvents.push(['did-change-text', event]))
+      buffer.onWillChange((event) => changeEvents.push(['will-change', event]))
+      buffer.onDidChange((event) => changeEvents.push(['did-change', event]))
+      buffer.onDidChangeText((event) => changeEvents.push(['did-change-text', event]))
 
-      buffer.load().then(result => {
+      buffer.load().then((result) => {
         expect(result).toBe(true)
         expect(buffer.getText()).toBe('abc')
         expect(toPlainObject(changeEvents)).toEqual(toPlainObject([
@@ -61,11 +61,11 @@ describe("TextBuffer IO", () => {
       buffer.setText('def')
 
       const changeEvents = []
-      buffer.onWillChange(event => changeEvents.push(event))
-      buffer.onDidChange(event => changeEvents.push(event))
-      buffer.onDidChangeText(event => changeEvents.push(event))
+      buffer.onWillChange((event) => changeEvents.push(event))
+      buffer.onDidChange((event) => changeEvents.push(event))
+      buffer.onDidChangeText((event) => changeEvents.push(event))
 
-      buffer.load().then(result => {
+      buffer.load().then((result) => {
         expect(result).toBe(false)
         expect(buffer.getText()).toBe('def')
         expect(changeEvents).toEqual([])
@@ -76,7 +76,7 @@ describe("TextBuffer IO", () => {
     it('does nothing if the buffer is modified before the load completes', (done) => {
       const changeEvents = []
 
-      buffer.load().then(result => {
+      buffer.load().then((result) => {
         expect(result).toBe(false)
         expect(buffer.getText()).toBe('def')
         expect(changeEvents).toEqual([])
@@ -84,9 +84,9 @@ describe("TextBuffer IO", () => {
       })
 
       buffer.setText('def')
-      buffer.onWillChange(event => changeEvents.push(event))
-      buffer.onDidChange(event => changeEvents.push(event))
-      buffer.onDidChangeText(event => changeEvents.push(event))
+      buffer.onWillChange((event) => changeEvents.push(event))
+      buffer.onDidChange((event) => changeEvents.push(event))
+      buffer.onDidChangeText((event) => changeEvents.push(event))
     })
   })
 
@@ -99,9 +99,9 @@ describe("TextBuffer IO", () => {
 
     it('updates the buffer and notifies change observers', () => {
       const changeEvents = []
-      buffer.onWillChange(event => changeEvents.push(['will-change', event]))
-      buffer.onDidChange(event => changeEvents.push(['did-change', event]))
-      buffer.onDidChangeText(event => changeEvents.push(['did-change-text', event]))
+      buffer.onWillChange((event) => changeEvents.push(['will-change', event]))
+      buffer.onDidChange((event) => changeEvents.push(['did-change', event]))
+      buffer.onDidChangeText((event) => changeEvents.push(['did-change-text', event]))
 
       const result = buffer.loadSync()
       expect(result).toBe(true)
@@ -137,9 +137,9 @@ describe("TextBuffer IO", () => {
       buffer.setText('def')
 
       const changeEvents = []
-      buffer.onWillChange(event => changeEvents.push(event))
-      buffer.onDidChange(event => changeEvents.push(event))
-      buffer.onDidChangeText(event => changeEvents.push(event))
+      buffer.onWillChange((event) => changeEvents.push(event))
+      buffer.onDidChange((event) => changeEvents.push(event))
+      buffer.onDidChangeText((event) => changeEvents.push(event))
 
       const result = buffer.loadSync()
       expect(result).toBe(false)
@@ -190,9 +190,9 @@ describe("TextBuffer IO", () => {
       expect(buffer.isModified()).toBe(true)
 
       const changeEvents = []
-      buffer.onWillChange(event => changeEvents.push(['will-change', event]))
-      buffer.onDidChange(event => changeEvents.push(['did-change', event]))
-      buffer.onDidChangeText(event => changeEvents.push(['did-change-text', event]))
+      buffer.onWillChange((event) => changeEvents.push(['will-change', event]))
+      buffer.onDidChange((event) => changeEvents.push(['did-change', event]))
+      buffer.onDidChangeText((event) => changeEvents.push(['did-change-text', event]))
 
       buffer.save().then(() => {
         expect(buffer.isModified()).toBe(false)
@@ -206,12 +206,12 @@ describe("TextBuffer IO", () => {
 
     it('notifies ::onWillSave and ::onDidSave observers', (done) => {
       const events = []
-      buffer.onWillSave(event => events.push([
+      buffer.onWillSave((event) => events.push([
         'will-save',
         event,
         fs.readFileSync(filePath, 'utf8')
       ]))
-      buffer.onDidSave(event => events.push([
+      buffer.onDidSave((event) => events.push([
         'did-save',
         event,
         fs.readFileSync(filePath, 'utf8')
@@ -222,7 +222,7 @@ describe("TextBuffer IO", () => {
         const path = buffer.getPath()
         expect(events).toEqual([
           ['will-save', {path}, ''],
-          ['did-save', {path}, 'Buffer contents'],
+          ['did-save', {path}, 'Buffer contents']
         ])
         done()
       })
@@ -398,7 +398,7 @@ describe("TextBuffer IO", () => {
     })
 
     it('returns false until the buffer is fully loaded', () => {
-      const buffer = new TextBuffer({filePath: "/some/path"})
+      const buffer = new TextBuffer({filePath: '/some/path'})
       expect(buffer.isModified()).toBeFalsy()
     })
   })
@@ -540,15 +540,15 @@ describe("TextBuffer IO", () => {
       const newText = ' abc' + newTextSuffix
 
       const changeEvents = []
-      buffer.onWillChange(event => {
+      buffer.onWillChange((event) => {
         expect(buffer.getText()).toEqual('abcde')
         changeEvents.push(['will-change', event])
       })
-      buffer.onDidChange(event => {
+      buffer.onDidChange((event) => {
         expect(buffer.getText()).toEqual(newText)
         changeEvents.push(['did-change', event])
       })
-      buffer.onDidChangeText(event => {
+      buffer.onDidChangeText((event) => {
         expect(buffer.getText()).toEqual(newText)
         changeEvents.push(['did-change-text', event])
       })
@@ -609,9 +609,9 @@ describe("TextBuffer IO", () => {
 
     it('does not fire duplicate change events when multiple changes happen on disk', (done) => {
       const changeEvents = []
-      buffer.onWillChange(event => changeEvents.push(['will-change', event]))
-      buffer.onDidChange(event => changeEvents.push(['did-change', event]))
-      buffer.onDidChangeText(event => changeEvents.push(['did-change-text', event]))
+      buffer.onWillChange((event) => changeEvents.push(['will-change', event]))
+      buffer.onDidChange((event) => changeEvents.push(['did-change', event]))
+      buffer.onDidChangeText((event) => changeEvents.push(['did-change-text', event]))
 
       fs.writeFileSync(buffer.getPath(), ' abc')
       fs.writeFileSync(buffer.getPath(), ' abcd')
@@ -626,7 +626,7 @@ describe("TextBuffer IO", () => {
     })
   })
 
-  describe("when the is deleted", () => {
+  describe('when the is deleted', () => {
     let filePath
 
     beforeEach((done) => {
@@ -689,7 +689,7 @@ function stopChangingPromise () {
 }
 
 function timeoutPromise (duration) {
-  return new Promise(resolve => setTimeout(resolve, duration))
+  return new Promise((resolve) => setTimeout(resolve, duration))
 }
 
 function toPlainObject (value) {
