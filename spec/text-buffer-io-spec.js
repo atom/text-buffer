@@ -630,7 +630,7 @@ describe('TextBuffer IO', () => {
     let filePath
 
     beforeEach((done) => {
-      filePath = temp.openSync('atom').path
+      filePath = path.join(temp.mkdirSync(), 'file-to-delete')
       fs.writeFileSync(filePath, 'delete me')
       buffer = new TextBuffer({filePath})
       filePath = buffer.getPath() // symlinks may have been converted
