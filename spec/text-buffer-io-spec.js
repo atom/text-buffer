@@ -59,8 +59,8 @@ describe('TextBuffer IO', () => {
       })
     })
 
-    describe('when a File object is given in place of the file path', () => {
-      it('loads the buffer from the file object\'s createReadStream method', (done) => {
+    describe('when a custom File object is given in place of the file path', () => {
+      it('loads the buffer using the file\s createReadStream method', (done) => {
         const filePath = temp.openSync('atom').path
         fs.writeFileSync(filePath, 'abc\ndef')
 
@@ -635,7 +635,7 @@ describe('TextBuffer IO', () => {
     })
   })
 
-  describe('when the is deleted', () => {
+  describe('when the file is deleted', () => {
     let filePath
 
     beforeEach((done) => {
