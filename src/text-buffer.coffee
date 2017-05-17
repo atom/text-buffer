@@ -170,12 +170,13 @@ class TextBuffer
 
   # Public: Create a new buffer backed by the given file path.
   #
-  # * `filePath` The {String} file path
-  # * `params` {Object}
-  #   * `encoding` {String} The file's encoding.
-  #   * `shouldDestroyOnFileDelete` A {Function} that returns a {Boolean}
-  #     indicating whether the buffer should be destroyed if its file is
-  #     deleted.
+  # * `source` Either a {String} path to a local file or (experimentally) a file
+  #   {Object} as described by the {::setFile} method.
+  # * `params` An {Object} with the following properties:
+  #   * `encoding` (optional) {String} The file's encoding.
+  #   * `shouldDestroyOnFileDelete` (optional) A {Function} that returns a
+  #     {Boolean} indicating whether the buffer should be destroyed if its file
+  #     is deleted.
   #
   # Returns a {Promise} that resolves with a {TextBuffer} instance.
   @load: (source, params) ->
@@ -190,11 +191,11 @@ class TextBuffer
   # performance, use {TextBuffer.load} instead.
   #
   # * `filePath` The {String} file path.
-  # * `params` {Object}
-  #   * `encoding` {String} The file's encoding.
-  #   * `shouldDestroyOnFileDelete` A {Function} that returns a {Boolean}
-  #     indicating whether the buffer should be destroyed if its file is
-  #     deleted.
+  # * `params` An {Object} with the following properties:
+  #   * `encoding` (optional) {String} The file's encoding.
+  #   * `shouldDestroyOnFileDelete` (optional) A {Function} that returns a
+  #     {Boolean} indicating whether the buffer should be destroyed if its file
+  #     is deleted.
   #
   # Returns a {TextBuffer} instance.
   @loadSync: (filePath, params) ->
@@ -548,6 +549,23 @@ class TextBuffer
     return if filePath is @getPath()
     @setFile(new File(filePath) if filePath)
 
+  # Experimental: Set a custom {File} object as the buffer's backing store.
+  #
+  # * `file` An {Object} with the following properties:
+  #   * `getPath` A {Function} that returns the {String} path to the file.
+  #   * `createReadStream` A {Function} that returns a `Readable` stream
+  #     that can be used to load the file's content.
+  #   * `createWriteStream` A {Function} that returns a `Writable` stream
+  #     that can be used to save content to the file.
+  #   * `onDidChange` (optional) A {Function} that invokes its callback argument
+  #     when the file changes. The method should return a {Disposable} that
+  #     can be used to prevent further calls to the callback.
+  #   * `onDidDelete` (optional) A {Function} that invokes its callback argument
+  #     when the file is deleted. The method should return a {Disposable} that
+  #     can be used to prevent further calls to the callback.
+  #   * `onDidRename` (optional) A {Function} that invokes its callback argument
+  #     when the file is renamed. The method should return a {Disposable} that
+  #     can be used to prevent further calls to the callback.
   setFile: (file) ->
     return if file.getPath() is @getPath()
     @file = file
