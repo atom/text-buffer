@@ -181,7 +181,7 @@ class TextBuffer
   @load: (filePath, params) ->
     buffer = new TextBuffer(params)
     buffer.setPath(filePath)
-    buffer.load(clearHistory: true, internal: InternalLoadCall).then => buffer
+    buffer.load(clearHistory: true, internal: InternalLoadCall).then -> buffer
 
   # Public: Create a new buffer backed by the given file path. For better
   # performance, use {TextBuffer.load} instead.

@@ -27,7 +27,7 @@ describe('TextBuffer IO', () => {
     })
 
     it('resolves with an empty buffer if there is no file at the given path', (done) => {
-      const filePath = "does-not-exist.txt"
+      const filePath = 'does-not-exist.txt'
       TextBuffer.load(filePath).then((buffer) => {
         expect(buffer.getText()).toBe('')
         expect(buffer.isModified()).toBe(false)
@@ -449,7 +449,7 @@ describe('TextBuffer IO', () => {
       })
     })
 
-    describe("when a buffer's encoding is changed", () => {
+    describe('when a buffer\'s encoding is changed', () => {
       beforeEach((done) => {
         const filePath = path.join(__dirname, 'fixtures', 'win1251.txt')
         TextBuffer.load(filePath).then((result) => {
