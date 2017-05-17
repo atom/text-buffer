@@ -14,6 +14,9 @@ MatchIterator = require './match-iterator'
 DisplayLayer = require './display-layer'
 {spliceArray, newlineRegex, normalizePatchChanges, regexIsSingleLine, extentForText, debounce} = require './helpers'
 {traversal} = require './point-helpers'
+Grim = require 'grim'
+
+InternalLoadCall = Symbol('internal-load-call')
 
 class TransactionAbortedError extends Error
   constructor: -> super
@@ -117,8 +120,6 @@ class TextBuffer
   # Public: Create a new buffer with the given params.
   #
   # * `params` {Object} or {String} of text
-  #   * `load` A {Boolean}, `true` to asynchronously load the buffer from disk
-  #     after initialization.
   #   * `text` The initial {String} text of the buffer.
   #   * `shouldDestroyOnFileDelete` A {Function} that returns a {Boolean}
   #     indicating whether the buffer should be destroyed if its file is
@@ -131,20 +132,20 @@ class TextBuffer
 
     @emitter = new Emitter
     @patchesSinceLastStoppedChangingEvent = []
-    @id = params?.id ? crypto.randomBytes(16).toString('hex')
+    @id = crypto.randomBytes(16).toString('hex')
     @buffer = new NativeTextBuffer(text)
     @debouncedEmitDidStopChangingEvent = debounce(@emitDidStopChangingEvent.bind(this), @stoppedChangingDelay)
     @textDecorationLayers = new Set()
     maxUndoEntries = params?.maxUndoEntries ? @defaultMaxUndoEntries
-    @history = params?.history ? new History(this, maxUndoEntries)
-    @nextMarkerLayerId = params?.nextMarkerLayerId ? 0
-    @nextDisplayLayerId = params?.nextDisplayLayerId ? 0
-    @defaultMarkerLayer = params?.defaultMarkerLayer ? new MarkerLayer(this, String(@nextMarkerLayerId++))
+    @history = new History(this, maxUndoEntries)
+    @nextMarkerLayerId = 0
+    @nextDisplayLayerId = 0
+    @defaultMarkerLayer = new MarkerLayer(this, String(@nextMarkerLayerId++))
     @displayLayers = {}
-    @markerLayers = params?.markerLayers ? {}
+    @markerLayers = {}
     @markerLayers[@defaultMarkerLayer.id] = @defaultMarkerLayer
     @markerLayersWithPendingUpdateEvents = new Set()
-    @nextMarkerId = params?.nextMarkerId ? 1
+    @nextMarkerId = 1
 
     @setEncoding(params?.encoding)
     @setPreferredLineEnding(params?.preferredLineEnding)
@@ -152,35 +153,95 @@ class TextBuffer
     @loaded = false
     @destroyed = false
     @transactCallDepth = 0
-    @digestWhenLastPersisted = params?.digestWhenLastPersisted ? false
+    @digestWhenLastPersisted = false
 
     @shouldDestroyOnFileDelete = params?.shouldDestroyOnFileDelete ? -> false
 
     if params?.filePath
-      if params.outstandingChanges
-        @serializedChanges = Buffer.from(params.outstandingChanges, 'base64')
       @setPath(params.filePath)
-      @load() if params?.load
+      if params?.load
+        Grim.deprecate(
+          'The `load` option to the TextBuffer constructor is deprecated. ' +
+          'Get a loaded buffer using TextBuffer.load(filePath) instead.'
+        )
+        @load(internal: InternalLoadCall)
 
   toString: -> "<TextBuffer #{@id}>"
 
+  # Public: Create a new buffer backed by the given file path.
+  #
+  # * `filePath` The {String} file path
+  # * `params` {Object}
+  #   * `encoding` {String} The file's encoding.
+  #   * `shouldDestroyOnFileDelete` A {Function} that returns a {Boolean}
+  #     indicating whether the buffer should be destroyed if its file is
+  #     deleted.
+  #
+  # Returns a {Promise} that resolves with a {TextBuffer} instance.
+  @load: (filePath, params) ->
+    buffer = new TextBuffer(params)
+    buffer.setPath(filePath)
+    buffer.load(clearHistory: true, internal: InternalLoadCall).then => buffer
+
+  # Public: Create a new buffer backed by the given file path. For better
+  # performance, use {TextBuffer.load} instead.
+  #
+  # * `filePath` The {String} file path.
+  # * `params` {Object}
+  #   * `encoding` {String} The file's encoding.
+  #   * `shouldDestroyOnFileDelete` A {Function} that returns a {Boolean}
+  #     indicating whether the buffer should be destroyed if its file is
+  #     deleted.
+  #
+  # Returns a {TextBuffer} instance.
+  @loadSync: (filePath, params) ->
+    buffer = new TextBuffer(params)
+    buffer.setPath(filePath)
+    buffer.loadSync(internal: InternalLoadCall)
+    buffer
+
+  # Public: Restore a {TextBuffer} based on an earlier state created using
+  # the {TextBuffer::serialize} method.
+  #
+  # * `params` An {Object} returned from {TextBuffer::serialize}
+  #
+  # Returns a {Promise} that resolves with a {TextBuffer} instance.
   @deserialize: (params) ->
     return if params.version isnt TextBuffer.prototype.version
 
-    buffer = Object.create(TextBuffer.prototype)
-    markerLayers = {}
-    for layerId, layerState of params.markerLayers
-      markerLayers[layerId] = MarkerLayer.deserialize(buffer, layerState)
-    params.markerLayers = markerLayers
-    params.defaultMarkerLayer = params.markerLayers[params.defaultMarkerLayerId]
-    params.history = History.deserialize(params.history, buffer)
-    params.load ?= true if params.filePath
-    TextBuffer.call(buffer, params)
-    displayLayers = {}
-    for layerId, layerState of params.displayLayers
-      displayLayers[layerId] = DisplayLayer.deserialize(buffer, layerState)
-    buffer.setDisplayLayers(displayLayers)
-    buffer
+    delete params.load
+
+    if params.filePath?
+      promise = @load(params.filePath, params)
+    else
+      promise = Promise.resolve(new TextBuffer(params))
+
+    promise.then (buffer) ->
+      buffer.id = params.id
+      buffer.preferredLineEnding = params.preferredLineEnding
+      buffer.nextMarkerId = params.nextMarkerId
+      buffer.nextMarkerLayerId = params.nextMarkerLayerId
+      buffer.nextDisplayLayerId = params.nextDisplayLayerId
+
+      digest = buffer.buffer.baseTextDigest()
+      if digest is params.digestWhenLastPersisted or not params.filePath?
+        buffer.buffer.deserializeChanges(params.outstandingChanges)
+        buffer.history.deserialize(params.history, buffer)
+      buffer.digestWhenLastPersisted = digest
+
+      for layerId, layerState of params.markerLayers
+        if layerId is params.defaultMarkerLayerId
+          buffer.defaultMarkerLayer.id = layerId
+          buffer.defaultMarkerLayer.deserialize(layerState)
+          layer = buffer.defaultMarkerLayer
+        else
+          layer = MarkerLayer.deserialize(buffer, layerState)
+        buffer.markerLayers[layerId] = layer
+
+      for layerId, layerState of params.displayLayers
+        buffer.displayLayers[layerId] = DisplayLayer.deserialize(buffer, layerState)
+
+      buffer
 
   # Returns a {String} representing a unique identifier for this {TextBuffer}.
   getId: ->
@@ -215,7 +276,7 @@ class TextBuffer
     if filePath = @getPath()
       result.filePath = filePath
       result.digestWhenLastPersisted = @buffer.baseTextDigest()
-      result.outstandingChanges = @buffer.serializeChanges().toString('base64')
+      result.outstandingChanges = @buffer.serializeChanges()
     else
       result.text = @getText()
 
@@ -1416,6 +1477,15 @@ class TextBuffer
       @emitter.emit 'did-save', {path: filePath}
       this
 
+  # Public: Reload the file's content from disk.
+  #
+  # Returns a {Promise} that resolves when the load is complete.
+  reload: ->
+    @emitter.emit('will-reload')
+    @load(discardChanges: true, internal: InternalLoadCall).then (result) =>
+      @emitter.emit('did-reload')
+      result
+
   ###
   Section: Display Layers
   ###
@@ -1437,13 +1507,10 @@ class TextBuffer
   Section: Private Utility Methods
   ###
 
-  reload: ->
-    @emitter.emit('will-reload')
-    @load(discardChanges: true).then (result) =>
-      @emitter.emit('did-reload')
-      result
+  loadSync: (options) ->
+    unless options?.internal = InternalLoadCall
+      Grim.deprecate('The .loadSync instance method is deprecated. Create a loaded buffer using TextBuffer.loadSync(filePath) instead.')
 
-  loadSync: ->
     oldRange = null
     checkpoint = null
     patch = @buffer.loadSync(
@@ -1458,6 +1525,9 @@ class TextBuffer
     @finishLoading(oldRange, checkpoint, patch)
 
   load: (options) ->
+    unless options?.internal = InternalLoadCall
+      Grim.deprecate('The .load instance method is deprecated. Create a loaded buffer using TextBuffer.load(filePath) instead.')
+
     oldRange = null
     checkpoint = null
     filePath = @getPath()
@@ -1467,6 +1537,7 @@ class TextBuffer
         oldRange = new Range(Point.ZERO, @buffer.getExtent())
         checkpoint = @history.createCheckpoint(@createMarkerSnapshot(), true)
         @emitter.emit('will-change', {oldRange})
+
     if options?.discardChanges
       promise = @buffer.reload(filePath, encoding, progressCallback)
     else
@@ -1474,7 +1545,7 @@ class TextBuffer
     promise.then((patch) => @finishLoading(oldRange, checkpoint, patch, options))
 
   finishLoading: (oldRange, checkpoint, patch, options) ->
-    return false unless @isAlive() and oldRange? and patch?
+    return null unless @isAlive() and oldRange? and patch?
 
     @fileHasChangedSinceLastLoad = false
 
@@ -1482,13 +1553,6 @@ class TextBuffer
     @serializedChanges = null
 
     if patch.getChangeCount() > 0
-      digest = @buffer.baseTextDigest()
-      if digest is @digestWhenLastPersisted and serializedChanges
-        patch = Patch.compose([patch, Patch.deserialize(serializedChanges)])
-        @buffer.deserializeChanges(serializedChanges)
-      else
-        @digestWhenLastPersisted = digest
-
       if options?.clearHistory
         @history.clearUndoStack()
       else if @loaded
@@ -1510,7 +1574,7 @@ class TextBuffer
       @emitModifiedStatusChanged(@isModified())
 
     @loaded = true
-    true
+    this
 
   destroy: ->
     unless @destroyed
@@ -1552,7 +1616,7 @@ class TextBuffer
       if @isModified()
         @emitter.emit 'did-conflict'
       else
-        @load()
+        @load(internal: InternalLoadCall)
 
     @fileSubscriptions.add @file.onDidDelete =>
       modified = @isModified()

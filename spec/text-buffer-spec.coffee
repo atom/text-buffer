@@ -61,36 +61,6 @@ describe "TextBuffer", ->
 
       expect(uniqueBufferIds.size).toBe(bufferIds.length)
 
-    describe "when a file path is given", ->
-      [filePath] = []
-
-      beforeEach (done) ->
-        filePath = require.resolve('./fixtures/sample.js')
-        buffer = new TextBuffer({filePath, load: false})
-        buffer.load().then ->
-          done()
-
-      afterEach ->
-        buffer?.destroy()
-
-      describe "when a file exists for the path", ->
-        it "loads the contents of that file", ->
-          expect(buffer.getText()).toBe fs.readFileSync(filePath, 'utf8')
-
-        it "does not allow the initial state of the buffer to be undone", ->
-          buffer.undo()
-          expect(buffer.getText()).toBe fs.readFileSync(filePath, 'utf8')
-
-      describe "when no file exists for the path", ->
-        it "is not modified and is initially empty", (done) ->
-          filePath = "does-not-exist.txt"
-          expect(fs.existsSync(filePath)).toBeFalsy()
-          buffer = new TextBuffer({filePath, load: false})
-          buffer.load().then ->
-            expect(buffer.isModified()).not.toBeTruthy()
-            expect(buffer.getText()).toBe ''
-            done()
-
   describe "::destroy()", ->
     it "clears the buffer's state", ->
       filePath = temp.openSync('atom').path
@@ -932,55 +902,54 @@ describe "TextBuffer", ->
       bufferA.undo()
 
       state = JSON.parse(JSON.stringify(bufferA.serialize()))
-      bufferB = TextBuffer.deserialize(state)
+      TextBuffer.deserialize(state).then (bufferB) ->
+        expect(bufferB.getText()).toBe "hello there\ngood friend\r\nhow are you doing??"
+        expectSameMarkers(bufferB.getMarkerLayer(layerA.id), layerA)
+        expect(bufferB.getDisplayLayer(displayLayer1A.id).foldsIntersectingBufferRange([[0, 1], [0, 3]]).length).toBe(1)
+        expect(bufferB.getDisplayLayer(displayLayer2A.id).foldsIntersectingBufferRange([[0, 0], [0, 2]]).length).toBe(1)
+        displayLayer3B = bufferB.addDisplayLayer()
+        expect(displayLayer3B.id).toBeGreaterThan(displayLayer1A.id)
+        expect(displayLayer3B.id).toBeGreaterThan(displayLayer2A.id)
 
-      expect(bufferB.getText()).toBe "hello there\ngood friend\r\nhow are you doing??"
-      expectSameMarkers(bufferB.getMarkerLayer(layerA.id), layerA)
-      expect(bufferB.getDisplayLayer(displayLayer1A.id).foldsIntersectingBufferRange([[0, 1], [0, 3]]).length).toBe(1)
-      expect(bufferB.getDisplayLayer(displayLayer2A.id).foldsIntersectingBufferRange([[0, 0], [0, 2]]).length).toBe(1)
-      displayLayer3B = bufferB.addDisplayLayer()
-      expect(displayLayer3B.id).toBeGreaterThan(displayLayer1A.id)
-      expect(displayLayer3B.id).toBeGreaterThan(displayLayer2A.id)
+        bufferA.redo()
+        bufferB.redo()
+        expect(bufferB.getText()).toBe "hellooo there\ngood friend\r\nhow are you doing??"
+        expectSameMarkers(bufferB.getMarkerLayer(layerA.id), layerA)
+        expect(bufferB.getMarkerLayer(layerA.id).maintainHistory).toBe true
+        expect(bufferB.getMarkerLayer(layerA.id).persistent).toBe true
 
-      bufferA.redo()
-      bufferB.redo()
-      expect(bufferB.getText()).toBe "hellooo there\ngood friend\r\nhow are you doing??"
-      expectSameMarkers(bufferB.getMarkerLayer(layerA.id), layerA)
-      expect(bufferB.getMarkerLayer(layerA.id).maintainHistory).toBe true
-      expect(bufferB.getMarkerLayer(layerA.id).persistent).toBe true
+        bufferA.undo()
+        bufferB.undo()
+        expect(bufferB.getText()).toBe "hello there\ngood friend\r\nhow are you doing??"
+        expectSameMarkers(bufferB.getMarkerLayer(layerA.id), layerA)
 
-      bufferA.undo()
-      bufferB.undo()
-      expect(bufferB.getText()).toBe "hello there\ngood friend\r\nhow are you doing??"
-      expectSameMarkers(bufferB.getMarkerLayer(layerA.id), layerA)
+        bufferA.undo()
+        bufferB.undo()
+        expect(bufferB.getText()).toBe "hello there\nfriend\r\nhow are you doing?"
+        expectSameMarkers(bufferB.getMarkerLayer(layerA.id), layerA)
 
-      bufferA.undo()
-      bufferB.undo()
-      expect(bufferB.getText()).toBe "hello there\nfriend\r\nhow are you doing?"
-      expectSameMarkers(bufferB.getMarkerLayer(layerA.id), layerA)
+        bufferA.undo()
+        bufferB.undo()
+        expect(bufferB.getText()).toBe "hello there\nworld\r\nhow are you doing?"
+        expectSameMarkers(bufferB.getMarkerLayer(layerA.id), layerA)
 
-      bufferA.undo()
-      bufferB.undo()
-      expect(bufferB.getText()).toBe "hello there\nworld\r\nhow are you doing?"
-      expectSameMarkers(bufferB.getMarkerLayer(layerA.id), layerA)
-
-      bufferA.undo()
-      bufferB.undo()
-      expect(bufferB.getText()).toBe "hello\nworld\r\nhow are you doing?"
-      expectSameMarkers(bufferB.getMarkerLayer(layerA.id), layerA)
-
-      # Accounts for deserialized markers when selecting the next marker's id
-      marker3A = layerA.markRange([[0, 1], [2, 3]])
-      marker3B = bufferB.getMarkerLayer(layerA.id).markRange([[0, 1], [2, 3]])
-      expect(marker3B.id).toBe marker3A.id
-
-      # Doesn't try to reload the buffer since it has no file.
-      setTimeout(->
+        bufferA.undo()
+        bufferB.undo()
         expect(bufferB.getText()).toBe "hello\nworld\r\nhow are you doing?"
-        done()
-      , 50)
+        expectSameMarkers(bufferB.getMarkerLayer(layerA.id), layerA)
 
-    it "serializes / deserializes the buffer's persistent custom marker layers", ->
+        # Accounts for deserialized markers when selecting the next marker's id
+        marker3A = layerA.markRange([[0, 1], [2, 3]])
+        marker3B = bufferB.getMarkerLayer(layerA.id).markRange([[0, 1], [2, 3]])
+        expect(marker3B.id).toBe marker3A.id
+
+        # Doesn't try to reload the buffer since it has no file.
+        setTimeout(->
+          expect(bufferB.getText()).toBe "hello\nworld\r\nhow are you doing?"
+          done()
+        , 50)
+
+    it "serializes / deserializes the buffer's persistent custom marker layers", (done) ->
       bufferA = new TextBuffer("abcdefghijklmnopqrstuvwxyz")
 
       layer1A = bufferA.addMarkerLayer()
@@ -992,23 +961,24 @@ describe "TextBuffer", ->
       layer2A.markRange([[0, 5], [0, 6]])
       layer2A.markRange([[0, 7], [0, 8]])
 
-      bufferB = TextBuffer.deserialize(JSON.parse(JSON.stringify(bufferA.serialize())))
-      layer1B = bufferB.getMarkerLayer(layer1A.id)
-      layer2B = bufferB.getMarkerLayer(layer2A.id)
-      expect(layer2B.persistent).toBe true
+      TextBuffer.deserialize(JSON.parse(JSON.stringify(bufferA.serialize()))).then (bufferB) ->
+        layer1B = bufferB.getMarkerLayer(layer1A.id)
+        layer2B = bufferB.getMarkerLayer(layer2A.id)
+        expect(layer2B.persistent).toBe true
 
-      expect(layer1B).toBe undefined
-      expectSameMarkers(layer2A, layer2B)
+        expect(layer1B).toBe undefined
+        expectSameMarkers(layer2A, layer2B)
+        done()
 
-    it "doesn't serialize the default marker layer", ->
+    it "doesn't serialize the default marker layer", (done) ->
       bufferA = new TextBuffer(text: "hello\nworld\r\nhow are you doing?")
       markerLayerA = bufferA.getDefaultMarkerLayer()
       marker1A = bufferA.markRange([[0, 1], [1, 2]], foo: 1)
 
-      bufferB = TextBuffer.deserialize(bufferA.serialize())
-      markerLayerB = bufferB.getDefaultMarkerLayer()
-      expect(markerLayerA.id).not.toBe(markerLayerB.id)
-      expect(bufferB.getMarker(marker1A.id)).toBeUndefined()
+      TextBuffer.deserialize(bufferA.serialize()).then (bufferB) ->
+        markerLayerB = bufferB.getDefaultMarkerLayer()
+        expect(bufferB.getMarker(marker1A.id)).toBeUndefined()
+        done()
 
     it "doesn't attempt to serialize snapshots for destroyed marker layers", ->
       buffer = new TextBuffer(text: "abc")
@@ -1019,7 +989,7 @@ describe "TextBuffer", ->
 
       expect(-> buffer.serialize()).not.toThrowError()
 
-    it "doesn't remember marker layers when calling serialize with {markerLayers: false}", ->
+    it "doesn't remember marker layers when calling serialize with {markerLayers: false}", (done) ->
       bufferA = new TextBuffer(text: "world")
       layerA = bufferA.addMarkerLayer(maintainHistory: true)
       markerA = layerA.markPosition([0, 3])
@@ -1029,26 +999,27 @@ describe "TextBuffer", ->
         markerB = layerA.markPosition([0, 5])
       bufferA.undo()
 
-      bufferB = TextBuffer.deserialize(bufferA.serialize({markerLayers: false}))
-      expect(bufferB.getText()).toBe("world")
-      expect(bufferB.getMarkerLayer(layerA.id)?.getMarker(markerA.id)).toBeUndefined()
-      expect(bufferB.getMarkerLayer(layerA.id)?.getMarker(markerB.id)).toBeUndefined()
+      TextBuffer.deserialize(bufferA.serialize({markerLayers: false})).then (bufferB) ->
+        expect(bufferB.getText()).toBe("world")
+        expect(bufferB.getMarkerLayer(layerA.id)?.getMarker(markerA.id)).toBeUndefined()
+        expect(bufferB.getMarkerLayer(layerA.id)?.getMarker(markerB.id)).toBeUndefined()
 
-      bufferB.redo()
-      expect(bufferB.getText()).toBe("hello world")
-      expect(bufferB.getMarkerLayer(layerA.id)?.getMarker(markerA.id)).toBeUndefined()
-      expect(bufferB.getMarkerLayer(layerA.id)?.getMarker(markerB.id)).toBeUndefined()
+        bufferB.redo()
+        expect(bufferB.getText()).toBe("hello world")
+        expect(bufferB.getMarkerLayer(layerA.id)?.getMarker(markerA.id)).toBeUndefined()
+        expect(bufferB.getMarkerLayer(layerA.id)?.getMarker(markerB.id)).toBeUndefined()
 
-      bufferB.undo()
-      expect(bufferB.getText()).toBe("world")
-      expect(bufferB.getMarkerLayer(layerA.id)?.getMarker(markerA.id)).toBeUndefined()
-      expect(bufferB.getMarkerLayer(layerA.id)?.getMarker(markerB.id)).toBeUndefined()
+        bufferB.undo()
+        expect(bufferB.getText()).toBe("world")
+        expect(bufferB.getMarkerLayer(layerA.id)?.getMarker(markerA.id)).toBeUndefined()
+        expect(bufferB.getMarkerLayer(layerA.id)?.getMarker(markerB.id)).toBeUndefined()
+        done()
 
-    it "serializes / deserializes the buffer's unique identifier", ->
+    it "serializes / deserializes the buffer's unique identifier", (done) ->
       bufferA = new TextBuffer()
-      bufferB = TextBuffer.deserialize(JSON.parse(JSON.stringify(bufferA.serialize())))
-
-      expect(bufferB.getId()).toEqual(bufferA.getId())
+      TextBuffer.deserialize(JSON.parse(JSON.stringify(bufferA.serialize()))).then (bufferB) ->
+        expect(bufferB.getId()).toEqual(bufferA.getId())
+        done()
 
     it "doesn't deserialize a state that was serialized with a different buffer version", ->
       bufferA = new TextBuffer()
@@ -1057,93 +1028,12 @@ describe "TextBuffer", ->
 
       expect(TextBuffer.deserialize(serializedBuffer)).toBeUndefined()
 
-    describe "when the buffer has a path", ->
-      [filePath, buffer2] = []
+    describe "when the serialized buffer was unsaved and had no path", ->
+      it "restores the previous unsaved state of the buffer", ->
+        buffer = new TextBuffer()
+        buffer.setText("abc")
 
-      beforeEach (done) ->
-        filePath = temp.openSync('atom').path
-        fs.writeFileSync(filePath, "words")
-        buffer = new TextBuffer({filePath, load: false})
-        buffer.load().then ->
-          done()
-
-      afterEach ->
-        buffer2?.destroy()
-
-      describe "when the serialized buffer had no unsaved changes", ->
-        [buffer2, buffer2ModifiedEvents] = []
-        beforeEach (done) ->
-          buffer.append("!")
-          buffer.save().then ->
-            expect(buffer.isModified()).toBeFalsy()
-            params = buffer.serialize()
-            params.load = false
-            buffer2 = TextBuffer.deserialize(params)
-            buffer2ModifiedEvents = []
-            buffer2.onDidChangeModified (value) -> buffer2ModifiedEvents.push(value)
-            buffer2.load().then ->
-              done()
-
-        it "loads the current contents of the file at the serialized path", (done) ->
-          expect(buffer2.isModified()).toBeFalsy()
-          expect(buffer2ModifiedEvents).toEqual [false]
-          expect(buffer2.getPath()).toBe(filePath)
-          expect(buffer2.getText()).toBe('words!')
-
-          buffer.undo()
-          buffer2.undo()
-          expect(buffer2.getText()).toBe('words')
-          subscription = buffer2.onDidChangeModified ->
-            subscription.dispose()
-            expect(buffer2ModifiedEvents).toEqual [false, true]
-            done()
-
-      describe "when the serialized buffer had unsaved changes", ->
-        describe "when the disk contents were changed since serialization", ->
-          it "loads the disk contents instead of the previous unsaved state", (done) ->
-            buffer.setText("BUFFER CHANGE")
-            fs.writeFileSync(filePath, "DISK CHANGE")
-
-            params = buffer.serialize()
-            params.load = false
-            buffer2 = TextBuffer.deserialize(params)
-            buffer2.load().then ->
-              expect(buffer2.getPath()).toBe(buffer.getPath())
-              expect(buffer2.getText()).toBe("DISK CHANGE")
-              expect(buffer2.isModified()).toBeFalsy()
-              done()
-
-        describe "when the disk contents are the same since serialization", ->
-          previousText = null
-
-          beforeEach (done) ->
-            previousText = buffer.getText()
-            buffer.setText("abc")
-            buffer.append("d")
-
-            buffer2 = TextBuffer.deserialize(Object.assign(buffer.serialize(), {load: false}))
-            buffer2.load().then(done)
-
-          it "restores the previous unsaved state of the buffer", ->
-            expect(buffer2.getPath()).toBe(buffer.getPath())
-            expect(buffer2.getText()).toBe(buffer.getText())
-            expect(buffer2.isModified()).toBeTruthy()
-
-            buffer.undo()
-            buffer2.undo()
-            expect(buffer2.getText()).toBe(buffer.getText())
-
-            buffer2.setText(previousText)
-            expect(buffer2.isModified()).toBeFalsy()
-
-      describe "when the serialized buffer was unsaved and had no path", ->
-        it "restores the previous unsaved state of the buffer", ->
-          buffer.destroy()
-
-          buffer = new TextBuffer()
-          buffer.setText("abc")
-
-          buffer2 = TextBuffer.deserialize(buffer.serialize())
+        TextBuffer.deserialize(buffer.serialize()).then (buffer2) ->
           expect(buffer2.getPath()).toBeUndefined()
           expect(buffer2.getText()).toBe("abc")
 
@@ -2327,12 +2217,13 @@ describe "TextBuffer", ->
         buffer.append(" d \r\n")
         expect(buffer.getText()).toBe "a \r\n b \r\n c \n d \n"
 
-      it "persists across serialization and deserialization", ->
+      it "persists across serialization and deserialization", (done) ->
         bufferA = new TextBuffer
         bufferA.setPreferredLineEnding("\r\n")
 
-        bufferB = TextBuffer.deserialize(bufferA.serialize())
-        expect(bufferB.getPreferredLineEnding()).toBe "\r\n"
+        TextBuffer.deserialize(bufferA.serialize()).then (bufferB) ->
+          expect(bufferB.getPreferredLineEnding()).toBe "\r\n"
+          done()
 
 assertChangesEqual = (actualChanges, expectedChanges) ->
   expect(actualChanges.length).toBe(expectedChanges.length)

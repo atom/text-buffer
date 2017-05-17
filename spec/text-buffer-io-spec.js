@@ -13,138 +13,39 @@ describe('TextBuffer IO', () => {
   })
 
   describe('.load', () => {
-    beforeEach(() => {
+    it('resolves with a buffer containing the given file\'s text', (done) => {
       const filePath = temp.openSync('atom').path
       fs.writeFileSync(filePath, 'abc')
-      buffer = new TextBuffer({filePath})
-    })
 
-    it('updates the buffer and notifies change observers', (done) => {
-      const changeEvents = []
-      buffer.onWillChange((event) => changeEvents.push(['will-change', event]))
-      buffer.onDidChange((event) => changeEvents.push(['did-change', event]))
-      buffer.onDidChangeText((event) => changeEvents.push(['did-change-text', event]))
-
-      buffer.load().then((result) => {
-        expect(result).toBe(true)
+      TextBuffer.load(filePath).then((buffer) => {
         expect(buffer.getText()).toBe('abc')
-        expect(toPlainObject(changeEvents)).toEqual(toPlainObject([
-          [
-            'will-change', {
-              oldRange: Range(Point.ZERO, Point.ZERO)
-            }
-          ],
-          [
-            'did-change', {
-              oldRange: Range(Point.ZERO, Point.ZERO),
-              newRange: Range(Point.ZERO, Point(0, 3)),
-              oldText: '',
-              newText: 'abc'
-            }
-          ],
-          [
-            'did-change-text', {
-              changes: [{
-                oldRange: Range(Point.ZERO, Point.ZERO),
-                newRange: Range(Point.ZERO, Point(0, 3)),
-                oldText: '',
-                newText: 'abc'
-              }]
-            }
-          ]
-        ]))
+        expect(buffer.isModified()).toBe(false)
+        expect(buffer.undo()).toBe(false)
+        expect(buffer.getText()).toBe('abc')
         done()
       })
     })
 
-    it('does nothing if the buffer is already modified', (done) => {
-      buffer.setText('def')
-
-      const changeEvents = []
-      buffer.onWillChange((event) => changeEvents.push(event))
-      buffer.onDidChange((event) => changeEvents.push(event))
-      buffer.onDidChangeText((event) => changeEvents.push(event))
-
-      buffer.load().then((result) => {
-        expect(result).toBe(false)
-        expect(buffer.getText()).toBe('def')
-        expect(changeEvents).toEqual([])
+    it('resolves with an empty buffer if there is no file at the given path', (done) => {
+      const filePath = "does-not-exist.txt"
+      TextBuffer.load(filePath).then((buffer) => {
+        expect(buffer.getText()).toBe('')
+        expect(buffer.isModified()).toBe(false)
+        expect(buffer.undo()).toBe(false)
+        expect(buffer.getText()).toBe('')
         done()
       })
-    })
-
-    it('does nothing if the buffer is modified before the load completes', (done) => {
-      const changeEvents = []
-
-      buffer.load().then((result) => {
-        expect(result).toBe(false)
-        expect(buffer.getText()).toBe('def')
-        expect(changeEvents).toEqual([])
-        done()
-      })
-
-      buffer.setText('def')
-      buffer.onWillChange((event) => changeEvents.push(event))
-      buffer.onDidChange((event) => changeEvents.push(event))
-      buffer.onDidChangeText((event) => changeEvents.push(event))
     })
   })
 
   describe('.loadSync', () => {
-    beforeEach(() => {
+    it('returns a buffer containing the given file\'s text', () => {
       const filePath = temp.openSync('atom').path
       fs.writeFileSync(filePath, 'abc')
-      buffer = new TextBuffer({filePath})
-    })
 
-    it('updates the buffer and notifies change observers', () => {
-      const changeEvents = []
-      buffer.onWillChange((event) => changeEvents.push(['will-change', event]))
-      buffer.onDidChange((event) => changeEvents.push(['did-change', event]))
-      buffer.onDidChangeText((event) => changeEvents.push(['did-change-text', event]))
-
-      const result = buffer.loadSync()
-      expect(result).toBe(true)
+      const buffer = TextBuffer.loadSync(filePath)
       expect(buffer.getText()).toBe('abc')
-      expect(toPlainObject(changeEvents)).toEqual(toPlainObject([
-        [
-          'will-change', {
-            oldRange: Range(Point.ZERO, Point.ZERO)
-          }
-        ],
-        [
-          'did-change', {
-            oldRange: Range(Point.ZERO, Point.ZERO),
-            newRange: Range(Point.ZERO, Point(0, 3)),
-            oldText: '',
-            newText: 'abc'
-          }
-        ],
-        [
-          'did-change-text', {
-            changes: [{
-              oldRange: Range(Point.ZERO, Point.ZERO),
-              newRange: Range(Point.ZERO, Point(0, 3)),
-              oldText: '',
-              newText: 'abc'
-            }]
-          }
-        ]
-      ]))
-    })
-
-    it('does nothing if the buffer is modified', () => {
-      buffer.setText('def')
-
-      const changeEvents = []
-      buffer.onWillChange((event) => changeEvents.push(event))
-      buffer.onDidChange((event) => changeEvents.push(event))
-      buffer.onDidChangeText((event) => changeEvents.push(event))
-
-      const result = buffer.loadSync()
-      expect(result).toBe(false)
-      expect(buffer.getText()).toBe('def')
-      expect(changeEvents).toEqual([])
+      expect(buffer.isModified()).toBe(false)
     })
   })
 
@@ -174,7 +75,8 @@ describe('TextBuffer IO', () => {
       const tempDir = temp.mkdirSync()
       filePath = path.join(tempDir, 'temp.txt')
       fs.writeFileSync(filePath, '')
-      buffer = new TextBuffer({filePath})
+      buffer = new TextBuffer()
+      buffer.setPath(filePath)
     })
 
     it('saves the contents of the buffer to the path', (done) => {
@@ -261,8 +163,10 @@ describe('TextBuffer IO', () => {
     beforeEach((done) => {
       filePath = temp.openSync('atom').path
       fs.writeFileSync(filePath, 'a')
-      buffer = new TextBuffer({filePath})
-      buffer.load().then(done)
+      TextBuffer.load(filePath).then((result) => {
+        buffer = result
+        done()
+      })
     })
 
     it('saves the contents of the buffer to the new path', (done) => {
@@ -309,8 +213,10 @@ describe('TextBuffer IO', () => {
     beforeEach((done) => {
       const filePath = temp.openSync('atom').path
       fs.writeFileSync(filePath, '')
-      buffer = new TextBuffer({filePath})
-      buffer.load().then(done)
+      TextBuffer.load(filePath).then((result) => {
+        buffer = result
+        done()
+      })
     })
 
     describe('when the buffer is changed', () => {
@@ -403,27 +309,73 @@ describe('TextBuffer IO', () => {
     })
   })
 
-  describe('encoding support', () => {
-    it('allows the encoding to be set on creation', (done) => {
-      const filePath = path.join(__dirname, 'fixtures', 'win1251.txt')
-      const buffer = new TextBuffer({filePath, load: false, encoding: 'WINDOWS-1251'})
-      buffer.load().then(() => {
-        expect(buffer.getEncoding()).toBe('WINDOWS-1251')
-        expect(buffer.getText()).toBe('тест 1234 абвгдеёжз')
-        done()
+  describe('.serialize and .deserialize', () => {
+    describe('when the disk contents have not changed since serialization', () => {
+      it('restores the previous unsaved state of the buffer, along with its markers and history', (done) => {
+        const filePath = temp.openSync('atom').path
+        fs.writeFileSync(filePath, 'abc\ndef\n')
+
+        TextBuffer.load(filePath).then((buffer) => {
+          buffer.append('ghi\n')
+          const markerLayer = buffer.addMarkerLayer({persistent: true})
+          const marker = markerLayer.markRange(Range(Point(1, 2), Point(2, 1)))
+
+          TextBuffer.deserialize(buffer.serialize()).then((buffer2) => {
+            const markerLayer2 = buffer2.getMarkerLayer(markerLayer.id)
+            const marker2 = markerLayer2.getMarker(marker.id)
+            expect(buffer2.getText()).toBe('abc\ndef\nghi\n')
+            expect(marker2.getRange()).toEqual(Range(Point(1, 2), Point(2, 1)))
+            expect(buffer2.undo()).toBe(true)
+            expect(buffer2.getText()).toBe('abc\ndef\n')
+
+            expect(buffer2.markPosition(Point(0, 0)).id).toBe(buffer.markPosition(Point(0, 0)).id)
+            expect(buffer2.addMarkerLayer().id).toBe(buffer.addMarkerLayer().id)
+            done()
+          })
+        })
+      })
+    })
+
+    describe('when the disk contents have changed since serialization', () => {
+      it('loads the disk contents instead of the previous unsaved state', (done) => {
+        const filePath = temp.openSync('atom').path
+        fs.writeFileSync(filePath, 'abc\ndef\n')
+        TextBuffer.load(filePath).then((buffer) => {
+          buffer.append('ghi\n')
+
+          fs.writeFileSync(filePath, 'DISK CHANGE')
+
+          TextBuffer.deserialize(buffer.serialize()).then((buffer2) => {
+            expect(buffer2.getPath()).toBe(buffer.getPath())
+            expect(buffer2.getText()).toBe('DISK CHANGE')
+            expect(buffer2.isModified()).toBe(false)
+            expect(buffer2.undo()).toBe(false)
+            expect(buffer2.getText()).toBe('DISK CHANGE')
+            done()
+          })
+        })
       })
     })
 
     it('serializes the encoding', (done) => {
       const filePath = path.join(__dirname, 'fixtures', 'win1251.txt')
-      const bufferA = new TextBuffer({filePath, load: false, encoding: 'WINDOWS-1251'})
-      bufferA.load().then(() => {
-        const bufferB = TextBuffer.deserialize(bufferA.serialize())
-        bufferB.load().then(() => {
+      TextBuffer.load(filePath, {encoding: 'WINDOWS-1251'}).then((bufferA) => {
+        TextBuffer.deserialize(bufferA.serialize()).then((bufferB) => {
           expect(bufferB.getEncoding()).toBe('WINDOWS-1251')
           expect(bufferB.getText()).toBe('тест 1234 абвгдеёжз')
           done()
         })
+      })
+    })
+  })
+
+  describe('encoding support', () => {
+    it('allows the encoding to be set on creation', (done) => {
+      const filePath = path.join(__dirname, 'fixtures', 'win1251.txt')
+      TextBuffer.load(filePath, {encoding: 'WINDOWS-1251'}).then((buffer) => {
+        expect(buffer.getEncoding()).toBe('WINDOWS-1251')
+        expect(buffer.getText()).toBe('тест 1234 абвгдеёжз')
+        done()
       })
     })
 
@@ -432,14 +384,19 @@ describe('TextBuffer IO', () => {
         beforeEach((done) => {
           const filePath = path.join(__dirname, 'fixtures', 'win1251.txt')
           buffer = new TextBuffer({filePath, load: false})
-          buffer.load().then(done)
+          TextBuffer.load(filePath).then((result) => {
+            buffer = result
+            done()
+          })
         })
 
-        it('does not reload the contents from the disk', () => {
-          spyOn(buffer, 'load')
+        it('does not reload the contents from the disk', (done) => {
           buffer.setText('ch ch changes')
           buffer.setEncoding('win1251')
-          expect(buffer.load.calls.count()).toBe(0)
+          setTimeout(() => {
+            expect(buffer.getText()).toBe('ch ch changes')
+            done()
+          }, 250)
         })
       })
     })
@@ -448,8 +405,10 @@ describe('TextBuffer IO', () => {
       describe('when the encoding of the buffer is changed', () => {
         beforeEach((done) => {
           const filePath = path.join(__dirname, 'fixtures', 'win1251.txt')
-          buffer = new TextBuffer({filePath, load: false})
-          buffer.load().then(done)
+          TextBuffer.load(filePath).then((result) => {
+            buffer = result
+            done()
+          })
         })
 
         beforeEach((done) => {
@@ -469,34 +428,32 @@ describe('TextBuffer IO', () => {
 
     it('emits an event when the encoding changes', () => {
       const filePath = path.join(__dirname, 'fixtures', 'win1251.txt')
-      const encodingChangeHandler = jasmine.createSpy('encodingChangeHandler')
+      const encodingChanges = []
 
-      let buffer = new TextBuffer({filePath, load: true})
-      buffer.onDidChangeEncoding(encodingChangeHandler)
-      buffer.setEncoding('WINDOWS-1251')
-      expect(encodingChangeHandler).toHaveBeenCalledWith('WINDOWS-1251')
+      TextBuffer.load(filePath).then((result) => {
+        buffer = result
+        buffer.onDidChangeEncoding((encoding) => encodingChanges.push(encoding))
+        buffer.setEncoding('WINDOWS-1251')
+        expect(encodingChanges).toEqual(['WINDOWS-1251'])
 
-      encodingChangeHandler.calls.reset()
-      buffer.setEncoding('WINDOWS-1251')
-      expect(encodingChangeHandler.calls.count()).toBe(0)
+        buffer.setEncoding('WINDOWS-1251')
+        expect(encodingChanges).toEqual(['WINDOWS-1251'])
 
-      encodingChangeHandler.calls.reset()
+        const buffer2 = new TextBuffer()
+        buffer2.onDidChangeEncoding((encoding) => encodingChanges.push(encoding))
+        buffer2.setEncoding('WINDOWS-1251')
+        expect(encodingChanges).toEqual(['WINDOWS-1251', 'WINDOWS-1251'])
 
-      buffer = new TextBuffer()
-      buffer.onDidChangeEncoding(encodingChangeHandler)
-      buffer.setEncoding('WINDOWS-1251')
-      expect(encodingChangeHandler).toHaveBeenCalledWith('WINDOWS-1251')
-
-      encodingChangeHandler.calls.reset()
-      buffer.setEncoding('WINDOWS-1251')
-      expect(encodingChangeHandler.calls.count()).toBe(0)
+        buffer2.setEncoding('WINDOWS-1251')
+        expect(encodingChanges).toEqual(['WINDOWS-1251', 'WINDOWS-1251'])
+      })
     })
 
     describe("when a buffer's encoding is changed", () => {
       beforeEach((done) => {
         const filePath = path.join(__dirname, 'fixtures', 'win1251.txt')
-        buffer = new TextBuffer({filePath, load: false})
-        buffer.load().then(() => {
+        TextBuffer.load(filePath).then((result) => {
+          buffer = result
           buffer.onDidChange(done)
           buffer.setEncoding('WINDOWS-1251')
         })
@@ -513,8 +470,10 @@ describe('TextBuffer IO', () => {
     beforeEach((done) => {
       const filePath = temp.openSync('atom').path
       fs.writeFileSync(filePath, 'abcde')
-      buffer = new TextBuffer({filePath})
-      buffer.load().then(done)
+      TextBuffer.load(filePath).then((result) => {
+        buffer = result
+        done()
+      })
     })
 
     it('emits a conflict event if the file is modified', (done) => {
@@ -632,12 +591,12 @@ describe('TextBuffer IO', () => {
     beforeEach((done) => {
       filePath = path.join(temp.mkdirSync(), 'file-to-delete')
       fs.writeFileSync(filePath, 'delete me')
-      buffer = new TextBuffer({filePath})
-      filePath = buffer.getPath() // symlinks may have been converted
-      buffer.load().then(done)
+      TextBuffer.load(filePath).then((result) => {
+        buffer = result
+        filePath = buffer.getPath() // symlinks may have been converted
+        done()
+      })
     })
-
-    afterEach(() => buffer && buffer.destroy())
 
     describe('when the file is modified', () => {
       beforeEach((done) => {
