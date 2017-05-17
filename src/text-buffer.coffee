@@ -1441,13 +1441,14 @@ class TextBuffer
       @getEndPosition()
     else if column < 0
       Point(row, 0)
-    else if column >= @lineLengthForRow(row)
-      if options?.clipDirection is 'forward' and row < @getLastRow()
-        Point(row + 1, 0)
-      else
-        Point(row, @lineLengthForRow(row))
     else
-      position
+      lineLength = @lineLengthForRow(row)
+      if column >= lineLength and options?.clipDirection is 'forward' and row < @getLastRow()
+        Point(row + 1, 0)
+      else if column > lineLength
+        Point(row, lineLength)
+      else
+        position
 
   ###
   Section: Buffer Operations
