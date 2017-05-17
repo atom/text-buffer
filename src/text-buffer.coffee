@@ -178,9 +178,12 @@ class TextBuffer
   #     deleted.
   #
   # Returns a {Promise} that resolves with a {TextBuffer} instance.
-  @load: (filePath, params) ->
+  @load: (source, params) ->
     buffer = new TextBuffer(params)
-    buffer.setPath(filePath)
+    if typeof source is 'string'
+      buffer.setPath(source)
+    else
+      buffer.setFile(source)
     buffer.load(clearHistory: true, internal: InternalLoadCall).then -> buffer
 
   # Public: Create a new buffer backed by the given file path. For better
@@ -543,13 +546,14 @@ class TextBuffer
   # * `filePath` A {String} representing the new file path
   setPath: (filePath) ->
     return if filePath is @getPath()
+    @setFile(new File(filePath) if filePath)
 
-    if filePath
-      @file = new File(filePath)
+  setFile: (file) ->
+    return if file.getPath() is @getPath()
+    @file = file
+    if @file?
+      @file.setEncoding?(@getEncoding())
       @subscribeToFile()
-    else
-      @file = null
-
     @emitter.emit 'did-change-path', @getPath()
 
   # Public: Sets the character set encoding for this buffer.
@@ -560,6 +564,7 @@ class TextBuffer
 
     @encoding = encoding
     if @file?
+      @file.setEncoding?(encoding)
       @emitter.emit 'did-change-encoding', encoding
       @load(clearHistory: true) unless @isModified()
     else
@@ -1457,21 +1462,31 @@ class TextBuffer
   # Public: Save the buffer.
   #
   # Returns a {Promise} that resolves when the save has completed.
-  save: (options) ->
-    @saveAs(@getPath(), options)
+  save: ->
+    @saveAs(@getPath())
 
   # Public: Save the buffer at a specific path.
   #
   # * `filePath` The path to save at.
   #
   # Returns a {Promise} that resolves when the save has completed.
-  saveAs: (filePath, options) ->
-    if @destroyed then throw new Error("Can't save destroyed buffer")
+  saveAs: (filePath) ->
     unless filePath then throw new Error("Can't save buffer with no file path")
+    @saveTo(new File(filePath))
+
+  saveTo: (file) ->
+    if @destroyed then throw new Error("Can't save destroyed buffer")
+    unless file then throw new Error("Must provide a file to save")
+
+    filePath = file.getPath()
+    if file instanceof File
+      destination = filePath
+    else
+      destination = file.createWriteStream()
 
     @emitter.emit 'will-save', {path: filePath}
-    @buffer.save(filePath, @getEncoding()).then =>
-      @setPath(filePath)
+    @buffer.save(destination, @getEncoding()).then =>
+      @setFile(file)
       @fileHasChangedSinceLastLoad = false
       @loaded = true
       @emitModifiedStatusChanged(false)
@@ -1531,7 +1546,6 @@ class TextBuffer
 
     oldRange = null
     checkpoint = null
-    filePath = @getPath()
     encoding = @getEncoding()
     progressCallback = (percentDone, willChange) =>
       if willChange
@@ -1539,11 +1553,18 @@ class TextBuffer
         checkpoint = @history.createCheckpoint(@createMarkerSnapshot(), true)
         @emitter.emit('will-change', {oldRange})
 
-    if options?.discardChanges
-      promise = @buffer.reload(filePath, encoding, progressCallback)
+    if @file instanceof File
+      source = @file.getPath()
     else
-      promise = @buffer.load(filePath, encoding, progressCallback)
-    promise.then((patch) => @finishLoading(oldRange, checkpoint, patch, options))
+      source = @file.createReadStream()
+
+    if options?.discardChanges
+      promise = @buffer.reload(source, encoding, progressCallback)
+    else
+      promise = @buffer.load(source, encoding, progressCallback)
+    promise
+      .catch((error) => throw error unless error.code is 'ENOENT')
+      .then((patch) => @finishLoading(oldRange, checkpoint, patch, options))
 
   finishLoading: (oldRange, checkpoint, patch, options) ->
     return null unless @isAlive() and oldRange? and patch?
@@ -1608,30 +1629,34 @@ class TextBuffer
     @fileSubscriptions?.dispose()
     @fileSubscriptions = new CompositeDisposable
 
-    @fileSubscriptions.add @file.onDidChange =>
-      # On Linux we get change events when the file is deleted. This yields
-      # consistent behavior with Mac/Windows.
-      return unless @file.existsSync()
-      @fileHasChangedSinceLastLoad = true
+    if @file.onDidChange?
+      @fileSubscriptions.add @file.onDidChange =>
+        # On Linux we get change events when the file is deleted. This yields
+        # consistent behavior with Mac/Windows.
+        return unless @file.existsSync()
+        @fileHasChangedSinceLastLoad = true
 
-      if @isModified()
-        @emitter.emit 'did-conflict'
-      else
-        @load(internal: InternalLoadCall)
+        if @isModified()
+          @emitter.emit 'did-conflict'
+        else
+          @load(internal: InternalLoadCall)
 
-    @fileSubscriptions.add @file.onDidDelete =>
-      modified = @isModified()
-      @emitter.emit 'did-delete'
-      if not modified and @shouldDestroyOnFileDelete()
-        @destroy()
-      else
-        @emitModifiedStatusChanged(true)
+    if @file.onDidDelete?
+      @fileSubscriptions.add @file.onDidDelete =>
+        modified = @isModified()
+        @emitter.emit 'did-delete'
+        if not modified and @shouldDestroyOnFileDelete()
+          @destroy()
+        else
+          @emitModifiedStatusChanged(true)
 
-    @fileSubscriptions.add @file.onDidRename =>
-      @emitter.emit 'did-change-path', @getPath()
+    if @file.onDidRename?
+      @fileSubscriptions.add @file.onDidRename =>
+        @emitter.emit 'did-change-path', @getPath()
 
-    @fileSubscriptions.add @file.onWillThrowWatchError (errorObject) =>
-      @emitter.emit 'will-throw-watch-error', errorObject
+    if @file.onWillThrowWatchError?
+      @fileSubscriptions.add @file.onWillThrowWatchError (errorObject) =>
+        @emitter.emit 'will-throw-watch-error', errorObject
 
   createMarkerSnapshot: ->
     snapshot = {}

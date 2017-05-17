@@ -5,6 +5,28 @@ const Point = require('../src/point')
 const Range = require('../src/range')
 const TextBuffer = require('../src/text-buffer')
 
+class SimpleFile {
+  constructor (path) {
+    this.path = path
+  }
+
+  existsSync () {
+    return fs.existsSync(this.path)
+  }
+
+  getPath () {
+    return this.path
+  }
+
+  createReadStream () {
+    return fs.createReadStream(this.path)
+  }
+
+  createWriteStream () {
+    return fs.createWriteStream(this.path)
+  }
+}
+
 describe('TextBuffer IO', () => {
   let buffer
 
@@ -34,6 +56,19 @@ describe('TextBuffer IO', () => {
         expect(buffer.undo()).toBe(false)
         expect(buffer.getText()).toBe('')
         done()
+      })
+    })
+
+    describe('when a File object is given in place of the file path', () => {
+      it('loads the buffer from the file object\'s createReadStream method', (done) => {
+        const filePath = temp.openSync('atom').path
+        fs.writeFileSync(filePath, 'abc\ndef')
+
+        TextBuffer.load(new SimpleFile(filePath)).then((buffer) => {
+          expect(buffer.getText()).toBe('abc\ndef')
+          expect(buffer.isModified()).toBe(false)
+          done()
+        })
       })
     })
   })
@@ -135,7 +170,7 @@ describe('TextBuffer IO', () => {
         buffer.setText('a')
         buffer.save()
         buffer.setText('ab')
-        buffer.onDidConflict(() => done())
+        buffer.onDidConflict(done)
         fs.writeFileSync(buffer.getPath(), 'c')
       })
 
@@ -153,6 +188,21 @@ describe('TextBuffer IO', () => {
         buffer = new TextBuffer()
         buffer.setText('hi')
         expect(() => buffer.save()).toThrowError()
+      })
+    })
+
+    describe('when the buffer is backed by a custom File object instead of a path', () => {
+      beforeEach(() => {
+        buffer.setFile(new SimpleFile(filePath))
+      })
+
+      it('saves the contents of the buffer to the given file', (done) => {
+        buffer.setText('abc def ghi jkl\n'.repeat(10 * 1024))
+        buffer.save().then(() => {
+          expect(fs.readFileSync(filePath, 'utf8')).toEqual(buffer.getText())
+          expect(buffer.isModified()).toBe(false)
+          done()
+        })
       })
     })
   })
@@ -625,20 +675,24 @@ describe('TextBuffer IO', () => {
       })
     })
 
-    describe('when the file is deleted', () =>
+    describe('when the file is deleted', () => {
       it('notifies all onDidDelete listeners ', (done) => {
         buffer.onDidDelete(() => done())
         fs.removeSync(filePath)
       })
-    )
+    })
 
     it('resumes watching of the file when it is re-saved', (done) => {
-      buffer.save()
-      expect(fs.existsSync(buffer.getPath())).toBeTruthy()
-      expect(buffer.isInConflict()).toBeFalsy()
+      buffer.save().then(() => {
+        expect(fs.existsSync(buffer.getPath())).toBeTruthy()
+        expect(buffer.isInConflict()).toBeFalsy()
 
-      fs.writeFileSync(filePath, 'moo')
-      buffer.onDidChange(done)
+        fs.writeFileSync(filePath, 'moo')
+        buffer.onDidChange(() => {
+          expect(buffer.getText()).toBe('moo')
+          done()
+        })
+      })
     })
   })
 })
