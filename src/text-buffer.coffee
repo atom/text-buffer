@@ -103,6 +103,7 @@ class TextBuffer
 
   encoding: null
   stoppedChangingDelay: 300
+  fileChangeDelay: 50
   stoppedChangingTimeout: null
   conflict: false
   file: null
@@ -146,6 +147,7 @@ class TextBuffer
     @markerLayers[@defaultMarkerLayer.id] = @defaultMarkerLayer
     @markerLayersWithPendingUpdateEvents = new Set()
     @nextMarkerId = 1
+    @outstandingSaveCount = 0
 
     @setEncoding(params?.encoding)
     @setPreferredLineEnding(params?.preferredLineEnding)
@@ -1503,13 +1505,19 @@ class TextBuffer
       destination = file.createWriteStream()
 
     @emitter.emit 'will-save', {path: filePath}
-    @buffer.save(destination, @getEncoding()).then =>
-      @setFile(file)
-      @fileHasChangedSinceLastLoad = false
-      @loaded = true
-      @emitModifiedStatusChanged(false)
-      @emitter.emit 'did-save', {path: filePath}
-      this
+    @outstandingSaveCount++
+    @buffer.save(destination, @getEncoding())
+      .catch (e) =>
+        @outstandingSaveCount--
+        throw e
+      .then =>
+        @outstandingSaveCount--
+        @setFile(file)
+        @fileHasChangedSinceLastLoad = false
+        @loaded = true
+        @emitModifiedStatusChanged(false)
+        @emitter.emit 'did-save', {path: filePath}
+        this
 
   # Public: Reload the file's content from disk.
   #
@@ -1648,16 +1656,18 @@ class TextBuffer
     @fileSubscriptions = new CompositeDisposable
 
     if @file.onDidChange?
-      @fileSubscriptions.add @file.onDidChange =>
+      @fileSubscriptions.add @file.onDidChange debounce(=>
         # On Linux we get change events when the file is deleted. This yields
         # consistent behavior with Mac/Windows.
         return unless @file.existsSync()
+        return if @outstandingSaveCount > 0
         @fileHasChangedSinceLastLoad = true
 
         if @isModified()
           @emitter.emit 'did-conflict'
         else
           @load(internal: InternalLoadCall)
+      , @fileChangeDelay)
 
     if @file.onDidDelete?
       @fileSubscriptions.add @file.onDidDelete =>
