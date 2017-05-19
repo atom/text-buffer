@@ -1066,14 +1066,12 @@ describe "TextBuffer", ->
   describe "::onDidChangePath()", ->
     [filePath, newPath, bufferToChange, eventHandler] = []
 
-    beforeEach (done) ->
+    beforeEach ->
       tempDir = fs.realpathSync(temp.mkdirSync('text-buffer'))
       filePath = join(tempDir, "manipulate-me")
       newPath = "#{filePath}-i-moved"
       fs.writeFileSync(filePath, "")
-      bufferToChange = new TextBuffer({filePath, load: false})
-      bufferToChange.load().then ->
-        done()
+      bufferToChange = TextBuffer.loadSync(filePath)
 
     afterEach ->
       bufferToChange.destroy()
@@ -1100,35 +1098,25 @@ describe "TextBuffer", ->
       fs.moveSync(filePath, newPath)
 
   describe "::onWillThrowWatchError", ->
-    [filePath, bufferToChange, eventHandler] = []
-
-    beforeEach (done) ->
-      tempDir = fs.realpathSync(temp.mkdirSync('text-buffer'))
-      filePath = join(tempDir , "manipulate-me")
-      fs.writeFileSync(filePath, "")
-      bufferToChange = new TextBuffer({filePath, load: false})
-      eventHandler = jasmine.createSpy('eventHandler')
-      bufferToChange.onWillThrowWatchError eventHandler
-      bufferToChange.load().then ->
-        done()
-
-    afterEach ->
-      bufferToChange.destroy()
-      fs.removeSync(filePath)
-
     it "notifies observers when the file has a watch error", ->
-      bufferToChange.file.emitter.emit 'will-throw-watch-error', 'arg'
+      filePath = temp.openSync('atom').path
+      fs.writeFileSync(filePath, '')
+
+      buffer = TextBuffer.loadSync(filePath)
+
+      eventHandler = jasmine.createSpy('eventHandler')
+      buffer.onWillThrowWatchError(eventHandler)
+
+      buffer.file.emitter.emit 'will-throw-watch-error', 'arg'
       expect(eventHandler).toHaveBeenCalledWith 'arg'
 
   describe "::getLines()", ->
-    it "returns an array of lines in the text contents", (done) ->
+    it "returns an array of lines in the text contents", ->
       filePath = require.resolve('./fixtures/sample.js')
       fileContents = fs.readFileSync(filePath, 'utf8')
-      buffer = new TextBuffer({filePath, load: false})
-      buffer.load().then ->
-        expect(buffer.getLines().length).toBe fileContents.split("\n").length
-        expect(buffer.getLines().join('\n')).toBe fileContents
-        done()
+      buffer = TextBuffer.loadSync(filePath)
+      expect(buffer.getLines().length).toBe fileContents.split("\n").length
+      expect(buffer.getLines().join('\n')).toBe fileContents
 
   describe "::setTextInRange(range, string)", ->
     changeHandler = null
@@ -1136,8 +1124,8 @@ describe "TextBuffer", ->
     beforeEach (done) ->
       filePath = require.resolve('./fixtures/sample.js')
       fileContents = fs.readFileSync(filePath, 'utf8')
-      buffer = new TextBuffer({filePath, load: false})
-      buffer.load().then ->
+      TextBuffer.load(filePath).then (result) ->
+        buffer = result
         changeHandler = jasmine.createSpy('changeHandler')
         buffer.onDidChange changeHandler
         done()
@@ -1245,11 +1233,9 @@ describe "TextBuffer", ->
       expect(buffer.lineForRow(0)).toBe "var quicksort = function () {"
 
   describe "::setText(text)", ->
-    beforeEach (done) ->
+    beforeEach ->
       filePath = require.resolve('./fixtures/sample.js')
-      buffer = new TextBuffer({filePath, load: false})
-      buffer.load().then ->
-        done()
+      buffer = TextBuffer.loadSync(filePath)
 
     describe "when the buffer contains newlines", ->
       it "changes the entire contents of the buffer and emits a change event", ->
@@ -1291,8 +1277,8 @@ describe "TextBuffer", ->
   describe "::setTextViaDiff(text)", ->
     beforeEach (done) ->
       filePath = require.resolve('./fixtures/sample.js')
-      buffer = new TextBuffer({filePath, load: false})
-      buffer.load().then ->
+      TextBuffer.load(filePath).then (result) ->
+        buffer = result
         done()
 
     it "can change the entire contents of the buffer when there are no newlines", ->
@@ -1359,8 +1345,8 @@ describe "TextBuffer", ->
   describe "::getTextInRange(range)", ->
     beforeEach (done) ->
       filePath = require.resolve('./fixtures/sample.js')
-      buffer = new TextBuffer({filePath, load: false})
-      buffer.load().then ->
+      TextBuffer.load(filePath).then (result) ->
+        buffer = result
         done()
 
     describe "when range is empty", ->
@@ -1397,8 +1383,7 @@ describe "TextBuffer", ->
 
   describe "::scan(regex, fn)", ->
     beforeEach ->
-      buffer = new TextBuffer(filePath: require.resolve('./fixtures/sample.js'))
-      buffer.loadSync()
+      buffer = TextBuffer.loadSync(require.resolve('./fixtures/sample.js'))
 
     it "calls the given function with the information about each match", ->
       matches = []
@@ -1446,8 +1431,7 @@ describe "TextBuffer", ->
 
   describe "::backwardsScan(regex, fn)", ->
     beforeEach ->
-      buffer = new TextBuffer(filePath: require.resolve('./fixtures/sample.js'))
-      buffer.loadSync()
+      buffer = TextBuffer.loadSync(require.resolve('./fixtures/sample.js'))
 
     it "calls the given function with the information about each match in backwards order", ->
       matches = []
@@ -1471,8 +1455,7 @@ describe "TextBuffer", ->
   describe "::scanInRange(range, regex, fn)", ->
     beforeEach ->
       filePath = require.resolve('./fixtures/sample.js')
-      buffer = new TextBuffer({filePath, load: false})
-      buffer.loadSync()
+      buffer = TextBuffer.loadSync(filePath)
 
     describe "when given a regex with a ignore case flag", ->
       it "does a case-insensitive search", ->
@@ -1696,8 +1679,7 @@ describe "TextBuffer", ->
   describe "::backwardsScanInRange(range, regex, fn)", ->
     beforeEach ->
       filePath = require.resolve('./fixtures/sample.js')
-      buffer = new TextBuffer({filePath, load: false})
-      buffer.loadSync()
+      buffer = TextBuffer.loadSync(filePath)
 
     describe "when given a regex with no global flag", ->
       it "calls the iterator with the last match for the given regex in the given range", ->
@@ -1905,11 +1887,9 @@ describe "TextBuffer", ->
       expect(ranges).toEqual([[[10, 0], [10, 0]]])
 
   describe "::characterIndexForPosition(position)", ->
-    beforeEach (done) ->
+    beforeEach ->
       filePath = require.resolve('./fixtures/sample.js')
-      buffer = new TextBuffer({filePath, load: false})
-      buffer.load().then ->
-        done()
+      buffer = TextBuffer.loadSync(filePath)
 
     it "returns the total number of characters that precede the given position", ->
       expect(buffer.characterIndexForPosition([0, 0])).toBe 0
@@ -1928,11 +1908,9 @@ describe "TextBuffer", ->
         expect(buffer.characterIndexForPosition([3])).toBe 20
 
   describe "::positionForCharacterIndex(position)", ->
-    beforeEach (done) ->
+    beforeEach ->
       filePath = require.resolve('./fixtures/sample.js')
-      buffer = new TextBuffer({filePath, load: false})
-      buffer.load().then ->
-        done()
+      buffer = TextBuffer.loadSync(filePath)
 
     it "returns the position based on character index", ->
       expect(buffer.positionForCharacterIndex(0)).toEqual [0, 0]
@@ -1950,11 +1928,9 @@ describe "TextBuffer", ->
         expect(buffer.positionForCharacterIndex(20)).toEqual [3, 0]
 
   describe "::isEmpty()", ->
-    beforeEach (done) ->
+    beforeEach ->
       filePath = require.resolve('./fixtures/sample.js')
-      buffer = new TextBuffer({filePath, load: false})
-      buffer.load().then ->
-        done()
+      buffer = TextBuffer.loadSync(filePath)
 
     it "returns true for an empty buffer", ->
       buffer.setText('')
@@ -1969,11 +1945,9 @@ describe "TextBuffer", ->
       expect(buffer.isEmpty()).toBeFalsy()
 
   describe "::onDidChangeText(callback)",  ->
-    beforeEach (done) ->
+    beforeEach ->
       filePath = require.resolve('./fixtures/sample.js')
-      buffer = new TextBuffer({filePath, load: false})
-      buffer.load().then ->
-        done()
+      buffer = TextBuffer.loadSync(filePath)
 
     it "notifies observers after a transaction, an undo or a redo", ->
       textChanges = []
@@ -2080,11 +2054,10 @@ describe "TextBuffer", ->
 
   describe "::onDidStopChanging(callback)", ->
     [delay, didStopChangingCallback] = []
-    beforeEach (done) ->
+
+    beforeEach ->
       filePath = require.resolve('./fixtures/sample.js')
-      buffer = new TextBuffer({filePath, load: false})
-      buffer.load().then ->
-        done()
+      buffer = TextBuffer.loadSync(filePath)
 
     beforeEach (done) ->
       delay = buffer.stoppedChangingDelay
@@ -2147,11 +2120,9 @@ describe "TextBuffer", ->
       expect(didStopChangingCallback).toHaveBeenCalled()
 
   describe "::append(text)", ->
-    beforeEach (done) ->
+    beforeEach ->
       filePath = require.resolve('./fixtures/sample.js')
-      buffer = new TextBuffer({filePath, load: false})
-      buffer.load().then ->
-        done()
+      buffer = TextBuffer.loadSync(filePath)
 
     it "adds text to the end of the buffer", ->
       buffer.setText("")
@@ -2161,11 +2132,9 @@ describe "TextBuffer", ->
       expect(buffer.getText()).toBe "ab\nc"
 
   describe "line ending support", ->
-    beforeEach (done) ->
+    beforeEach ->
       filePath = require.resolve('./fixtures/sample.js')
-      buffer = new TextBuffer({filePath, load: false})
-      buffer.load().then ->
-        done()
+      buffer = TextBuffer.loadSync(filePath)
 
     describe ".getText()", ->
       it "returns the text with the corrent line endings for each row", ->
