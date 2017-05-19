@@ -569,7 +569,7 @@ class TextBuffer
   #     when the file is renamed. The method should return a {Disposable} that
   #     can be used to prevent further calls to the callback.
   setFile: (file) ->
-    return if file.getPath() is @getPath()
+    return if file?.getPath() is @getPath()
     @file = file
     if @file?
       @file.setEncoding?(@getEncoding())
