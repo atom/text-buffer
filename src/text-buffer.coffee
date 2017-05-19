@@ -1559,7 +1559,7 @@ class TextBuffer
       @getPath(),
       @getEncoding(),
       (percentDone, willChange) =>
-        if willChange
+        if willChange or not @loaded
           oldRange = new Range(Point.ZERO, @buffer.getExtent())
           checkpoint = @history.createCheckpoint(@createMarkerSnapshot(), true)
           @emitter.emit('will-change', {oldRange})
@@ -1574,7 +1574,7 @@ class TextBuffer
     checkpoint = null
     encoding = @getEncoding()
     progressCallback = (percentDone, willChange) =>
-      if willChange
+      if willChange or not @loaded
         oldRange = new Range(Point.ZERO, @buffer.getExtent())
         checkpoint = @history.createCheckpoint(@createMarkerSnapshot(), true)
         @emitter.emit('will-change', {oldRange})
@@ -1600,10 +1600,10 @@ class TextBuffer
     serializedChanges = @serializedChanges
     @serializedChanges = null
 
-    if patch.getChangeCount() > 0
+    if @loaded and patch.getChangeCount() > 0
       if options?.clearHistory
         @history.clearUndoStack()
-      else if @loaded
+      else
         @history.pushPatch(patch)
 
       if @markerLayers?
