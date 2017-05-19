@@ -123,12 +123,11 @@ describe('TextBuffer IO', () => {
     it('clears the contents of the buffer when the file doesn\t exist', (done) => {
       buffer.delete([[0, 0], [0, 2]])
 
-      fs.removeSync(filePath)
-
       const events = []
       buffer.onWillReload(() => events.push('will-reload'))
       buffer.onDidReload(() => events.push('did-reload'))
 
+      buffer.setPath('does-not-exist')
       buffer.reload().then(() => {
         expect(events).toEqual(['will-reload', 'did-reload'])
         expect(buffer.getText()).toBe('')
