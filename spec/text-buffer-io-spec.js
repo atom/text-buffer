@@ -85,19 +85,56 @@ describe('TextBuffer IO', () => {
   })
 
   describe('.reload', () => {
-    beforeEach(() => {
-      const filePath = temp.openSync('atom').path
-      fs.writeFileSync(filePath, 'abc')
-      buffer = new TextBuffer({filePath})
+    let filePath
+
+    beforeEach((done) => {
+      filePath = temp.openSync('atom').path
+      fs.writeFileSync(filePath, 'abcdefg')
+      TextBuffer.load(filePath).then((result) => {
+        buffer = result
+        done()
+      })
     })
 
     it('it updates the buffer even if it is modified', (done) => {
-      const events = []
+      buffer.delete([[0, 0], [0, 2]])
+      expect(buffer.getText()).toBe('cdefg')
 
+      const marker = buffer.markRange([[0, 3], [0, 4]])
+
+      fs.writeFileSync(filePath, '123abcdefg', 'utf8')
+
+      const events = []
       buffer.onWillReload(() => events.push('will-reload'))
       buffer.onDidReload(() => events.push('did-reload'))
+
       buffer.reload().then(() => {
         expect(events).toEqual(['will-reload', 'did-reload'])
+        expect(buffer.getText()).toBe('123abcdefg')
+        expect(marker.getRange()).toEqual(Range(Point(0, 8), Point(0, 9)))
+
+        buffer.undo()
+        expect(buffer.getText()).toBe('cdefg')
+        expect(marker.getRange()).toEqual(Range(Point(0, 3), Point(0, 4)))
+        done()
+      })
+    })
+
+    it('clears the contents of the buffer when the file doesn\t exist', (done) => {
+      buffer.delete([[0, 0], [0, 2]])
+
+      fs.removeSync(filePath)
+
+      const events = []
+      buffer.onWillReload(() => events.push('will-reload'))
+      buffer.onDidReload(() => events.push('did-reload'))
+
+      buffer.reload().then(() => {
+        expect(events).toEqual(['will-reload', 'did-reload'])
+        expect(buffer.getText()).toBe('')
+
+        buffer.undo()
+        expect(buffer.getText()).toBe('cdefg')
         done()
       })
     })

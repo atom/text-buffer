@@ -16,8 +16,6 @@ DisplayLayer = require './display-layer'
 {traversal} = require './point-helpers'
 Grim = require 'grim'
 
-InternalLoadCall = Symbol('internal-load-call')
-
 class TransactionAbortedError extends Error
   constructor: -> super
 
@@ -166,7 +164,7 @@ class TextBuffer
           'The `load` option to the TextBuffer constructor is deprecated. ' +
           'Get a loaded buffer using TextBuffer.load(filePath) instead.'
         )
-        @load(internal: InternalLoadCall)
+        @load(internal: true)
 
   toString: -> "<TextBuffer #{@id}>"
 
@@ -187,7 +185,7 @@ class TextBuffer
       buffer.setPath(source)
     else
       buffer.setFile(source)
-    buffer.load(clearHistory: true, internal: InternalLoadCall).then -> buffer
+    buffer.load(clearHistory: true, internal: true).then -> buffer
 
   # Public: Create a new buffer backed by the given file path. For better
   # performance, use {TextBuffer.load} instead.
@@ -203,7 +201,7 @@ class TextBuffer
   @loadSync: (filePath, params) ->
     buffer = new TextBuffer(params)
     buffer.setPath(filePath)
-    buffer.loadSync(internal: InternalLoadCall)
+    buffer.loadSync(internal: true)
     buffer
 
   # Public: Restore a {TextBuffer} based on an earlier state created using
@@ -586,7 +584,7 @@ class TextBuffer
     if @file?
       @file.setEncoding?(encoding)
       @emitter.emit 'did-change-encoding', encoding
-      @load(clearHistory: true) unless @isModified()
+      @load(clearHistory: true, internal: true) unless @isModified()
     else
       @emitter.emit 'did-change-encoding', encoding
 
@@ -1524,7 +1522,7 @@ class TextBuffer
   # Returns a {Promise} that resolves when the load is complete.
   reload: ->
     @emitter.emit('will-reload')
-    @load(discardChanges: true, internal: InternalLoadCall).then (result) =>
+    @load(discardChanges: true, internal: true).then (result) =>
       @emitter.emit('did-reload')
       result
 
@@ -1550,7 +1548,7 @@ class TextBuffer
   ###
 
   loadSync: (options) ->
-    unless options?.internal = InternalLoadCall
+    unless options?.internal
       Grim.deprecate('The .loadSync instance method is deprecated. Create a loaded buffer using TextBuffer.loadSync(filePath) instead.')
 
     oldRange = null
@@ -1567,7 +1565,7 @@ class TextBuffer
     @finishLoading(oldRange, checkpoint, patch)
 
   load: (options) ->
-    unless options?.internal = InternalLoadCall
+    unless options?.internal
       Grim.deprecate('The .load instance method is deprecated. Create a loaded buffer using TextBuffer.load(filePath) instead.')
 
     oldRange = null
@@ -1588,9 +1586,15 @@ class TextBuffer
       promise = @buffer.reload(source, encoding, progressCallback)
     else
       promise = @buffer.load(source, encoding, progressCallback)
+
     promise
-      .catch((error) => throw error unless error.code is 'ENOENT')
-      .then((patch) => @finishLoading(oldRange, checkpoint, patch, options))
+      .then (patch) =>
+        @finishLoading(oldRange, checkpoint, patch, options)
+      .catch (error) =>
+        if error.code is 'ENOENT'
+          @setText('') if options?.discardChanges
+        else
+          throw error
 
   finishLoading: (oldRange, checkpoint, patch, options) ->
     return null unless @isAlive() and oldRange? and patch?
@@ -1666,7 +1670,7 @@ class TextBuffer
         if @isModified()
           @emitter.emit 'did-conflict'
         else
-          @load(internal: InternalLoadCall)
+          @load(internal: true)
       , @fileChangeDelay)
 
     if @file.onDidDelete?
@@ -1683,8 +1687,8 @@ class TextBuffer
         @emitter.emit 'did-change-path', @getPath()
 
     if @file.onWillThrowWatchError?
-      @fileSubscriptions.add @file.onWillThrowWatchError (errorObject) =>
-        @emitter.emit 'will-throw-watch-error', errorObject
+      @fileSubscriptions.add @file.onWillThrowWatchError (error) =>
+        @emitter.emit 'will-throw-watch-error', error
 
   createMarkerSnapshot: ->
     snapshot = {}
