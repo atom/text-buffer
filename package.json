@@ -20,8 +20,10 @@
   "bugs": {
     "url": "https://github.com/atom/text-buffer/issues"
   },
+  "atomTestRunner": "atom-jasmine2-test-runner",
   "license": "MIT",
   "devDependencies": {
+    "atom-jasmine2-test-runner": "^0.7.0",
     "coffee-cache": "^0.2.0",
     "coffee-script": "^1.10.0",
     "coffeelint": "1.16.0",
@@ -39,8 +41,8 @@
     "jasmine-core": "^2.4.1",
     "json-diff": "^0.3.1",
     "random-seed": "^0.2.0",
-    "rimraf": "~2.2.2",
     "regression": "^1.2.1",
+    "rimraf": "~2.2.2",
     "temp": "^0.8.3",
     "yargs": "^6.5.0"
   },
