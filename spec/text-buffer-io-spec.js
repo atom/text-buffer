@@ -268,6 +268,17 @@ describe('TextBuffer IO', () => {
       })
     })
 
+    it('can save to a file in a non-existent directory', (done) => {
+      const directory = temp.mkdirSync('atom')
+      const newFilePath = path.join(directory, 'a', 'b', 'c', 'new-file')
+
+      buffer.saveAs(newFilePath).then(() => {
+        expect(fs.readFileSync(newFilePath, 'utf8')).toBe(buffer.getText())
+        expect(buffer.getPath()).toBe(newFilePath)
+        done()
+      })
+    })
+
     it('stops listening for changes to the old path and starts listening for changes to the new path', (done) => {
       const didChangeHandler = jasmine.createSpy('didChangeHandler')
       buffer.onDidChange(didChangeHandler)

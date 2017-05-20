@@ -5,6 +5,7 @@ _ = require 'underscore-plus'
 fs = require 'fs-plus'
 path = require 'path'
 crypto = require 'crypto'
+mkdirp = require 'mkdirp'
 {BufferOffsetIndex, Patch, TextBuffer: NativeTextBuffer} = require 'superstring'
 Point = require './point'
 Range = require './range'
@@ -1498,13 +1499,19 @@ class TextBuffer
 
     filePath = file.getPath()
     if file instanceof File
+      directoryPromise = new Promise (resolve, reject) =>
+        mkdirp path.dirname(filePath), (error) ->
+          if error then reject(error) else resolve()
       destination = filePath
     else
       destination = file.createWriteStream()
+      directoryPromise = Promise.resolve()
 
     @emitter.emit 'will-save', {path: filePath}
     @outstandingSaveCount++
-    @buffer.save(destination, @getEncoding())
+
+    directoryPromise
+      .then => @buffer.save(destination, @getEncoding())
       .catch (e) =>
         @outstandingSaveCount--
         throw e
