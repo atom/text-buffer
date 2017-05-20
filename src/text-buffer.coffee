@@ -1499,7 +1499,7 @@ class TextBuffer
 
     filePath = file.getPath()
     if file instanceof File
-      directoryPromise = new Promise (resolve, reject) =>
+      directoryPromise = new Promise (resolve, reject) ->
         mkdirp path.dirname(filePath), (error) ->
           if error then reject(error) else resolve()
       destination = filePath
