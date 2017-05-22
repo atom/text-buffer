@@ -204,10 +204,11 @@ describe('TextBuffer IO', () => {
     describe('when a conflict is created', () => {
       beforeEach((done) => {
         buffer.setText('a')
-        buffer.save()
-        buffer.setText('ab')
-        buffer.onDidConflict(done)
-        fs.writeFileSync(buffer.getPath(), 'c')
+        buffer.save().then(() => {
+          buffer.setText('ab')
+          buffer.onDidConflict(done)
+          fs.writeFileSync(buffer.getPath(), 'c')
+        })
       })
 
       it('no longer reports being in conflict when the buffer is saved again', (done) => {
