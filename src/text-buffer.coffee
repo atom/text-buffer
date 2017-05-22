@@ -1350,6 +1350,16 @@ class TextBuffer
 
     replacements
 
+  # Experimental: Run an async regexp search on the buffer
+  #
+  # * `regex` A {RegExp} to search for.
+  #
+  # Returns a {Promise} that resolves with the first {Range} of text that
+  # matches the given regex.
+  search: (regex) ->
+    @buffer.search(regex).then (result) =>
+      Range.fromObject(result) if result
+
   ###
   Section: Buffer Range Details
   ###

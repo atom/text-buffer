@@ -1676,6 +1676,13 @@ describe "TextBuffer", ->
       buffer.scan /[^a]  var/, ({matchText}) -> matchStrings.push(matchText)
       expect(matchStrings).toEqual(['\n  var'])
 
+  describe "::search(regex)", ->
+    it "resolves with the first range that matches the given regex", (done) ->
+      buffer = new TextBuffer('abc\ndefghi')
+      buffer.search(/\wf\w*/).then (range) ->
+        expect(range).toEqual([[1, 1], [1, 6]])
+        done()
+
   describe "::backwardsScanInRange(range, regex, fn)", ->
     beforeEach ->
       filePath = require.resolve('./fixtures/sample.js')
