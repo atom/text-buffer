@@ -1355,7 +1355,7 @@ class TextBuffer
   # Returns a {Promise} that resolves with the first {Range} of text that
   # matches the given regex.
   search: (regex) ->
-    @buffer.search(regex).then (result) =>
+    @buffer.search(regex).then (result) ->
       Range.fromObject(result) if result
 
   ###
