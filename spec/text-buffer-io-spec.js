@@ -596,26 +596,25 @@ describe('TextBuffer IO', () => {
       const newTextSuffix = '!'.repeat(1024)
       const newText = ' abc' + newTextSuffix
 
-      const changeEvents = []
+      const events = []
+      buffer.onWillReload((event) => events.push(['will-reload']))
       buffer.onWillChange((event) => {
         expect(buffer.getText()).toEqual('abcde')
-        changeEvents.push(['will-change', event])
+        events.push(['will-change', event])
       })
       buffer.onDidChange((event) => {
         expect(buffer.getText()).toEqual(newText)
-        changeEvents.push(['did-change', event])
+        events.push(['did-change', event])
       })
-      buffer.onDidChangeText((event) => {
-        expect(buffer.getText()).toEqual(newText)
-        changeEvents.push(['did-change-text', event])
-      })
+      buffer.onDidChangeText((event) => events.push(['did-change-text', event]))
+      buffer.onDidReload((event) => events.push(['did-reload']))
 
       const markerB = buffer.markRange(Range(Point(0, 1), Point(0, 2)))
       const markerD = buffer.markRange(Range(Point(0, 3), Point(0, 4)))
 
       fs.writeFileSync(buffer.getPath(), newText)
 
-      const subscription = buffer.onDidChangeText(() => {
+      const subscription = buffer.onDidReload(() => {
         subscription.dispose()
 
         expect(buffer.isModified()).toBe(false)
@@ -626,7 +625,10 @@ describe('TextBuffer IO', () => {
         expect(markerB.isValid()).toBe(true)
         expect(markerD.isValid()).toBe(false)
 
-        expect(toPlainObject(changeEvents)).toEqual(toPlainObject([
+        expect(toPlainObject(events)).toEqual(toPlainObject([
+          [
+            'will-reload'
+          ],
           [
             'will-change', {
               oldRange: Range(Point(0, 0), Point(0, 5))
@@ -657,6 +659,9 @@ describe('TextBuffer IO', () => {
                 }
               ]
             }
+          ],
+          [
+            'did-reload'
           ]
         ]))
 

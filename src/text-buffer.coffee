@@ -1537,10 +1537,7 @@ class TextBuffer
   #
   # Returns a {Promise} that resolves when the load is complete.
   reload: ->
-    @emitter.emit('will-reload')
-    @load(discardChanges: true, internal: true).then (result) =>
-      @emitter.emit('did-reload')
-      result
+    @load(discardChanges: true, internal: true)
 
   ###
   Section: Display Layers
@@ -1569,6 +1566,7 @@ class TextBuffer
 
     oldRange = null
     checkpoint = null
+    @emitter.emit('will-reload')
     patch = @buffer.loadSync(
       @getPath(),
       @getEncoding(),
@@ -1578,7 +1576,9 @@ class TextBuffer
           checkpoint = @history.createCheckpoint(@createMarkerSnapshot(), true)
           @emitter.emit('will-change', {oldRange})
     )
-    @finishLoading(oldRange, checkpoint, patch)
+    result = @finishLoading(oldRange, checkpoint, patch)
+    @emitter.emit('did-reload')
+    result
 
   load: (options) ->
     unless options?.internal
@@ -1598,6 +1598,7 @@ class TextBuffer
     else
       source = @file.createReadStream()
 
+    @emitter.emit('will-reload')
     if options?.discardChanges
       promise = @buffer.reload(source, encoding, progressCallback)
     else
@@ -1605,7 +1606,9 @@ class TextBuffer
 
     promise
       .then (patch) =>
-        @finishLoading(oldRange, checkpoint, patch, options)
+        result = @finishLoading(oldRange, checkpoint, patch, options)
+        @emitter.emit('did-reload')
+        result
       .catch (error) =>
         if error.code is 'ENOENT'
           @setText('') if options?.discardChanges
