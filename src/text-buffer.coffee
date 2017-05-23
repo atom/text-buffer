@@ -110,7 +110,6 @@ class TextBuffer
   fileSubscriptions: null
   backwardsScanChunkSize: 8000
   defaultMaxUndoEntries: 10000
-  changeCount: 0
   nextMarkerLayerId: 0
 
   ###
@@ -228,11 +227,9 @@ class TextBuffer
       buffer.nextMarkerLayerId = params.nextMarkerLayerId
       buffer.nextDisplayLayerId = params.nextDisplayLayerId
 
-      digest = buffer.buffer.baseTextDigest()
-      if digest is params.digestWhenLastPersisted or not params.filePath?
+      if buffer.digestWhenLastPersisted is params.digestWhenLastPersisted or not params.filePath?
         buffer.buffer.deserializeChanges(params.outstandingChanges)
         buffer.history.deserialize(params.history, buffer)
-      buffer.digestWhenLastPersisted = digest
 
       for layerId, layerState of params.markerLayers
         if layerId is params.defaultMarkerLayerId
@@ -279,8 +276,9 @@ class TextBuffer
     }
 
     if filePath = @getPath()
+      @baseTextDigestCache ?= @buffer.baseTextDigest()
       result.filePath = filePath
-      result.digestWhenLastPersisted = @buffer.baseTextDigest()
+      result.digestWhenLastPersisted = @digestWhenLastPersisted
       result.outstandingChanges = @buffer.serializeChanges()
     else
       result.text = @getText()
@@ -627,7 +625,7 @@ class TextBuffer
   # Public: Get the entire text of the buffer.
   #
   # Returns a {String}.
-  getText: -> @buffer.getText()
+  getText: -> @cachedText ?= @buffer.getText()
 
   # Public: Get the text in a range.
   #
@@ -857,7 +855,7 @@ class TextBuffer
       for id, markerLayer of @markerLayers
         markerLayer.splice(oldRange.start, oldExtent, newExtent)
 
-    @changeCount++
+    @cachedText = null
     @emitDidChangeEvent(changeEvent)
     newRange
 
@@ -1529,6 +1527,7 @@ class TextBuffer
         @outstandingSaveCount--
         @setFile(file)
         @fileHasChangedSinceLastLoad = false
+        @digestWhenLastPersisted = @buffer.baseTextDigest()
         @loaded = true
         @emitModifiedStatusChanged(false)
         @emitter.emit 'did-save', {path: filePath}
@@ -1617,9 +1616,8 @@ class TextBuffer
     return null unless @isAlive() and oldRange? and patch?
 
     @fileHasChangedSinceLastLoad = false
-
-    serializedChanges = @serializedChanges
-    @serializedChanges = null
+    @digestWhenLastPersisted = @buffer.baseTextDigest()
+    @cachedText = null
 
     if @loaded and patch.getChangeCount() > 0
       if options?.clearHistory
