@@ -1611,6 +1611,7 @@ class TextBuffer
         result
       .catch (error) =>
         if error.code is 'ENOENT'
+          @emitter.emit('did-reload')
           @setText('') if options?.discardChanges
         else
           throw error
