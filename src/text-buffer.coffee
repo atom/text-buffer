@@ -1655,7 +1655,7 @@ class TextBuffer
       @fileSubscriptions?.dispose()
       for id, markerLayer of @markerLayers
         markerLayer.destroy()
-      @setText('', undo: 'skip')
+      @buffer.reset('')
       @history.clear()
 
   isAlive: -> not @destroyed
