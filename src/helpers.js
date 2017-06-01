@@ -40,7 +40,7 @@ exports.spliceArray = function (array, start, removedCount, insertedItems = []) 
     for (let i = newLength - 1, end = start + insertedCount; i >= end; i--) {
       array[i] = array[i - lengthDelta]
     }
-  } else {
+  } else if (lengthDelta < 0) {
     for (let i = start + insertedCount, end = newLength; i < end; i++) {
       array[i] = array[i - lengthDelta]
     }
