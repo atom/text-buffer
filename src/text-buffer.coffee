@@ -625,7 +625,7 @@ class TextBuffer
   # Public: Get the entire text of the buffer.
   #
   # Returns a {String}.
-  getText: -> @buffer.getText()
+  getText: -> @cachedText ?= @buffer.getText()
 
   # Public: Get the text in a range.
   #
@@ -855,6 +855,7 @@ class TextBuffer
       for id, markerLayer of @markerLayers
         markerLayer.splice(oldRange.start, oldExtent, newExtent)
 
+    @cachedText = null
     @emitDidChangeEvent(changeEvent)
     newRange
 
@@ -1620,6 +1621,7 @@ class TextBuffer
 
     @fileHasChangedSinceLastLoad = false
     @digestWhenLastPersisted = @buffer.baseTextDigest()
+    @cachedText = null
 
     if @loaded and patch.getChangeCount() > 0
       if options?.clearHistory
