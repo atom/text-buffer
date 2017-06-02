@@ -1657,6 +1657,7 @@ class TextBuffer
       for id, markerLayer of @markerLayers
         markerLayer.destroy()
       @buffer.reset('')
+      @cachedText = null
       @history.clear()
 
   isAlive: -> not @destroyed
