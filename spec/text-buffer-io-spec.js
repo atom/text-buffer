@@ -299,7 +299,7 @@ describe('TextBuffer IO', () => {
         })
         .then(() => {
           fs.writeFileSync(newPath, 'does trigger a buffer change')
-          return timeoutPromise(100)
+          return timeoutPromise(400)
         })
         .then(() => {
           expect(didChangeHandler).toHaveBeenCalled()
@@ -671,6 +671,16 @@ describe('TextBuffer IO', () => {
       })
     })
 
+    it('does nothing when the file is rewritten with the same contents', (done) => {
+      fs.writeFileSync(buffer.getPath(), 'abcde')
+
+      const subscription = buffer.onDidReload(() => {
+        expect(buffer.getText()).toBe('abcde')
+        subscription.dispose()
+        done()
+      })
+    })
+
     it('does not fire duplicate change events when multiple changes happen on disk', (done) => {
       const changeEvents = []
       buffer.onWillChange((event) => changeEvents.push(['will-change', event]))
@@ -686,7 +696,7 @@ describe('TextBuffer IO', () => {
       setTimeout(() => {
         expect(changeEvents.map(([type]) => type)).toEqual(['will-change', 'did-change', 'did-change-text'])
         done()
-      }, 200)
+      }, 500)
     })
   })
 

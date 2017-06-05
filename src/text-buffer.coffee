@@ -102,7 +102,7 @@ class TextBuffer
 
   encoding: null
   stoppedChangingDelay: 300
-  fileChangeDelay: 50
+  fileChangeDelay: 200
   stoppedChangingTimeout: null
   conflict: false
   file: null
