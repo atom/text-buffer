@@ -1015,6 +1015,17 @@ describe "TextBuffer", ->
         expect(bufferB.getMarkerLayer(layerA.id)?.getMarker(markerB.id)).toBeUndefined()
         done()
 
+    it "doesn't remember history when calling serialize with {history: false}", (done) ->
+      bufferA = new TextBuffer(text: 'abc')
+      bufferA.append('def')
+      bufferA.append('ghi')
+
+      TextBuffer.deserialize(bufferA.serialize({history: false})).then (bufferB) ->
+        expect(bufferB.getText()).toBe("abcdefghi")
+        expect(bufferB.undo()).toBe(false)
+        expect(bufferB.getText()).toBe("abcdefghi")
+        done()
+
     it "serializes / deserializes the buffer's unique identifier", (done) ->
       bufferA = new TextBuffer()
       TextBuffer.deserialize(JSON.parse(JSON.stringify(bufferA.serialize()))).then (bufferB) ->

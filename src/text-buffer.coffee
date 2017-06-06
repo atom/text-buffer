@@ -252,6 +252,7 @@ class TextBuffer
   serialize: (options) ->
     options ?= {}
     options.markerLayers ?= true
+    options.history ?= true
 
     markerLayers = {}
     if options.markerLayers
@@ -262,6 +263,10 @@ class TextBuffer
     for id, layer of @displayLayers
       displayLayers[id] = layer.serialize()
 
+    history = {}
+    if options.history
+      history = @history.serialize(options)
+
     result = {
       id: @getId()
       defaultMarkerLayerId: @defaultMarkerLayer.id
@@ -269,7 +274,7 @@ class TextBuffer
       displayLayers: displayLayers
       nextMarkerLayerId: @nextMarkerLayerId
       nextDisplayLayerId: @nextDisplayLayerId
-      history: @history.serialize(options)
+      history: history
       encoding: @getEncoding()
       preferredLineEnding: @preferredLineEnding
       nextMarkerId: @nextMarkerId
