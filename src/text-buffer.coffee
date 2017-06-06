@@ -146,6 +146,7 @@ class TextBuffer
     @markerLayersWithPendingUpdateEvents = new Set()
     @nextMarkerId = 1
     @outstandingSaveCount = 0
+    @loadCount = 0
 
     @setEncoding(params?.encoding)
     @setPreferredLineEnding(params?.preferredLineEnding)
@@ -1589,13 +1590,15 @@ class TextBuffer
     unless options?.internal
       Grim.deprecate('The .load instance method is deprecated. Create a loaded buffer using TextBuffer.load(filePath) instead.')
 
+    loadCount = ++@loadCount
     oldRange = null
     checkpoint = null
     encoding = @getEncoding()
     progressCallback = (percentDone, willChange) =>
-      if willChange or not @loaded
-        oldRange = new Range(Point.ZERO, @buffer.getExtent())
-        checkpoint = @history.createCheckpoint(@createMarkerSnapshot(), true)
+      return false if @loadCount > loadCount
+      oldRange = new Range(Point.ZERO, @buffer.getExtent())
+      checkpoint = @history.createCheckpoint(@createMarkerSnapshot(), true)
+      if willChange
         @emitter.emit('will-change', {oldRange})
 
     if @file instanceof File

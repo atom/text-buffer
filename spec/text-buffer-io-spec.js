@@ -4,6 +4,7 @@ const temp = require('temp')
 const Point = require('../src/point')
 const Range = require('../src/range')
 const TextBuffer = require('../src/text-buffer')
+const {TextBuffer: NativeTextBuffer} = require('superstring')
 
 class SimpleFile {
   constructor (path) {
@@ -567,8 +568,10 @@ describe('TextBuffer IO', () => {
   })
 
   describe('when the file changes on disk', () => {
+    let filePath
+
     beforeEach((done) => {
-      const filePath = temp.openSync('atom').path
+      filePath = temp.openSync('atom').path
       fs.writeFileSync(filePath, 'abcde')
       TextBuffer.load(filePath).then((result) => {
         buffer = result
@@ -683,20 +686,45 @@ describe('TextBuffer IO', () => {
 
     it('does not fire duplicate change events when multiple changes happen on disk', (done) => {
       const changeEvents = []
-      buffer.onWillChange((event) => changeEvents.push(['will-change', event]))
-      buffer.onDidChange((event) => changeEvents.push(['did-change', event]))
-      buffer.onDidChangeText((event) => changeEvents.push(['did-change-text', event]))
+      buffer.onWillChange((event) => changeEvents.push('will-change'))
+      buffer.onDidChange((event) => changeEvents.push('did-change'))
+      buffer.onDidChangeText((event) => changeEvents.push('did-change-text'))
 
-      fs.writeFileSync(buffer.getPath(), ' abc')
-      fs.writeFileSync(buffer.getPath(), ' abcd')
-      fs.writeFileSync(buffer.getPath(), ' abcde')
-      fs.writeFileSync(buffer.getPath(), ' abcdef')
-      fs.writeFileSync(buffer.getPath(), ' abcdefg')
+      // We debounce file system change events to avoid redundant loads. But
+      // for large files, another file system change event may occur *after* the
+      // debounce interval but *before* the previous load has completed. In
+      // that scenario, we still want to avoid emitting redundant change events.
+      //
+      // This test simulates the buffer taking a long time to load and diff by
+      // first reading the file's current contents (copying them to a temp file),
+      // then waiting for a period of time longer than the debounce interval,
+      // and then performing the actual load.
+      const originalLoad = buffer.buffer.load
+      spyOn(NativeTextBuffer.prototype, 'load').and.callFake(function (pathToLoad, ...args) {
+        const pathToLoadCopy = temp.openSync('atom').path
+        fs.writeFileSync(pathToLoadCopy, fs.readFileSync(pathToLoad))
+        return timeoutPromise(buffer.fileChangeDelay + 100)
+          .then(() => originalLoad.call(this, pathToLoadCopy, ...args))
+      })
 
+      fs.writeFileSync(filePath, 'a')
+      fs.writeFileSync(filePath, 'ab')
       setTimeout(() => {
-        expect(changeEvents.map(([type]) => type)).toEqual(['will-change', 'did-change', 'did-change-text'])
-        done()
-      }, 500)
+        fs.writeFileSync(filePath, 'abc')
+        fs.writeFileSync(filePath, 'abcd')
+        setTimeout(() => {
+          fs.writeFileSync(filePath, 'abcde')
+          fs.writeFileSync(filePath, 'abcdef')
+        }, buffer.fileChangeDelay + 50)
+      }, buffer.fileChangeDelay + 50)
+
+      const subscription = buffer.onDidChangeText(() => {
+        if (buffer.getText() === 'abcdef') {
+          expect(changeEvents).toEqual(['will-change', 'did-change', 'did-change-text'])
+          subscription.dispose()
+          done()
+        }
+      })
     })
   })
 
