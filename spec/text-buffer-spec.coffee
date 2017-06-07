@@ -1687,12 +1687,20 @@ describe "TextBuffer", ->
       buffer.scan /[^a]  var/, ({matchText}) -> matchStrings.push(matchText)
       expect(matchStrings).toEqual(['\n  var'])
 
-  describe "::search(regex)", ->
+  describe "::find(regex)", ->
     it "resolves with the first range that matches the given regex", (done) ->
       buffer = new TextBuffer('abc\ndefghi')
-      buffer.search(/\wf\w*/).then (range) ->
-        expect(range).toEqual([[1, 1], [1, 6]])
+      buffer.find(/\wf\w*/).then (range) ->
+        expect(range).toEqual(Range(Point(1, 1), Point(1, 6)))
         done()
+
+  describe "::findAllSync(regex)", ->
+    it "returns all the ranges that match the given regex", ->
+      buffer = new TextBuffer('abc\ndefghi')
+      expect(buffer.findAllSync(/[bf]\w+/)).toEqual([
+        Range(Point(0, 1), Point(0, 3)),
+        Range(Point(1, 2), Point(1, 6)),
+      ])
 
   describe "::backwardsScanInRange(range, regex, fn)", ->
     beforeEach ->

@@ -1360,9 +1360,23 @@ class TextBuffer
   #
   # Returns a {Promise} that resolves with the first {Range} of text that
   # matches the given regex.
-  search: (regex) ->
-    @buffer.search(regex).then (result) ->
-      Range.fromObject(result) if result
+  find: (regex) ->
+    @buffer.find(regex)
+
+  # Experimental: Run a regexp search on the buffer
+  #
+  # * `regex` A {RegExp} to search for.
+  #
+  # Returns the first {Range} of text that matches the given regex.
+  findSync: (regex) -> @buffer.findSync(regex)
+
+  # Experimental: Run an regexp search on the buffer
+  #
+  # * `regex` A {RegExp} to search for.
+  #
+  # Returns an {Array} containing every {Range} of text that matches the given
+  # regex.
+  findAllSync: (regex) -> @buffer.findAllSync(regex)
 
   ###
   Section: Buffer Range Details
