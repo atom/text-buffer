@@ -244,7 +244,16 @@ class TextBuffer
     delete params.load
 
     if params.filePath?
-      promise = @load(params.filePath, params)
+      promise = @load(params.filePath, params).then (buffer) ->
+        # TODO - Remove this once Atom 1.19 stable has been out for a while.
+        if typeof params.text is 'string'
+          buffer.setText(params.text)
+
+        else if buffer.digestWhenLastPersisted is params.digestWhenLastPersisted
+          buffer.buffer.deserializeChanges(params.outstandingChanges)
+        else
+          params.history = {}
+        buffer
     else
       promise = Promise.resolve(new TextBuffer(params))
 
@@ -254,14 +263,7 @@ class TextBuffer
       buffer.nextMarkerId = params.nextMarkerId
       buffer.nextMarkerLayerId = params.nextMarkerLayerId
       buffer.nextDisplayLayerId = params.nextDisplayLayerId
-
-      # TODO - Remove this once Atom 1.19 stable has been out for a while.
-      if typeof params.text is 'string'
-        buffer.setText(params.text)
-
-      else if buffer.digestWhenLastPersisted is params.digestWhenLastPersisted or not params.filePath?
-        buffer.buffer.deserializeChanges(params.outstandingChanges)
-        buffer.history.deserialize(params.history, buffer)
+      buffer.history.deserialize(params.history, buffer)
 
       for layerId, layerState of params.markerLayers
         if layerId is params.defaultMarkerLayerId
