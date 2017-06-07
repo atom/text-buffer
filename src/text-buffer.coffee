@@ -1596,9 +1596,9 @@ class TextBuffer
     encoding = @getEncoding()
     progressCallback = (percentDone, willChange) =>
       return false if @loadCount > loadCount
-      oldRange = new Range(Point.ZERO, @buffer.getExtent())
-      checkpoint = @history.createCheckpoint(@createMarkerSnapshot(), true)
-      if willChange
+      if willChange or not @loaded
+        oldRange = new Range(Point.ZERO, @buffer.getExtent())
+        checkpoint = @history.createCheckpoint(@createMarkerSnapshot(), true)
         @emitter.emit('will-change', {oldRange})
 
     if @file instanceof File

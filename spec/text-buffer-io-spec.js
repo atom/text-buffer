@@ -157,6 +157,8 @@ describe('TextBuffer IO', () => {
       buffer.setText('Buffer contents')
       buffer.save().then(() => {
         expect(fs.readFileSync(filePath, 'utf8')).toEqual('Buffer contents')
+        expect(buffer.undo()).toBe(true)
+        expect(buffer.getText()).toBe('')
         done()
       })
     })
@@ -372,16 +374,21 @@ describe('TextBuffer IO', () => {
 
     describe('when the buffer is reloaded', () => {
       it('reports the modified status changing to false', (done) => {
-        buffer.insert([0, 0], 'hi')
-        expect(buffer.isModified()).toBe(true)
-
         const modifiedStatusChanges = []
         buffer.onDidChangeModified((status) => modifiedStatusChanges.push(status))
 
-        buffer.reload().then(() => {
-          expect(buffer.isModified()).toBe(false)
-          expect(modifiedStatusChanges).toEqual([false])
-          done()
+        buffer.insert([0, 0], 'hi')
+
+        const subscription = buffer.onDidChangeModified(() => {
+          expect(buffer.isModified()).toBe(true)
+          expect(modifiedStatusChanges).toEqual([true])
+          subscription.dispose()
+
+          buffer.reload().then(() => {
+            expect(buffer.isModified()).toBe(false)
+            expect(modifiedStatusChanges).toEqual([true, false])
+            done()
+          })
         })
       })
     })
