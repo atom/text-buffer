@@ -442,6 +442,26 @@ describe('TextBuffer IO', () => {
           })
         })
       })
+
+      it('can restore from a state created with an old version of TextBuffer', (done) => {
+        const filePath = temp.openSync('atom').path
+        fs.writeFileSync(filePath, 'abc\ndef\n')
+
+        TextBuffer.load(filePath).then((buffer) => {
+          buffer.append('ghi\n')
+          const state = buffer.serialize()
+
+          // This was the old serialization format
+          delete state.outstandingChanges
+          state.text = buffer.getText()
+
+          TextBuffer.deserialize(state).then((buffer2) => {
+            expect(buffer2.getText()).toBe(buffer.getText())
+            expect(buffer2.isModified()).toBe(true)
+            done()
+          })
+        })
+      })
     })
 
     describe('when the disk contents have changed since serialization', () => {
