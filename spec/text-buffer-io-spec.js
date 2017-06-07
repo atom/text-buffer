@@ -643,7 +643,10 @@ describe('TextBuffer IO', () => {
           ],
           [
             'will-change', {
-              oldRange: Range(Point(0, 0), Point(0, 5))
+              oldRange: Range(Point(0, 0), Point(0, 5)),
+              newRange: Range(Point(0, 0), Point(0, newText.length)),
+              oldText: 'abcde',
+              newText: newText
             }
           ],
           [
@@ -674,6 +677,60 @@ describe('TextBuffer IO', () => {
           ],
           [
             'did-reload'
+          ]
+        ]))
+
+        done()
+      })
+    })
+
+    it('passes the smallest possible change event to onWillChange and onDidChange listeners', (done) => {
+      fs.writeFileSync(buffer.getPath(), 'abc de ')
+
+      const events = []
+      buffer.onWillChange((event) => events.push(['will-change', event]))
+      buffer.onDidChange((event) => events.push(['did-change', event]))
+      buffer.onDidChangeText((event) => events.push(['did-change-text', event]))
+
+      const subscription = buffer.onDidReload(() => {
+        subscription.dispose()
+
+        expect(buffer.getText()).toBe('abc de ')
+
+        expect(toPlainObject(events)).toEqual(toPlainObject([
+          [
+            'will-change', {
+              oldRange: Range(Point(0, 3), Point(0, 5)),
+              newRange: Range(Point(0, 3), Point(0, 7)),
+              oldText: 'de',
+              newText: ' de '
+            }
+          ],
+          [
+            'did-change', {
+              oldRange: Range(Point(0, 3), Point(0, 5)),
+              newRange: Range(Point(0, 3), Point(0, 7)),
+              oldText: 'de',
+              newText: ' de '
+            }
+          ],
+          [
+            'did-change-text', {
+              changes: [
+                {
+                  oldRange: Range(Point(0, 3), Point(0, 3)),
+                  newRange: Range(Point(0, 3), Point(0, 4)),
+                  oldText: '',
+                  newText: ' '
+                },
+                {
+                  oldRange: Range(Point(0, 5), Point(0, 5)),
+                  newRange: Range(Point(0, 6), Point(0, 7)),
+                  oldText: '',
+                  newText: ' '
+                }
+              ]
+            }
           ]
         ]))
 

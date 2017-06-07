@@ -20,24 +20,39 @@ Grim = require 'grim'
 class TransactionAbortedError extends Error
   constructor: -> super
 
-class DidChangeOnLoadEvent
-  constructor: (buffer, patch, @oldRange) ->
-    @newRange = new Range(Point.ZERO, buffer.getExtent())
+class CompositeChangeEvent
+  constructor: (buffer, patch) ->
+    changes = patch.getChanges()
+    changeStart = changes[0].oldStart
+    @oldRange = new Range(changeStart, changes[changes.length - 1].oldEnd)
+    @newRange = new Range(changeStart, changes[changes.length - 1].newEnd)
 
     oldText = null
     newText = null
+
+    Object.defineProperty(this, 'didChange', {
+      enumerable: false,
+      writable: true,
+      value: false
+    })
 
     Object.defineProperty(this, 'oldText', {
       enumerable: true,
       get: ->
         unless oldText?
-          oldBuffer = new NativeTextBuffer(@newText)
-          for change in patch.getChanges() by -1
-            oldBuffer.setTextInRange(
-              new Range(change.newStart, change.newEnd),
-              change.oldText
-            )
-          oldText = oldBuffer.getText()
+          if @didChange
+            oldBuffer = new NativeTextBuffer(@newText)
+            for change in changes by -1
+              oldBuffer.setTextInRange(
+                new Range(
+                  traversal(change.newStart, changeStart),
+                  traversal(change.newEnd, changeStart)
+                ),
+                change.oldText
+              )
+            oldText = oldBuffer.getText()
+          else
+            oldText = buffer.getTextInRange(@oldRange)
         oldText
     })
 
@@ -45,7 +60,19 @@ class DidChangeOnLoadEvent
       enumerable: true,
       get: ->
         unless newText?
-          newText = buffer.getText()
+          if @didChange
+            newText = buffer.getTextInRange(@newRange)
+          else
+            newBuffer = new NativeTextBuffer(@oldText)
+            for change in changes by -1
+              newBuffer.setTextInRange(
+                new Range(
+                  traversal(change.oldStart, changeStart),
+                  traversal(change.oldEnd, changeStart)
+                ),
+                change.newText
+              )
+            newText = newBuffer.getText()
         newText
     })
 
@@ -1584,36 +1611,36 @@ class TextBuffer
     unless options?.internal
       Grim.deprecate('The .loadSync instance method is deprecated. Create a loaded buffer using TextBuffer.loadSync(filePath) instead.')
 
-    oldRange = null
     checkpoint = null
+    changeEvent = null
     @emitter.emit('will-reload')
     patch = @buffer.loadSync(
       @getPath(),
       @getEncoding(),
-      (percentDone, willChange) =>
-        if willChange or not @loaded
-          oldRange = new Range(Point.ZERO, @buffer.getExtent())
+      (percentDone, patch) =>
+        if patch and patch.getChangeCount() > 0
+          changeEvent = new CompositeChangeEvent(@buffer, patch)
           checkpoint = @history.createCheckpoint(@createMarkerSnapshot(), true)
-          @emitter.emit('will-change', {oldRange})
+          @emitter.emit('will-change', changeEvent)
     )
-    result = @finishLoading(oldRange, checkpoint, patch)
+    result = @finishLoading(changeEvent, checkpoint, patch)
     @emitter.emit('did-reload')
     result
 
   load: (options) ->
     unless options?.internal
       Grim.deprecate('The .load instance method is deprecated. Create a loaded buffer using TextBuffer.load(filePath) instead.')
-
     loadCount = ++@loadCount
-    oldRange = null
+
     checkpoint = null
+    changeEvent = null
     encoding = @getEncoding()
-    progressCallback = (percentDone, willChange) =>
+    progressCallback = (percentDone, patch) =>
       return false if @loadCount > loadCount
-      if willChange or not @loaded
-        oldRange = new Range(Point.ZERO, @buffer.getExtent())
+      if patch and patch.getChangeCount() > 0
+        changeEvent = new CompositeChangeEvent(@buffer, patch)
         checkpoint = @history.createCheckpoint(@createMarkerSnapshot(), true)
-        @emitter.emit('will-change', {oldRange})
+        @emitter.emit('will-change', changeEvent)
 
     if @file instanceof File
       source = @file.getPath()
@@ -1628,7 +1655,7 @@ class TextBuffer
 
     promise
       .then (patch) =>
-        result = @finishLoading(oldRange, checkpoint, patch, options)
+        result = @finishLoading(changeEvent, checkpoint, patch, options)
         @emitter.emit('did-reload')
         result
       .catch (error) =>
@@ -1638,8 +1665,8 @@ class TextBuffer
         else
           throw error
 
-  finishLoading: (oldRange, checkpoint, patch, options) ->
-    return null unless @isAlive() and oldRange? and patch?
+  finishLoading: (changeEvent, checkpoint, patch, options) ->
+    return null if @isDestroyed() or (@loaded and not changeEvent? and patch?)
 
     @fileHasChangedSinceLastLoad = false
     @digestWhenLastPersisted = @buffer.baseTextDigest()
@@ -1659,7 +1686,8 @@ class TextBuffer
               traversal(change.oldEnd, change.oldStart),
               traversal(change.newEnd, change.newStart)
             )
-      @emitDidChangeEvent(new DidChangeOnLoadEvent(@buffer, patch, oldRange))
+      changeEvent.didChange = true
+      @emitDidChangeEvent(changeEvent)
       markerSnapshot = @createMarkerSnapshot()
       @history.groupChangesSinceCheckpoint(checkpoint, markerSnapshot, true)
       @emitMarkerChangeEvents(markerSnapshot)
