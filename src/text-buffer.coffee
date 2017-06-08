@@ -22,10 +22,9 @@ class TransactionAbortedError extends Error
 
 class CompositeChangeEvent
   constructor: (buffer, patch) ->
-    changes = patch.getChanges()
-    changeStart = changes[0].oldStart
-    @oldRange = new Range(changeStart, changes[changes.length - 1].oldEnd)
-    @newRange = new Range(changeStart, changes[changes.length - 1].newEnd)
+    {oldStart: compositeStart, oldEnd, newEnd} = patch.getBounds()
+    @oldRange = new Range(compositeStart, oldEnd)
+    @newRange = new Range(compositeStart, newEnd)
 
     oldText = null
     newText = null
@@ -42,11 +41,11 @@ class CompositeChangeEvent
         unless oldText?
           if @didChange
             oldBuffer = new NativeTextBuffer(@newText)
-            for change in changes by -1
+            for change in patch.getChanges() by -1
               oldBuffer.setTextInRange(
                 new Range(
-                  traversal(change.newStart, changeStart),
-                  traversal(change.newEnd, changeStart)
+                  traversal(change.newStart, compositeStart),
+                  traversal(change.newEnd, compositeStart)
                 ),
                 change.oldText
               )
@@ -64,11 +63,11 @@ class CompositeChangeEvent
             newText = buffer.getTextInRange(@newRange)
           else
             newBuffer = new NativeTextBuffer(@oldText)
-            for change in changes by -1
+            for change in patch.getChanges() by -1
               newBuffer.setTextInRange(
                 new Range(
-                  traversal(change.oldStart, changeStart),
-                  traversal(change.oldEnd, changeStart)
+                  traversal(change.oldStart, compositeStart),
+                  traversal(change.oldEnd, compositeStart)
                 ),
                 change.newText
               )
@@ -1636,40 +1635,40 @@ class TextBuffer
   load: (options) ->
     unless options?.internal
       Grim.deprecate('The .load instance method is deprecated. Create a loaded buffer using TextBuffer.load(filePath) instead.')
-    loadCount = ++@loadCount
-
-    checkpoint = null
-    changeEvent = null
-    encoding = @getEncoding()
-    progressCallback = (percentDone, patch) =>
-      return false if @loadCount > loadCount
-      if patch and patch.getChangeCount() > 0
-        changeEvent = new CompositeChangeEvent(@buffer, patch)
-        checkpoint = @history.createCheckpoint(@createMarkerSnapshot(), true)
-        @emitter.emit('will-change', changeEvent)
 
     if @file instanceof File
       source = @file.getPath()
     else
       source = @file.createReadStream()
 
+    checkpoint = null
+    changeEvent = null
+    loadCount = ++@loadCount
     @emitter.emit('will-reload')
-    if options?.discardChanges
-      promise = @buffer.reload(source, encoding, progressCallback)
-    else
-      promise = @buffer.load(source, encoding, progressCallback)
-
-    promise
-      .then (patch) =>
-        result = @finishLoading(changeEvent, checkpoint, patch, options)
+    @buffer.load(
+      source,
+      {
+        encoding: @getEncoding(),
+        force: options?.discardChanges,
+        patch: @loaded
+      },
+      (percentDone, patch) =>
+        return false if @loadCount > loadCount
+        if patch and patch.getChangeCount() > 0
+          changeEvent = new CompositeChangeEvent(@buffer, patch)
+          checkpoint = @history.createCheckpoint(@createMarkerSnapshot(), true)
+          @emitter.emit('will-change', changeEvent)
+    ).then((patch) =>
+      result = @finishLoading(changeEvent, checkpoint, patch, options)
+      @emitter.emit('did-reload')
+      result
+    ).catch((error) =>
+      if error.code is 'ENOENT'
         @emitter.emit('did-reload')
-        result
-      .catch (error) =>
-        if error.code is 'ENOENT'
-          @emitter.emit('did-reload')
-          @setText('') if options?.discardChanges
-        else
-          throw error
+        @setText('') if options?.discardChanges
+      else
+        throw error
+    )
 
   finishLoading: (changeEvent, checkpoint, patch, options) ->
     return null if @isDestroyed() or (@loaded and not changeEvent? and patch?)
