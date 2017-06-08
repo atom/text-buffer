@@ -1619,15 +1619,23 @@ class TextBuffer
     checkpoint = null
     changeEvent = null
     @emitter.emit('will-reload')
-    patch = @buffer.loadSync(
-      @getPath(),
-      @getEncoding(),
-      (percentDone, patch) =>
-        if patch and patch.getChangeCount() > 0
-          changeEvent = new CompositeChangeEvent(@buffer, patch)
-          checkpoint = @history.createCheckpoint(@createMarkerSnapshot(), true)
-          @emitter.emit('will-change', changeEvent)
-    )
+    try
+      patch = @buffer.loadSync(
+        @getPath(),
+        @getEncoding(),
+        (percentDone, patch) =>
+          if patch and patch.getChangeCount() > 0
+            changeEvent = new CompositeChangeEvent(@buffer, patch)
+            checkpoint = @history.createCheckpoint(@createMarkerSnapshot(), true)
+            @emitter.emit('will-change', changeEvent)
+      )
+    catch error
+      if error.code is 'ENOENT'
+        @emitter.emit('did-reload')
+        @setText('') if options?.discardChanges
+      else
+        throw error
+
     result = @finishLoading(changeEvent, checkpoint, patch)
     @emitter.emit('did-reload')
     result

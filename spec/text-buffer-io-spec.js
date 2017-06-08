@@ -83,6 +83,11 @@ describe('TextBuffer IO', () => {
       expect(buffer.getText()).toBe('abc')
       expect(buffer.isModified()).toBe(false)
     })
+
+    it('returns an empty buffer if the file does not exist', () => {
+      const buffer = TextBuffer.loadSync('/this/does/not/exist')
+      expect(buffer.getText()).toBe('')
+    })
   })
 
   describe('.reload', () => {
