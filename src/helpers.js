@@ -1,5 +1,6 @@
 const Range = require('./range')
 
+const NEWLINE_REGEX = /\n/g
 const MULTI_LINE_REGEX_REGEX = /\\s|\\r|\\n|\r|\n|^\[\^|[^\\]\[\^/
 
 exports.newlineRegex = /\r\n|\n|\r/g
@@ -39,7 +40,7 @@ exports.spliceArray = function (array, start, removedCount, insertedItems = []) 
     for (let i = newLength - 1, end = start + insertedCount; i >= end; i--) {
       array[i] = array[i - lengthDelta]
     }
-  } else {
+  } else if (lengthDelta < 0) {
     for (let i = start + insertedCount, end = newLength; i < end; i++) {
       array[i] = array[i - lengthDelta]
     }
@@ -59,6 +60,17 @@ exports.normalizePatchChanges = function (changes) {
       change.oldText, change.newText
     )
   )
+}
+
+exports.extentForText = function (text) {
+  let lastLineStartIndex = 0
+  let row = 0
+  NEWLINE_REGEX.lastIndex = 0
+  while (NEWLINE_REGEX.exec(text)) {
+    row++
+    lastLineStartIndex = NEWLINE_REGEX.lastIndex
+  }
+  return {row, column: text.length - lastLineStartIndex}
 }
 
 class TextChange {

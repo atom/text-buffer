@@ -1354,7 +1354,7 @@ describe('DisplayLayer', () => {
 
     it('renders end of line invisibles, appropriately decorated', () => {
       const buffer = new TextBuffer({
-        text: 'a\nb\n\nd e f\r\ngh\rij\n\r\n'
+        text: 'a\nb\n\nd e f\r\ngh\r\nij\n\r\n'
       })
 
       const displayLayer = buffer.addDisplayLayer({
@@ -1366,7 +1366,7 @@ describe('DisplayLayer', () => {
         }
       })
 
-      expect(displayLayer.getText()).toBe('a¬\nb¬\n¬\nd e f¤¬\ngh¤\nij¬\n¤¬\n')
+      expect(displayLayer.getText()).toBe('a¬\nb¬\n¬\nd e f¤¬\ngh¤¬\nij¬\n¤¬\n')
 
       expectTokenBoundaries(displayLayer, [
         {
@@ -1430,7 +1430,7 @@ describe('DisplayLayer', () => {
           open: []
         },
         {
-          text: '¤',
+          text: '¤¬',
           close: [],
           open: ['invisible-character eol']
         },

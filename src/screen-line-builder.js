@@ -29,9 +29,9 @@ class ScreenLineBuilder {
 
     endScreenRow = this.displayLayer.findBoundaryFollowingScreenRow(endScreenRow)
 
-    var decorationIterator
-    var hunks = this.displayLayer.spatialIndex.getHunksInNewRange(Point(this.screenRow, 0), Point(endScreenRow, 0))
-    var hunkIndex = 0
+    let decorationIterator
+    const hunks = this.displayLayer.spatialIndex.getChangesInNewRange(Point(this.screenRow, 0), Point(endScreenRow, 0))
+    let hunkIndex = 0
 
     this.containingScopeIds = []
     this.scopeIdsToReopen = []
