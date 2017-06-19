@@ -2088,18 +2088,14 @@ describe "TextBuffer", ->
     beforeEach (done) ->
       delay = buffer.stoppedChangingDelay
       didStopChangingCallback = jasmine.createSpy("didStopChangingCallback")
-      setTimeout(->
-        done()
-      , delay)
+      setTimeout(done, delay)
 
     beforeEach (done) ->
       buffer.onDidStopChanging didStopChangingCallback
 
       buffer.insert([0, 0], 'a')
       expect(didStopChangingCallback).not.toHaveBeenCalled()
-      setTimeout(->
-        done()
-      , delay / 2)
+      setTimeout(done, delay / 2)
 
     beforeEach (done) ->
       buffer.transact ->
@@ -2107,15 +2103,11 @@ describe "TextBuffer", ->
           buffer.insert([0, 0], 'b')
           buffer.insert([1, 0], 'c')
       expect(didStopChangingCallback).not.toHaveBeenCalled()
-      setTimeout(->
-        done()
-      , delay / 2)
+      setTimeout(done, delay / 2)
 
     beforeEach (done) ->
       expect(didStopChangingCallback).not.toHaveBeenCalled()
-      setTimeout(->
-        done()
-      , delay / 2)
+      setTimeout(done, delay)
 
     beforeEach (done) ->
       expect(didStopChangingCallback).toHaveBeenCalled()
