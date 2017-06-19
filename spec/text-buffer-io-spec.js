@@ -880,7 +880,7 @@ describe('TextBuffer IO', () => {
 })
 
 function stopChangingPromise () {
-  return timeoutPromise(TextBuffer.prototype.stoppedChangingDelay)
+  return timeoutPromise(TextBuffer.prototype.stoppedChangingDelay * 2)
 }
 
 function timeoutPromise (duration) {
