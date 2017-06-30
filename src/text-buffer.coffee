@@ -1423,7 +1423,7 @@ class TextBuffer
   # Public: Get the number of lines in the buffer.
   #
   # Returns a {Number}.
-  getLineCount: -> @buffer.getExtent().row + 1
+  getLineCount: -> @buffer.getLineCount()
 
   # Public: Get the last 0-indexed row in the buffer.
   #
