@@ -290,7 +290,7 @@ class Marker
     ))
 
   # Public: Destroys the marker, causing it to emit the 'destroyed' event.
-  destroy: ->
+  destroy: (suppressMarkerLayerUpdateEvents) ->
     return if @isDestroyed()
 
     if @trackDestruction
@@ -298,7 +298,7 @@ class Marker
       Error.captureStackTrace(error)
       @destroyStackTrace = error.stack
 
-    @layer.destroyMarker(this)
+    @layer.destroyMarker(this, suppressMarkerLayerUpdateEvents)
     @emitter.emit 'did-destroy'
     @emitter.clear()
 
@@ -340,7 +340,7 @@ class Marker
       else
         isEqual(@properties[key], value)
 
-  update: (oldRange, {range, reversed, tailed, valid, exclusive, properties}, textChanged=false) ->
+  update: (oldRange, {range, reversed, tailed, valid, exclusive, properties}, textChanged=false, suppressMarkerLayerUpdateEvents=false) ->
     return if @isDestroyed()
 
     wasExclusive = @isExclusive()
@@ -376,7 +376,7 @@ class Marker
       updated = true
 
     @emitChangeEvent(range ? oldRange, textChanged, propertiesChanged)
-    @layer.markerUpdated() if updated and not textChanged
+    @layer.markerUpdated() if updated and not suppressMarkerLayerUpdateEvents
     updated
 
   getSnapshot: (range) ->
