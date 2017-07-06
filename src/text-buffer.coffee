@@ -1685,7 +1685,7 @@ class TextBuffer
     @digestWhenLastPersisted = @buffer.baseTextDigest()
     @cachedText = null
 
-    if @loaded and patch.getChangeCount() > 0
+    if @loaded and patch and patch.getChangeCount() > 0
       if options?.clearHistory
         @history.clearUndoStack()
       else
