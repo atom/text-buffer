@@ -892,6 +892,7 @@ class TextBuffer
     if @markerLayers?
       for id, markerLayer of @markerLayers
         markerLayer.splice(oldRange.start, oldExtent, newExtent)
+        @markerLayersWithPendingUpdateEvents.add(markerLayer)
 
     @cachedText = null
     @emitDidChangeEvent(changeEvent)
@@ -911,12 +912,6 @@ class TextBuffer
     # Emit a `did-change-sync` event from all the registered display layers.
     changeEventsByDisplayLayer.forEach (event, displayLayer) ->
       displayLayer.emitDidChangeSyncEvent(event)
-    # Emit a `did-update` event from all the registered marker layers. If this
-    # happens inside a nested transaction, the event will be emitted at the end
-    # of the outermost transaction.
-    if @markerLayers?
-      for id, markerLayer of @markerLayers
-        @markersUpdated(markerLayer)
 
   # Public: Delete the text in the given range.
   #
@@ -1122,8 +1117,8 @@ class TextBuffer
     if pop = @history.popUndoStack()
       @applyChange(change) for change in pop.patch.getChanges()
       @restoreFromMarkerSnapshot(pop.snapshot)
-      @emitMarkerChangeEvents(pop.snapshot)
       @emitDidChangeTextEvent(pop.patch)
+      @emitMarkerChangeEvents(pop.snapshot)
       true
     else
       false
@@ -1133,8 +1128,8 @@ class TextBuffer
     if pop = @history.popRedoStack()
       @applyChange(change) for change in pop.patch.getChanges()
       @restoreFromMarkerSnapshot(pop.snapshot)
-      @emitMarkerChangeEvents(pop.snapshot)
       @emitDidChangeTextEvent(pop.patch)
+      @emitMarkerChangeEvents(pop.snapshot)
       true
     else
       false
@@ -1175,8 +1170,8 @@ class TextBuffer
       error.metadata = {history: @history.toString()}
     @history.applyGroupingInterval(groupingInterval)
     @history.enforceUndoStackSizeLimit()
-    @emitMarkerChangeEvents(endMarkerSnapshot)
     @emitDidChangeTextEvent(compactedChanges) if compactedChanges
+    @emitMarkerChangeEvents(endMarkerSnapshot)
     result
 
   abortTransaction: ->
@@ -1207,8 +1202,9 @@ class TextBuffer
     if truncated = @history.truncateUndoStack(checkpoint)
       @applyChange(change) for change in truncated.patch.getChanges()
       @restoreFromMarkerSnapshot(truncated.snapshot)
-      @emitter.emit 'did-update-markers'
       @emitDidChangeTextEvent(truncated.patch)
+      @emitter.emit 'did-update-markers'
+      @emitMarkerChangeEvents(truncated.snapshot)
       true
     else
       false
@@ -1703,8 +1699,8 @@ class TextBuffer
       @emitDidChangeEvent(changeEvent)
       markerSnapshot = @createMarkerSnapshot()
       @history.groupChangesSinceCheckpoint(checkpoint, markerSnapshot, true)
-      @emitMarkerChangeEvents(markerSnapshot)
       @emitDidChangeTextEvent(patch)
+      @emitMarkerChangeEvents(markerSnapshot)
       @emitModifiedStatusChanged(@isModified())
 
     @loaded = true
@@ -1785,13 +1781,14 @@ class TextBuffer
       @markerLayers[markerLayerId]?.restoreFromSnapshot(layerSnapshot)
 
   emitMarkerChangeEvents: (snapshot) ->
-    while @markerLayersWithPendingUpdateEvents.size > 0
-      updatedMarkerLayers = Array.from(@markerLayersWithPendingUpdateEvents)
-      @markerLayersWithPendingUpdateEvents.clear()
-      for markerLayer in updatedMarkerLayers
-        markerLayer.emitUpdateEvent()
-        if markerLayer is @defaultMarkerLayer
-          @emitter.emit 'did-update-markers'
+    if @transactCallDepth is 0
+      while @markerLayersWithPendingUpdateEvents.size > 0
+        updatedMarkerLayers = Array.from(@markerLayersWithPendingUpdateEvents)
+        @markerLayersWithPendingUpdateEvents.clear()
+        for markerLayer in updatedMarkerLayers
+          markerLayer.emitUpdateEvent()
+          if markerLayer is @defaultMarkerLayer
+            @emitter.emit 'did-update-markers'
 
     for markerLayerId, markerLayer of @markerLayers
       markerLayer.emitChangeEvents(snapshot?[markerLayerId])

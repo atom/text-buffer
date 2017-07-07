@@ -282,15 +282,13 @@ class MarkerLayer
     for id in snapshotIds
       snapshot = snapshots[id]
       if marker = @markersById[id]
-        marker.update(marker.getRange(), snapshot, true)
+        marker.update(marker.getRange(), snapshot, true, true)
       else
-        newMarker = @createMarker(snapshot.range, snapshot)
+        newMarker = @createMarker(snapshot.range, snapshot, true)
 
     for id in existingMarkerIds
       if (marker = @markersById[id]) and (not snapshots[id]?)
-        marker.destroy()
-
-    @delegate.markersUpdated(this)
+        marker.destroy(true)
 
   createSnapshot: ->
     result = {}
@@ -331,14 +329,14 @@ class MarkerLayer
   markerUpdated: ->
     @delegate.markersUpdated(this)
 
-  destroyMarker: (marker) ->
+  destroyMarker: (marker, suppressMarkerLayerUpdateEvents=false) ->
     if @markersById.hasOwnProperty(marker.id)
       delete @markersById[marker.id]
       @index.remove(marker.id)
       @markersWithChangeListeners.delete(marker)
       @markersWithDestroyListeners.delete(marker)
       @displayMarkerLayers.forEach (displayMarkerLayer) -> displayMarkerLayer.destroyMarker(marker.id)
-      @delegate.markersUpdated(this)
+      @delegate.markersUpdated(this) unless suppressMarkerLayerUpdateEvents
 
   hasMarker: (id) ->
     not @destroyed and @index.has(id)
@@ -365,11 +363,11 @@ class MarkerLayer
   setMarkerIsExclusive: (id, exclusive) ->
     @index.setExclusive(id, exclusive)
 
-  createMarker: (range, params) ->
+  createMarker: (range, params, suppressMarkerLayerUpdateEvents=false) ->
     id = @delegate.getNextMarkerId()
     marker = @addMarker(id, range, params)
     @delegate.markerCreated(this, marker)
-    @delegate.markersUpdated(this)
+    @delegate.markersUpdated(this) unless suppressMarkerLayerUpdateEvents
     marker.trackDestruction = @trackDestructionInOnDidCreateMarkerCallbacks ? false
     @emitter.emit 'did-create-marker', marker if @emitCreateMarkerEvents
     marker.trackDestruction = false

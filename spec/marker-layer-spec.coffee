@@ -182,21 +182,29 @@ describe "MarkerLayer", ->
       displayLayer = buffer.addDisplayLayer()
       displayLayerDidChange = false
 
+      changeCount = 0
+      buffer.onDidChangeText ->
+        changeCount++
+
       updateCount = 0
       layer1.onDidUpdate ->
         updateCount++
         if updateCount is 1
+          expect(changeCount).toBe(0)
           buffer.transact ->
             marker1.setRange([[1, 2], [3, 4]])
             marker2.setRange([[4, 5], [6, 7]])
         else if updateCount is 2
+          expect(changeCount).toBe(0)
           buffer.transact ->
             buffer.insert([0, 1], "xxx")
             buffer.insert([0, 1], "yyy")
         else if updateCount is 3
+          expect(changeCount).toBe(1)
           marker1.destroy()
           marker2.destroy()
-        else if updateCount is 6
+        else if updateCount is 7
+          expect(changeCount).toBe(2)
           expect(displayLayerDidChange).toBe(true, 'Display layer was updated after marker layer.')
 
       buffer.transact ->
@@ -204,17 +212,17 @@ describe "MarkerLayer", ->
           marker1 = layer1.markRange([[0, 2], [0, 4]])
           marker2 = layer1.markRange([[0, 6], [0, 8]])
 
-      expect(updateCount).toBe(4)
+      expect(updateCount).toBe(5)
 
       # update events happen immediately when there is no parent transaction
       layer1.markRange([[0, 2], [0, 4]])
-      expect(updateCount).toBe(5)
+      expect(updateCount).toBe(6)
 
       # update events happen after updating display layers when there is no parent transaction.
       displayLayer.onDidChangeSync ->
         displayLayerDidChange = true
       buffer.undo()
-      expect(updateCount).toBe(6)
+      expect(updateCount).toBe(7)
 
   describe "::clear()", ->
     it "destroys all of the layer's markers", (done) ->
