@@ -103,6 +103,7 @@ class CompositeChangeEvent
 #     buffer2.setTextInRange(oldRange, newText)
 #   }
 # })
+# ```
 #
 # If you needed to apply the changes in the forwards order, you would need to
 # incorporate the impact of preceding changes into the range passed to
