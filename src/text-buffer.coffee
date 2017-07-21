@@ -1539,7 +1539,7 @@ class TextBuffer
   #
   # Returns a {Promise} that resolves when the save has completed.
   save: ->
-    @saveAs(@getPath())
+    @saveTo(@file)
 
   # Public: Save the buffer at a specific path.
   #
@@ -1552,7 +1552,7 @@ class TextBuffer
 
   saveTo: (file) ->
     if @destroyed then throw new Error("Can't save destroyed buffer")
-    unless file then throw new Error("Must provide a file to save")
+    unless file then throw new Error("Can't save a buffer with no file")
 
     filePath = file.getPath()
     if file instanceof File
