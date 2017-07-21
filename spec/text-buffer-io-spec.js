@@ -239,8 +239,13 @@ describe('TextBuffer IO', () => {
     })
 
     describe('when the buffer is backed by a custom File object instead of a path', () => {
+      let file
+
       beforeEach(() => {
-        buffer.setFile(new SimpleFile(filePath))
+        buffer = new TextBuffer()
+        file = new SimpleFile(filePath)
+        buffer.setFile(file)
+        spyOn(file, 'createWriteStream').and.callThrough()
       })
 
       it('saves the contents of the buffer to the given file', (done) => {
@@ -248,6 +253,7 @@ describe('TextBuffer IO', () => {
         buffer.save().then(() => {
           expect(fs.readFileSync(filePath, 'utf8')).toEqual(buffer.getText())
           expect(buffer.isModified()).toBe(false)
+          expect(file.createWriteStream).toHaveBeenCalled()
           done()
         })
       })

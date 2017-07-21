@@ -1539,7 +1539,7 @@ class TextBuffer
   #
   # Returns a {Promise} that resolves when the save has completed.
   save: ->
-    @saveAs(@getPath())
+    @saveTo(@file)
 
   # Public: Save the buffer at a specific path.
   #
