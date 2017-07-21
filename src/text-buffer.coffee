@@ -1552,7 +1552,7 @@ class TextBuffer
 
   saveTo: (file) ->
     if @destroyed then throw new Error("Can't save destroyed buffer")
-    unless file then throw new Error("Must provide a file to save")
+    unless file then throw new Error("Can't save a buffer with no file")
 
     filePath = file.getPath()
     if file instanceof File
