@@ -1661,6 +1661,8 @@ class TextBuffer
           checkpoint = @history.createCheckpoint(@createMarkerSnapshot(), true)
           @emitter.emit('will-reload')
           @emitter.emit('will-change', changeEvent)
+        else if options?.discardChanges
+          @emitter.emit('will-reload')
     ).then((patch) =>
       @finishLoading(changeEvent, checkpoint, patch, options)
     ).catch((error) =>
@@ -1673,7 +1675,10 @@ class TextBuffer
     )
 
   finishLoading: (changeEvent, checkpoint, patch, options) ->
-    return null if @isDestroyed() or (@loaded and not changeEvent? and patch?)
+    if @isDestroyed() or (@loaded and not changeEvent? and patch?)
+      if options?.discardChanges
+        @emitter.emit('did-reload')
+      return null
 
     @fileHasChangedSinceLastLoad = false
     @digestWhenLastPersisted = @buffer.baseTextDigest()

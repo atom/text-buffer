@@ -147,6 +147,16 @@ describe('TextBuffer IO', () => {
         done()
       })
     })
+
+    it('emits reload events even if nothing has changed', (done) => {
+      const events = []
+      buffer.onWillReload((event) => events.push('will-reload'))
+      buffer.onDidReload((event) => events.push('did-reload'))
+      buffer.reload().then(() => {
+        expect(events).toEqual(['will-reload', 'did-reload'])
+        done()
+      })
+    })
   })
 
   describe('.save', () => {
