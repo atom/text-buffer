@@ -6,6 +6,8 @@ const Range = require('../src/range')
 const TextBuffer = require('../src/text-buffer')
 const {TextBuffer: NativeTextBuffer} = require('superstring')
 
+process.on('unhandledRejection', console.error)
+
 class SimpleFile {
   constructor (path) {
     this.path = path
@@ -226,6 +228,25 @@ describe('TextBuffer IO', () => {
         buffer.save().then(() => {
           expect(buffer.isInConflict()).toBe(false)
           done()
+        })
+      })
+    })
+
+    describe('when the buffer is modified immediately after saving', () => {
+      it('does not emit a conflict event', (done) => {
+        const conflictEvents = []
+        buffer.onDidConflict((event) => conflictEvents.push(event))
+
+        buffer.setText('Buffer contents')
+        buffer.save()
+        setTimeout(() => buffer.append('!'), 1)
+
+        const subscription = buffer.file.onDidChange(() => {
+          setTimeout(() => {
+            subscription.dispose()
+            expect(conflictEvents.length).toBe(0)
+            done()
+          }, buffer.fileChangeDelay + 100)
         })
       })
     })

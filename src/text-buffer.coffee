@@ -1748,7 +1748,8 @@ class TextBuffer
         @fileHasChangedSinceLastLoad = true
 
         if @isModified()
-          @emitter.emit 'did-conflict'
+          @buffer.baseTextMatchesFile(@getPath(), @getEncoding()).then (matchesFile) =>
+            @emitter.emit 'did-conflict' unless matchesFile
         else
           @load(internal: true)
       , @fileChangeDelay)
