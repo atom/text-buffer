@@ -1656,13 +1656,14 @@ class TextBuffer
       },
       (percentDone, patch) =>
         return false if @loadCount > loadCount
-        if patch and patch.getChangeCount() > 0
-          changeEvent = new CompositeChangeEvent(@buffer, patch)
-          checkpoint = @history.createCheckpoint(@createMarkerSnapshot(), true)
-          @emitter.emit('will-reload')
-          @emitter.emit('will-change', changeEvent)
-        else if options?.discardChanges
-          @emitter.emit('will-reload')
+        if patch
+          if patch.getChangeCount() > 0
+            changeEvent = new CompositeChangeEvent(@buffer, patch)
+            checkpoint = @history.createCheckpoint(@createMarkerSnapshot(), true)
+            @emitter.emit('will-reload')
+            @emitter.emit('will-change', changeEvent)
+          else if options?.discardChanges
+            @emitter.emit('will-reload')
     ).then((patch) =>
       @finishLoading(changeEvent, checkpoint, patch, options)
     ).catch((error) =>
