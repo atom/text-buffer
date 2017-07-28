@@ -189,6 +189,42 @@ describe('TextBuffer IO', () => {
       })
     })
 
+    it('does not emit a conflict event due to the save', (done) => {
+      const events = []
+      buffer.onDidConflict((event) => events.push(event))
+
+      buffer.setText('Buffer contents')
+      buffer.save()
+
+      // Modify the file after the save has been asynchronously initiated
+      setTimeout(() => buffer.append('!'), 1)
+
+      const subscription = buffer.file.onDidChange(() => {
+        setTimeout(() => {
+          subscription.dispose()
+          expect(events.length).toBe(0)
+          done()
+        }, buffer.fileChangeDelay + 100)
+      })
+    })
+
+    it('does not emit a reload event due to the save', (done) => {
+      const events = []
+      buffer.onWillReload((event) => events.push(event))
+      buffer.onDidReload((event) => events.push(event))
+
+      buffer.setText('Buffer contents')
+      buffer.save()
+
+      const subscription = buffer.file.onDidChange(() => {
+        setTimeout(() => {
+          subscription.dispose()
+          expect(events.length).toBe(0)
+          done()
+        }, buffer.fileChangeDelay + 100)
+      })
+    })
+
     it('notifies ::onWillSave and ::onDidSave observers', (done) => {
       const events = []
       buffer.onWillSave((event) => events.push([
@@ -228,25 +264,6 @@ describe('TextBuffer IO', () => {
         buffer.save().then(() => {
           expect(buffer.isInConflict()).toBe(false)
           done()
-        })
-      })
-    })
-
-    describe('when the buffer is modified immediately after saving', () => {
-      it('does not emit a conflict event', (done) => {
-        const conflictEvents = []
-        buffer.onDidConflict((event) => conflictEvents.push(event))
-
-        buffer.setText('Buffer contents')
-        buffer.save()
-        setTimeout(() => buffer.append('!'), 1)
-
-        const subscription = buffer.file.onDidChange(() => {
-          setTimeout(() => {
-            subscription.dispose()
-            expect(conflictEvents.length).toBe(0)
-            done()
-          }, buffer.fileChangeDelay + 100)
         })
       })
     })
@@ -791,12 +808,22 @@ describe('TextBuffer IO', () => {
     })
 
     it('does nothing when the file is rewritten with the same contents', (done) => {
+      const events = []
+      buffer.onWillReload((event) => events.push(event))
+      buffer.onDidReload((event) => events.push(event))
+      buffer.onDidChange((event) => events.push(event))
+      buffer.onDidChangeText((event) => events.push(event))
+      buffer.onDidConflict((event) => events.push(event))
+
       fs.writeFileSync(buffer.getPath(), 'abcde')
 
-      const subscription = buffer.onDidReload(() => {
-        expect(buffer.getText()).toBe('abcde')
+      const subscription = buffer.file.onDidChange(() => {
         subscription.dispose()
-        done()
+        setTimeout(() => {
+          expect(buffer.getText()).toBe('abcde')
+          expect(events.length).toBe(0)
+          done()
+        }, buffer.fileChangeDelay + 100)
       })
     })
 

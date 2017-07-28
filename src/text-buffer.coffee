@@ -1615,7 +1615,6 @@ class TextBuffer
 
     checkpoint = null
     changeEvent = null
-    @emitter.emit('will-reload')
     try
       patch = @buffer.loadSync(
         @getPath(),
@@ -1624,6 +1623,7 @@ class TextBuffer
           if patch and patch.getChangeCount() > 0
             changeEvent = new CompositeChangeEvent(@buffer, patch)
             checkpoint = @history.createCheckpoint(@createMarkerSnapshot(), true)
+            @emitter.emit('will-reload')
             @emitter.emit('will-change', changeEvent)
       )
     catch error
@@ -1633,9 +1633,7 @@ class TextBuffer
       else
         throw error
 
-    result = @finishLoading(changeEvent, checkpoint, patch)
-    @emitter.emit('did-reload')
-    result
+    @finishLoading(changeEvent, checkpoint, patch)
 
   load: (options) ->
     unless options?.internal
@@ -1649,7 +1647,6 @@ class TextBuffer
     checkpoint = null
     changeEvent = null
     loadCount = ++@loadCount
-    @emitter.emit('will-reload')
     @buffer.load(
       source,
       {
@@ -1662,15 +1659,15 @@ class TextBuffer
         if patch and patch.getChangeCount() > 0
           changeEvent = new CompositeChangeEvent(@buffer, patch)
           checkpoint = @history.createCheckpoint(@createMarkerSnapshot(), true)
+          @emitter.emit('will-reload')
           @emitter.emit('will-change', changeEvent)
     ).then((patch) =>
-      result = @finishLoading(changeEvent, checkpoint, patch, options)
-      @emitter.emit('did-reload')
-      result
+      @finishLoading(changeEvent, checkpoint, patch, options)
     ).catch((error) =>
       if error.code is 'ENOENT'
-        @emitter.emit('did-reload')
+        @emitter.emit('will-reload')
         @setText('') if options?.discardChanges
+        @emitter.emit('did-reload')
       else
         throw error
     )
@@ -1705,6 +1702,7 @@ class TextBuffer
       @emitModifiedStatusChanged(@isModified())
 
     @loaded = true
+    @emitter.emit('did-reload')
     this
 
   destroy: ->
