@@ -1639,10 +1639,10 @@ class TextBuffer
     unless options?.internal
       Grim.deprecate('The .load instance method is deprecated. Create a loaded buffer using TextBuffer.load(filePath) instead.')
 
-    if @file instanceof File
-      source = @file.getPath()
+    source = if @file instanceof File
+      @file.getPath()
     else
-      source = @file.createReadStream()
+      @file.createReadStream()
 
     checkpoint = null
     changeEvent = null
@@ -1752,7 +1752,11 @@ class TextBuffer
         @fileHasChangedSinceLastLoad = true
 
         if @isModified()
-          @buffer.baseTextMatchesFile(@getPath(), @getEncoding()).then (matchesFile) =>
+          source = if @file instanceof File
+            @file.getPath()
+          else
+            @file.createReadStream()
+          @buffer.baseTextMatchesFile(source, @getEncoding()).then (matchesFile) =>
             @emitter.emit 'did-conflict' unless matchesFile
         else
           @load(internal: true)
