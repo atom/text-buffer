@@ -1,32 +1,14 @@
 const fs = require('fs-plus')
 const path = require('path')
+const {Writable, Transform} = require('stream')
 const temp = require('temp')
+const {Disposable} = require('event-kit')
 const Point = require('../src/point')
 const Range = require('../src/range')
 const TextBuffer = require('../src/text-buffer')
 const {TextBuffer: NativeTextBuffer} = require('superstring')
 
-class SimpleFile {
-  constructor (path) {
-    this.path = path
-  }
-
-  existsSync () {
-    return fs.existsSync(this.path)
-  }
-
-  getPath () {
-    return this.path
-  }
-
-  createReadStream () {
-    return fs.createReadStream(this.path)
-  }
-
-  createWriteStream () {
-    return fs.createWriteStream(this.path)
-  }
-}
+process.on('unhandledRejection', console.error)
 
 describe('TextBuffer IO', () => {
   let buffer
@@ -65,8 +47,8 @@ describe('TextBuffer IO', () => {
         const filePath = temp.openSync('atom').path
         fs.writeFileSync(filePath, 'abc\ndef')
 
-        TextBuffer.load(new SimpleFile(filePath)).then((buffer) => {
-          expect(buffer.getText()).toBe('abc\ndef')
+        TextBuffer.load(new ReverseCaseFile(filePath)).then((buffer) => {
+          expect(buffer.getText()).toBe('ABC\nDEF')
           expect(buffer.isModified()).toBe(false)
           done()
         })
@@ -145,6 +127,16 @@ describe('TextBuffer IO', () => {
         done()
       })
     })
+
+    it('emits reload events even if nothing has changed', (done) => {
+      const events = []
+      buffer.onWillReload((event) => events.push('will-reload'))
+      buffer.onDidReload((event) => events.push('did-reload'))
+      buffer.reload().then(() => {
+        expect(events).toEqual(['will-reload', 'did-reload'])
+        done()
+      })
+    })
   })
 
   describe('.save', () => {
@@ -184,6 +176,40 @@ describe('TextBuffer IO', () => {
           expect(changeEvents).toEqual([])
           done()
         }, 250)
+      })
+    })
+
+    it('does not emit a conflict event due to the save', (done) => {
+      const events = []
+      buffer.onDidConflict((event) => events.push(event))
+
+      buffer.setText('Buffer contents')
+      buffer.save()
+
+      // Modify the file after the save has been asynchronously initiated
+      buffer.onDidSave(() => buffer.append('!'))
+
+      const subscription = buffer.file.onDidChange(() => setTimeout(() => {
+        subscription.dispose()
+        expect(events.length).toBe(0)
+        done()
+      }, buffer.fileChangeDelay))
+    })
+
+    it('does not emit a reload event due to the save', (done) => {
+      const events = []
+      buffer.onWillReload((event) => events.push(event))
+      buffer.onDidReload((event) => events.push(event))
+
+      buffer.setText('Buffer contents')
+      buffer.save()
+
+      const subscription = buffer.file.onDidChange(() => {
+        setTimeout(() => {
+          subscription.dispose()
+          expect(events.length).toBe(0)
+          done()
+        }, buffer.fileChangeDelay + 100)
       })
     })
 
@@ -239,23 +265,35 @@ describe('TextBuffer IO', () => {
     })
 
     describe('when the buffer is backed by a custom File object instead of a path', () => {
-      let file
-
       beforeEach(() => {
         buffer = new TextBuffer()
-        file = new SimpleFile(filePath)
-        buffer.setFile(file)
-        spyOn(file, 'createWriteStream').and.callThrough()
+        buffer.setFile(new ReverseCaseFile(filePath))
       })
 
       it('saves the contents of the buffer to the given file', (done) => {
-        buffer.setText('abc def ghi jkl\n'.repeat(10 * 1024))
+        buffer.setText('abc DEF ghi JKL\n'.repeat(10 * 1024))
         buffer.save().then(() => {
-          expect(fs.readFileSync(filePath, 'utf8')).toEqual(buffer.getText())
+          expect(fs.readFileSync(filePath, 'utf8')).toBe('ABC def GHI jkl\n'.repeat(10 * 1024))
           expect(buffer.isModified()).toBe(false)
-          expect(file.createWriteStream).toHaveBeenCalled()
           done()
         })
+      })
+
+      it('does not emit a conflict event due to the save', (done) => {
+        const events = []
+        buffer.onDidConflict((event) => events.push(event))
+
+        buffer.setText('Buffer contents')
+        buffer.save()
+
+        // Modify the file after the save has been asynchronously initiated
+        buffer.onDidSave(() => buffer.append('!'))
+
+        const subscription = buffer.file.onDidChange(() => setTimeout(() => {
+          subscription.dispose()
+          expect(events.length).toBe(0)
+          done()
+        }, buffer.fileChangeDelay))
       })
     })
   })
@@ -617,7 +655,26 @@ describe('TextBuffer IO', () => {
       })
     })
 
-    it('emits a conflict event if the file is modified', (done) => {
+    it('emits a conflict event if the buffer is modified', (done) => {
+      buffer.append('f')
+      expect(buffer.getText()).toBe('abcdef')
+      expect(buffer.isModified()).toBe(true)
+
+      fs.writeFileSync(buffer.getPath(), '  abc')
+
+      const subscription = buffer.onDidConflict(() => {
+        subscription.dispose()
+        expect(buffer.getText()).toBe('abcdef')
+        expect(buffer.isModified()).toBe(true)
+        expect(buffer.isInConflict()).toBe(true)
+        done()
+      })
+    })
+
+    it('emits a conflict event if the buffer is modified and backed by a custom file', (done) => {
+      const file = new ReverseCaseFile(filePath)
+      buffer.setFile(file)
+
       buffer.append('f')
       expect(buffer.getText()).toBe('abcdef')
       expect(buffer.isModified()).toBe(true)
@@ -770,12 +827,22 @@ describe('TextBuffer IO', () => {
     })
 
     it('does nothing when the file is rewritten with the same contents', (done) => {
+      const events = []
+      buffer.onWillReload((event) => events.push(event))
+      buffer.onDidReload((event) => events.push(event))
+      buffer.onDidChange((event) => events.push(event))
+      buffer.onDidChangeText((event) => events.push(event))
+      buffer.onDidConflict((event) => events.push(event))
+
       fs.writeFileSync(buffer.getPath(), 'abcde')
 
-      const subscription = buffer.onDidReload(() => {
-        expect(buffer.getText()).toBe('abcde')
+      const subscription = buffer.file.onDidChange(() => {
         subscription.dispose()
-        done()
+        setTimeout(() => {
+          expect(buffer.getText()).toBe('abcde')
+          expect(events.length).toBe(0)
+          done()
+        }, buffer.fileChangeDelay + 100)
       })
     })
 
@@ -884,6 +951,53 @@ describe('TextBuffer IO', () => {
     })
   })
 })
+
+class ReverseCaseFile {
+  constructor (path) {
+    this.path = path
+  }
+
+  existsSync () {
+    return fs.existsSync(this.path)
+  }
+
+  getPath () {
+    return this.path
+  }
+
+  createReadStream () {
+    return fs.createReadStream(this.path).pipe(new Transform({
+      transform (chunk, encoding, callback) {
+        callback(null, reverseCase(chunk))
+      }
+    }))
+  }
+
+  createWriteStream () {
+    const stream = fs.createWriteStream(this.path)
+    return new Writable({
+      write (chunk, encoding, callback) {
+        stream.write(reverseCase(chunk), encoding, callback)
+      }
+    })
+  }
+
+  onDidChange (callback) {
+    const watcher = fs.watch(this.path, callback)
+    return new Disposable(() => watcher.close())
+  }
+}
+
+function reverseCase (buffer, encoding) {
+  const result = new Buffer(buffer.length)
+  for (let i = 0, n = buffer.length; i < n; i++) {
+    const character = String.fromCharCode(buffer[i])
+    result[i] = (character === character.toLowerCase()
+      ? character.toUpperCase()
+      : character.toLowerCase()).charCodeAt(0)
+  }
+  return result
+}
 
 function stopChangingPromise () {
   return timeoutPromise(TextBuffer.prototype.stoppedChangingDelay * 2)

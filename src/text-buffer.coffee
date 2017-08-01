@@ -1615,7 +1615,6 @@ class TextBuffer
 
     checkpoint = null
     changeEvent = null
-    @emitter.emit('will-reload')
     try
       patch = @buffer.loadSync(
         @getPath(),
@@ -1624,6 +1623,7 @@ class TextBuffer
           if patch and patch.getChangeCount() > 0
             changeEvent = new CompositeChangeEvent(@buffer, patch)
             checkpoint = @history.createCheckpoint(@createMarkerSnapshot(), true)
+            @emitter.emit('will-reload')
             @emitter.emit('will-change', changeEvent)
       )
     catch error
@@ -1633,23 +1633,20 @@ class TextBuffer
       else
         throw error
 
-    result = @finishLoading(changeEvent, checkpoint, patch)
-    @emitter.emit('did-reload')
-    result
+    @finishLoading(changeEvent, checkpoint, patch)
 
   load: (options) ->
     unless options?.internal
       Grim.deprecate('The .load instance method is deprecated. Create a loaded buffer using TextBuffer.load(filePath) instead.')
 
-    if @file instanceof File
-      source = @file.getPath()
+    source = if @file instanceof File
+      @file.getPath()
     else
-      source = @file.createReadStream()
+      @file.createReadStream()
 
     checkpoint = null
     changeEvent = null
     loadCount = ++@loadCount
-    @emitter.emit('will-reload')
     @buffer.load(
       source,
       {
@@ -1659,24 +1656,30 @@ class TextBuffer
       },
       (percentDone, patch) =>
         return false if @loadCount > loadCount
-        if patch and patch.getChangeCount() > 0
-          changeEvent = new CompositeChangeEvent(@buffer, patch)
-          checkpoint = @history.createCheckpoint(@createMarkerSnapshot(), true)
-          @emitter.emit('will-change', changeEvent)
+        if patch
+          if patch.getChangeCount() > 0
+            changeEvent = new CompositeChangeEvent(@buffer, patch)
+            checkpoint = @history.createCheckpoint(@createMarkerSnapshot(), true)
+            @emitter.emit('will-reload')
+            @emitter.emit('will-change', changeEvent)
+          else if options?.discardChanges
+            @emitter.emit('will-reload')
     ).then((patch) =>
-      result = @finishLoading(changeEvent, checkpoint, patch, options)
-      @emitter.emit('did-reload')
-      result
+      @finishLoading(changeEvent, checkpoint, patch, options)
     ).catch((error) =>
       if error.code is 'ENOENT'
-        @emitter.emit('did-reload')
+        @emitter.emit('will-reload')
         @setText('') if options?.discardChanges
+        @emitter.emit('did-reload')
       else
         throw error
     )
 
   finishLoading: (changeEvent, checkpoint, patch, options) ->
-    return null if @isDestroyed() or (@loaded and not changeEvent? and patch?)
+    if @isDestroyed() or (@loaded and not changeEvent? and patch?)
+      if options?.discardChanges
+        @emitter.emit('did-reload')
+      return null
 
     @fileHasChangedSinceLastLoad = false
     @digestWhenLastPersisted = @buffer.baseTextDigest()
@@ -1705,6 +1708,7 @@ class TextBuffer
       @emitModifiedStatusChanged(@isModified())
 
     @loaded = true
+    @emitter.emit('did-reload')
     this
 
   destroy: ->
@@ -1748,7 +1752,12 @@ class TextBuffer
         @fileHasChangedSinceLastLoad = true
 
         if @isModified()
-          @emitter.emit 'did-conflict'
+          source = if @file instanceof File
+            @file.getPath()
+          else
+            @file.createReadStream()
+          @buffer.baseTextMatchesFile(source, @getEncoding()).then (matchesFile) =>
+            @emitter.emit 'did-conflict' unless matchesFile
         else
           @load(internal: true)
       , @fileChangeDelay)
