@@ -634,7 +634,7 @@ class TextBuffer
   # Public: Detects the encoding of this buffer.
   #
   # Returns a promise that resolves to a {String},
-  # or undefined if the encoding was unable to be detected.
+  # or is rejected if the encoding was unable to be detected.
   detectEncoding: -> @file?.detectEncoding()
 
   setPreferredLineEnding: (preferredLineEnding=null) ->
