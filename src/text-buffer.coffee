@@ -631,7 +631,9 @@ class TextBuffer
   # Public: Returns the {String} encoding of this buffer.
   getEncoding: -> @encoding ? @file?.getEncoding()
 
-  # Public: Returns the {String} detected encoding of this buffer,
+  # Public: Detects the encoding of this buffer.
+  #
+  # Returns a promise that resolves to a {String},
   # or undefined if the encoding was unable to be detected.
   detectEncoding: -> @file?.detectEncoding()
 
