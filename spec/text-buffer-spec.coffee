@@ -1298,6 +1298,15 @@ describe "TextBuffer", ->
       buffer.setTextViaDiff(newText)
       expect(buffer.getText()).toBe newText
 
+    it "can change a buffer that contains lone carriage returns", ->
+      oldText = 'one\rtwo\nthree\rfour\n'
+      newText = 'one\rtwo and\nthree\rfour\n'
+      buffer.setText(oldText)
+      buffer.setTextViaDiff(newText)
+      expect(buffer.getText()).toBe newText
+      buffer.undo()
+      expect(buffer.getText()).toBe oldText
+
     describe "with standard newlines", ->
       it "can change the entire contents of the buffer with no newline at the end", ->
         newText = "I know you are.\nBut what am I?"
