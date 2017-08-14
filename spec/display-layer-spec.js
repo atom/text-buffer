@@ -2193,6 +2193,22 @@ describe('DisplayLayer', () => {
     })
   })
 
+  describe('.populateSpatialIndexIfNeeded(endBufferRow, endScreenRow, deadline)', () => {
+    it('updates the spatial index correctly when the endBufferRow exceets the buffer row count', () => {
+      const buffer = new TextBuffer({
+        text: SAMPLE_TEXT
+      })
+
+      const displayLayer = buffer.addDisplayLayer()
+      displayLayer.foldBufferRange([[4, 29], [7, 4]])
+      const expectedText = displayLayer.getText()
+      displayLayer.clearSpatialIndex()
+
+      displayLayer.populateSpatialIndexIfNeeded(Infinity, Infinity)
+      expect(displayLayer.getText()).toBe(expectedText)
+    })
+  })
+
   describe('.bufferRowsForScreenRows(startRow, endRow)', () => {
     it('returns an array containing the buffer rows for the given screen row range', () => {
       const buffer = new TextBuffer({text: 'abcde\nfghij\nklmno\npqrst\nuvwxyz'})
@@ -2273,7 +2289,7 @@ describe('DisplayLayer', () => {
         const screenLinesById = new Map()
 
         for (let j = 0; j < 10; j++) {
-          const k = random(10)
+          const k = random(11)
 
           if (k < 2) {
             createRandomFold(random, displayLayer, foldIds)
@@ -2292,9 +2308,12 @@ describe('DisplayLayer', () => {
             performRedo(random, displayLayer)
           } else if (k < 8) {
             textDecorationLayer.emitInvalidateRangeEvent(getRandomBufferRange(random, buffer))
-          } else {
+          } else if (k < 10) {
             undoableChanges++
             performRandomChange(random, displayLayer)
+          } else {
+            const softWrapColumn = random(2) ? random.intBetween(5, 80) : null
+            displayLayer.reset({softWrapColumn})
           }
 
           if (!hasComputedAllScreenRows(displayLayer)) {
