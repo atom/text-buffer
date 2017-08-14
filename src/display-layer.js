@@ -587,6 +587,7 @@ class DisplayLayer {
   }
 
   lineLengthForScreenRow (screenRow) {
+    this.populateSpatialIndexIfNeeded(this.buffer.getLineCount(), screenRow + 1)
     return this.screenLineLengths[screenRow]
   }
 

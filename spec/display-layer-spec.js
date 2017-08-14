@@ -2273,7 +2273,7 @@ describe('DisplayLayer', () => {
         const screenLinesById = new Map()
 
         for (let j = 0; j < 10; j++) {
-          const k = random(10)
+          const k = random(11)
 
           if (k < 2) {
             createRandomFold(random, displayLayer, foldIds)
@@ -2292,9 +2292,12 @@ describe('DisplayLayer', () => {
             performRedo(random, displayLayer)
           } else if (k < 8) {
             textDecorationLayer.emitInvalidateRangeEvent(getRandomBufferRange(random, buffer))
-          } else {
+          } else if (k < 10) {
             undoableChanges++
             performRandomChange(random, displayLayer)
+          } else {
+            const softWrapColumn = random(2) ? random.intBetween(5, 80) : null
+            displayLayer.reset({softWrapColumn})
           }
 
           if (!hasComputedAllScreenRows(displayLayer)) {
