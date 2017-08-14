@@ -2193,6 +2193,22 @@ describe('DisplayLayer', () => {
     })
   })
 
+  describe('.populateSpatialIndexIfNeeded(endBufferRow, endScreenRow, deadline)', () => {
+    it('updates the spatial index correctly when the endBufferRow exceets the buffer row count', () => {
+      const buffer = new TextBuffer({
+        text: SAMPLE_TEXT
+      })
+
+      const displayLayer = buffer.addDisplayLayer()
+      displayLayer.foldBufferRange([[4, 29], [7, 4]])
+      const expectedText = displayLayer.getText()
+      displayLayer.clearSpatialIndex()
+
+      displayLayer.populateSpatialIndexIfNeeded(Infinity, Infinity)
+      expect(displayLayer.getText()).toBe(expectedText)
+    })
+  })
+
   describe('.bufferRowsForScreenRows(startRow, endRow)', () => {
     it('returns an array containing the buffer rows for the given screen row range', () => {
       const buffer = new TextBuffer({text: 'abcde\nfghij\nklmno\npqrst\nuvwxyz'})
