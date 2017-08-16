@@ -891,12 +891,12 @@ describe('TextBuffer IO', () => {
   })
 
   describe('when the file is deleted', () => {
-    let filePath
+    let filePath, closeDeletedFileTabs
 
     beforeEach((done) => {
       filePath = path.join(temp.mkdirSync(), 'file-to-delete')
       fs.writeFileSync(filePath, 'delete me')
-      TextBuffer.load(filePath).then((result) => {
+      TextBuffer.load(filePath, {shouldDestroyOnFileDelete: () => closeDeletedFileTabs}).then((result) => {
         buffer = result
         filePath = buffer.getPath() // symlinks may have been converted
         done()
@@ -918,15 +918,36 @@ describe('TextBuffer IO', () => {
     })
 
     describe('when the file is not modified', () => {
-      beforeEach((done) => {
+      beforeEach(() => {
         expect(buffer.isModified()).toBeFalsy()
-        buffer.file.onDidDelete(() => done())
-        fs.removeSync(filePath)
       })
 
-      it('retains its path and reports the buffer as modified', () => {
-        expect(buffer.getPath()).toBe(filePath)
-        expect(buffer.isModified()).toBeTruthy()
+      describe('when shouldDestroyOnFileDelete returns true', () => {
+        beforeEach(() => {
+          closeDeletedFileTabs = true
+        })
+
+        it('destroys the buffer', (done) => {
+          buffer.onDidDestroy(() => done())
+          expect(buffer.isDestroyed()).toBeFalsy()
+          expect(buffer.isModified()).toBeFalsy()
+          fs.removeSync(filePath)
+        })
+      })
+
+      describe('when shouldDestroyOnFileDelete returns false', () => {
+        beforeEach(() => {
+          closeDeletedFileTabs = false
+        })
+
+        it('retains its path and reports the buffer as modified', (done) => {
+          fs.removeSync(filePath)
+          buffer.file.onDidDelete(() => {
+            expect(buffer.getPath()).toBe(filePath)
+            expect(buffer.isModified()).toBeTruthy()
+            done()
+          })
+        })
       })
     })
 

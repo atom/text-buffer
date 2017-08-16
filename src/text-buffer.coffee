@@ -1764,7 +1764,7 @@ class TextBuffer
 
     if @file.onDidDelete?
       @fileSubscriptions.add @file.onDidDelete =>
-        modified = @isModified()
+        modified = @buffer.isModified()
         @emitter.emit 'did-delete'
         if not modified and @shouldDestroyOnFileDelete()
           @destroy()
