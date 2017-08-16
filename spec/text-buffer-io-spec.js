@@ -928,7 +928,6 @@ describe('TextBuffer IO', () => {
         })
 
         it('destroys the buffer', (done) => {
-          console.log('set closeDeletedFileTabs to true', closeDeletedFileTabs)
           buffer.onDidDestroy(() => done())
           expect(buffer.isDestroyed()).toBeFalsy()
           expect(buffer.isModified()).toBeFalsy()
