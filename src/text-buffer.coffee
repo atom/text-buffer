@@ -762,14 +762,9 @@ class TextBuffer
     currentText = @getText()
     return if currentText is text
 
-    endsWithNewline = (str) ->
-      /[\r\n]+$/g.test(str)
-
     computeBufferColumn = (str) ->
-      newlineIndex = Math.max(str.lastIndexOf('\n'), str.lastIndexOf('\r'))
-      if endsWithNewline(str)
-        0
-      else if newlineIndex is -1
+      newlineIndex = str.lastIndexOf('\n')
+      if newlineIndex is -1
         str.length
       else
         str.length - newlineIndex - 1
@@ -783,8 +778,7 @@ class TextBuffer
       changeOptions = normalizeLineEndings: false
 
       for change in lineDiff
-        # Using change.count does not account for lone carriage-returns
-        lineCount = change.value.match(newlineRegex)?.length ? 0
+        lineCount = change.count
         currentPosition[0] = row
         currentPosition[1] = column
 
