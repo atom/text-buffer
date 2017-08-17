@@ -587,6 +587,7 @@ class DisplayLayer {
   }
 
   lineLengthForScreenRow (screenRow) {
+    this.populateSpatialIndexIfNeeded(this.buffer.getLineCount(), screenRow + 1)
     return this.screenLineLengths[screenRow]
   }
 
@@ -1055,6 +1056,7 @@ class DisplayLayer {
   }
 
   populateSpatialIndexIfNeeded (endBufferRow, endScreenRow, deadline = NullDeadline) {
+    endBufferRow = Math.min(this.buffer.getLineCount(), endBufferRow)
     if (endBufferRow > this.indexedBufferRowCount && endScreenRow > this.screenLineLengths.length) {
       this.updateSpatialIndex(
         this.indexedBufferRowCount,
