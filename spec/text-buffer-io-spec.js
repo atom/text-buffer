@@ -1,5 +1,6 @@
 const fs = require('fs-plus')
 const path = require('path')
+const {spawn} = require('child_process')
 const {Writable, Transform} = require('stream')
 const temp = require('temp')
 const {Disposable} = require('event-kit')
@@ -294,6 +295,45 @@ describe('TextBuffer IO', () => {
           expect(events.length).toBe(0)
           done()
         }, buffer.fileChangeDelay))
+      })
+    })
+
+    describe('when a permission error occurs', () => {
+      if (process.platform !== 'darwin') return
+
+      beforeEach(() => {
+        const save = NativeTextBuffer.prototype.save
+
+        spyOn(NativeTextBuffer.prototype, 'save').and.callFake(function (destination, encoding) {
+          if (destination === filePath) {
+            return Promise.reject({code: 'EACCES', message: 'Permission denied'})
+          }
+
+          return save.call(this, destination, encoding)
+        })
+      })
+
+      it('requests escalated privileges to save the file', (done) => {
+        buffer._spawnAsAdmin = spawn
+        spyOn(buffer, '_spawnAsAdmin').and.callThrough()
+
+        buffer.setText('Buffer contents\n'.repeat(100))
+
+        buffer.save().then(() => {
+          expect(fs.readFileSync(filePath, 'utf8')).toEqual(buffer.getText())
+          expect(buffer._spawnAsAdmin).toHaveBeenCalled()
+          done()
+        })
+      })
+
+      it('rejects if writing to the file fails', (done) => {
+        buffer._spawnAsAdmin = () => spawn('bash', ['-c', 'exit 1'])
+
+        buffer.setText('Buffer contents\n'.repeat(100))
+        buffer.save().catch((error) => {
+          expect(error.message).toBe('Failed to write to ' + filePath)
+          done()
+        })
       })
     })
   })
