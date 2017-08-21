@@ -1,6 +1,5 @@
 const fs = require('fs-plus')
 const path = require('path')
-const {spawn} = require('child_process')
 const {Writable, Transform} = require('stream')
 const temp = require('temp')
 const {Disposable} = require('event-kit')
@@ -8,6 +7,7 @@ const Point = require('../src/point')
 const Range = require('../src/range')
 const TextBuffer = require('../src/text-buffer')
 const {TextBuffer: NativeTextBuffer} = require('superstring')
+const fsAdmin = require('fs-admin')
 
 process.on('unhandledRejection', console.error)
 
@@ -314,24 +314,34 @@ describe('TextBuffer IO', () => {
       })
 
       it('requests escalated privileges to save the file', (done) => {
-        buffer._spawnAsAdmin = spawn
-        spyOn(buffer, '_spawnAsAdmin').and.callThrough()
+        spyOn(fsAdmin, 'createWriteStream').and.callFake(() => fs.createWriteStream(filePath))
 
         buffer.setText('Buffer contents\n'.repeat(100))
 
         buffer.save().then(() => {
           expect(fs.readFileSync(filePath, 'utf8')).toEqual(buffer.getText())
-          expect(buffer._spawnAsAdmin).toHaveBeenCalled()
+          expect(fsAdmin.createWriteStream).toHaveBeenCalled()
+          expect(buffer.outstandingSaveCount).toBe(0)
           done()
         })
       })
 
       it('rejects if writing to the file fails', (done) => {
-        buffer._spawnAsAdmin = () => spawn('bash', ['-c', 'exit 1'])
+        const stream = new Writable({
+          write (chunk, encoding, callback) {
+            process.nextTick(() => callback(new Error('Could not write to stream')))
+          }
+        })
+
+        stream.on('error', () => {})
+
+        spyOn(fsAdmin, 'createWriteStream').and.callFake(() => stream)
 
         buffer.setText('Buffer contents\n'.repeat(100))
         buffer.save().catch((error) => {
-          expect(error.message).toBe('Failed to write to ' + filePath)
+          expect(error.message).toBe('Could not write to stream')
+          expect(buffer.isModified()).toBe(true)
+          expect(buffer.outstandingSaveCount).toBe(0)
           done()
         })
       })

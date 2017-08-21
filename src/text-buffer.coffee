@@ -1563,11 +1563,15 @@ class TextBuffer
 
     directoryPromise
       .then => @buffer.save(destination, @getEncoding())
-      .catch (e) =>
-        if process.platform is 'darwin' and e.code is 'EACCES' and destination is filePath
-          return @_saveWithEscalatedPrivileges(filePath)
+      .catch (error) =>
+        if process.platform is 'darwin' and error.code is 'EACCES' and destination is filePath
+          fsAdmin = require('fs-admin')
+          @buffer.save(fsAdmin.createWriteStream(filePath), @getEncoding())
+        else
+          throw error
+      .catch (error) =>
         @outstandingSaveCount--
-        throw e
+        throw error
       .then =>
         @outstandingSaveCount--
         @setFile(file)
@@ -1604,24 +1608,6 @@ class TextBuffer
   ###
   Section: Private Utility Methods
   ###
-
-  _saveWithEscalatedPrivileges: (filePath) ->
-    @_spawnAsAdmin ?= require('spawn-as-admin')
-    adminProcess = @_spawnAsAdmin('dd', ['of=' + filePath])
-
-    @buffer.save(adminProcess.stdin, @getEncoding())
-      .then ->
-        adminProcess.stdin.end()
-      .catch (error) ->
-        adminProcess.kill()
-        throw error
-
-    new Promise (resolve, reject) ->
-      adminProcess.on 'exit', (code) ->
-        if code is 0
-          resolve()
-        else
-          reject(new Error('Failed to write to ' + filePath))
 
   loadSync: (options) ->
     unless options?.internal
