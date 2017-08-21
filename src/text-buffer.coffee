@@ -1567,6 +1567,7 @@ class TextBuffer
         if process.platform is 'darwin' and error.code is 'EACCES' and destination is filePath
           fsAdmin = require('fs-admin')
           @buffer.save(fsAdmin.createWriteStream(filePath), @getEncoding())
+            .catch => throw error
         else
           throw error
       .catch (error) =>

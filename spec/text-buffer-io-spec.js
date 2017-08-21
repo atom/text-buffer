@@ -339,7 +339,8 @@ describe('TextBuffer IO', () => {
 
         buffer.setText('Buffer contents\n'.repeat(100))
         buffer.save().catch((error) => {
-          expect(error.message).toBe('Could not write to stream')
+          expect(error.code).toBe('EACCES')
+          expect(error.message).toBe('Permission denied')
           expect(buffer.isModified()).toBe(true)
           expect(buffer.outstandingSaveCount).toBe(0)
           done()
