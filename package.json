@@ -51,12 +51,12 @@
     "diff": "^2.2.1",
     "emissary": "^1.0.0",
     "event-kit": "^2.1.0",
+    "fs-admin": "^0.1.1",
     "fs-plus": "^3.0.0",
     "grim": "^2.0.1",
     "mkdirp": "^0.5.1",
     "pathwatcher": "8.0.0",
     "serializable": "^1.0.3",
-    "spawn-as-admin": "^0.1.3",
     "superstring": "^2.0.10",
     "underscore-plus": "^1.0.0"
   }
