@@ -333,8 +333,6 @@ describe('TextBuffer IO', () => {
           }
         })
 
-        stream.on('error', () => {})
-
         spyOn(fsAdmin, 'createWriteStream').and.callFake(() => stream)
 
         buffer.setText('Buffer contents\n'.repeat(100))
