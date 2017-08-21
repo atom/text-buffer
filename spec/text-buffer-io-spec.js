@@ -321,15 +321,29 @@ describe('TextBuffer IO', () => {
         buffer.save().then(() => {
           expect(fs.readFileSync(filePath, 'utf8')).toEqual(buffer.getText())
           expect(fsAdmin.createWriteStream).toHaveBeenCalled()
+          expect(buffer.outstandingSaveCount).toBe(0)
           done()
         })
       })
 
       it('rejects if writing to the file fails', (done) => {
-        spyOn(fsAdmin, 'createWriteStream').and.callFake(() => fs.createWriteStream('/etc/does/not/exist'))
+        const stream = new Writable({
+          write (chunk, encoding, callback) {
+            process.nextTick(() => callback(new Error('Could not write to stream')))
+          }
+        })
+
+        stream.on('error', () => {})
+
+        spyOn(fsAdmin, 'createWriteStream').and.callFake(() => stream)
 
         buffer.setText('Buffer contents\n'.repeat(100))
-        buffer.save().catch(done)
+        buffer.save().catch((error) => {
+          expect(error.message).toBe('Could not write to stream')
+          expect(buffer.isModified()).toBe(true)
+          expect(buffer.outstandingSaveCount).toBe(0)
+          done()
+        })
       })
     })
   })

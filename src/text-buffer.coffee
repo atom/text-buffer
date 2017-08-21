@@ -1563,12 +1563,15 @@ class TextBuffer
 
     directoryPromise
       .then => @buffer.save(destination, @getEncoding())
-      .catch (e) =>
-        if process.platform is 'darwin' and e.code is 'EACCES' and destination is filePath
+      .catch (error) =>
+        if process.platform is 'darwin' and error.code is 'EACCES' and destination is filePath
           fsAdmin = require('fs-admin')
-          return @buffer.save(fsAdmin.createWriteStream(filePath), @getEncoding())
+          @buffer.save(fsAdmin.createWriteStream(filePath), @getEncoding())
+        else
+          throw error
+      .catch (error) =>
         @outstandingSaveCount--
-        throw e
+        throw error
       .then =>
         @outstandingSaveCount--
         @setFile(file)
