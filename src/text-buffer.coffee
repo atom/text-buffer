@@ -157,13 +157,13 @@ class TextBuffer
       params?.text
 
     @emitter = new Emitter
-    @patchesSinceLastStoppedChangingEvent = []
     @id = crypto.randomBytes(16).toString('hex')
     @buffer = new NativeTextBuffer(text)
     @debouncedEmitDidStopChangingEvent = debounce(@emitDidStopChangingEvent.bind(this), @stoppedChangingDelay)
     @textDecorationLayers = new Set()
     maxUndoEntries = params?.maxUndoEntries ? @defaultMaxUndoEntries
     @history = new History(this, maxUndoEntries)
+    @lastStoppedChangingCheckpoint = @history.createCheckpoint({})
     @nextMarkerLayerId = 0
     @nextDisplayLayerId = 0
     @defaultMarkerLayer = new MarkerLayer(this, String(@nextMarkerLayerId++))
@@ -1810,7 +1810,6 @@ class TextBuffer
     hunks = patch.getChanges()
     if hunks.length > 0
       @emitter.emit 'did-change-text', {changes: Object.freeze(normalizePatchChanges(hunks))}
-      @patchesSinceLastStoppedChangingEvent.push(patch)
       @debouncedEmitDidStopChangingEvent()
 
   # Identifies if the buffer belongs to multiple editors.
@@ -1824,12 +1823,12 @@ class TextBuffer
     return if @destroyed
 
     modifiedStatus = @isModified()
-    composedChanges = Patch.compose(@patchesSinceLastStoppedChangingEvent).getChanges()
+    composedChanges = @getChangesSinceCheckpoint(@lastStoppedChangingCheckpoint)
+    @lastStoppedChangingCheckpoint = @history.createCheckpoint({})
     @emitter.emit(
       'did-stop-changing',
-      {changes: Object.freeze(normalizePatchChanges(composedChanges))}
+      {changes: Object.freeze(composedChanges)}
     )
-    @patchesSinceLastStoppedChangingEvent = []
     @emitModifiedStatusChanged(modifiedStatus)
 
   emitModifiedStatusChanged: (modifiedStatus) ->
