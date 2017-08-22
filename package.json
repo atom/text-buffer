@@ -23,7 +23,7 @@
   "atomTestRunner": "atom-jasmine2-test-runner",
   "license": "MIT",
   "devDependencies": {
-    "atom-jasmine2-test-runner": "^0.7.0",
+    "atom-jasmine2-test-runner": "^1.0.0",
     "coffee-cache": "^0.2.0",
     "coffee-script": "^1.10.0",
     "coffeelint": "1.16.0",
