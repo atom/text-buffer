@@ -599,6 +599,13 @@ describe "TextBuffer", ->
         expect(buffer.undo()).toBe true
         expect(buffer.getText()).toBe "a"
 
+      it "does not error if the buffer is destroyed in a change callback within the transaction", ->
+        buffer.onDidChange -> buffer.destroy()
+        result = buffer.transact ->
+          buffer.append('!')
+          'hi'
+        expect(result).toBe('hi')
+
   describe "checkpoints", ->
     beforeEach ->
       buffer = new TextBuffer
