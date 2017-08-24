@@ -21,3 +21,7 @@ build: off
 branches:
   only:
     - master
+
+cache:
+  - '%HOMEDRIVE%%HOMEPATH%\.node-gyp'
+  - '%APPDATA%\npm-cache'
