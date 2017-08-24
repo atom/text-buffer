@@ -1159,6 +1159,7 @@ class TextBuffer
     finally
       @transactCallDepth--
 
+    return result if @isDestroyed()
     endMarkerSnapshot = @createMarkerSnapshot()
     compactedChanges = @history.groupChangesSinceCheckpoint(checkpointBefore, endMarkerSnapshot, true)
     global.atom?.assert compactedChanges, "groupChangesSinceCheckpoint() returned false.", (error) =>
