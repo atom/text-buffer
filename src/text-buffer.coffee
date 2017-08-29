@@ -10,12 +10,54 @@ mkdirp = require 'mkdirp'
 Point = require './point'
 Range = require './range'
 History = require './history'
+{DocumentReplica} = require '@atom/tachyon'
 MarkerLayer = require './marker-layer'
 MatchIterator = require './match-iterator'
 DisplayLayer = require './display-layer'
 {spliceArray, newlineRegex, normalizePatchChanges, regexIsSingleLine, extentForText, debounce} = require './helpers'
 {traversal} = require './point-helpers'
 Grim = require 'grim'
+
+
+class HistoryShim
+  constructor: (@history) ->
+
+  pushChange: ({newStart, oldExtent, newText}) ->
+    @history.setTextInRange(newStart, newStart.traverse(oldExtent), newText)
+
+  undo: ->
+    @history.undo()
+
+  redo: ->
+    @history.redo()
+
+  createCheckpoint: (props) ->
+    @history.createCheckpoint(props)
+
+  groupChangesSinceCheckpoint: (checkpoint, options) ->
+    @history.groupChangesSinceCheckpoint(checkpoint, options)
+
+  getChangesSinceCheckpoint: (checkpoint) ->
+    @history.getChangesSinceCheckpoint(checkpoint)
+
+  revertToCheckpoint: (checkpoint, options) ->
+    @history.revertToCheckpoint(checkpoint, options)
+
+  applyGroupingInterval: (interval) ->
+    @history.applyGroupingInterval(interval)
+
+  enforceUndoStackSizeLimit: (gi) ->
+    # @history.applyGroupingInterval(interval)
+
+  deserialize: ->
+
+  serialize: ->
+
+  clearUndoStack: ->
+    @history.clearUndoStack()
+
+  clearRedoStack: ->
+    @history.clearRedoStack()
 
 class TransactionAbortedError extends Error
   constructor: -> super
@@ -157,13 +199,21 @@ class TextBuffer
       params?.text
 
     @emitter = new Emitter
-    @patchesSinceLastStoppedChangingEvent = []
+    @changesSinceLastStoppedChangingEvent = []
     @id = crypto.randomBytes(16).toString('hex')
     @buffer = new NativeTextBuffer(text)
     @debouncedEmitDidStopChangingEvent = debounce(@emitDidStopChangingEvent.bind(this), @stoppedChangingDelay)
     @textDecorationLayers = new Set()
     @maxUndoEntries = params?.maxUndoEntries ? @defaultMaxUndoEntries
     @history = new History(this, @maxUndoEntries)
+
+
+    replica = new DocumentReplica(1)
+    replica.setTextInRange({row: 0, column: 0}, {row: 0, column: 0}, @getText())
+    replica.clearUndoStack()
+    @setHistoryProvider(replica)
+
+
     @nextMarkerLayerId = 0
     @nextDisplayLayerId = 0
     @defaultMarkerLayer = new MarkerLayer(this, String(@nextMarkerLayerId++))
@@ -1111,15 +1161,14 @@ class TextBuffer
   ###
 
   setHistoryProvider: (historyProvider) ->
-    historyProvider.initialize(this, @maxUndoEntries)
-    @history = historyProvider
+    @history = new HistoryShim(historyProvider)
 
   # Public: Undo the last operation. If a transaction is in progress, aborts it.
   undo: ->
-    if pop = @history.popUndoStack()
-      @applyChange(change) for change in pop.patch.getChanges()
+    if pop = @history.undo()
+      @applyChange(change) for change in pop.changes
       @restoreFromMarkerSnapshot(pop.snapshot)
-      @emitDidChangeTextEvent(pop.patch)
+      @emitDidChangeTextEvent(pop.changes)
       @emitMarkerChangeEvents(pop.snapshot)
       true
     else
@@ -1127,10 +1176,10 @@ class TextBuffer
 
   # Public: Redo the last operation
   redo: ->
-    if pop = @history.popRedoStack()
-      @applyChange(change) for change in pop.patch.getChanges()
+    if pop = @history.redo()
+      @applyChange(change) for change in pop.changes
       @restoreFromMarkerSnapshot(pop.snapshot)
-      @emitDidChangeTextEvent(pop.patch)
+      @emitDidChangeTextEvent(pop.changes)
       @emitMarkerChangeEvents(pop.snapshot)
       true
     else
@@ -1154,13 +1203,13 @@ class TextBuffer
       fn = groupingInterval
       groupingInterval = 0
 
-    checkpointBefore = @history.createCheckpoint(@createMarkerSnapshot(), true)
+    checkpointBefore = @history.createCheckpoint(markerSnapshot: @createMarkerSnapshot(), isBarrier: true)
 
     try
       @transactCallDepth++
       result = fn()
     catch exception
-      @revertToCheckpoint(checkpointBefore, true)
+      @revertToCheckpoint(checkpointBefore, {deleteCheckpoint: true})
       throw exception unless exception instanceof TransactionAbortedError
       return
     finally
@@ -1168,7 +1217,7 @@ class TextBuffer
 
     return result if @isDestroyed()
     endMarkerSnapshot = @createMarkerSnapshot()
-    compactedChanges = @history.groupChangesSinceCheckpoint(checkpointBefore, endMarkerSnapshot, true)
+    compactedChanges = @history.groupChangesSinceCheckpoint(checkpointBefore, {markerSnapshot: endMarkerSnapshot, deleteCheckpoint: true})
     global.atom?.assert compactedChanges, "groupChangesSinceCheckpoint() returned false.", (error) =>
       error.metadata = {history: @history.toString()}
     @history.applyGroupingInterval(groupingInterval)
@@ -1201,11 +1250,11 @@ class TextBuffer
   # return `false`.
   #
   # Returns a {Boolean} indicating whether the operation succeeded.
-  revertToCheckpoint: (checkpoint) ->
-    if truncated = @history.truncateUndoStack(checkpoint)
-      @applyChange(change) for change in truncated.patch.getChanges()
+  revertToCheckpoint: (checkpoint, options) ->
+    if truncated = @history.revertToCheckpoint(checkpoint, options)
+      @applyChange(change) for change in truncated.changes
       @restoreFromMarkerSnapshot(truncated.snapshot)
-      @emitDidChangeTextEvent(truncated.patch)
+      @emitDidChangeTextEvent(truncated.changes)
       @emitter.emit 'did-update-markers'
       @emitMarkerChangeEvents(truncated.snapshot)
       true
@@ -1236,8 +1285,8 @@ class TextBuffer
   # * `oldText`: A {String} representing the deleted text.
   # * `newText`: A {String} representing the inserted text.
   getChangesSinceCheckpoint: (checkpoint) ->
-    if patch = @history.getChangesSinceCheckpoint(checkpoint)
-      normalizePatchChanges(patch.getChanges())
+    if changes = @history.getChangesSinceCheckpoint(checkpoint)
+      normalizePatchChanges(changes)
     else
       []
 
@@ -1740,7 +1789,7 @@ class TextBuffer
             subscription.dispose()
 
       @cachedText = null
-      @history.clear()
+      @history.clear?()
 
   isAlive: -> not @destroyed
 
@@ -1821,13 +1870,10 @@ class TextBuffer
     for markerLayerId, markerLayer of @markerLayers
       markerLayer.emitChangeEvents(snapshot?[markerLayerId])
 
-  emitDidChangeTextEvent: (patch) ->
-    return if @transactCallDepth isnt 0
-
-    hunks = patch.getChanges()
-    if hunks.length > 0
-      @patchesSinceLastStoppedChangingEvent.push(patch)
-      @emitter.emit 'did-change-text', {changes: Object.freeze(normalizePatchChanges(hunks))}
+  emitDidChangeTextEvent: (changes) ->
+    if @transactCallDepth is 0 and changes.length > 0
+      @changesSinceLastStoppedChangingEvent.push(changes...)
+      @emitter.emit 'did-change-text', {changes: Object.freeze(normalizePatchChanges(changes))}
       @debouncedEmitDidStopChangingEvent()
 
   # Identifies if the buffer belongs to multiple editors.
@@ -1841,12 +1887,12 @@ class TextBuffer
     return if @destroyed
 
     modifiedStatus = @isModified()
-    composedChanges = Patch.compose(@patchesSinceLastStoppedChangingEvent).getChanges()
+    composedChanges = Patch.compose(@changesSinceLastStoppedChangingEvent).getChanges()
     @emitter.emit(
       'did-stop-changing',
       {changes: Object.freeze(normalizePatchChanges(composedChanges))}
     )
-    @patchesSinceLastStoppedChangingEvent = []
+    @changesSinceLastStoppedChangingEvent = []
     @emitModifiedStatusChanged(modifiedStatus)
 
   emitModifiedStatusChanged: (modifiedStatus) ->

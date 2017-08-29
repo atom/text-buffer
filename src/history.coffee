@@ -28,11 +28,8 @@ class Transaction
 # Manages undo/redo for {TextBuffer}
 module.exports =
 class History
-  constructor: (parameters...) ->
-    @initialize(parameters...)
-
-  initialize: (@buffer, @maxUndoEntries) ->
-    @nextCheckpointId = 0
+  constructor: (@buffer, @maxUndoEntries) ->
+    @nextCheckpointId = 1
     @undoStack = []
     @redoStack = []
 
@@ -41,7 +38,9 @@ class History
     @undoStack.push(checkpoint)
     checkpoint.id
 
-  groupChangesSinceCheckpoint: (checkpointId, markerSnapshotAfter, deleteCheckpoint=false) ->
+  groupChangesSinceCheckpoint: (checkpointId, options={}) ->
+    {markerSnapshotAfter, deleteCheckpoint} = options
+    deleteCheckpoint ?= false
     checkpointIndex = null
     markerSnapshotBefore = null
     patchesSinceCheckpoint = []
@@ -124,7 +123,7 @@ class History
     @undoStack.push(patch)
     @clearRedoStack()
 
-  popUndoStack: ->
+  undo: ->
     snapshotBelow = null
     patch = null
     spliceIndex = null
@@ -150,12 +149,12 @@ class History
       @redoStack.push(@undoStack.splice(spliceIndex).reverse()...)
       {
         snapshot: snapshotBelow
-        patch: patch
+        changes: patch.getChanges()
       }
     else
       false
 
-  popRedoStack: ->
+  redo: ->
     snapshotBelow = null
     patch = null
     spliceIndex = null
@@ -184,12 +183,12 @@ class History
       @undoStack.push(@redoStack.splice(spliceIndex).reverse()...)
       {
         snapshot: snapshotBelow
-        patch: patch
+        changes: patch.getChanges()
       }
     else
       false
 
-  truncateUndoStack: (checkpointId) ->
+  revertToCheckpoint: (checkpointId) ->
     snapshotBelow = null
     spliceIndex = null
     patchesSinceCheckpoint = []
@@ -213,7 +212,7 @@ class History
       @undoStack.splice(spliceIndex)
       {
         snapshot: snapshotBelow
-        patch: Patch.compose(patchesSinceCheckpoint)
+        changes: Patch.compose(patchesSinceCheckpoint).getChanges()
       }
     else
       false
