@@ -313,7 +313,8 @@ describe "DisplayMarkerLayer", ->
       displayLayer.destroyFoldsIntersectingBufferRange([[4, 0], [7, 0]])
       displayLayer.foldBufferRange([[0, 20], [12, 2]])
       marker3 = markerLayer.markBufferRange([[12, 0], [12, 0]], class: 'a')
-      expect(markerLayer.findMarkers(class: 'a', endScreenRow: 0)).toEqual [marker3]
+      expect(markerLayer.findMarkers(class: 'a', startScreenRow: 0)).toEqual [marker1, marker2, marker3]
+      expect(markerLayer.findMarkers(class: 'a', endScreenRow: 0)).toEqual [marker1, marker2, marker3]
 
     it "allows intersectsBufferRowRange to be specified", ->
       marker1 = markerLayer.markBufferRange([[5, 0], [5, 0]], class: 'a')
@@ -327,9 +328,15 @@ describe "DisplayMarkerLayer", ->
       displayLayer.foldBufferRange([[4, 0], [7, 0]])
       expect(markerLayer.findMarkers(class: 'a', intersectsScreenRowRange: [5, 10])).toEqual [marker2]
 
-      displayLayer.destroyFoldsIntersectingBufferRange([[4, 0], [7, 0]])
+      displayLayer.destroyAllFolds()
       displayLayer.foldBufferRange([[0, 20], [12, 2]])
       expect(markerLayer.findMarkers(class: 'a', intersectsScreenRowRange: [0, 0])).toEqual [marker1, marker2]
+
+      displayLayer.destroyAllFolds()
+      displayLayer.reset({softWrapColumn: 10})
+      marker1.setHeadScreenPosition([6, 5])
+      marker2.setHeadScreenPosition([9, 2])
+      expect(markerLayer.findMarkers(class: 'a', intersectsScreenRowRange: [5, 7])).toEqual [marker1]
 
     it "allows containedInScreenRange to be specified", ->
       marker1 = markerLayer.markBufferRange([[5, 0], [5, 0]], class: 'a')

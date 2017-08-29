@@ -346,19 +346,23 @@ class DisplayMarkerLayer
         when 'endBufferRow'
           key = 'endRow'
         when 'startScreenRow'
-          key = 'startRow'
-          value = @displayLayer.translateScreenPosition(Point(value, 0)).row
+          key = 'startsInRange'
+          startBufferPosition = @displayLayer.translateScreenPosition(Point(value, 0))
+          endBufferPosition = @displayLayer.translateScreenPosition(Point(value, Infinity))
+          value = Range(startBufferPosition, endBufferPosition)
         when 'endScreenRow'
-          key = 'endRow'
-          value = @displayLayer.translateScreenPosition(Point(value, Infinity)).row
+          key = 'endsInRange'
+          startBufferPosition = @displayLayer.translateScreenPosition(Point(value, 0))
+          endBufferPosition = @displayLayer.translateScreenPosition(Point(value, Infinity))
+          value = Range(startBufferPosition, endBufferPosition)
         when 'intersectsBufferRowRange'
           key = 'intersectsRowRange'
         when 'intersectsScreenRowRange'
-          key = 'intersectsRowRange'
+          key = 'intersectsRange'
           [startScreenRow, endScreenRow] = value
-          startBufferRow = @displayLayer.translateScreenPosition(Point(startScreenRow, 0)).row
-          endBufferRow = @displayLayer.translateScreenPosition(Point(endScreenRow, Infinity)).row
-          value = [startBufferRow, endBufferRow]
+          startBufferPosition = @displayLayer.translateScreenPosition(Point(startScreenRow, 0))
+          endBufferPosition = @displayLayer.translateScreenPosition(Point(endScreenRow, Infinity))
+          value = Range(startBufferPosition, endBufferPosition)
         when 'containsBufferRange'
           key = 'containsRange'
         when 'containsScreenRange'
