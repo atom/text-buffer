@@ -669,15 +669,20 @@ describe "TextBuffer", ->
 
     describe "::groupChangesSinceCheckpoint(checkpoint)", ->
       it "combines all changes since the checkpoint into a single transaction", ->
+        historyLayer = buffer.addMarkerLayer(maintainHistory: true)
+
         buffer.append("one\n")
+        marker = historyLayer.markRange([[0, 1], [0, 2]])
+        marker.setProperties(a: 'b')
+
         checkpoint = buffer.createCheckpoint()
         buffer.append("two\n")
         buffer.transact ->
           buffer.append("three\n")
           buffer.append("four")
 
-        historyLayer = buffer.addMarkerLayer(maintainHistory: true)
-        historyLayer.markRange([[0, 1], [2, 3]], a: 'b')
+        marker.setRange([[0, 1], [2, 3]])
+        marker.setProperties(a: 'c')
         result = buffer.groupChangesSinceCheckpoint(checkpoint)
 
         expect(result).toBeTruthy()
@@ -687,9 +692,13 @@ describe "TextBuffer", ->
           three
           four
         """
+        expect(marker.getRange()).toEqual [[0, 1], [2, 3]]
+        expect(marker.getProperties()).toEqual {a: 'c'}
 
         buffer.undo()
         expect(buffer.getText()).toBe("one\n")
+        expect(marker.getRange()).toEqual [[0, 1], [0, 2]]
+        expect(marker.getProperties()).toEqual {a: 'b'}
 
         buffer.redo()
         expect(buffer.getText()).toBe """
@@ -698,10 +707,8 @@ describe "TextBuffer", ->
           three
           four
         """
-
-        [marker] = historyLayer.getMarkers()
         expect(marker.getRange()).toEqual [[0, 1], [2, 3]]
-        expect(marker.getProperties()).toEqual {a: 'b'}
+        expect(marker.getProperties()).toEqual {a: 'c'}
 
       it "skips any later checkpoints when grouping changes", ->
         buffer.append("one\n")
