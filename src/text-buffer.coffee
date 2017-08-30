@@ -1086,6 +1086,8 @@ class TextBuffer
   #   have special semantics:
   #   * `startPosition` Only include markers that start at the given {Point}.
   #   * `endPosition` Only include markers that end at the given {Point}.
+  #   * `startsInRange` Only include markers that start inside the given {Range}.
+  #   * `endsInRange` Only include markers that end inside the given {Range}.
   #   * `containsPoint` Only include markers that contain the given {Point}, inclusive.
   #   * `containsRange` Only include markers that contain the given {Range}, inclusive.
   #   * `startRow` Only include markers that start at the given row {Number}.
