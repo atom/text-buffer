@@ -275,6 +275,10 @@ class DisplayMarkerLayer
   #   * `endBufferPosition` Only include markers ending at this {Point} in buffer coordinates.
   #   * `startScreenPosition` Only include markers starting at this {Point} in screen coordinates.
   #   * `endScreenPosition` Only include markers ending at this {Point} in screen coordinates.
+  #   * `startsInBufferRange` Only include markers starting inside this {Range} in buffer coordinates.
+  #   * `endsInBufferRange` Only include markers ending inside this {Range} in buffer coordinates.
+  #   * `startsInScreenRange` Only include markers starting inside this {Range} in screen coordinates.
+  #   * `endsInScreenRange` Only include markers ending inside this {Range} in screen coordinates.
   #   * `startBufferRow` Only include markers starting at this row in buffer coordinates.
   #   * `endBufferRow` Only include markers ending at this row in buffer coordinates.
   #   * `startScreenRow` Only include markers starting at this row in screen coordinates.
@@ -341,6 +345,16 @@ class DisplayMarkerLayer
         when 'endScreenPosition'
           key = 'endPosition'
           value = @displayLayer.translateScreenPosition(value)
+        when 'startsInBufferRange'
+          key = 'startsInRange'
+        when 'endsInBufferRange'
+          key = 'endsInRange'
+        when 'startsInScreenRange'
+          key = 'startsInRange'
+          value = @displayLayer.translateScreenRange(value)
+        when 'endsInScreenRange'
+          key = 'endsInRange'
+          value = @displayLayer.translateScreenRange(value)
         when 'startBufferRow'
           key = 'startRow'
         when 'endBufferRow'
