@@ -115,6 +115,12 @@ class MarkerLayer
           markerIds = filterSet(markerIds, @index.findStartingAt(Point.fromObject(value)))
         when 'endPosition'
           markerIds = filterSet(markerIds, @index.findEndingAt(Point.fromObject(value)))
+        when 'startsInRange'
+          {start, end} = Range.fromObject(value)
+          markerIds = filterSet(markerIds, @index.findStartingIn(start, end))
+        when 'endsInRange'
+          {start, end} = Range.fromObject(value)
+          markerIds = filterSet(markerIds, @index.findEndingIn(start, end))
         when 'containsPoint', 'containsPosition'
           position = Point.fromObject(value)
           markerIds = filterSet(markerIds, @index.findContaining(position, position))
