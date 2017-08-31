@@ -1269,7 +1269,7 @@ class TextBuffer
   #
   # Returns a {Boolean} indicating whether the operation succeeded.
   groupChangesSinceCheckpoint: (checkpoint) ->
-    @history.groupChangesSinceCheckpoint(checkpoint, @createMarkerSnapshot(), false)
+    @history.groupChangesSinceCheckpoint(checkpoint, {markerSnapshot: @createMarkerSnapshot(), deleteCheckpoint: false})
 
   # Public: Returns a list of changes since the given checkpoint.
   #
@@ -1762,7 +1762,7 @@ class TextBuffer
       changeEvent.didChange = true
       @emitDidChangeEvent(changeEvent)
       markerSnapshot = @createMarkerSnapshot()
-      @history.groupChangesSinceCheckpoint(checkpoint, markerSnapshot, true)
+      @history.groupChangesSinceCheckpoint(checkpoint, {markerSnapshot: markerSnapshot, deleteCheckpoint: true})
       @emitDidChangeTextEvent(patch)
       @emitMarkerChangeEvents(markerSnapshot)
       @emitModifiedStatusChanged(@isModified())
