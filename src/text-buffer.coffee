@@ -1239,7 +1239,7 @@ class TextBuffer
   #
   # Returns a checkpoint value.
   createCheckpoint: ->
-    @history.createCheckpoint(@createMarkerSnapshot(), false)
+    @history.createCheckpoint(markerSnapshot: @createMarkerSnapshot(), isBarrier: false)
 
   # Public: Revert the buffer to the state it was in when the given
   # checkpoint was created.
@@ -1682,7 +1682,7 @@ class TextBuffer
         (percentDone, patch) =>
           if patch and patch.getChangeCount() > 0
             changeEvent = new CompositeChangeEvent(@buffer, patch)
-            checkpoint = @history.createCheckpoint(@createMarkerSnapshot(), true)
+            checkpoint = @history.createCheckpoint(markerSnapshot: @createMarkerSnapshot(), isBarrier: true)
             @emitter.emit('will-reload')
             @emitter.emit('will-change', changeEvent)
       )
@@ -1719,7 +1719,7 @@ class TextBuffer
         if patch
           if patch.getChangeCount() > 0
             changeEvent = new CompositeChangeEvent(@buffer, patch)
-            checkpoint = @history.createCheckpoint(@createMarkerSnapshot(), true)
+            checkpoint = @history.createCheckpoint(markerSnapshot: @createMarkerSnapshot(), isBarrier: true)
             @emitter.emit('will-reload')
             @emitter.emit('will-change', changeEvent)
           else if options?.discardChanges
