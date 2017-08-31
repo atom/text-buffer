@@ -204,12 +204,6 @@ class TextBuffer
     @buffer = new NativeTextBuffer(text)
     @debouncedEmitDidStopChangingEvent = debounce(@emitDidStopChangingEvent.bind(this), @stoppedChangingDelay)
     @textDecorationLayers = new Set()
-    @maxUndoEntries = params?.maxUndoEntries ? @defaultMaxUndoEntries
-    @history = new History(this, @maxUndoEntries)
-
-
-
-
     @nextMarkerLayerId = 0
     @nextDisplayLayerId = 0
     @defaultMarkerLayer = new MarkerLayer(this, String(@nextMarkerLayerId++))
