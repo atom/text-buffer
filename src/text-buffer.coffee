@@ -1812,8 +1812,8 @@ class TextBuffer
 
     hunks = patch.getChanges()
     if hunks.length > 0
-      @emitter.emit 'did-change-text', {changes: Object.freeze(normalizePatchChanges(hunks))}
       @patchesSinceLastStoppedChangingEvent.push(patch)
+      @emitter.emit 'did-change-text', {changes: Object.freeze(normalizePatchChanges(hunks))}
       @debouncedEmitDidStopChangingEvent()
 
   # Identifies if the buffer belongs to multiple editors.
