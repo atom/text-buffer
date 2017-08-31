@@ -1695,6 +1695,11 @@ class TextBuffer
 
     @finishLoading(changeEvent, checkpoint, patch)
 
+    replica = new DocumentReplica(1)
+    replica.setTextInRange({row: 0, column: 0}, {row: 0, column: 0}, @getText())
+    replica.clearUndoStack()
+    @setHistoryProvider(replica)
+
   load: (options) ->
     unless options?.internal
       Grim.deprecate('The .load instance method is deprecated. Create a loaded buffer using TextBuffer.load(filePath) instead.')
@@ -1766,6 +1771,12 @@ class TextBuffer
       @emitDidChangeTextEvent(patch)
       @emitMarkerChangeEvents(markerSnapshot)
       @emitModifiedStatusChanged(@isModified())
+
+    unless @loaded
+      start = {row: 0, column: 0}
+      end = {row: 0, column: 0}
+      # TODO Remove Demeter violation
+      @history.history.setTextInRange(start, end, @getText())
 
     @loaded = true
     @emitter.emit('did-reload')
