@@ -208,10 +208,6 @@ class TextBuffer
     @history = new History(this, @maxUndoEntries)
 
 
-    replica = new DocumentReplica(1)
-    replica.setTextInRange({row: 0, column: 0}, {row: 0, column: 0}, @getText())
-    replica.clearUndoStack()
-    @setHistoryProvider(replica)
 
 
     @nextMarkerLayerId = 0
@@ -224,6 +220,8 @@ class TextBuffer
     @nextMarkerId = 1
     @outstandingSaveCount = 0
     @loadCount = 0
+
+    @setHistoryProvider(@buildDocumentReplica(@getText()))
 
     @setEncoding(params?.encoding)
     @setPreferredLineEnding(params?.preferredLineEnding)
@@ -1695,10 +1693,7 @@ class TextBuffer
 
     @finishLoading(changeEvent, checkpoint, patch)
 
-    replica = new DocumentReplica(1)
-    replica.setTextInRange({row: 0, column: 0}, {row: 0, column: 0}, @getText())
-    replica.clearUndoStack()
-    @setHistoryProvider(replica)
+    @setHistoryProvider(@buildDocumentReplica(@getText()))
 
   load: (options) ->
     unless options?.internal
@@ -1916,6 +1911,12 @@ class TextBuffer
       line = @lineForRow(row)
       console.log row, line, line.length
     return
+
+  buildDocumentReplica: (text) ->
+    replica = new DocumentReplica(1)
+    replica.setTextInRange({row: 0, column: 0}, {row: 0, column: 0}, text)
+    replica.clearUndoStack()
+    replica
 
   ###
   Section: Private History Delegate Methods
