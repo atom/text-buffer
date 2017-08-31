@@ -2097,61 +2097,90 @@ describe "TextBuffer", ->
   describe "::onDidStopChanging(callback)", ->
     [delay, didStopChangingCallback] = []
 
+    wait = (milliseconds, callback) -> setTimeout(callback, milliseconds)
+
     beforeEach ->
       filePath = require.resolve('./fixtures/sample.js')
       buffer = TextBuffer.loadSync(filePath)
-
-    beforeEach (done) ->
       delay = buffer.stoppedChangingDelay
       didStopChangingCallback = jasmine.createSpy("didStopChangingCallback")
-      setTimeout(done, delay)
-
-    beforeEach (done) ->
       buffer.onDidStopChanging didStopChangingCallback
 
+    it "notifies observers after a delay passes following changes", (done) ->
       buffer.insert([0, 0], 'a')
       expect(didStopChangingCallback).not.toHaveBeenCalled()
-      setTimeout(done, delay / 2)
 
-    beforeEach (done) ->
-      buffer.transact ->
+      wait delay / 2, ->
         buffer.transact ->
-          buffer.insert([0, 0], 'b')
-          buffer.insert([1, 0], 'c')
-      expect(didStopChangingCallback).not.toHaveBeenCalled()
-      setTimeout(done, delay / 2)
+          buffer.transact ->
+            buffer.insert([0, 0], 'b')
+            buffer.insert([1, 0], 'c')
+        expect(didStopChangingCallback).not.toHaveBeenCalled()
 
-    beforeEach (done) ->
-      expect(didStopChangingCallback).not.toHaveBeenCalled()
-      setTimeout(done, delay)
+        wait delay / 2, ->
+          expect(didStopChangingCallback).not.toHaveBeenCalled()
 
-    beforeEach (done) ->
-      expect(didStopChangingCallback).toHaveBeenCalled()
+          wait delay, ->
+            expect(didStopChangingCallback).toHaveBeenCalled()
+            assertChangesEqual(didStopChangingCallback.calls.mostRecent().args[0].changes, [
+              {
+                oldRange: [[0, 0], [0, 0]],
+                newRange: [[0, 0], [0, 2]],
+                oldText: "",
+                newText: "ba",
+              },
+              {
+                oldRange: [[1, 0], [1, 0]],
+                newRange: [[1, 0], [1, 1]],
+                oldText: "",
+                newText: "c",
+              },
+            ])
 
-      assertChangesEqual(didStopChangingCallback.calls.mostRecent().args[0].changes, [
-        {
-          oldRange: [[0, 0], [0, 0]],
-          newRange: [[0, 0], [0, 2]],
-          oldText: "",
-          newText: "ba",
-        },
-        {
-          oldRange: [[1, 0], [1, 0]],
-          newRange: [[1, 0], [1, 1]],
-          oldText: "",
-          newText: "c",
-        },
-      ])
+            didStopChangingCallback.calls.reset()
+            buffer.undo()
+            buffer.undo()
+            wait delay * 2, ->
+              expect(didStopChangingCallback).toHaveBeenCalled()
+              assertChangesEqual(didStopChangingCallback.calls.mostRecent().args[0].changes, [
+                {
+                  oldRange: [[0, 0], [0, 2]],
+                  newRange: [[0, 0], [0, 0]],
+                  oldText: "ba",
+                  newText: "",
+                },
+                {
+                  oldRange: [[1, 0], [1, 1]],
+                  newRange: [[1, 0], [1, 0]],
+                  oldText: "c",
+                  newText: "",
+                },
+              ])
+              done()
 
-      didStopChangingCallback.calls.reset()
-      buffer.undo()
-      buffer.undo()
-      setTimeout(->
+    it "provides the correct changes when the buffer is mutated in the onDidChangeText callback", (done) ->
+      buffer.onDidChangeText ({changes}) ->
+        switch changes[0].newText
+          when 'a'
+            buffer.insert(changes[0].newRange.end, 'b')
+          when 'b'
+            buffer.insert(changes[0].newRange.end, 'c')
+          when 'c'
+            buffer.insert(changes[0].newRange.end, 'd')
+
+      buffer.insert([0, 0], 'a')
+
+      wait delay * 2, ->
+        expect(didStopChangingCallback).toHaveBeenCalled()
+        assertChangesEqual(didStopChangingCallback.calls.mostRecent().args[0].changes, [
+          {
+            oldRange: [[0, 0], [0, 0]],
+            newRange: [[0, 0], [0, 4]],
+            oldText: "",
+            newText: "abcd",
+          }
+        ])
         done()
-      , delay)
-
-    it "notifies observers after a delay passes following changes", ->
-      expect(didStopChangingCallback).toHaveBeenCalled()
 
   describe "::append(text)", ->
     beforeEach ->
