@@ -18,7 +18,6 @@ DisplayLayer = require './display-layer'
 {traversal} = require './point-helpers'
 Grim = require 'grim'
 
-
 class HistoryShim
   constructor: () ->
 
@@ -221,6 +220,9 @@ class TextBuffer
     @buffer = new NativeTextBuffer(text)
     @debouncedEmitDidStopChangingEvent = debounce(@emitDidStopChangingEvent.bind(this), @stoppedChangingDelay)
     @textDecorationLayers = new Set()
+    @maxUndoEntries = params?.maxUndoEntries ? @defaultMaxUndoEntries
+    # @setHistoryProvider(new DefaultHistoryProvider())
+    @setHistoryProvider(new HistoryShim())
     @nextMarkerLayerId = 0
     @nextDisplayLayerId = 0
     @defaultMarkerLayer = new MarkerLayer(this, String(@nextMarkerLayerId++))
@@ -231,10 +233,6 @@ class TextBuffer
     @nextMarkerId = 1
     @outstandingSaveCount = 0
     @loadCount = 0
-
-    @maxUndoEntries = params?.maxUndoEntries ? @defaultMaxUndoEntries
-    # @setHistoryProvider(new DefaultHistoryProvider())
-    @setHistoryProvider(new HistoryShim())
 
     @setEncoding(params?.encoding)
     @setPreferredLineEnding(params?.preferredLineEnding)
