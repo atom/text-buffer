@@ -1897,7 +1897,19 @@ class TextBuffer
     return if @destroyed
 
     modifiedStatus = @isModified()
-    composedChanges = Patch.compose(@changesSinceLastStoppedChangingEvent).getChanges()
+
+    patches = @changesSinceLastStoppedChangingEvent.map (change) ->
+      patch = new Patch
+      patch.splice(
+        change.newStart,
+        extentForText(change.oldText),
+        extentForText(change.newText),
+        change.oldText,
+        change.newText
+      )
+      patch
+
+    composedChanges = Patch.compose(patches).getChanges()
     @emitter.emit(
       'did-stop-changing',
       {changes: Object.freeze(normalizePatchChanges(composedChanges))}
