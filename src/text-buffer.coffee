@@ -1778,7 +1778,7 @@ class TextBuffer
       @emitDidChangeEvent(changeEvent)
       markerSnapshot = @createMarkerSnapshot()
       @history.groupChangesSinceCheckpoint(checkpoint, {markerSnapshot: markerSnapshot, deleteCheckpoint: true})
-      @emitDidChangeTextEvent(patch)
+      @emitDidChangeTextEvent(patch.getChanges())
       @emitMarkerChangeEvents(markerSnapshot)
       @emitModifiedStatusChanged(@isModified())
 
