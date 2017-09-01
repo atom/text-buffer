@@ -19,7 +19,7 @@ DisplayLayer = require './display-layer'
 Grim = require 'grim'
 
 class HistoryShim
-  constructor: () ->
+  constructor: ->
 
   initialize: (buffer) ->
     @history = new DocumentReplica(1)

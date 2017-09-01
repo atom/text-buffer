@@ -28,7 +28,7 @@ class Transaction
 # Manages undo/redo for {TextBuffer}
 module.exports =
 class History
-  constructor: () ->
+  constructor: ->
 
   initialize: (buffer) ->
     @buffer = buffer
