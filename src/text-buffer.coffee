@@ -20,7 +20,12 @@ Grim = require 'grim'
 
 
 class HistoryShim
-  constructor: (@history) ->
+  constructor: () ->
+
+  initialize: (buffer) ->
+    @history = new DocumentReplica(1)
+    @history.setTextInRange({row: 0, column: 0}, {row: 0, column: 0}, buffer.getText())
+    @history.clearUndoStack()
 
   pushChange: ({newStart, oldExtent, newText}) ->
     @history.setTextInRange(newStart, newStart.traverse(oldExtent), newText)
@@ -215,7 +220,9 @@ class TextBuffer
     @outstandingSaveCount = 0
     @loadCount = 0
 
-    @setHistoryProvider(@buildDocumentReplica(@getText()))
+    @maxUndoEntries = params?.maxUndoEntries ? @defaultMaxUndoEntries
+    # @setHistoryProvider(new DefaultHistoryProvider())
+    @setHistoryProvider(new HistoryShim())
 
     @setEncoding(params?.encoding)
     @setPreferredLineEnding(params?.preferredLineEnding)
@@ -1152,8 +1159,11 @@ class TextBuffer
   Section: History
   ###
 
+  getHistoryProvider: -> @history
+
   setHistoryProvider: (historyProvider) ->
-    @history = new HistoryShim(historyProvider)
+    historyProvider.initialize(@buffer)
+    @history = historyProvider
 
   # Public: Undo the last operation. If a transaction is in progress, aborts it.
   undo: ->
@@ -1687,7 +1697,7 @@ class TextBuffer
 
     @finishLoading(changeEvent, checkpoint, patch)
 
-    @setHistoryProvider(@buildDocumentReplica(@getText()))
+    @setHistoryProvider(new HistoryShim())
 
   load: (options) ->
     unless options?.internal
@@ -1905,12 +1915,6 @@ class TextBuffer
       line = @lineForRow(row)
       console.log row, line, line.length
     return
-
-  buildDocumentReplica: (text) ->
-    replica = new DocumentReplica(1)
-    replica.setTextInRange({row: 0, column: 0}, {row: 0, column: 0}, text)
-    replica.clearUndoStack()
-    replica
 
   ###
   Section: Private History Delegate Methods

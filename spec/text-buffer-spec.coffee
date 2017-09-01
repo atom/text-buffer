@@ -818,34 +818,23 @@ fdescribe "TextBuffer", ->
 
   describe "::setHistoryProvider(provider)", ->
     it "replaces the currently active history provider with the passed one", ->
-      buffer = new TextBuffer({text: '', maxUndoEntries: 7})
-      oldHistoryProvider = buffer.getHistoryProvider()
-      newHistoryProvider = new DefaultHistoryProvider()
-      buffer.setHistoryProvider(newHistoryProvider)
-      expect(newHistoryProvider.buffer).toBe(buffer)
-      expect(newHistoryProvider.maxUndoEntries).toBe(7)
-
+      buffer = new TextBuffer({text: ''})
       buffer.insert([0, 0], 'Lorem ')
       buffer.insert([0, 6], 'ipsum ')
-      buffer.insert([0, 12], 'dolor')
-      expect(buffer.getText()).toBe('Lorem ipsum dolor')
-      expect(oldHistoryProvider.undoStack.length).toBe(0)
-      expect(oldHistoryProvider.redoStack.length).toBe(0)
-
-      buffer.undo()
       expect(buffer.getText()).toBe('Lorem ipsum ')
-      expect(oldHistoryProvider.undoStack.length).toBe(0)
-      expect(oldHistoryProvider.redoStack.length).toBe(0)
 
       buffer.undo()
       expect(buffer.getText()).toBe('Lorem ')
-      expect(oldHistoryProvider.undoStack.length).toBe(0)
-      expect(oldHistoryProvider.redoStack.length).toBe(0)
 
-      buffer.redo()
-      expect(buffer.getText()).toBe('Lorem ipsum ')
-      expect(oldHistoryProvider.undoStack.length).toBe(0)
-      expect(oldHistoryProvider.redoStack.length).toBe(0)
+      buffer.setHistoryProvider(new DefaultHistoryProvider())
+      buffer.undo()
+      expect(buffer.getText()).toBe('Lorem ')
+
+      buffer.insert([0, 6], 'dolor ')
+      expect(buffer.getText()).toBe('Lorem dolor ')
+
+      buffer.undo()
+      expect(buffer.getText()).toBe('Lorem ')
 
   describe "::getTextInRange(range)", ->
     it "returns the text in a given range", ->

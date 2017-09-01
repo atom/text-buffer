@@ -28,7 +28,11 @@ class Transaction
 # Manages undo/redo for {TextBuffer}
 module.exports =
 class History
-  constructor: (@buffer, @maxUndoEntries) ->
+  constructor: () ->
+
+  initialize: (buffer) ->
+    @buffer = buffer
+    @maxUndoEntries = buffer.maxUndoEntries
     @nextCheckpointId = 1
     @undoStack = []
     @redoStack = []
