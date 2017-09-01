@@ -1707,8 +1707,6 @@ class TextBuffer
 
     @finishLoading(changeEvent, checkpoint, patch)
 
-    @setHistoryProvider(new HistoryShim())
-
   load: (options) ->
     unless options?.internal
       Grim.deprecate('The .load instance method is deprecated. Create a loaded buffer using TextBuffer.load(filePath) instead.')
@@ -1789,6 +1787,8 @@ class TextBuffer
       end = {row: 0, column: 0}
       # TODO Remove Demeter violation
       @history.history.setTextInRange(start, end, @getText())
+
+      @setHistoryProvider(new HistoryShim())
 
     @loaded = true
     @emitter.emit('did-reload')
