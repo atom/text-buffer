@@ -30,6 +30,18 @@ class HistoryShim
   pushChange: ({newStart, oldExtent, newText}) ->
     @history.setTextInRange(newStart, newStart.traverse(oldExtent), newText)
 
+  # Takes the place of ::pushPatch
+  pushChanges: (changes) ->
+    for change in changes
+      {oldStart, oldEnd, newStart, newText} = change
+
+      oldExtent = traversal(oldEnd, oldStart)
+      start = Point.fromObject(newStart)
+
+      @pushChange({newStart: start, oldExtent: oldExtent, newText: newText})
+
+    @clearRedoStack()
+
   undo: ->
     @history.undo()
 
@@ -1753,7 +1765,10 @@ class TextBuffer
       if options?.clearHistory
         @history.clearUndoStack()
       else
-        @history.pushPatch(patch)
+        if @history.pushPatch
+          @history.pushPatch(patch)
+        else
+          @history.pushChanges(patch.getChanges())
 
       if @markerLayers?
         for change in patch.getChanges()
