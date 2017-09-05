@@ -42,10 +42,14 @@ class HistoryShim
     @clearRedoStack()
 
   undo: ->
-    @history.undo()
+    entry = @history.undo()
+    if entry
+      {changes: entry.textUpdates}
 
   redo: ->
-    @history.redo()
+    entry = @history.redo()
+    if entry
+      {changes: entry.textUpdates}
 
   createCheckpoint: (props) ->
     @history.createCheckpoint(props)
@@ -57,7 +61,11 @@ class HistoryShim
     @history.getChangesSinceCheckpoint(checkpoint)
 
   revertToCheckpoint: (checkpoint, options) ->
-    @history.revertToCheckpoint(checkpoint, options)
+    result = @history.revertToCheckpoint(checkpoint, options)
+    if result
+      {changes: result.textUpdates}
+    else
+      result
 
   applyGroupingInterval: (interval) ->
     @history.applyGroupingInterval(interval)
