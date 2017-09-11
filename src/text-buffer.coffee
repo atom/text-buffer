@@ -10,7 +10,7 @@ mkdirp = require 'mkdirp'
 Point = require './point'
 Range = require './range'
 History = require './history'
-{DocumentReplica} = require '@atom/tachyon'
+{Document} = require '@atom/tachyon'
 MarkerLayer = require './marker-layer'
 MatchIterator = require './match-iterator'
 DisplayLayer = require './display-layer'
@@ -22,7 +22,7 @@ class HistoryShim
   constructor: ->
 
   initialize: (buffer) ->
-    @history = new DocumentReplica(1)
+    @history = new Document(1)
     @history.setTextInRange({row: 0, column: 0}, {row: 0, column: 0}, buffer.getText())
     @history.clearUndoStack()
 
@@ -44,15 +44,30 @@ class HistoryShim
   undo: ->
     entry = @history.undo()
     if entry
-      {changes: entry.textUpdates}
+      for layerId, markersById of entry.markers
+        for markerId, marker of markersById
+          marker.range = Range.fromObject(marker.range)
+
+      {
+        changes: entry.textUpdates
+        markers: entry.markers
+      }
 
   redo: ->
     entry = @history.redo()
-    if entry
-      {changes: entry.textUpdates}
 
-  createCheckpoint: (props) ->
-    @history.createCheckpoint(props)
+    if entry
+      for layerId, markersById of entry.markers
+        for markerId, marker of markersById
+          marker.range = Range.fromObject(marker.range)
+
+      {
+        changes: entry.textUpdates
+        markers: entry.markers
+      }
+
+  createCheckpoint: (options) ->
+    @history.createCheckpoint(options)
 
   groupChangesSinceCheckpoint: (checkpoint, options) ->
     @history.groupChangesSinceCheckpoint(checkpoint, options)
@@ -1187,9 +1202,9 @@ class TextBuffer
   undo: ->
     if pop = @history.undo()
       @applyChange(change) for change in pop.changes
-      @restoreFromMarkerSnapshot(pop.snapshot)
+      @restoreFromMarkerSnapshot(pop.markers)
       @emitDidChangeTextEvent(pop.changes)
-      @emitMarkerChangeEvents(pop.snapshot)
+      @emitMarkerChangeEvents(pop.markers)
       true
     else
       false
@@ -1198,9 +1213,9 @@ class TextBuffer
   redo: ->
     if pop = @history.redo()
       @applyChange(change) for change in pop.changes
-      @restoreFromMarkerSnapshot(pop.snapshot)
+      @restoreFromMarkerSnapshot(pop.markers)
       @emitDidChangeTextEvent(pop.changes)
-      @emitMarkerChangeEvents(pop.snapshot)
+      @emitMarkerChangeEvents(pop.markers)
       true
     else
       false
@@ -1223,7 +1238,7 @@ class TextBuffer
       fn = groupingInterval
       groupingInterval = 0
 
-    checkpointBefore = @history.createCheckpoint(markerSnapshot: @createMarkerSnapshot(), isBarrier: true)
+    checkpointBefore = @history.createCheckpoint(markers: @createMarkerSnapshot(), isBarrier: true)
 
     try
       @transactCallDepth++
@@ -1237,7 +1252,7 @@ class TextBuffer
 
     return result if @isDestroyed()
     endMarkerSnapshot = @createMarkerSnapshot()
-    compactedChanges = @history.groupChangesSinceCheckpoint(checkpointBefore, {markerSnapshot: endMarkerSnapshot, deleteCheckpoint: true})
+    compactedChanges = @history.groupChangesSinceCheckpoint(checkpointBefore, {markers: endMarkerSnapshot, deleteCheckpoint: true})
     global.atom?.assert compactedChanges, "groupChangesSinceCheckpoint() returned false.", (error) =>
       error.metadata = {history: @history.toString()}
     @history.applyGroupingInterval(groupingInterval)
@@ -1259,7 +1274,7 @@ class TextBuffer
   #
   # Returns a checkpoint value.
   createCheckpoint: ->
-    @history.createCheckpoint(markerSnapshot: @createMarkerSnapshot(), isBarrier: false)
+    @history.createCheckpoint(markers: @createMarkerSnapshot(), isBarrier: false)
 
   # Public: Revert the buffer to the state it was in when the given
   # checkpoint was created.
@@ -1289,7 +1304,7 @@ class TextBuffer
   #
   # Returns a {Boolean} indicating whether the operation succeeded.
   groupChangesSinceCheckpoint: (checkpoint) ->
-    @history.groupChangesSinceCheckpoint(checkpoint, {markerSnapshot: @createMarkerSnapshot(), deleteCheckpoint: false})
+    @history.groupChangesSinceCheckpoint(checkpoint, {markers: @createMarkerSnapshot(), deleteCheckpoint: false})
 
   # Public: Returns a list of changes since the given checkpoint.
   #
@@ -1702,7 +1717,7 @@ class TextBuffer
         (percentDone, patch) =>
           if patch and patch.getChangeCount() > 0
             changeEvent = new CompositeChangeEvent(@buffer, patch)
-            checkpoint = @history.createCheckpoint(markerSnapshot: @createMarkerSnapshot(), isBarrier: true)
+            checkpoint = @history.createCheckpoint(markers: @createMarkerSnapshot(), isBarrier: true)
             @emitter.emit('will-reload')
             @emitter.emit('will-change', changeEvent)
       )
@@ -1739,7 +1754,7 @@ class TextBuffer
         if patch
           if patch.getChangeCount() > 0
             changeEvent = new CompositeChangeEvent(@buffer, patch)
-            checkpoint = @history.createCheckpoint(markerSnapshot: @createMarkerSnapshot(), isBarrier: true)
+            checkpoint = @history.createCheckpoint(markers: @createMarkerSnapshot(), isBarrier: true)
             @emitter.emit('will-reload')
             @emitter.emit('will-change', changeEvent)
           else if options?.discardChanges
@@ -1784,10 +1799,10 @@ class TextBuffer
             )
       changeEvent.didChange = true
       @emitDidChangeEvent(changeEvent)
-      markerSnapshot = @createMarkerSnapshot()
-      @history.groupChangesSinceCheckpoint(checkpoint, {markerSnapshot: markerSnapshot, deleteCheckpoint: true})
+      markersSnapshot = @createMarkerSnapshot()
+      @history.groupChangesSinceCheckpoint(checkpoint, {markers: markersSnapshot, deleteCheckpoint: true})
       @emitDidChangeTextEvent(patch.getChanges())
-      @emitMarkerChangeEvents(markerSnapshot)
+      @emitMarkerChangeEvents(markersSnapshot)
       @emitModifiedStatusChanged(@isModified())
 
     unless @loaded
