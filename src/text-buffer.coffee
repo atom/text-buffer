@@ -482,7 +482,8 @@ class TextBuffer
 
   # Public: Invoke the given callback before the buffer is saved to disk.
   #
-  # * `callback` {Function} to be called before the buffer is saved.
+  # * `callback` {Function} to be called before the buffer is saved. If this function returns
+  #   a {Promise}, then the buffer will not be saved until the promise resolves.
   #
   # Returns a {Disposable} on which `.dispose()` can be called to unsubscribe.
   onWillSave: (callback) ->
