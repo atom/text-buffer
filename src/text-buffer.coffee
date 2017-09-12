@@ -809,12 +809,12 @@ class TextBuffer
   #
   # Returns the {Range} of the inserted text.
   setTextInRange: (range, newText, options) ->
-    if @transactCallDepth is 0
-      return @transact => @setTextInRange(range, newText, options)
-
     if options?
       {normalizeLineEndings, undo} = options
     normalizeLineEndings ?= true
+
+    if @transactCallDepth is 0 and undo isnt 'skip'
+      return @transact => @setTextInRange(range, newText, options)
 
     oldRange = @clipRange(range)
     oldText = @getTextInRange(oldRange)
@@ -1119,9 +1119,9 @@ class TextBuffer
   # Public: Undo the last operation. If a transaction is in progress, aborts it.
   undo: ->
     if pop = @history.undo()
-      @applyChange(change) for change in pop.changes
+      @applyChange(change) for change in pop.textUpdates
       @restoreFromMarkerSnapshot(pop.markers)
-      @emitDidChangeTextEvent(pop.changes)
+      @emitDidChangeTextEvent(pop.textUpdates)
       @emitMarkerChangeEvents(pop.markers)
       true
     else
@@ -1130,9 +1130,9 @@ class TextBuffer
   # Public: Redo the last operation
   redo: ->
     if pop = @history.redo()
-      @applyChange(change) for change in pop.changes
+      @applyChange(change) for change in pop.textUpdates
       @restoreFromMarkerSnapshot(pop.markers)
-      @emitDidChangeTextEvent(pop.changes)
+      @emitDidChangeTextEvent(pop.textUpdates)
       @emitMarkerChangeEvents(pop.markers)
       true
     else
@@ -1205,11 +1205,11 @@ class TextBuffer
   # Returns a {Boolean} indicating whether the operation succeeded.
   revertToCheckpoint: (checkpoint, options) ->
     if truncated = @history.revertToCheckpoint(checkpoint, options)
-      @applyChange(change) for change in truncated.changes
-      @restoreFromMarkerSnapshot(truncated.snapshot)
-      @emitDidChangeTextEvent(truncated.changes)
+      @applyChange(change) for change in truncated.textUpdates
+      @restoreFromMarkerSnapshot(truncated.markers)
+      @emitDidChangeTextEvent(truncated.textUpdates)
       @emitter.emit 'did-update-markers'
-      @emitMarkerChangeEvents(truncated.snapshot)
+      @emitMarkerChangeEvents(truncated.markers)
       true
     else
       false

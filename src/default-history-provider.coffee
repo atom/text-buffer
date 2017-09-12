@@ -149,8 +149,8 @@ class DefaultHistoryProvider
     if spliceIndex?
       @redoStack.push(@undoStack.splice(spliceIndex).reverse()...)
       {
+        textUpdates: patch.getChanges()
         markers: snapshotBelow
-        changes: patch.getChanges()
       }
     else
       false
@@ -183,8 +183,8 @@ class DefaultHistoryProvider
     if spliceIndex?
       @undoStack.push(@redoStack.splice(spliceIndex).reverse()...)
       {
+        textUpdates: patch.getChanges()
         markers: snapshotBelow
-        changes: patch.getChanges()
       }
     else
       false
@@ -212,8 +212,8 @@ class DefaultHistoryProvider
     if spliceIndex?
       @undoStack.splice(spliceIndex)
       {
+        textUpdates: Patch.compose(patchesSinceCheckpoint).getChanges()
         markers: snapshotBelow
-        changes: Patch.compose(patchesSinceCheckpoint).getChanges()
       }
     else
       false
