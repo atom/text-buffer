@@ -826,7 +826,7 @@ describe "TextBuffer", ->
       buffer.undo()
       expect(buffer.getText()).toBe('Lorem ')
 
-      buffer.setHistoryProvider(new DefaultHistoryProvider())
+      buffer.setHistoryProvider(new DefaultHistoryProvider(buffer))
       buffer.undo()
       expect(buffer.getText()).toBe('Lorem ')
 

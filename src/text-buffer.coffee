@@ -164,7 +164,7 @@ class TextBuffer
     @debouncedEmitDidStopChangingEvent = debounce(@emitDidStopChangingEvent.bind(this), @stoppedChangingDelay)
     @textDecorationLayers = new Set()
     @maxUndoEntries = params?.maxUndoEntries ? @defaultMaxUndoEntries
-    @setHistoryProvider(new DefaultHistoryProvider())
+    @setHistoryProvider(new DefaultHistoryProvider(this))
     @nextMarkerLayerId = 0
     @nextDisplayLayerId = 0
     @defaultMarkerLayer = new MarkerLayer(this, String(@nextMarkerLayerId++))
@@ -1114,7 +1114,6 @@ class TextBuffer
   getHistoryProvider: -> @history
 
   setHistoryProvider: (historyProvider) ->
-    historyProvider.initialize(this)
     @history = historyProvider
 
   # Public: Undo the last operation. If a transaction is in progress, aborts it.
