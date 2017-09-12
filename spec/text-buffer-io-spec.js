@@ -238,6 +238,18 @@ describe('TextBuffer IO', () => {
       })
     })
 
+    describe('when the buffer is destroyed before the save completes', () => {
+      it('saves the current contents of the buffer to the path', (done) => {
+        buffer.setText('hello\n')
+        buffer.save().then(() => {
+          expect(buffer.getText()).toBe('')
+          expect(fs.readFileSync(filePath, 'utf8')).toBe('hello\n')
+          done()
+        })
+        buffer.destroy()
+      })
+    })
+
     describe('when a conflict is created', () => {
       beforeEach((done) => {
         buffer.setText('a')
