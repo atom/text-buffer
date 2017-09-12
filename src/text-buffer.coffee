@@ -1561,11 +1561,13 @@ class TextBuffer
       destination = file.createWriteStream()
       directoryPromise = Promise.resolve()
 
-    @emitter.emit 'will-save', {path: filePath}
     @outstandingSaveCount++
 
     directoryPromise
-      .then => @buffer.save(destination, @getEncoding())
+      .then =>
+        @emitter.emitAsync 'will-save', {path: filePath}
+      .then =>
+        @buffer.save(destination, @getEncoding())
       .catch (error) =>
         if process.platform is 'darwin' and error.code is 'EACCES' and destination is filePath
           fsAdmin = require('fs-admin')
