@@ -238,6 +238,21 @@ describe('TextBuffer IO', () => {
       })
     })
 
+    it('waits for any promises returned by ::onWillSave observers', (done) => {
+      buffer.onWillSave(() => new Promise((resolve) => {
+        setTimeout(() => {
+          buffer.append(' - updated')
+          resolve()
+        }, 50)
+      }))
+
+      buffer.setText('Buffer contents')
+      buffer.save().then(() => {
+        expect(fs.readFileSync(filePath, 'utf8')).toBe('Buffer contents - updated')
+        done()
+      })
+    })
+
     describe('when the buffer is destroyed before the save completes', () => {
       it('saves the current contents of the buffer to the path', (done) => {
         buffer.setText('hello\n')
