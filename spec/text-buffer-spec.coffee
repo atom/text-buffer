@@ -6,12 +6,12 @@ Random = require 'random-seed'
 Point = require '../src/point'
 Range = require '../src/range'
 DisplayLayer = require '../src/display-layer'
-DefaultHistoryProvider = require '../src/history'
+DefaultHistoryProvider = require '../src/default-history-provider'
 TextBuffer = require '../src/text-buffer'
 SampleText = fs.readFileSync(join(__dirname, 'fixtures', 'sample.js'), 'utf8')
 {buildRandomLines, getRandomBufferRange} = require './helpers/random'
 
-fdescribe "TextBuffer", ->
+describe "TextBuffer", ->
   buffer = null
 
   beforeEach ->
@@ -367,7 +367,7 @@ fdescribe "TextBuffer", ->
       buffer.undo()
       expect(buffer.getText()).toBe "hello\nworld\r\nhow are you doing?"
 
-    xit "does not allow the undo stack to grow without bound", ->
+    it "does not allow the undo stack to grow without bound", ->
       buffer = new TextBuffer(maxUndoEntries: 12)
 
       # Each transaction is treated as a single undo entry. We can undo up

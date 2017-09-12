@@ -9,7 +9,7 @@ mkdirp = require 'mkdirp'
 {BufferOffsetIndex, Patch, TextBuffer: NativeTextBuffer} = require 'superstring'
 Point = require './point'
 Range = require './range'
-History = require './history'
+DefaultHistoryProvider = require './default-history-provider'
 {Document} = require '@atom/tachyon'
 MarkerLayer = require './marker-layer'
 MatchIterator = require './match-iterator'
@@ -17,86 +17,6 @@ DisplayLayer = require './display-layer'
 {spliceArray, newlineRegex, normalizePatchChanges, regexIsSingleLine, extentForText, debounce} = require './helpers'
 {traversal} = require './point-helpers'
 Grim = require 'grim'
-
-class HistoryShim
-  constructor: ->
-
-  initialize: (buffer) ->
-    @history = new Document(1)
-    @history.setTextInRange({row: 0, column: 0}, {row: 0, column: 0}, buffer.getText())
-    @history.clearUndoStack()
-
-  pushChange: ({newStart, oldExtent, newText}) ->
-    @history.setTextInRange(newStart, newStart.traverse(oldExtent), newText)
-
-  # Takes the place of ::pushPatch
-  pushChanges: (changes) ->
-    for change in changes
-      {oldStart, oldEnd, newStart, newText} = change
-
-      oldExtent = traversal(oldEnd, oldStart)
-      start = Point.fromObject(newStart)
-
-      @pushChange({newStart: start, oldExtent: oldExtent, newText: newText})
-
-    @clearRedoStack()
-
-  undo: ->
-    entry = @history.undo()
-    if entry
-      for layerId, markersById of entry.markers
-        for markerId, marker of markersById
-          marker.range = Range.fromObject(marker.range)
-
-      {
-        changes: entry.textUpdates
-        markers: entry.markers
-      }
-
-  redo: ->
-    entry = @history.redo()
-
-    if entry
-      for layerId, markersById of entry.markers
-        for markerId, marker of markersById
-          marker.range = Range.fromObject(marker.range)
-
-      {
-        changes: entry.textUpdates
-        markers: entry.markers
-      }
-
-  createCheckpoint: (options) ->
-    @history.createCheckpoint(options)
-
-  groupChangesSinceCheckpoint: (checkpoint, options) ->
-    @history.groupChangesSinceCheckpoint(checkpoint, options)
-
-  getChangesSinceCheckpoint: (checkpoint) ->
-    @history.getChangesSinceCheckpoint(checkpoint)
-
-  revertToCheckpoint: (checkpoint, options) ->
-    result = @history.revertToCheckpoint(checkpoint, options)
-    if result
-      {changes: result.textUpdates}
-    else
-      result
-
-  applyGroupingInterval: (interval) ->
-    @history.applyGroupingInterval(interval)
-
-  enforceUndoStackSizeLimit: (gi) ->
-    # @history.applyGroupingInterval(interval)
-
-  deserialize: ->
-
-  serialize: ->
-
-  clearUndoStack: ->
-    @history.clearUndoStack()
-
-  clearRedoStack: ->
-    @history.clearRedoStack()
 
 class TransactionAbortedError extends Error
   constructor: -> super
@@ -244,8 +164,7 @@ class TextBuffer
     @debouncedEmitDidStopChangingEvent = debounce(@emitDidStopChangingEvent.bind(this), @stoppedChangingDelay)
     @textDecorationLayers = new Set()
     @maxUndoEntries = params?.maxUndoEntries ? @defaultMaxUndoEntries
-    # @setHistoryProvider(new DefaultHistoryProvider())
-    @setHistoryProvider(new HistoryShim())
+    @setHistoryProvider(new DefaultHistoryProvider())
     @nextMarkerLayerId = 0
     @nextDisplayLayerId = 0
     @defaultMarkerLayer = new MarkerLayer(this, String(@nextMarkerLayerId++))
@@ -1195,7 +1114,7 @@ class TextBuffer
   getHistoryProvider: -> @history
 
   setHistoryProvider: (historyProvider) ->
-    historyProvider.initialize(@buffer)
+    historyProvider.initialize(this)
     @history = historyProvider
 
   # Public: Undo the last operation. If a transaction is in progress, aborts it.
@@ -1808,10 +1727,6 @@ class TextBuffer
     unless @loaded
       start = {row: 0, column: 0}
       end = {row: 0, column: 0}
-      # TODO Remove Demeter violation
-      @history.history.setTextInRange(start, end, @getText())
-
-      @setHistoryProvider(new HistoryShim())
 
     @loaded = true
     @emitter.emit('did-reload')

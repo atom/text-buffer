@@ -4,7 +4,7 @@ MarkerLayer = require './marker-layer'
 SerializationVersion = 6
 
 class Checkpoint
-  constructor: (@id, @snapshot, @isBoundary) ->
+  constructor: (@id, @snapshot, @isBarrier) ->
     unless @snapshot?
       global.atom?.assert(false, "Checkpoint created without snapshot")
       @snapshot = {}
@@ -27,24 +27,23 @@ class Transaction
 
 # Manages undo/redo for {TextBuffer}
 module.exports =
-class History
+class DefaultHistoryProvider
   constructor: ->
 
-  initialize: (buffer) ->
-    @buffer = buffer
-    @maxUndoEntries = buffer.maxUndoEntries
+  initialize: (@buffer) ->
+    @maxUndoEntries = @buffer.maxUndoEntries
     @nextCheckpointId = 1
     @undoStack = []
     @redoStack = []
 
-  createCheckpoint: (snapshot, isBoundary) ->
-    checkpoint = new Checkpoint(@nextCheckpointId++, snapshot, isBoundary)
+  createCheckpoint: (options) ->
+    checkpoint = new Checkpoint(@nextCheckpointId++, options?.markers, options?.isBarrier)
     @undoStack.push(checkpoint)
     checkpoint.id
 
-  groupChangesSinceCheckpoint: (checkpointId, options={}) ->
-    {markerSnapshotAfter, deleteCheckpoint} = options
-    deleteCheckpoint ?= false
+  groupChangesSinceCheckpoint: (checkpointId, options) ->
+    deleteCheckpoint = options?.deleteCheckpoint ? false
+    markerSnapshotAfter = options?.markers
     checkpointIndex = null
     markerSnapshotBefore = null
     patchesSinceCheckpoint = []
@@ -57,7 +56,7 @@ class History
           if entry.id is checkpointId
             checkpointIndex = i
             markerSnapshotBefore = entry.snapshot
-          else if entry.isBoundary
+          else if entry.isBarrier
             return false
         when Transaction
           patchesSinceCheckpoint.unshift(entry.patch)
@@ -73,7 +72,7 @@ class History
         @undoStack.push(new Transaction(markerSnapshotBefore, composedPatches, markerSnapshotAfter))
       if deleteCheckpoint
         @undoStack.splice(checkpointIndex, 1)
-      composedPatches
+      composedPatches.getChanges()
     else
       false
 
@@ -96,7 +95,7 @@ class History
           throw new Error("Unexpected undo stack entry type: #{entry.constructor.name}")
 
     if checkpointIndex?
-      Patch.compose(patchesSinceCheckpoint)
+      Patch.compose(patchesSinceCheckpoint).getChanges()
     else
       null
 
@@ -137,7 +136,7 @@ class History
 
       switch entry.constructor
         when Checkpoint
-          if entry.isBoundary
+          if entry.isBarrier
             return false
         when Transaction
           snapshotBelow = entry.markerSnapshotBefore
@@ -152,7 +151,7 @@ class History
     if spliceIndex?
       @redoStack.push(@undoStack.splice(spliceIndex).reverse()...)
       {
-        snapshot: snapshotBelow
+        markers: snapshotBelow
         changes: patch.getChanges()
       }
     else
@@ -168,7 +167,7 @@ class History
 
       switch entry.constructor
         when Checkpoint
-          if entry.isBoundary
+          if entry.isBarrier
             throw new Error("Invalid redo stack state")
         when Transaction
           snapshotBelow = entry.markerSnapshotAfter
@@ -186,7 +185,7 @@ class History
     if spliceIndex?
       @undoStack.push(@redoStack.splice(spliceIndex).reverse()...)
       {
-        snapshot: snapshotBelow
+        markers: snapshotBelow
         changes: patch.getChanges()
       }
     else
@@ -205,7 +204,7 @@ class History
           if entry.id is checkpointId
             snapshotBelow = entry.snapshot
             spliceIndex = i
-          else if entry.isBoundary
+          else if entry.isBarrier
             return false
         when Transaction
           patchesSinceCheckpoint.push(entry.patch.invert())
@@ -215,7 +214,7 @@ class History
     if spliceIndex?
       @undoStack.splice(spliceIndex)
       {
-        snapshot: snapshotBelow
+        markers: snapshotBelow
         changes: Patch.compose(patchesSinceCheckpoint).getChanges()
       }
     else
@@ -277,7 +276,7 @@ class History
             type: 'checkpoint'
             id: entry.id
             snapshot: @serializeSnapshot(entry.snapshot, options)
-            isBoundary: entry.isBoundary
+            isBarrier: entry.isBarrier
           }
         when Transaction
           {
@@ -301,7 +300,7 @@ class History
           new Checkpoint(
             entry.id
             MarkerLayer.deserializeSnapshot(entry.snapshot)
-            entry.isBoundary
+            entry.isBarrier
           )
         when 'transaction'
           new Transaction(
