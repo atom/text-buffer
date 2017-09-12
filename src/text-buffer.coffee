@@ -1724,7 +1724,14 @@ class TextBuffer
       @fileSubscriptions?.dispose()
       for id, markerLayer of @markerLayers
         markerLayer.destroy()
-      @buffer.reset('')
+      if @outstandingSaveCount is 0
+        @buffer.reset('')
+      else
+        subscription = @onDidSave =>
+          if @outstandingSaveCount is 0
+            @buffer.reset('')
+            subscription.dispose()
+
       @cachedText = null
       @history.clear()
 
