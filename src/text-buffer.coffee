@@ -139,6 +139,12 @@ class TextBuffer
   defaultMaxUndoEntries: 10000
   nextMarkerLayerId: 0
 
+  # Provide fallback in case people are using this renamed private field in packages.
+  Object.defineProperty(this, 'history', {
+    enumerable: false,
+    get: -> @historyProvider
+  })
+
   ###
   Section: Construction
   ###
@@ -264,7 +270,7 @@ class TextBuffer
       buffer.nextMarkerId = params.nextMarkerId
       buffer.nextMarkerLayerId = params.nextMarkerLayerId
       buffer.nextDisplayLayerId = params.nextDisplayLayerId
-      buffer.history.deserialize(params.history, buffer)
+      buffer.historyProvider.deserialize(params.history, buffer)
 
       for layerId, layerState of params.markerLayers
         if layerId is params.defaultMarkerLayerId
@@ -300,7 +306,7 @@ class TextBuffer
 
     history = {}
     if options.history
-      history = @history.serialize(options)
+      history = @historyProvider.serialize(options)
 
     result = {
       id: @getId()
@@ -877,7 +883,7 @@ class TextBuffer
     if pushToHistory
       change.oldExtent ?= oldExtent
       change.newExtent ?= newExtent
-      @history?.pushChange(change)
+      @historyProvider?.pushChange(change)
 
     changeEvent = {oldRange, newRange, oldText, newText}
     for id, displayLayer of @displayLayers
@@ -1114,13 +1120,13 @@ class TextBuffer
   ###
 
   setHistoryProvider: (historyProvider) ->
-    @history = historyProvider
+    @historyProvider = historyProvider
 
   getHistoryProviderSnapshot: (maxEntries) ->
     if @transactCallDepth > 0
       throw new Error('Cannot build history snapshots within transactions')
 
-    snapshot = @history.getSnapshot(maxEntries)
+    snapshot = @historyProvider.getSnapshot(maxEntries)
 
     baseTextBuffer = new NativeTextBuffer(@getText())
     for change in snapshot.undoStackChanges by -1
@@ -1136,7 +1142,7 @@ class TextBuffer
 
   # Public: Undo the last operation. If a transaction is in progress, aborts it.
   undo: ->
-    if pop = @history.undo()
+    if pop = @historyProvider.undo()
       @applyChange(change) for change in pop.textUpdates
       @restoreFromMarkerSnapshot(pop.markers)
       @emitDidChangeTextEvent()
@@ -1147,7 +1153,7 @@ class TextBuffer
 
   # Public: Redo the last operation
   redo: ->
-    if pop = @history.redo()
+    if pop = @historyProvider.redo()
       @applyChange(change) for change in pop.textUpdates
       @restoreFromMarkerSnapshot(pop.markers)
       @emitDidChangeTextEvent()
@@ -1174,7 +1180,7 @@ class TextBuffer
       fn = groupingInterval
       groupingInterval = 0
 
-    checkpointBefore = @history.createCheckpoint(markers: @createMarkerSnapshot(), isBarrier: true)
+    checkpointBefore = @historyProvider.createCheckpoint(markers: @createMarkerSnapshot(), isBarrier: true)
 
     try
       @transactCallDepth++
@@ -1188,9 +1194,9 @@ class TextBuffer
 
     return result if @isDestroyed()
     endMarkerSnapshot = @createMarkerSnapshot()
-    @history.groupChangesSinceCheckpoint(checkpointBefore, {markers: endMarkerSnapshot, deleteCheckpoint: true})
-    @history.applyGroupingInterval(groupingInterval)
-    @history.enforceUndoStackSizeLimit()
+    @historyProvider.groupChangesSinceCheckpoint(checkpointBefore, {markers: endMarkerSnapshot, deleteCheckpoint: true})
+    @historyProvider.applyGroupingInterval(groupingInterval)
+    @historyProvider.enforceUndoStackSizeLimit()
     @emitDidChangeTextEvent()
     @emitMarkerChangeEvents(endMarkerSnapshot)
     result
@@ -1201,14 +1207,14 @@ class TextBuffer
   # Public: Clear the undo stack. When calling this method within a transaction,
   # the {::onDidChangeText} event will not be triggered because the information
   # describing the changes is lost.
-  clearUndoStack: -> @history.clearUndoStack()
+  clearUndoStack: -> @historyProvider.clearUndoStack()
 
   # Public: Create a pointer to the current state of the buffer for use
   # with {::revertToCheckpoint} and {::groupChangesSinceCheckpoint}.
   #
   # Returns a checkpoint value.
   createCheckpoint: ->
-    @history.createCheckpoint(markers: @createMarkerSnapshot(), isBarrier: false)
+    @historyProvider.createCheckpoint(markers: @createMarkerSnapshot(), isBarrier: false)
 
   # Public: Revert the buffer to the state it was in when the given
   # checkpoint was created.
@@ -1220,7 +1226,7 @@ class TextBuffer
   #
   # Returns a {Boolean} indicating whether the operation succeeded.
   revertToCheckpoint: (checkpoint, options) ->
-    if truncated = @history.revertToCheckpoint(checkpoint, options)
+    if truncated = @historyProvider.revertToCheckpoint(checkpoint, options)
       @applyChange(change) for change in truncated.textUpdates
       @restoreFromMarkerSnapshot(truncated.markers)
       @emitDidChangeTextEvent()
@@ -1238,7 +1244,7 @@ class TextBuffer
   #
   # Returns a {Boolean} indicating whether the operation succeeded.
   groupChangesSinceCheckpoint: (checkpoint) ->
-    @history.groupChangesSinceCheckpoint(checkpoint, {markers: @createMarkerSnapshot(), deleteCheckpoint: false})
+    @historyProvider.groupChangesSinceCheckpoint(checkpoint, {markers: @createMarkerSnapshot(), deleteCheckpoint: false})
 
   # Public: Returns a list of changes since the given checkpoint.
   #
@@ -1254,7 +1260,7 @@ class TextBuffer
   # * `oldText`: A {String} representing the deleted text.
   # * `newText`: A {String} representing the inserted text.
   getChangesSinceCheckpoint: (checkpoint) ->
-    if changes = @history.getChangesSinceCheckpoint(checkpoint)
+    if changes = @historyProvider.getChangesSinceCheckpoint(checkpoint)
       normalizePatchChanges(changes)
     else
       []
@@ -1651,7 +1657,7 @@ class TextBuffer
         (percentDone, patch) =>
           if patch and patch.getChangeCount() > 0
             changeEvent = new CompositeChangeEvent(@buffer, patch)
-            checkpoint = @history.createCheckpoint(markers: @createMarkerSnapshot(), isBarrier: true)
+            checkpoint = @historyProvider.createCheckpoint(markers: @createMarkerSnapshot(), isBarrier: true)
             @emitter.emit('will-reload')
             @emitter.emit('will-change', changeEvent)
       )
@@ -1688,7 +1694,7 @@ class TextBuffer
         if patch
           if patch.getChangeCount() > 0
             changeEvent = new CompositeChangeEvent(@buffer, patch)
-            checkpoint = @history.createCheckpoint(markers: @createMarkerSnapshot(), isBarrier: true)
+            checkpoint = @historyProvider.createCheckpoint(markers: @createMarkerSnapshot(), isBarrier: true)
             @emitter.emit('will-reload')
             @emitter.emit('will-change', changeEvent)
           else if options?.discardChanges
@@ -1716,12 +1722,12 @@ class TextBuffer
 
     if @loaded and patch and patch.getChangeCount() > 0
       if options?.clearHistory
-        @history.clearUndoStack()
+        @historyProvider.clearUndoStack()
       else
-        if @history.pushPatch
-          @history.pushPatch(patch)
+        if @historyProvider.pushPatch
+          @historyProvider.pushPatch(patch)
         else
-          @history.pushChanges(patch.getChanges())
+          @historyProvider.pushChanges(patch.getChanges())
 
       if @markerLayers?
         for change in patch.getChanges()
@@ -1734,7 +1740,7 @@ class TextBuffer
       changeEvent.didChange = true
       @emitDidChangeEvent(changeEvent)
       markersSnapshot = @createMarkerSnapshot()
-      @history.groupChangesSinceCheckpoint(checkpoint, {markers: markersSnapshot, deleteCheckpoint: true})
+      @historyProvider.groupChangesSinceCheckpoint(checkpoint, {markers: markersSnapshot, deleteCheckpoint: true})
       @changesSinceLastDidChangeTextEvent.push(patch.getChanges()...)
       @changesSinceLastStoppedChangingEvent.push(patch.getChanges()...)
       @emitDidChangeTextEvent()
@@ -1767,7 +1773,7 @@ class TextBuffer
             subscription.dispose()
 
       @cachedText = null
-      @history.clear?()
+      @historyProvider.clear?()
 
   isAlive: -> not @destroyed
 
