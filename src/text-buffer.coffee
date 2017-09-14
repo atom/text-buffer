@@ -159,6 +159,7 @@ class TextBuffer
 
     @emitter = new Emitter
     @changesSinceLastStoppedChangingEvent = []
+    @changesSinceLastDidChangeTextEvent = []
     @id = crypto.randomBytes(16).toString('hex')
     @buffer = new NativeTextBuffer(text)
     @debouncedEmitDidStopChangingEvent = debounce(@emitDidStopChangingEvent.bind(this), @stoppedChangingDelay)
@@ -892,6 +893,8 @@ class TextBuffer
         @markerLayersWithPendingUpdateEvents.add(markerLayer)
 
     @cachedText = null
+    @changesSinceLastDidChangeTextEvent.push(change)
+    @changesSinceLastStoppedChangingEvent.push(change)
     @emitDidChangeEvent(changeEvent)
     newRange
 
@@ -1121,7 +1124,7 @@ class TextBuffer
     if pop = @history.undo()
       @applyChange(change) for change in pop.textUpdates
       @restoreFromMarkerSnapshot(pop.markers)
-      @emitDidChangeTextEvent(pop.textUpdates)
+      @emitDidChangeTextEvent()
       @emitMarkerChangeEvents(pop.markers)
       true
     else
@@ -1132,7 +1135,7 @@ class TextBuffer
     if pop = @history.redo()
       @applyChange(change) for change in pop.textUpdates
       @restoreFromMarkerSnapshot(pop.markers)
-      @emitDidChangeTextEvent(pop.textUpdates)
+      @emitDidChangeTextEvent()
       @emitMarkerChangeEvents(pop.markers)
       true
     else
@@ -1170,12 +1173,10 @@ class TextBuffer
 
     return result if @isDestroyed()
     endMarkerSnapshot = @createMarkerSnapshot()
-    compactedChanges = @history.groupChangesSinceCheckpoint(checkpointBefore, {markers: endMarkerSnapshot, deleteCheckpoint: true})
-    global.atom?.assert compactedChanges, "groupChangesSinceCheckpoint() returned false.", (error) =>
-      error.metadata = {history: @history.toString()}
+    @history.groupChangesSinceCheckpoint(checkpointBefore, {markers: endMarkerSnapshot, deleteCheckpoint: true})
     @history.applyGroupingInterval(groupingInterval)
     @history.enforceUndoStackSizeLimit()
-    @emitDidChangeTextEvent(compactedChanges) if compactedChanges
+    @emitDidChangeTextEvent()
     @emitMarkerChangeEvents(endMarkerSnapshot)
     result
 
@@ -1207,7 +1208,7 @@ class TextBuffer
     if truncated = @history.revertToCheckpoint(checkpoint, options)
       @applyChange(change) for change in truncated.textUpdates
       @restoreFromMarkerSnapshot(truncated.markers)
-      @emitDidChangeTextEvent(truncated.textUpdates)
+      @emitDidChangeTextEvent()
       @emitter.emit 'did-update-markers'
       @emitMarkerChangeEvents(truncated.markers)
       true
@@ -1719,7 +1720,9 @@ class TextBuffer
       @emitDidChangeEvent(changeEvent)
       markersSnapshot = @createMarkerSnapshot()
       @history.groupChangesSinceCheckpoint(checkpoint, {markers: markersSnapshot, deleteCheckpoint: true})
-      @emitDidChangeTextEvent(patch.getChanges())
+      @changesSinceLastDidChangeTextEvent.push(patch.getChanges()...)
+      @changesSinceLastStoppedChangingEvent.push(patch.getChanges()...)
+      @emitDidChangeTextEvent()
       @emitMarkerChangeEvents(markersSnapshot)
       @emitModifiedStatusChanged(@isModified())
 
@@ -1830,10 +1833,20 @@ class TextBuffer
     for markerLayerId, markerLayer of @markerLayers
       markerLayer.emitChangeEvents(snapshot?[markerLayerId])
 
-  emitDidChangeTextEvent: (changes) ->
-    if @transactCallDepth is 0 and changes.length > 0
-      @changesSinceLastStoppedChangingEvent.push(changes...)
-      @emitter.emit 'did-change-text', {changes: Object.freeze(normalizePatchChanges(changes))}
+  emitDidChangeTextEvent: ->
+    if @transactCallDepth is 0 and @changesSinceLastDidChangeTextEvent.length > 0
+      patch = new Patch
+      while change = @changesSinceLastDidChangeTextEvent.shift()
+        patch.splice(
+          change.newStart,
+          extentForText(change.oldText),
+          extentForText(change.newText),
+          change.oldText,
+          change.newText
+        )
+
+      compactedChanges = Object.freeze(normalizePatchChanges(patch.getChanges()))
+      @emitter.emit 'did-change-text', {changes: compactedChanges}
       @debouncedEmitDidStopChangingEvent()
 
   # Identifies if the buffer belongs to multiple editors.

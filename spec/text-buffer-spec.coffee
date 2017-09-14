@@ -2045,17 +2045,18 @@ describe "TextBuffer", ->
 
       textChanges = []
       buffer.transact ->
-        buffer.insert([1, 0], "x")
-        buffer.insert([1, 1], "y")
+        buffer.insert([1, 0], "v")
+        buffer.insert([1, 1], "x")
+        buffer.setTextInRange([[1, 2], [1, 2]], "y", {undo: 'skip'})
         buffer.insert([2, 3], "zw")
         buffer.delete([[2, 3], [2, 4]])
 
       assertChangesEqual(textChanges, [
         {
           oldRange: [[1, 0], [1, 0]],
-          newRange: [[1, 0], [1, 2]],
+          newRange: [[1, 0], [1, 3]],
           oldText: "",
-          newText: "xy",
+          newText: "vxy",
         },
         {
           oldRange: [[2, 3], [2, 3]],
@@ -2071,7 +2072,7 @@ describe "TextBuffer", ->
         {
           oldRange: [[1, 0], [1, 2]],
           newRange: [[1, 0], [1, 0]],
-          oldText: "xy",
+          oldText: "vx",
           newText: "",
         },
         {
@@ -2089,7 +2090,7 @@ describe "TextBuffer", ->
           oldRange: [[1, 0], [1, 0]],
           newRange: [[1, 0], [1, 2]],
           oldText: "",
-          newText: "xy",
+          newText: "vx",
         },
         {
           oldRange: [[2, 3], [2, 3]],
@@ -2146,6 +2147,7 @@ describe "TextBuffer", ->
           buffer.transact ->
             buffer.insert([0, 0], 'b')
             buffer.insert([1, 0], 'c')
+            buffer.setTextInRange([[1, 1], [1, 1]], 'd', {undo: 'skip'})
         expect(didStopChangingCallback).not.toHaveBeenCalled()
 
         wait delay / 2, ->
@@ -2162,10 +2164,10 @@ describe "TextBuffer", ->
               },
               {
                 oldRange: [[1, 0], [1, 0]],
-                newRange: [[1, 0], [1, 1]],
+                newRange: [[1, 0], [1, 2]],
                 oldText: "",
-                newText: "c",
-              },
+                newText: "cd",
+              }
             ])
 
             didStopChangingCallback.calls.reset()
