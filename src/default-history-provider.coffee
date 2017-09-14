@@ -256,6 +256,36 @@ class DefaultHistoryProvider
     @undoStack = @deserializeStack(state.undoStack)
     @redoStack = @deserializeStack(state.redoStack)
 
+  getSnapshot: (maxEntries) ->
+    undoStackPatches = []
+    undoStack = []
+    for entry in @undoStack by -1
+      switch entry.constructor
+        when Checkpoint
+          undoStack.unshift(getCheckpointSnapshot(entry))
+        when Transaction
+          undoStack.unshift(getTransactionSnapshot(entry))
+          undoStackPatches.unshift(entry.patch)
+
+      break if undoStack.length is maxEntries
+
+    redoStack = []
+    for entry in @redoStack by -1
+      switch entry.constructor
+        when Checkpoint
+          redoStack.unshift(getCheckpointSnapshot(entry))
+        when Transaction
+          redoStack.unshift(getTransactionSnapshot(entry))
+
+      break if redoStack.length is maxEntries
+
+    {
+      nextCheckpointId: @nextCheckpointId,
+      undoStackChanges: Patch.compose(undoStackPatches).getChanges(),
+      undoStack,
+      redoStack
+    }
+
   ###
   Section: Private
   ###
@@ -318,3 +348,33 @@ class DefaultHistoryProvider
     for id, snapshot of snapshot when @buffer.getMarkerLayer(id)?.persistent
       layers[id] = snapshot
     layers
+
+getCheckpointSnapshot = (checkpoint) ->
+  {
+    type: 'checkpoint',
+    id: checkpoint.id,
+    isBarrier: checkpoint.isBarrier,
+    markers: checkpoint.snapshot
+  }
+
+getTransactionSnapshot = (transaction) ->
+  {
+    type: 'transaction',
+    changes: getPatchSnapshot(transaction.patch),
+    markersBefore: transaction.markerSnapshotBefore
+    markersAfter: transaction.markerSnapshotAfter
+  }
+
+getPatchSnapshot = (patch) ->
+  changes = []
+  for change in patch.getChanges() by 1
+    changes.push({
+      oldStart: change.oldStart,
+      oldEnd: change.oldEnd,
+      newStart: change.newStart,
+      newEnd: change.newEnd,
+      oldText: change.oldText,
+      newText: change.newText
+    })
+
+  changes

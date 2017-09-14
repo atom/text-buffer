@@ -1116,6 +1116,21 @@ class TextBuffer
   setHistoryProvider: (historyProvider) ->
     @history = historyProvider
 
+  getHistoryProviderSnapshot: (maxEntries) ->
+    snapshot = @history.getSnapshot(maxEntries)
+
+    baseTextBuffer = new NativeTextBuffer(@getText())
+    for change in snapshot.undoStackChanges by -1
+      newRange = Range(change.newStart, change.newEnd)
+      baseTextBuffer.setTextInRange(newRange, change.oldText)
+
+    {
+      baseText: baseTextBuffer.getText(),
+      undoStack: snapshot.undoStack,
+      redoStack: snapshot.redoStack,
+      nextCheckpointId: snapshot.nextCheckpointId
+    }
+
   # Public: Undo the last operation. If a transaction is in progress, aborts it.
   undo: ->
     if pop = @history.undo()

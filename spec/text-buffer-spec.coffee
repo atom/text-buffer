@@ -836,6 +836,73 @@ describe "TextBuffer", ->
       buffer.undo()
       expect(buffer.getText()).toBe('Lorem ')
 
+  describe "::getHistoryProviderSnapshot(maxEntries)", ->
+    it "returns a base text and the state of the last `maxEntries` entries in the undo and redo stacks", ->
+      buffer = new TextBuffer({text: ''})
+      markerLayer = buffer.addMarkerLayer({maintainHistory: true})
+
+      buffer.append('Lorem ')
+      buffer.append('ipsum ')
+      buffer.append('dolor ')
+      markerLayer.markPosition([0, 2])
+      markersSnapshotAtCheckpoint1 = buffer.createMarkerSnapshot()
+      checkpoint1 = buffer.createCheckpoint()
+      buffer.append('sit ')
+      buffer.append('amet ')
+      buffer.append('consecteur ')
+      markerLayer.markPosition([0, 4])
+      markersSnapshotAtCheckpoint2 = buffer.createMarkerSnapshot()
+      checkpoint2 = buffer.createCheckpoint()
+      buffer.append('adipiscit ')
+      buffer.append('elit ')
+      buffer.undo()
+      buffer.undo()
+      buffer.undo()
+
+      {baseText, nextCheckpointId, undoStack, redoStack} = buffer.getHistoryProviderSnapshot(3)
+      expect(baseText).toBe('Lorem ipsum dolor ')
+      expect(nextCheckpointId).toBe(buffer.createCheckpoint())
+      expect(undoStack).toEqual([
+        {
+          type: 'checkpoint',
+          id: checkpoint1,
+          isBarrier: false,
+          markers: markersSnapshotAtCheckpoint1
+        },
+        {
+          type: 'transaction',
+          changes: [{oldStart: Point(0, 18), oldEnd: Point(0, 18), newStart: Point(0, 18), newEnd: Point(0, 22), oldText: '', newText: 'sit '}],
+          markersBefore: markersSnapshotAtCheckpoint1,
+          markersAfter: markersSnapshotAtCheckpoint1
+        },
+        {
+          type: 'transaction',
+          changes: [{oldStart: Point(0, 22), oldEnd: Point(0, 22), newStart: Point(0, 22), newEnd: Point(0, 27), oldText: '', newText: 'amet '}],
+          markersBefore: markersSnapshotAtCheckpoint1,
+          markersAfter: markersSnapshotAtCheckpoint1
+        }
+      ])
+      expect(redoStack).toEqual([
+        {
+          type: 'transaction',
+          changes: [{oldStart: Point(0, 38), oldEnd: Point(0, 38), newStart: Point(0, 38), newEnd: Point(0, 48), oldText: '', newText: 'adipiscit '}],
+          markersBefore: markersSnapshotAtCheckpoint2,
+          markersAfter: markersSnapshotAtCheckpoint2
+        },
+        {
+          type: 'checkpoint',
+          id: checkpoint2,
+          isBarrier: false,
+          markers: markersSnapshotAtCheckpoint2
+        },
+        {
+          type: 'transaction',
+          changes: [{oldStart: Point(0, 27), oldEnd: Point(0, 27), newStart: Point(0, 27), newEnd: Point(0, 38), oldText: '', newText: 'consecteur '}],
+          markersBefore: markersSnapshotAtCheckpoint1,
+          markersAfter: markersSnapshotAtCheckpoint1
+        }
+      ])
+
   describe "::getTextInRange(range)", ->
     it "returns the text in a given range", ->
       buffer = new TextBuffer(text: "hello\nworld\r\nhow are you doing?")
