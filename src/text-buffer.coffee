@@ -1117,6 +1117,9 @@ class TextBuffer
     @history = historyProvider
 
   getHistoryProviderSnapshot: (maxEntries) ->
+    if @transactCallDepth > 0
+      throw new Error('Cannot build history snapshots within transactions')
+
     snapshot = @history.getSnapshot(maxEntries)
 
     baseTextBuffer = new NativeTextBuffer(@getText())

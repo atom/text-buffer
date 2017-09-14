@@ -903,6 +903,12 @@ describe "TextBuffer", ->
         }
       ])
 
+    it "throws an error when called within a transaction", ->
+      buffer = new TextBuffer()
+      expect(->
+        buffer.transact(-> buffer.getHistoryProviderSnapshot(3))
+      ).toThrowError()
+
   describe "::getTextInRange(range)", ->
     it "returns the text in a given range", ->
       buffer = new TextBuffer(text: "hello\nworld\r\nhow are you doing?")
