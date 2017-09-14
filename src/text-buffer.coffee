@@ -10,7 +10,6 @@ mkdirp = require 'mkdirp'
 Point = require './point'
 Range = require './range'
 DefaultHistoryProvider = require './default-history-provider'
-{Document} = require '@atom/tachyon'
 MarkerLayer = require './marker-layer'
 MatchIterator = require './match-iterator'
 DisplayLayer = require './display-layer'
@@ -1113,8 +1112,6 @@ class TextBuffer
   ###
   Section: History
   ###
-
-  getHistoryProvider: -> @history
 
   setHistoryProvider: (historyProvider) ->
     @history = historyProvider
