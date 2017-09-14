@@ -836,7 +836,7 @@ describe "TextBuffer", ->
       buffer.undo()
       expect(buffer.getText()).toBe('Lorem ')
 
-  describe "::getHistoryProviderSnapshot(maxEntries)", ->
+  describe "::getHistory(maxEntries)", ->
     it "returns a base text and the state of the last `maxEntries` entries in the undo and redo stacks", ->
       buffer = new TextBuffer({text: ''})
       markerLayer = buffer.addMarkerLayer({maintainHistory: true})
@@ -859,7 +859,7 @@ describe "TextBuffer", ->
       buffer.undo()
       buffer.undo()
 
-      {baseText, nextCheckpointId, undoStack, redoStack} = buffer.getHistoryProviderSnapshot(3)
+      {baseText, nextCheckpointId, undoStack, redoStack} = buffer.getHistory(3)
       expect(baseText).toBe('Lorem ipsum dolor ')
       expect(nextCheckpointId).toBe(buffer.createCheckpoint())
       expect(undoStack).toEqual([
@@ -906,7 +906,7 @@ describe "TextBuffer", ->
     it "throws an error when called within a transaction", ->
       buffer = new TextBuffer()
       expect(->
-        buffer.transact(-> buffer.getHistoryProviderSnapshot(3))
+        buffer.transact(-> buffer.getHistory(3))
       ).toThrowError()
 
   describe "::getTextInRange(range)", ->
