@@ -6,6 +6,7 @@ Random = require 'random-seed'
 Point = require '../src/point'
 Range = require '../src/range'
 DisplayLayer = require '../src/display-layer'
+DefaultHistoryProvider = require '../src/default-history-provider'
 TextBuffer = require '../src/text-buffer'
 SampleText = fs.readFileSync(join(__dirname, 'fixtures', 'sample.js'), 'utf8')
 {buildRandomLines, getRandomBufferRange} = require './helpers/random'
@@ -534,6 +535,7 @@ describe "TextBuffer", ->
         expect(buffer.getText()).toBe "hello\nworld\r\nhow are you doing?"
 
       it "groups adjacent transactions within each other's grouping intervals", ->
+        now += 1000
         buffer.transact 101, -> buffer.setTextInRange([[0, 2], [0, 5]], "y")
 
         now += 100
@@ -812,6 +814,106 @@ describe "TextBuffer", ->
 
       buffer.undo()
       expect(buffer.getText()).toBe "a"
+
+  describe "::setHistoryProvider(provider)", ->
+    it "replaces the currently active history provider with the passed one", ->
+      buffer = new TextBuffer({text: ''})
+      buffer.insert([0, 0], 'Lorem ')
+      buffer.insert([0, 6], 'ipsum ')
+      expect(buffer.getText()).toBe('Lorem ipsum ')
+
+      buffer.undo()
+      expect(buffer.getText()).toBe('Lorem ')
+
+      buffer.setHistoryProvider(new DefaultHistoryProvider(buffer))
+      buffer.undo()
+      expect(buffer.getText()).toBe('Lorem ')
+
+      buffer.insert([0, 6], 'dolor ')
+      expect(buffer.getText()).toBe('Lorem dolor ')
+
+      buffer.undo()
+      expect(buffer.getText()).toBe('Lorem ')
+
+  describe "::getHistory(maxEntries) and restoreDefaultHistoryProvider(history)", ->
+    it "returns a base text and the state of the last `maxEntries` entries in the undo and redo stacks", ->
+      buffer = new TextBuffer({text: ''})
+      markerLayer = buffer.addMarkerLayer({maintainHistory: true})
+
+      buffer.append('Lorem ')
+      buffer.append('ipsum ')
+      buffer.append('dolor ')
+      markerLayer.markPosition([0, 2])
+      markersSnapshotAtCheckpoint1 = buffer.createMarkerSnapshot()
+      checkpoint1 = buffer.createCheckpoint()
+      buffer.append('sit ')
+      buffer.append('amet ')
+      buffer.append('consecteur ')
+      markerLayer.markPosition([0, 4])
+      markersSnapshotAtCheckpoint2 = buffer.createMarkerSnapshot()
+      checkpoint2 = buffer.createCheckpoint()
+      buffer.append('adipiscit ')
+      buffer.append('elit ')
+      buffer.undo()
+      buffer.undo()
+      buffer.undo()
+
+      history = buffer.getHistory(3)
+      expect(history.baseText).toBe('Lorem ipsum dolor ')
+      expect(history.nextCheckpointId).toBe(buffer.createCheckpoint())
+      expect(history.undoStack).toEqual([
+        {
+          type: 'checkpoint',
+          id: checkpoint1,
+          markers: markersSnapshotAtCheckpoint1
+        },
+        {
+          type: 'transaction',
+          changes: [{oldStart: Point(0, 18), oldEnd: Point(0, 18), newStart: Point(0, 18), newEnd: Point(0, 22), oldText: '', newText: 'sit '}],
+          markersBefore: markersSnapshotAtCheckpoint1,
+          markersAfter: markersSnapshotAtCheckpoint1
+        },
+        {
+          type: 'transaction',
+          changes: [{oldStart: Point(0, 22), oldEnd: Point(0, 22), newStart: Point(0, 22), newEnd: Point(0, 27), oldText: '', newText: 'amet '}],
+          markersBefore: markersSnapshotAtCheckpoint1,
+          markersAfter: markersSnapshotAtCheckpoint1
+        }
+      ])
+      expect(history.redoStack).toEqual([
+        {
+          type: 'transaction',
+          changes: [{oldStart: Point(0, 38), oldEnd: Point(0, 38), newStart: Point(0, 38), newEnd: Point(0, 48), oldText: '', newText: 'adipiscit '}],
+          markersBefore: markersSnapshotAtCheckpoint2,
+          markersAfter: markersSnapshotAtCheckpoint2
+        },
+        {
+          type: 'checkpoint',
+          id: checkpoint2,
+          markers: markersSnapshotAtCheckpoint2
+        },
+        {
+          type: 'transaction',
+          changes: [{oldStart: Point(0, 27), oldEnd: Point(0, 27), newStart: Point(0, 27), newEnd: Point(0, 38), oldText: '', newText: 'consecteur '}],
+          markersBefore: markersSnapshotAtCheckpoint1,
+          markersAfter: markersSnapshotAtCheckpoint1
+        }
+      ])
+
+      buffer.createCheckpoint()
+      buffer.append('x')
+      buffer.undo()
+      buffer.clearUndoStack()
+
+      expect(buffer.getHistory()).not.toEqual(history)
+      buffer.restoreDefaultHistoryProvider(history)
+      expect(buffer.getHistory()).toEqual(history)
+
+    it "throws an error when called within a transaction", ->
+      buffer = new TextBuffer()
+      expect(->
+        buffer.transact(-> buffer.getHistory(3))
+      ).toThrowError()
 
   describe "::getTextInRange(range)", ->
     it "returns the text in a given range", ->
@@ -2004,6 +2106,7 @@ describe "TextBuffer", ->
 
       buffer.insert([0, 0], "abc")
       buffer.delete([[0, 0], [0, 1]])
+
       assertChangesEqual(textChanges, [
         {
           oldRange: [[0, 0], [0, 0]],
@@ -2021,17 +2124,18 @@ describe "TextBuffer", ->
 
       textChanges = []
       buffer.transact ->
-        buffer.insert([1, 0], "x")
-        buffer.insert([1, 1], "y")
+        buffer.insert([1, 0], "v")
+        buffer.insert([1, 1], "x")
+        buffer.setTextInRange([[1, 2], [1, 2]], "y", {undo: 'skip'})
         buffer.insert([2, 3], "zw")
         buffer.delete([[2, 3], [2, 4]])
 
       assertChangesEqual(textChanges, [
         {
           oldRange: [[1, 0], [1, 0]],
-          newRange: [[1, 0], [1, 2]],
+          newRange: [[1, 0], [1, 3]],
           oldText: "",
-          newText: "xy",
+          newText: "vxy",
         },
         {
           oldRange: [[2, 3], [2, 3]],
@@ -2047,7 +2151,7 @@ describe "TextBuffer", ->
         {
           oldRange: [[1, 0], [1, 2]],
           newRange: [[1, 0], [1, 0]],
-          oldText: "xy",
+          oldText: "vx",
           newText: "",
         },
         {
@@ -2065,7 +2169,7 @@ describe "TextBuffer", ->
           oldRange: [[1, 0], [1, 0]],
           newRange: [[1, 0], [1, 2]],
           oldText: "",
-          newText: "xy",
+          newText: "vx",
         },
         {
           oldRange: [[2, 3], [2, 3]],
@@ -2122,6 +2226,7 @@ describe "TextBuffer", ->
           buffer.transact ->
             buffer.insert([0, 0], 'b')
             buffer.insert([1, 0], 'c')
+            buffer.setTextInRange([[1, 1], [1, 1]], 'd', {undo: 'skip'})
         expect(didStopChangingCallback).not.toHaveBeenCalled()
 
         wait delay / 2, ->
@@ -2138,10 +2243,10 @@ describe "TextBuffer", ->
               },
               {
                 oldRange: [[1, 0], [1, 0]],
-                newRange: [[1, 0], [1, 1]],
+                newRange: [[1, 0], [1, 2]],
                 oldText: "",
-                newText: "c",
-              },
+                newText: "cd",
+              }
             ])
 
             didStopChangingCallback.calls.reset()

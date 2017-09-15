@@ -1,10 +1,12 @@
 {Patch} = require 'superstring'
 MarkerLayer = require './marker-layer'
+{traversal} = require './point-helpers'
+{patchFromChanges} = require './helpers'
 
 SerializationVersion = 6
 
 class Checkpoint
-  constructor: (@id, @snapshot, @isBoundary) ->
+  constructor: (@id, @snapshot, @isBarrier) ->
     unless @snapshot?
       global.atom?.assert(false, "Checkpoint created without snapshot")
       @snapshot = {}
@@ -27,18 +29,21 @@ class Transaction
 
 # Manages undo/redo for {TextBuffer}
 module.exports =
-class History
-  constructor: (@buffer, @maxUndoEntries) ->
-    @nextCheckpointId = 0
+class DefaultHistoryProvider
+  constructor: (@buffer) ->
+    @maxUndoEntries = @buffer.maxUndoEntries
+    @nextCheckpointId = 1
     @undoStack = []
     @redoStack = []
 
-  createCheckpoint: (snapshot, isBoundary) ->
-    checkpoint = new Checkpoint(@nextCheckpointId++, snapshot, isBoundary)
+  createCheckpoint: (options) ->
+    checkpoint = new Checkpoint(@nextCheckpointId++, options?.markers, options?.isBarrier)
     @undoStack.push(checkpoint)
     checkpoint.id
 
-  groupChangesSinceCheckpoint: (checkpointId, markerSnapshotAfter, deleteCheckpoint=false) ->
+  groupChangesSinceCheckpoint: (checkpointId, options) ->
+    deleteCheckpoint = options?.deleteCheckpoint ? false
+    markerSnapshotAfter = options?.markers
     checkpointIndex = null
     markerSnapshotBefore = null
     patchesSinceCheckpoint = []
@@ -51,7 +56,7 @@ class History
           if entry.id is checkpointId
             checkpointIndex = i
             markerSnapshotBefore = entry.snapshot
-          else if entry.isBoundary
+          else if entry.isBarrier
             return false
         when Transaction
           patchesSinceCheckpoint.unshift(entry.patch)
@@ -67,7 +72,7 @@ class History
         @undoStack.push(new Transaction(markerSnapshotBefore, composedPatches, markerSnapshotAfter))
       if deleteCheckpoint
         @undoStack.splice(checkpointIndex, 1)
-      composedPatches
+      composedPatches.getChanges()
     else
       false
 
@@ -90,7 +95,7 @@ class History
           throw new Error("Unexpected undo stack entry type: #{entry.constructor.name}")
 
     if checkpointIndex?
-      Patch.compose(patchesSinceCheckpoint)
+      Patch.compose(patchesSinceCheckpoint).getChanges()
     else
       null
 
@@ -121,7 +126,7 @@ class History
     @undoStack.push(patch)
     @clearRedoStack()
 
-  popUndoStack: ->
+  undo: ->
     snapshotBelow = null
     patch = null
     spliceIndex = null
@@ -131,7 +136,7 @@ class History
 
       switch entry.constructor
         when Checkpoint
-          if entry.isBoundary
+          if entry.isBarrier
             return false
         when Transaction
           snapshotBelow = entry.markerSnapshotBefore
@@ -146,13 +151,13 @@ class History
     if spliceIndex?
       @redoStack.push(@undoStack.splice(spliceIndex).reverse()...)
       {
-        snapshot: snapshotBelow
-        patch: patch
+        textUpdates: patch.getChanges()
+        markers: snapshotBelow
       }
     else
       false
 
-  popRedoStack: ->
+  redo: ->
     snapshotBelow = null
     patch = null
     spliceIndex = null
@@ -162,7 +167,7 @@ class History
 
       switch entry.constructor
         when Checkpoint
-          if entry.isBoundary
+          if entry.isBarrier
             throw new Error("Invalid redo stack state")
         when Transaction
           snapshotBelow = entry.markerSnapshotAfter
@@ -180,13 +185,13 @@ class History
     if spliceIndex?
       @undoStack.push(@redoStack.splice(spliceIndex).reverse()...)
       {
-        snapshot: snapshotBelow
-        patch: patch
+        textUpdates: patch.getChanges()
+        markers: snapshotBelow
       }
     else
       false
 
-  truncateUndoStack: (checkpointId) ->
+  revertToCheckpoint: (checkpointId) ->
     snapshotBelow = null
     spliceIndex = null
     patchesSinceCheckpoint = []
@@ -199,7 +204,7 @@ class History
           if entry.id is checkpointId
             snapshotBelow = entry.snapshot
             spliceIndex = i
-          else if entry.isBoundary
+          else if entry.isBarrier
             return false
         when Transaction
           patchesSinceCheckpoint.push(entry.patch.invert())
@@ -209,8 +214,8 @@ class History
     if spliceIndex?
       @undoStack.splice(spliceIndex)
       {
-        snapshot: snapshotBelow
-        patch: Patch.compose(patchesSinceCheckpoint)
+        textUpdates: Patch.compose(patchesSinceCheckpoint).getChanges()
+        markers: snapshotBelow
       }
     else
       false
@@ -253,6 +258,51 @@ class History
     @undoStack = @deserializeStack(state.undoStack)
     @redoStack = @deserializeStack(state.redoStack)
 
+  getSnapshot: (maxEntries) ->
+    undoStackPatches = []
+    undoStack = []
+    for entry in @undoStack by -1
+      switch entry.constructor
+        when Checkpoint
+          undoStack.unshift(snapshotFromCheckpoint(entry))
+        when Transaction
+          undoStack.unshift(snapshotFromTransaction(entry))
+          undoStackPatches.unshift(entry.patch)
+
+      break if undoStack.length is maxEntries
+
+    redoStack = []
+    for entry in @redoStack by -1
+      switch entry.constructor
+        when Checkpoint
+          redoStack.unshift(snapshotFromCheckpoint(entry))
+        when Transaction
+          redoStack.unshift(snapshotFromTransaction(entry))
+
+      break if redoStack.length is maxEntries
+
+    {
+      nextCheckpointId: @nextCheckpointId,
+      undoStackChanges: Patch.compose(undoStackPatches).getChanges(),
+      undoStack,
+      redoStack
+    }
+
+  restoreFromSnapshot: ({@nextCheckpointId, undoStack, redoStack}) ->
+    @undoStack = undoStack.map (entry) ->
+      switch entry.type
+        when 'transaction'
+          transactionFromSnapshot(entry)
+        when 'checkpoint'
+          checkpointFromSnapshot(entry)
+
+    @redoStack = redoStack.map (entry) ->
+      switch entry.type
+        when 'transaction'
+          transactionFromSnapshot(entry)
+        when 'checkpoint'
+          checkpointFromSnapshot(entry)
+
   ###
   Section: Private
   ###
@@ -271,7 +321,7 @@ class History
             type: 'checkpoint'
             id: entry.id
             snapshot: @serializeSnapshot(entry.snapshot, options)
-            isBoundary: entry.isBoundary
+            isBarrier: entry.isBarrier
           }
         when Transaction
           {
@@ -295,7 +345,7 @@ class History
           new Checkpoint(
             entry.id
             MarkerLayer.deserializeSnapshot(entry.snapshot)
-            entry.isBoundary
+            entry.isBarrier
           )
         when 'transaction'
           new Transaction(
@@ -315,3 +365,36 @@ class History
     for id, snapshot of snapshot when @buffer.getMarkerLayer(id)?.persistent
       layers[id] = snapshot
     layers
+
+snapshotFromCheckpoint = (checkpoint) ->
+  {
+    type: 'checkpoint',
+    id: checkpoint.id,
+    markers: checkpoint.snapshot
+  }
+
+checkpointFromSnapshot = ({id, markers}) ->
+  new Checkpoint(id, markers, false)
+
+snapshotFromTransaction = (transaction) ->
+  changes = []
+  for change in transaction.patch.getChanges() by 1
+    changes.push({
+      oldStart: change.oldStart,
+      oldEnd: change.oldEnd,
+      newStart: change.newStart,
+      newEnd: change.newEnd,
+      oldText: change.oldText,
+      newText: change.newText
+    })
+
+  {
+    type: 'transaction',
+    changes,
+    markersBefore: transaction.markerSnapshotBefore
+    markersAfter: transaction.markerSnapshotAfter
+  }
+
+transactionFromSnapshot = ({changes, markersBefore, markersAfter}) ->
+  # TODO: Return raw patch if there's no markersBefore && markersAfter
+  new Transaction(markersBefore, patchFromChanges(changes), markersAfter)

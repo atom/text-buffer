@@ -384,6 +384,7 @@ class MarkerLayer
   ###
 
   addMarker: (id, range, params) ->
+    range = Range.fromObject(range)
     Point.assertValid(range.start)
     Point.assertValid(range.end)
     @index.insert(id, range.start, range.end)
