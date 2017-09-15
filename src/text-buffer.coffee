@@ -13,8 +13,8 @@ DefaultHistoryProvider = require './default-history-provider'
 MarkerLayer = require './marker-layer'
 MatchIterator = require './match-iterator'
 DisplayLayer = require './display-layer'
-{spliceArray, newlineRegex, normalizePatchChanges, regexIsSingleLine, extentForText, debounce} = require './helpers'
-{traversal} = require './point-helpers'
+{spliceArray, newlineRegex, patchFromChanges, normalizePatchChanges, regexIsSingleLine, extentForText, debounce} = require './helpers'
+{traverse, traversal} = require './point-helpers'
 Grim = require 'grim'
 
 class TransactionAbortedError extends Error
@@ -828,6 +828,7 @@ class TextBuffer
       oldStart: oldRange.start,
       newStart: oldRange.start,
       oldEnd: oldRange.end,
+      newEnd: traverse(oldRange.start, extentForText(newText)),
       oldText,
       newText,
       normalizeLineEndings
@@ -860,11 +861,11 @@ class TextBuffer
 
   # Applies a change to the buffer based on its old range and new text.
   applyChange: (change, pushToHistory = false) ->
-    {newStart, oldStart, oldEnd, oldText, newText, normalizeLineEndings} = change
+    {newStart, newEnd, oldStart, oldEnd, oldText, newText, normalizeLineEndings} = change
 
     oldExtent = traversal(oldEnd, oldStart)
-    start = Point.fromObject(newStart)
-    oldRange = Range(start, start.traverse(oldExtent))
+    newStart = Point.fromObject(newStart)
+    oldRange = Range(newStart, newStart.traverse(oldExtent))
     oldRange.freeze()
 
     # Determine how to normalize the line endings of inserted text if enabled
@@ -876,9 +877,9 @@ class TextBuffer
       if normalizedEnding
         newText = newText.replace(newlineRegex, normalizedEnding)
 
-    newExtent = extentForText(newText)
-    newRange = Range(start, start.traverse(newExtent))
+    newRange = Range(newStart, newEnd)
     newRange.freeze()
+    newExtent = newRange.getExtent()
 
     if pushToHistory
       change.oldExtent ?= oldExtent
@@ -1752,10 +1753,6 @@ class TextBuffer
       @emitMarkerChangeEvents(markersSnapshot)
       @emitModifiedStatusChanged(@isModified())
 
-    unless @loaded
-      start = {row: 0, column: 0}
-      end = {row: 0, column: 0}
-
     @loaded = true
     @emitter.emit('did-reload')
     this
@@ -1861,17 +1858,10 @@ class TextBuffer
 
   emitDidChangeTextEvent: ->
     if @transactCallDepth is 0 and @changesSinceLastDidChangeTextEvent.length > 0
-      patch = new Patch
-      while change = @changesSinceLastDidChangeTextEvent.shift()
-        patch.splice(
-          change.newStart,
-          extentForText(change.oldText),
-          extentForText(change.newText),
-          change.oldText,
-          change.newText
-        )
-
-      compactedChanges = Object.freeze(normalizePatchChanges(patch.getChanges()))
+      compactedChanges = Object.freeze(normalizePatchChanges(
+        patchFromChanges(@changesSinceLastDidChangeTextEvent).getChanges()
+      ))
+      @changesSinceLastDidChangeTextEvent.length = 0
       @emitter.emit 'did-change-text', {changes: compactedChanges}
       @debouncedEmitDidStopChangingEvent()
 
@@ -1886,24 +1876,11 @@ class TextBuffer
     return if @destroyed
 
     modifiedStatus = @isModified()
-
-    patches = @changesSinceLastStoppedChangingEvent.map (change) ->
-      patch = new Patch
-      patch.splice(
-        change.newStart,
-        extentForText(change.oldText),
-        extentForText(change.newText),
-        change.oldText,
-        change.newText
-      )
-      patch
-
-    composedChanges = Patch.compose(patches).getChanges()
-    @emitter.emit(
-      'did-stop-changing',
-      {changes: Object.freeze(normalizePatchChanges(composedChanges))}
-    )
-    @changesSinceLastStoppedChangingEvent = []
+    compactedChanges = Object.freeze(normalizePatchChanges(
+      patchFromChanges(@changesSinceLastStoppedChangingEvent).getChanges()
+    ))
+    @changesSinceLastStoppedChangingEvent.length = 0
+    @emitter.emit('did-stop-changing', {changes: compactedChanges})
     @emitModifiedStatusChanged(modifiedStatus)
 
   emitModifiedStatusChanged: (modifiedStatus) ->

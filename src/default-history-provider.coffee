@@ -1,6 +1,7 @@
 {Patch} = require 'superstring'
 MarkerLayer = require './marker-layer'
 {traversal} = require './point-helpers'
+{patchFromChanges} = require './helpers'
 
 SerializationVersion = 6
 
@@ -395,11 +396,5 @@ snapshotFromTransaction = (transaction) ->
   }
 
 transactionFromSnapshot = ({changes, markersBefore, markersAfter}) ->
-  patch = new Patch
-  for {oldStart, oldEnd, oldText, newStart, newEnd, newText} in changes by -1
-    oldExtent = traversal(oldEnd, oldStart)
-    newExtent = traversal(newEnd, newStart)
-    patch.splice(oldStart, oldExtent, newExtent, oldText, newText)
-
   # TODO: Return raw patch if there's no markersBefore && markersAfter
-  new Transaction(markersBefore, patch, markersAfter)
+  new Transaction(markersBefore, patchFromChanges(changes), markersAfter)
