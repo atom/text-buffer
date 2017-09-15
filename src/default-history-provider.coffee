@@ -263,9 +263,9 @@ class DefaultHistoryProvider
     for entry in @undoStack by -1
       switch entry.constructor
         when Checkpoint
-          undoStack.unshift(getCheckpointSnapshot(entry))
+          undoStack.unshift(snapshotFromCheckpoint(entry))
         when Transaction
-          undoStack.unshift(getTransactionSnapshot(entry))
+          undoStack.unshift(snapshotFromTransaction(entry))
           undoStackPatches.unshift(entry.patch)
 
       break if undoStack.length is maxEntries
@@ -274,9 +274,9 @@ class DefaultHistoryProvider
     for entry in @redoStack by -1
       switch entry.constructor
         when Checkpoint
-          redoStack.unshift(getCheckpointSnapshot(entry))
+          redoStack.unshift(snapshotFromCheckpoint(entry))
         when Transaction
-          redoStack.unshift(getTransactionSnapshot(entry))
+          redoStack.unshift(snapshotFromTransaction(entry))
 
       break if redoStack.length is maxEntries
 
@@ -365,7 +365,7 @@ class DefaultHistoryProvider
       layers[id] = snapshot
     layers
 
-getCheckpointSnapshot = (checkpoint) ->
+snapshotFromCheckpoint = (checkpoint) ->
   {
     type: 'checkpoint',
     id: checkpoint.id,
@@ -375,10 +375,21 @@ getCheckpointSnapshot = (checkpoint) ->
 checkpointFromSnapshot = ({id, markers}) ->
   new Checkpoint(id, markers, false)
 
-getTransactionSnapshot = (transaction) ->
+snapshotFromTransaction = (transaction) ->
+  changes = []
+  for change in transaction.patch.getChanges() by 1
+    changes.push({
+      oldStart: change.oldStart,
+      oldEnd: change.oldEnd,
+      newStart: change.newStart,
+      newEnd: change.newEnd,
+      oldText: change.oldText,
+      newText: change.newText
+    })
+
   {
     type: 'transaction',
-    changes: getPatchSnapshot(transaction.patch),
+    changes,
     markersBefore: transaction.markerSnapshotBefore
     markersAfter: transaction.markerSnapshotAfter
   }
@@ -392,17 +403,3 @@ transactionFromSnapshot = ({changes, markersBefore, markersAfter}) ->
 
   # TODO: Return raw patch if there's no markersBefore && markersAfter
   new Transaction(markersBefore, patch, markersAfter)
-
-getPatchSnapshot = (patch) ->
-  changes = []
-  for change in patch.getChanges() by 1
-    changes.push({
-      oldStart: change.oldStart,
-      oldEnd: change.oldEnd,
-      newStart: change.newStart,
-      newEnd: change.newEnd,
-      oldText: change.oldText,
-      newText: change.newText
-    })
-
-  changes
