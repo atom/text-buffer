@@ -343,6 +343,9 @@ class Marker
   update: (oldRange, {range, reversed, tailed, valid, exclusive, properties}, textChanged=false, suppressMarkerLayerUpdateEvents=false) ->
     return if @isDestroyed()
 
+    oldRange = Range.fromObject(oldRange)
+    range = Range.fromObject(range) if range?
+
     wasExclusive = @isExclusive()
     updated = propertiesChanged = false
 

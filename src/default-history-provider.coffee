@@ -1,5 +1,6 @@
 {Patch} = require 'superstring'
 MarkerLayer = require './marker-layer'
+{traversal} = require './point-helpers'
 
 SerializationVersion = 6
 
@@ -286,6 +287,21 @@ class DefaultHistoryProvider
       redoStack
     }
 
+  restoreFromSnapshot: ({@nextCheckpointId, undoStack, redoStack}) ->
+    @undoStack = undoStack.map (entry) ->
+      switch entry.type
+        when 'transaction'
+          transactionFromSnapshot(entry)
+        when 'checkpoint'
+          checkpointFromSnapshot(entry)
+
+    @redoStack = redoStack.map (entry) ->
+      switch entry.type
+        when 'transaction'
+          transactionFromSnapshot(entry)
+        when 'checkpoint'
+          checkpointFromSnapshot(entry)
+
   ###
   Section: Private
   ###
@@ -353,9 +369,11 @@ getCheckpointSnapshot = (checkpoint) ->
   {
     type: 'checkpoint',
     id: checkpoint.id,
-    isBarrier: checkpoint.isBarrier,
     markers: checkpoint.snapshot
   }
+
+checkpointFromSnapshot = ({id, markers}) ->
+  new Checkpoint(id, markers, false)
 
 getTransactionSnapshot = (transaction) ->
   {
@@ -364,6 +382,16 @@ getTransactionSnapshot = (transaction) ->
     markersBefore: transaction.markerSnapshotBefore
     markersAfter: transaction.markerSnapshotAfter
   }
+
+transactionFromSnapshot = ({changes, markersBefore, markersAfter}) ->
+  patch = new Patch
+  for {oldStart, oldEnd, oldText, newStart, newEnd, newText} in changes by -1
+    oldExtent = traversal(oldEnd, oldStart)
+    newExtent = traversal(newEnd, newStart)
+    patch.splice(oldStart, oldExtent, newExtent, oldText, newText)
+
+  # TODO: Return raw patch if there's no markersBefore && markersAfter
+  new Transaction(markersBefore, patch, markersAfter)
 
 getPatchSnapshot = (patch) ->
   changes = []

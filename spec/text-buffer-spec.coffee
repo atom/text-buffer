@@ -836,7 +836,7 @@ describe "TextBuffer", ->
       buffer.undo()
       expect(buffer.getText()).toBe('Lorem ')
 
-  describe "::getHistory(maxEntries)", ->
+  describe "::getHistory(maxEntries) and restoreDefaultHistoryProvider(history)", ->
     it "returns a base text and the state of the last `maxEntries` entries in the undo and redo stacks", ->
       buffer = new TextBuffer({text: ''})
       markerLayer = buffer.addMarkerLayer({maintainHistory: true})
@@ -859,14 +859,13 @@ describe "TextBuffer", ->
       buffer.undo()
       buffer.undo()
 
-      {baseText, nextCheckpointId, undoStack, redoStack} = buffer.getHistory(3)
-      expect(baseText).toBe('Lorem ipsum dolor ')
-      expect(nextCheckpointId).toBe(buffer.createCheckpoint())
-      expect(undoStack).toEqual([
+      history = buffer.getHistory(3)
+      expect(history.baseText).toBe('Lorem ipsum dolor ')
+      expect(history.nextCheckpointId).toBe(buffer.createCheckpoint())
+      expect(history.undoStack).toEqual([
         {
           type: 'checkpoint',
           id: checkpoint1,
-          isBarrier: false,
           markers: markersSnapshotAtCheckpoint1
         },
         {
@@ -882,7 +881,7 @@ describe "TextBuffer", ->
           markersAfter: markersSnapshotAtCheckpoint1
         }
       ])
-      expect(redoStack).toEqual([
+      expect(history.redoStack).toEqual([
         {
           type: 'transaction',
           changes: [{oldStart: Point(0, 38), oldEnd: Point(0, 38), newStart: Point(0, 38), newEnd: Point(0, 48), oldText: '', newText: 'adipiscit '}],
@@ -892,7 +891,6 @@ describe "TextBuffer", ->
         {
           type: 'checkpoint',
           id: checkpoint2,
-          isBarrier: false,
           markers: markersSnapshotAtCheckpoint2
         },
         {
@@ -902,6 +900,15 @@ describe "TextBuffer", ->
           markersAfter: markersSnapshotAtCheckpoint1
         }
       ])
+
+      buffer.createCheckpoint()
+      buffer.append('x')
+      buffer.undo()
+      buffer.clearUndoStack()
+
+      expect(buffer.getHistory()).not.toEqual(history)
+      buffer.restoreDefaultHistoryProvider(history)
+      expect(buffer.getHistory()).toEqual(history)
 
     it "throws an error when called within a transaction", ->
       buffer = new TextBuffer()

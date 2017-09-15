@@ -1122,6 +1122,11 @@ class TextBuffer
   setHistoryProvider: (historyProvider) ->
     @historyProvider = historyProvider
 
+  restoreDefaultHistoryProvider: (history) ->
+    provider = new DefaultHistoryProvider(this)
+    provider.restoreFromSnapshot(history)
+    @setHistoryProvider(provider)
+
   getHistory: (maxEntries) ->
     if @transactCallDepth > 0
       throw new Error('Cannot build history snapshots within transactions')
