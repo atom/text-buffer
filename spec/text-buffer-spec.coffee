@@ -556,7 +556,6 @@ describe "TextBuffer", ->
 
         buffer.undo()
         expect(buffer.getText()).toBe "hello\nworms\r\nhow are you doing?"
-        return
 
         buffer.redo()
         expect(buffer.getText()).toBe "heyyyyy\nworms\r\nhow are you doing?"
