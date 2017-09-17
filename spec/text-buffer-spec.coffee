@@ -213,6 +213,30 @@ describe "TextBuffer", ->
           expect(buffer.lineEndingForRow(6)).toBe ''
           expect(changeEvents[1].newText).toBe "ms\r\ndo you\r\nlike\r\ndirt"
 
+          buffer.setTextInRange([[5, 1], [5, 3]], '\r')
+          expect(changeEvents[2]).toEqual({
+            oldRange: [[5, 1], [5, 3]],
+            newRange: [[5, 1], [6, 0]],
+            oldText: 'ik',
+            newText: '\r\n'
+          })
+
+          buffer.undo()
+          expect(changeEvents[3]).toEqual({
+            oldRange: [[5, 1], [6, 0]],
+            newRange: [[5, 1], [5, 3]],
+            oldText: '\r\n',
+            newText: 'ik'
+          })
+
+          buffer.redo()
+          expect(changeEvents[4]).toEqual({
+            oldRange: [[5, 1], [5, 3]],
+            newRange: [[5, 1], [6, 0]],
+            oldText: 'ik',
+            newText: '\r\n'
+          })
+
       describe "when the range's start row has no line ending (because it's the last line of the buffer)", ->
         describe "when the buffer contains no newlines", ->
           it "honors the newlines in the inserted text", ->

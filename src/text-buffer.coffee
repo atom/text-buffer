@@ -824,14 +824,18 @@ class TextBuffer
 
     oldRange = @clipRange(range)
     oldText = @getTextInRange(oldRange)
+
+    if normalizeLineEndings
+      normalizedEnding = @preferredLineEnding or
+        @lineEndingForRow(oldRange.start.row) or
+        @lineEndingForRow(oldRange.start.row - 1)
+      if normalizedEnding
+        newText = newText.replace(newlineRegex, normalizedEnding)
+
     change = {
-      oldStart: oldRange.start,
-      newStart: oldRange.start,
-      oldEnd: oldRange.end,
-      newEnd: traverse(oldRange.start, extentForText(newText)),
-      oldText,
-      newText,
-      normalizeLineEndings
+      oldStart: oldRange.start, oldEnd: oldRange.end,
+      newStart: oldRange.start, newEnd: traverse(oldRange.start, extentForText(newText))
+      oldText, newText
     }
     @applyChange(change, undo isnt 'skip')
 
@@ -861,25 +865,15 @@ class TextBuffer
 
   # Applies a change to the buffer based on its old range and new text.
   applyChange: (change, pushToHistory = false) ->
-    {newStart, newEnd, oldStart, oldEnd, oldText, newText, normalizeLineEndings} = change
+    {newStart, newEnd, oldStart, oldEnd, oldText, newText} = change
 
     oldExtent = traversal(oldEnd, oldStart)
-    newStart = Point.fromObject(newStart)
-    oldRange = Range(newStart, newStart.traverse(oldExtent))
+    oldRange = Range(newStart, traverse(newStart, oldExtent))
     oldRange.freeze()
 
-    # Determine how to normalize the line endings of inserted text if enabled
-    if normalizeLineEndings
-      startRow = oldRange.start.row
-      normalizedEnding = @preferredLineEnding or
-        @lineEndingForRow(startRow) or
-        @lineEndingForRow(startRow - 1)
-      if normalizedEnding
-        newText = newText.replace(newlineRegex, normalizedEnding)
-
-    newRange = Range(newStart, newEnd)
+    newExtent = traversal(newEnd, newStart)
+    newRange = Range(newStart, traverse(newStart, newExtent))
     newRange.freeze()
-    newExtent = newRange.getExtent()
 
     if pushToHistory
       change.oldExtent ?= oldExtent
