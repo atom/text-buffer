@@ -2,7 +2,6 @@ const {Patch} = require('superstring')
 const {Emitter} = require('event-kit')
 const Point = require('./point')
 const Range = require('./range')
-const EmptyDecorationLayer = require('./empty-decoration-layer')
 const DisplayMarkerLayer = require('./display-marker-layer')
 const {traverse, traversal, compare, max, isEqual} = require('./point-helpers')
 const isCharacterPair = require('./is-character-pair')
@@ -21,7 +20,6 @@ class DisplayLayer {
     this.builtInScopeIdsByFlags = new Map()
     this.builtInClassNamesByScopeId = new Map()
     this.nextBuiltInScopeId = 1
-    this.textDecorationLayer = new EmptyDecorationLayer()
     this.displayMarkerLayersById = new Map()
     this.destroyed = false
 
@@ -61,6 +59,8 @@ class DisplayLayer {
       this.rightmostScreenPosition = Point(0, 0)
       this.indexedBufferRowCount = 0
     }
+
+    this.bufferDidChangeLanguageMode()
   }
 
   static deserialize (buffer, params) {
@@ -114,7 +114,7 @@ class DisplayLayer {
     this.clearSpatialIndex()
     this.foldsMarkerLayer.destroy()
     this.displayMarkerLayersById.forEach((layer) => layer.destroy())
-    if (this.decorationLayerDisposable) this.decorationLayerDisposable.dispose()
+    if (this.languageModeDisposable) this.languageModeDisposable.dispose()
     delete this.buffer.displayLayers[this.id]
   }
 
@@ -136,15 +136,11 @@ class DisplayLayer {
     return this.indexedBufferRowCount < this.buffer.getLineCount()
   }
 
-  getTextDecorationLayer () {
-    return this.textDecorationLayer
-  }
-
-  setTextDecorationLayer (textDecorationLayer) {
+  bufferDidChangeLanguageMode () {
     this.cachedScreenLines.length = 0
-    this.textDecorationLayer = textDecorationLayer
-    if (typeof textDecorationLayer.onDidInvalidateRange === 'function') {
-      this.decorationLayerDisposable = textDecorationLayer.onDidInvalidateRange((bufferRange) => {
+    if (this.languageModeDisposable) this.languageModeDisposable.dispose()
+    if (typeof this.buffer.languageMode.onDidInvalidateRange === 'function') {
+      this.languageModeDisposable = this.buffer.languageMode.onDidInvalidateRange((bufferRange) => {
         bufferRange = Range.fromObject(bufferRange)
         this.populateSpatialIndexIfNeeded(bufferRange.end.row + 1, Infinity)
         const startBufferRow = this.findBoundaryPrecedingBufferRow(bufferRange.start.row)
@@ -159,6 +155,8 @@ class DisplayLayer {
           newExtent: extent
         }])
       })
+    } else {
+      this.languageModeDisposable = null
     }
   }
 
@@ -730,7 +728,7 @@ class DisplayLayer {
     if (scopeId <= MAX_BUILT_IN_SCOPE_ID) {
       return this.builtInClassNamesByScopeId.get(scopeId)
     } else {
-      return this.textDecorationLayer.classNameForScopeId(scopeId)
+      return this.buffer.languageMode.classNameForScopeId(scopeId)
     }
   }
 
@@ -793,7 +791,7 @@ class DisplayLayer {
     const {start, oldExtent, newExtent} = this.updateSpatialIndex(startRow, oldEndRow + 1, newEndRow + 1, Infinity)
     combinedChanges.splice(start, oldExtent, newExtent)
 
-    for (let bufferRange of this.textDecorationLayer.getInvalidatedRanges()) {
+    for (let bufferRange of this.buffer.languageMode.getInvalidatedRanges()) {
       bufferRange = Range.fromObject(bufferRange)
       this.populateSpatialIndexIfNeeded(bufferRange.end.row + 1, Infinity)
       const startBufferRow = this.findBoundaryPrecedingBufferRow(bufferRange.start.row)

@@ -5,7 +5,7 @@ const Point = require('../src/point')
 const Range = require('../src/range')
 const {buildRandomLines, getRandomBufferRange} = require('./helpers/random')
 const SAMPLE_TEXT = require('./helpers/sample-text')
-const TestDecorationLayer = require('./helpers/test-decoration-layer')
+const TestLanguageMode = require('./helpers/test-language-mode')
 
 const EOL_INVISIBLE = '¬'
 const CR_INVISIBLE = '¤'
@@ -1752,14 +1752,14 @@ describe('DisplayLayer', () => {
   })
 
   describe('text decorations', () => {
-    it('exposes open and close tags from the text decoration layer in the token iterator', () => {
+    it('exposes open and close tags from the language mode in the token iterator', () => {
       const buffer = new TextBuffer({
         text: 'abcde\nfghij\nklmno'
       })
 
       const displayLayer = buffer.addDisplayLayer()
 
-      displayLayer.setTextDecorationLayer(new TestDecorationLayer([
+      buffer.setLanguageMode(new TestLanguageMode([
         ['aa', [[0, 1], [0, 4]]],
         ['ab', [[0, 2], [1, 2]]],
         ['ac', [[0, 3], [1, 2]]],
@@ -1806,7 +1806,7 @@ describe('DisplayLayer', () => {
         '  '
       ])
 
-      displayLayer.setTextDecorationLayer(new TestDecorationLayer([
+      buffer.setLanguageMode(new TestLanguageMode([
         ['a', [[0, 0], [4, 0]]]
       ]))
 
@@ -1832,7 +1832,7 @@ describe('DisplayLayer', () => {
       const displayLayer = buffer.addDisplayLayer()
       displayLayer.foldBufferRange([[0, 3], [2, 2]])
 
-      displayLayer.setTextDecorationLayer(new TestDecorationLayer([
+      buffer.setLanguageMode(new TestLanguageMode([
         ['preceding-fold', [[0, 1], [0, 2]]],
         ['ending-at-fold-start', [[0, 1], [0, 3]]],
         ['overlapping-fold-start', [[0, 1], [1, 1]]],
@@ -1921,7 +1921,7 @@ describe('DisplayLayer', () => {
         }
       }
 
-      displayLayer.setTextDecorationLayer({
+      buffer.setLanguageMode({
         buildIterator () {
           return iterator
         }
@@ -1937,13 +1937,13 @@ describe('DisplayLayer', () => {
 
       const displayLayer = buffer.addDisplayLayer()
       displayLayer.foldBufferRange([[1, 3], [2, 0]])
-      const decorationLayer = new TestDecorationLayer([])
-      displayLayer.setTextDecorationLayer(decorationLayer)
+      const languageMode = new TestLanguageMode([])
+      buffer.setLanguageMode(languageMode)
       const allChanges = []
 
       displayLayer.onDidChangeSync((changes) => allChanges.push(...changes))
 
-      decorationLayer.emitInvalidateRangeEvent([[2, 1], [3, 2]])
+      languageMode.emitInvalidateRangeEvent([[2, 1], [3, 2]])
 
       expect(allChanges).toEqual([{
         start: Point(1, 0),
@@ -1961,11 +1961,11 @@ describe('DisplayLayer', () => {
         tabLength: 2
       })
 
-      const decorationLayer = new TestDecorationLayer([
+      const languageMode = new TestLanguageMode([
         ['a', [[0, 1], [0, 10]]],
         ['b', [[0, 10], [1, 5]]]
       ])
-      displayLayer.setTextDecorationLayer(decorationLayer)
+      buffer.setLanguageMode(languageMode)
       expectTokenBoundaries(displayLayer, [
         {
           text: 'a',
@@ -2281,8 +2281,8 @@ describe('DisplayLayer', () => {
           foldsMarkerLayer: foldsMarkerLayer
         })
 
-        const textDecorationLayer = new TestDecorationLayer([], buffer, random)
-        displayLayer.setTextDecorationLayer(textDecorationLayer)
+        const languageMode = new TestLanguageMode([], buffer, random)
+        buffer.setLanguageMode(languageMode)
         displayLayer.getText(0, 3)
         let undoableChanges = 0
         let redoableChanges = 0
@@ -2307,7 +2307,7 @@ describe('DisplayLayer', () => {
             redoableChanges--
             performRedo(random, displayLayer)
           } else if (k < 8) {
-            textDecorationLayer.emitInvalidateRangeEvent(getRandomBufferRange(random, buffer))
+            languageMode.emitInvalidateRangeEvent(getRandomBufferRange(random, buffer))
           } else if (k < 10) {
             undoableChanges++
             performRandomChange(random, displayLayer)
@@ -2321,7 +2321,6 @@ describe('DisplayLayer', () => {
           }
 
           const freshDisplayLayer = displayLayer.copy()
-          freshDisplayLayer.setTextDecorationLayer(displayLayer.getTextDecorationLayer())
           freshDisplayLayer.getScreenLines()
           if (!Number.isFinite(displayLayer.softWrapColumn) && !displayLayer.showIndentGuides) {
             verifyLineLengths(displayLayer)
@@ -2407,7 +2406,6 @@ function log (message) {}
 
 function verifyChangeEvent (displayLayer, fn) {
   let displayLayerCopy = displayLayer.copy()
-  displayLayerCopy.setTextDecorationLayer(displayLayer.getTextDecorationLayer())
   const previousTokenLines = getTokens(displayLayerCopy)
   displayLayerCopy.destroy()
   let lastChanges = null
@@ -2419,7 +2417,6 @@ function verifyChangeEvent (displayLayer, fn) {
   fn()
   disposable.dispose()
   displayLayerCopy = displayLayer.copy()
-  displayLayerCopy.setTextDecorationLayer(displayLayer.getTextDecorationLayer())
   const expectedTokenLines = getTokens(displayLayerCopy)
   updateTokenLines(previousTokenLines, displayLayerCopy, lastChanges)
   displayLayerCopy.destroy()

@@ -1,12 +1,14 @@
 Point = require './point'
 
 module.exports =
-class EmptyDecorationLayer
-  buildIterator: -> new EmptyDecorationIterator
+class NullLanguageMode
+  buildIterator: -> new NullLanguageModeIterator
+
+  bufferDidChange: ->
 
   getInvalidatedRanges: -> []
 
-class EmptyDecorationIterator
+class NullLanguageModeIterator
   seek: (position) -> []
 
   moveToSuccessor: -> false

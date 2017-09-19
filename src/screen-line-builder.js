@@ -79,7 +79,7 @@ class ScreenLineBuilder {
       this.inTrailingWhitespace = false
 
       if (!decorationIterator) {
-        decorationIterator = this.displayLayer.textDecorationLayer.buildIterator()
+        decorationIterator = this.displayLayer.buffer.languageMode.buildIterator()
         this.scopeIdsToReopen = decorationIterator.seek(Point(this.bufferRow, this.bufferColumn))
       } else if (this.compareBufferPosition(decorationIterator.getPosition()) > 0) {
         this.scopeIdsToReopen = decorationIterator.seek(Point(this.bufferRow, this.bufferColumn))

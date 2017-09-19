@@ -10,6 +10,7 @@ mkdirp = require 'mkdirp'
 Point = require './point'
 Range = require './range'
 DefaultHistoryProvider = require './default-history-provider'
+NullLanguageMode = require './null-language-mode'
 MarkerLayer = require './marker-layer'
 MatchIterator = require './match-iterator'
 DisplayLayer = require './display-layer'
@@ -168,9 +169,9 @@ class TextBuffer
     @id = crypto.randomBytes(16).toString('hex')
     @buffer = new NativeTextBuffer(text)
     @debouncedEmitDidStopChangingEvent = debounce(@emitDidStopChangingEvent.bind(this), @stoppedChangingDelay)
-    @textDecorationLayers = new Set()
     @maxUndoEntries = params?.maxUndoEntries ? @defaultMaxUndoEntries
     @setHistoryProvider(new DefaultHistoryProvider(this))
+    @languageMode = new NullLanguageMode()
     @nextMarkerLayerId = 0
     @nextDisplayLayerId = 0
     @defaultMarkerLayer = new MarkerLayer(this, String(@nextMarkerLayerId++))
@@ -899,9 +900,8 @@ class TextBuffer
     newRange
 
   emitDidChangeEvent: (changeEvent) ->
-    # Emit the change event on all the registered text decoration layers.
-    @textDecorationLayers.forEach (textDecorationLayer) ->
-      textDecorationLayer.bufferDidChange(changeEvent)
+    # Emit the change event to the language mode
+    @languageMode.bufferDidChange(changeEvent)
     # Emit the change event on all the registered display layers.
     changeEventsByDisplayLayer = new Map()
     for id, displayLayer of @displayLayers
@@ -1636,9 +1636,48 @@ class TextBuffer
 
   setDisplayLayers: (@displayLayers) -> # Used for deserialization
 
-  registerTextDecorationLayer: (textDecorationLayer) ->
-    @textDecorationLayers.add(textDecorationLayer)
-    new Disposable(=> @textDecorationLayers.delete(textDecorationLayer))
+  ###
+  Language Modes
+  ###
+
+  # Experimental: Get the language mode associated with this buffer.
+  #
+  # Returns a language mode {Object} (See {TextBuffer::setLanguageMode} for its interface).
+  getLanguageMode: -> @languageMode
+
+  # Experimental: Set the LanguageMode for this buffer.
+  #
+  # * `languageMode` - an {Object} with the following methods:
+  #   * `getInvalidatedRanges` - A {Function} returning an {Array} of {Range}s representing the
+  #     spans of text whose syntax highlighting has changed due to the last buffer edit.
+  #   * `onDidInvalidateRange` - An (optional) {Function} that takes a callback and calls it
+  #     with a {Range} argument whenever the syntax is updated for a span of text due to
+  #     asynchronous parsing.
+  #   * `buildIterator` - A function that returns an iterator object with the following methods:
+  #     * `moveToSuccessor` - A {Function} that advances the iterator to the next token
+  #     * `getPosition` - A {Function} that returns a {Point} representing the iterator's current
+  #       position in the buffer.
+  #     * `getCloseTags` - A {Function} that returns an {Array} of {Number}s representing tokens
+  #        that end at the current position.
+  #     * `getOpenTags` - A {Function} that returns an {Array} of {Number}s representing tokens
+  #        that begin at the current position.
+  setLanguageMode: (languageMode) ->
+    if languageMode isnt @languageMode
+      @languageMode = languageMode
+      for id, displayLayer of @displayLayers
+        displayLayer.bufferDidChangeLanguageMode(languageMode)
+      @emitter.emit('did-change-language-mode')
+    return
+
+  # Experimental: Call the given callback whenever the buffer's language mode changes.
+  #
+  # * `callback` - A {Function} to call when the language mode changes.
+  #   * `languageMode` - The buffer's new language mode {Object}. See {TextBuffer::setLanguageMode}
+  #     for its interface.
+  #
+  # Returns a {Disposable} that can be used to stop the callback from being called.
+  onDidChangeLanguageMode: (callback) ->
+    @emitter.on('did-change-language-mode', callback)
 
   ###
   Section: Private Utility Methods

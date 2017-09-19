@@ -5,7 +5,7 @@ const Range = require('../../src/range')
 const {MAX_BUILT_IN_SCOPE_ID} = require('../../src/constants')
 
 module.exports =
-class TestDecorationLayer {
+class TestLanguageMode {
   constructor (decorations, buffer, random) {
     this.buffer = buffer
     this.random = random
@@ -21,10 +21,6 @@ class TestDecorationLayer {
       this.markerIndex.insert(markerId, Point.fromObject(rangeStart), Point.fromObject(rangeEnd))
       this.classNamesByScopeId.set(markerId, className)
     }
-
-    if (this.buffer) {
-      this.buffer.registerTextDecorationLayer(this)
-    }
   }
 
   getNextMarkerId () {
@@ -38,7 +34,7 @@ class TestDecorationLayer {
   }
 
   buildIterator () {
-    return new TestDecorationLayerIterator(this)
+    return new TestLanguageModeIterator(this)
   }
 
   getInvalidatedRanges () { return this.invalidatedRanges }
@@ -101,7 +97,7 @@ class TestDecorationLayer {
   }
 }
 
-class TestDecorationLayerIterator {
+class TestLanguageModeIterator {
   constructor (layer) {
     this.layer = layer
   }

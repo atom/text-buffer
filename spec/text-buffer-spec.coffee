@@ -109,10 +109,12 @@ describe "TextBuffer", ->
         }]
 
     describe "after a change", ->
-      it "notifies, in order, decoration layers, display layers, ::onDidChange observers and display layer ::onDidChangeSync observers with the relevant details", ->
+      it "notifies, in order, the language mode, display layers, ::onDidChange observers and display layer ::onDidChangeSync observers with the relevant details", ->
         events = []
-        textDecorationLayer1 = {bufferDidChange: (e) -> events.push({source: textDecorationLayer1, event: e})}
-        textDecorationLayer2 = {bufferDidChange: (e) -> events.push({source: textDecorationLayer2, event: e})}
+        languageMode = {
+          bufferDidChange: (e) -> events.push({source: languageMode, event: e}),
+          getInvalidatedRanges: -> []
+        }
         displayLayer1 = buffer.addDisplayLayer()
         displayLayer2 = buffer.addDisplayLayer()
         spyOn(displayLayer1, 'bufferDidChange').and.callFake (e) ->
@@ -122,9 +124,7 @@ describe "TextBuffer", ->
           events.push({source: displayLayer2, event: e})
           DisplayLayer.prototype.bufferDidChange.call(displayLayer2, e)
         buffer.onDidChange (e) -> events.push({source: buffer, event: e})
-        buffer.registerTextDecorationLayer(textDecorationLayer1)
-        buffer.registerTextDecorationLayer(textDecorationLayer1) # insert a duplicate decoration layer
-        buffer.registerTextDecorationLayer(textDecorationLayer2)
+        buffer.setLanguageMode(languageMode)
 
         disposable = displayLayer1.onDidChangeSync ->
           disposable.dispose()
@@ -140,14 +140,12 @@ describe "TextBuffer", ->
           oldText: "a", newText: "abc",
         }
         expect(events).toEqual [
-          {source: textDecorationLayer1, event: changeEvent1},
-          {source: textDecorationLayer2, event: changeEvent1},
+          {source: languageMode, event: changeEvent1},
           {source: displayLayer1, event: changeEvent1},
           {source: displayLayer2, event: changeEvent1},
           {source: buffer, event: changeEvent1},
 
-          {source: textDecorationLayer1, event: changeEvent2},
-          {source: textDecorationLayer2, event: changeEvent2},
+          {source: languageMode, event: changeEvent2},
           {source: displayLayer1, event: changeEvent2},
           {source: displayLayer2, event: changeEvent2},
           {source: buffer, event: changeEvent2}
