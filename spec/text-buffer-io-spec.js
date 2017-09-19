@@ -43,6 +43,15 @@ describe('TextBuffer IO', () => {
       })
     })
 
+    it('optionally rejects with an ENOENT if there is no file at the given path', (done) => {
+      const filePath = 'does-not-exist.txt'
+      TextBuffer.load(filePath, {mustExist: true}).then(() => {
+        expect('Did not fail with mustExist: true').toBeUndefined()
+      }, (err) => {
+        expect(err.code).toBe('ENOENT')
+      }).then(done)
+    })
+
     describe('when a custom File object is given in place of the file path', () => {
       it('loads the buffer using the file\s createReadStream method', (done) => {
         const filePath = temp.openSync('atom').path
@@ -70,6 +79,15 @@ describe('TextBuffer IO', () => {
     it('returns an empty buffer if the file does not exist', () => {
       const buffer = TextBuffer.loadSync('/this/does/not/exist')
       expect(buffer.getText()).toBe('')
+    })
+
+    it('optionally throws ENOENT if there is no file at the given path', () => {
+      try {
+        TextBuffer.loadSync('/does-not-exist.txt', {mustExist: true})
+        expect('Did not fail with mustExist: true').toBeUndefined()
+      } catch (e) {
+        expect(e.code).toBe('ENOENT')
+      }
     })
   })
 
