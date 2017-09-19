@@ -1702,7 +1702,7 @@ class TextBuffer
     ).then((patch) =>
       @finishLoading(changeEvent, checkpoint, patch, options)
     ).catch((error) =>
-      if error.code is 'ENOENT'
+      if options.mustExist and error.code is 'ENOENT'
         @emitter.emit('will-reload')
         @setText('') if options?.discardChanges
         @emitter.emit('did-reload')
