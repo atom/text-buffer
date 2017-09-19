@@ -1191,7 +1191,7 @@ describe "TextBuffer", ->
 
       state.mustExist = true
       TextBuffer.deserialize(state).then(
-        () -> expect('serialization succeeded with mustExist: true').toBeUndefined(),
+        -> expect('serialization succeeded with mustExist: true').toBeUndefined(),
         (err) -> expect(err.code).toBe('ENOENT')
       ).then(done, done)
 
