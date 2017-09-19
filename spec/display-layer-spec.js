@@ -1922,7 +1922,7 @@ describe('DisplayLayer', () => {
       }
 
       buffer.setLanguageMode({
-        buildIterator () {
+        buildHighlightIterator () {
           return iterator
         }
       })
@@ -1930,7 +1930,7 @@ describe('DisplayLayer', () => {
       expect(displayLayer.getScreenLines(0, 1)[0].tags).toEqual([-1, -3, 2, -4, -2, -1, -3, 3, -4, -2])
     })
 
-    it('emits update events from the display layer when text decoration ranges are invalidated', () => {
+    it('emits update events from the display layer when the language mode\'s highlighting changes', () => {
       const buffer = new TextBuffer({
         text: 'abc\ndef\nghi\njkl\nmno'
       })
@@ -1943,7 +1943,7 @@ describe('DisplayLayer', () => {
 
       displayLayer.onDidChangeSync((changes) => allChanges.push(...changes))
 
-      languageMode.emitInvalidateRangeEvent([[2, 1], [3, 2]])
+      languageMode.emitHighlightingChangeEvent([[2, 1], [3, 2]])
 
       expect(allChanges).toEqual([{
         start: Point(1, 0),
@@ -2307,7 +2307,7 @@ describe('DisplayLayer', () => {
             redoableChanges--
             performRedo(random, displayLayer)
           } else if (k < 8) {
-            languageMode.emitInvalidateRangeEvent(getRandomBufferRange(random, buffer))
+            languageMode.emitHighlightingChangeEvent(getRandomBufferRange(random, buffer))
           } else if (k < 10) {
             undoableChanges++
             performRandomChange(random, displayLayer)

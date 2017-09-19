@@ -33,18 +33,18 @@ class TestLanguageMode {
     return this.classNamesByScopeId.get(scopeId)
   }
 
-  buildIterator () {
-    return new TestLanguageModeIterator(this)
+  buildHighlightIterator () {
+    return new TestHighlightIterator(this)
   }
 
   getInvalidatedRanges () { return this.invalidatedRanges }
 
-  onDidInvalidateRange (fn) {
-    return this.emitter.on('did-invalidate-range', fn)
+  onDidChangeHighlighting (fn) {
+    return this.emitter.on('did-change-highlighting', fn)
   }
 
-  emitInvalidateRangeEvent (range) {
-    return this.emitter.emit('did-invalidate-range', range)
+  emitHighlightingChangeEvent (range) {
+    this.emitter.emit('did-change-highlighting', range)
   }
 
   bufferDidChange ({oldRange, newRange}) {
@@ -97,7 +97,7 @@ class TestLanguageMode {
   }
 }
 
-class TestLanguageModeIterator {
+class TestHighlightIterator {
   constructor (layer) {
     this.layer = layer
   }

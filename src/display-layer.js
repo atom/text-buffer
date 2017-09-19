@@ -139,8 +139,8 @@ class DisplayLayer {
   bufferDidChangeLanguageMode () {
     this.cachedScreenLines.length = 0
     if (this.languageModeDisposable) this.languageModeDisposable.dispose()
-    if (typeof this.buffer.languageMode.onDidInvalidateRange === 'function') {
-      this.languageModeDisposable = this.buffer.languageMode.onDidInvalidateRange((bufferRange) => {
+    if (typeof this.buffer.languageMode.onDidChangeHighlighting === 'function') {
+      this.languageModeDisposable = this.buffer.languageMode.onDidChangeHighlighting((bufferRange) => {
         bufferRange = Range.fromObject(bufferRange)
         this.populateSpatialIndexIfNeeded(bufferRange.end.row + 1, Infinity)
         const startBufferRow = this.findBoundaryPrecedingBufferRow(bufferRange.start.row)
