@@ -220,7 +220,7 @@ class TextBuffer
       buffer.setPath(source)
     else
       buffer.setFile(source)
-    buffer.load(clearHistory: true, internal: true).then -> buffer
+    buffer.load(clearHistory: true, internal: true, mustExist: params?.mustExist).then -> buffer
 
   # Public: Create a new buffer backed by the given file path. For better
   # performance, use {TextBuffer.load} instead.
@@ -236,7 +236,7 @@ class TextBuffer
   @loadSync: (filePath, params) ->
     buffer = new TextBuffer(params)
     buffer.setPath(filePath)
-    buffer.loadSync(internal: true)
+    buffer.loadSync(internal: true, mustExist: params?.mustExist)
     buffer
 
   # Public: Restore a {TextBuffer} based on an earlier state created using
@@ -1662,7 +1662,7 @@ class TextBuffer
             @emitter.emit('will-change', changeEvent)
       )
     catch error
-      if error.code is 'ENOENT'
+      if not options.mustExist and error.code is 'ENOENT'
         @emitter.emit('did-reload')
         @setText('') if options?.discardChanges
       else
@@ -1702,7 +1702,7 @@ class TextBuffer
     ).then((patch) =>
       @finishLoading(changeEvent, checkpoint, patch, options)
     ).catch((error) =>
-      if options.mustExist and error.code is 'ENOENT'
+      if not options?.mustExist and error.code is 'ENOENT'
         @emitter.emit('will-reload')
         @setText('') if options?.discardChanges
         @emitter.emit('did-reload')

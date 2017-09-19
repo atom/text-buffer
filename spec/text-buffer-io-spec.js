@@ -84,6 +84,7 @@ describe('TextBuffer IO', () => {
     it('optionally throws ENOENT if there is no file at the given path', () => {
       try {
         TextBuffer.loadSync('/does-not-exist.txt', {mustExist: true})
+        expect('Did not fail with mustExist: true').toBeUndefined()
       } catch (e) {
         expect(e.code).toBe('ENOENT')
       }
