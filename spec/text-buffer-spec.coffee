@@ -1179,6 +1179,22 @@ describe "TextBuffer", ->
 
       expect(TextBuffer.deserialize(serializedBuffer)).toBeUndefined()
 
+    it "doesn't deserialize a state referencing a file that no longer exists", (done) ->
+      tempDir = fs.realpathSync(temp.mkdirSync('text-buffer'))
+      filePath = join(tempDir, 'file.txt')
+      fs.writeFileSync(filePath, "something\n")
+
+      bufferA = TextBuffer.loadSync(filePath)
+      state = bufferA.serialize()
+
+      fs.unlinkSync(filePath)
+
+      state.mustExist = true
+      TextBuffer.deserialize(state).then(
+        () -> expect('serialization succeeded with mustExist: true').toBeUndefined(),
+        (err) -> expect(err.code).toBe('ENOENT')
+      ).then(done, done)
+
     describe "when the serialized buffer was unsaved and had no path", ->
       it "restores the previous unsaved state of the buffer", ->
         buffer = new TextBuffer()
