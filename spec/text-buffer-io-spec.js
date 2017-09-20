@@ -13,10 +13,11 @@ const pathwatcher = require('pathwatcher')
 process.on('unhandledRejection', console.error)
 
 describe('TextBuffer IO', () => {
-  let buffer
+  let buffer, buffer2
 
   afterEach(() => {
     if (buffer) buffer.destroy()
+    if (buffer2) buffer2.destroy()
 
     const watched = pathwatcher.getWatchedPaths()
     if (watched.length > 0) {
@@ -32,7 +33,8 @@ describe('TextBuffer IO', () => {
       const filePath = temp.openSync('atom').path
       fs.writeFileSync(filePath, 'abc')
 
-      TextBuffer.load(filePath).then((buffer) => {
+      TextBuffer.load(filePath).then((buf) => {
+        buffer = buf
         expect(buffer.getText()).toBe('abc')
         expect(buffer.isModified()).toBe(false)
         expect(buffer.undo()).toBe(false)
@@ -43,7 +45,8 @@ describe('TextBuffer IO', () => {
 
     it('resolves with an empty buffer if there is no file at the given path', (done) => {
       const filePath = 'does-not-exist.txt'
-      TextBuffer.load(filePath).then((buffer) => {
+      TextBuffer.load(filePath).then((buf) => {
+        buffer = buf
         expect(buffer.getText()).toBe('')
         expect(buffer.isModified()).toBe(false)
         expect(buffer.undo()).toBe(false)
@@ -75,7 +78,8 @@ describe('TextBuffer IO', () => {
         const filePath = temp.openSync('atom').path
         fs.writeFileSync(filePath, 'abc\ndef')
 
-        TextBuffer.load(new ReverseCaseFile(filePath)).then((buffer) => {
+        TextBuffer.load(new ReverseCaseFile(filePath)).then((buf) => {
+          buffer = buf
           expect(buffer.getText()).toBe('ABC\nDEF')
           expect(buffer.isModified()).toBe(false)
           done()
@@ -89,13 +93,13 @@ describe('TextBuffer IO', () => {
       const filePath = temp.openSync('atom').path
       fs.writeFileSync(filePath, 'abc')
 
-      const buffer = TextBuffer.loadSync(filePath)
+      buffer = TextBuffer.loadSync(filePath)
       expect(buffer.getText()).toBe('abc')
       expect(buffer.isModified()).toBe(false)
     })
 
     it('returns an empty buffer if the file does not exist', () => {
-      const buffer = TextBuffer.loadSync('/this/does/not/exist')
+      buffer = TextBuffer.loadSync('/this/does/not/exist')
       expect(buffer.getText()).toBe('')
     })
 
@@ -322,14 +326,15 @@ describe('TextBuffer IO', () => {
 
     describe('when the buffer has no path', () => {
       it('throws an exception', () => {
-        buffer = new TextBuffer()
-        buffer.setText('hi')
-        expect(() => buffer.save()).toThrowError()
+        buffer2 = new TextBuffer()
+        buffer2.setText('hi')
+        expect(() => buffer2.save()).toThrowError()
       })
     })
 
     describe('when the buffer is backed by a custom File object instead of a path', () => {
       beforeEach(() => {
+        buffer.destroy()
         buffer = new TextBuffer()
         buffer.setFile(new ReverseCaseFile(filePath))
       })
@@ -555,26 +560,26 @@ describe('TextBuffer IO', () => {
     })
 
     it('returns false for an empty buffer with no path', () => {
-      const buffer = new TextBuffer()
-      expect(buffer.isModified()).toBeFalsy()
-      buffer.append('hello')
-      expect(buffer.isModified()).toBeTruthy()
+      buffer2 = new TextBuffer()
+      expect(buffer2.isModified()).toBeFalsy()
+      buffer2.append('hello')
+      expect(buffer2.isModified()).toBeTruthy()
     })
 
     it('returns true for a non-empty buffer with no path', () => {
-      const buffer = new TextBuffer({text: 'something'})
-      expect(buffer.isModified()).toBeTruthy()
+      buffer2 = new TextBuffer({text: 'something'})
+      expect(buffer2.isModified()).toBeTruthy()
 
-      buffer.append('a')
-      expect(buffer.isModified()).toBeTruthy()
+      buffer2.append('a')
+      expect(buffer2.isModified()).toBeTruthy()
 
-      buffer.setText('')
-      expect(buffer.isModified()).toBeFalsy()
+      buffer2.setText('')
+      expect(buffer2.isModified()).toBeFalsy()
     })
 
     it('returns false until the buffer is fully loaded', () => {
-      const buffer = new TextBuffer({filePath: '/some/path'})
-      expect(buffer.isModified()).toBeFalsy()
+      buffer2 = new TextBuffer({filePath: '/some/path'})
+      expect(buffer2.isModified()).toBeFalsy()
     })
   })
 
@@ -584,12 +589,14 @@ describe('TextBuffer IO', () => {
         const filePath = temp.openSync('atom').path
         fs.writeFileSync(filePath, 'abc\ndef\n')
 
-        TextBuffer.load(filePath).then((buffer) => {
+        TextBuffer.load(filePath).then((result) => {
+          buffer = result
           buffer.append('ghi\n')
           const markerLayer = buffer.addMarkerLayer({persistent: true})
           const marker = markerLayer.markRange(Range(Point(1, 2), Point(2, 1)))
 
-          TextBuffer.deserialize(buffer.serialize()).then((buffer2) => {
+          TextBuffer.deserialize(buffer.serialize()).then((buf2) => {
+            buffer2 = buf2
             const markerLayer2 = buffer2.getMarkerLayer(markerLayer.id)
             const marker2 = markerLayer2.getMarker(marker.id)
             expect(buffer2.getText()).toBe('abc\ndef\nghi\n')
@@ -608,7 +615,8 @@ describe('TextBuffer IO', () => {
         const filePath = temp.openSync('atom').path
         fs.writeFileSync(filePath, 'abc\ndef\n')
 
-        TextBuffer.load(filePath).then((buffer) => {
+        TextBuffer.load(filePath).then((buf) => {
+          buffer = buf
           buffer.append('ghi\n')
           const state = buffer.serialize()
 
@@ -616,7 +624,8 @@ describe('TextBuffer IO', () => {
           delete state.outstandingChanges
           state.text = buffer.getText()
 
-          TextBuffer.deserialize(state).then((buffer2) => {
+          TextBuffer.deserialize(state).then((buf2) => {
+            buffer2 = buf2
             expect(buffer2.getText()).toBe(buffer.getText())
             expect(buffer2.isModified()).toBe(true)
             done()
@@ -629,12 +638,14 @@ describe('TextBuffer IO', () => {
       it('loads the disk contents instead of the previous unsaved state', (done) => {
         const filePath = temp.openSync('atom').path
         fs.writeFileSync(filePath, 'abc\ndef\n')
-        TextBuffer.load(filePath).then((buffer) => {
+        TextBuffer.load(filePath).then((buf) => {
+          buffer = buf
           buffer.append('ghi\n')
 
           fs.writeFileSync(filePath, 'DISK CHANGE')
 
-          TextBuffer.deserialize(buffer.serialize()).then((buffer2) => {
+          TextBuffer.deserialize(buffer.serialize()).then((buf2) => {
+            buffer2 = buf2
             expect(buffer2.getPath()).toBe(buffer.getPath())
             expect(buffer2.getText()).toBe('DISK CHANGE')
             expect(buffer2.isModified()).toBe(false)
@@ -648,10 +659,12 @@ describe('TextBuffer IO', () => {
 
     it('serializes the encoding', (done) => {
       const filePath = path.join(__dirname, 'fixtures', 'win1251.txt')
-      TextBuffer.load(filePath, {encoding: 'WINDOWS-1251'}).then((bufferA) => {
-        TextBuffer.deserialize(bufferA.serialize()).then((bufferB) => {
-          expect(bufferB.getEncoding()).toBe('WINDOWS-1251')
-          expect(bufferB.getText()).toBe('тест 1234 абвгдеёжз')
+      TextBuffer.load(filePath, {encoding: 'WINDOWS-1251'}).then((buf) => {
+        buffer = buf
+        TextBuffer.deserialize(buffer.serialize()).then((buf2) => {
+          buffer2 = buf2
+          expect(buffer2.getEncoding()).toBe('WINDOWS-1251')
+          expect(buffer2.getText()).toBe('тест 1234 абвгдеёжз')
           done()
         })
       })
@@ -661,7 +674,8 @@ describe('TextBuffer IO', () => {
   describe('encoding support', () => {
     it('allows the encoding to be set on creation', (done) => {
       const filePath = path.join(__dirname, 'fixtures', 'win1251.txt')
-      TextBuffer.load(filePath, {encoding: 'WINDOWS-1251'}).then((buffer) => {
+      TextBuffer.load(filePath, {encoding: 'WINDOWS-1251'}).then((buf) => {
+        buffer = buf
         expect(buffer.getEncoding()).toBe('WINDOWS-1251')
         expect(buffer.getText()).toBe('тест 1234 абвгдеёжз')
         done()
@@ -672,7 +686,6 @@ describe('TextBuffer IO', () => {
       describe('when the encoding of the buffer is changed', () => {
         beforeEach((done) => {
           const filePath = path.join(__dirname, 'fixtures', 'win1251.txt')
-          buffer = new TextBuffer({filePath, load: false})
           TextBuffer.load(filePath).then((result) => {
             buffer = result
             done()
@@ -715,7 +728,7 @@ describe('TextBuffer IO', () => {
       })
     })
 
-    it('emits an event when the encoding changes', () => {
+    it('emits an event when the encoding changes', (done) => {
       const filePath = path.join(__dirname, 'fixtures', 'win1251.txt')
       const encodingChanges = []
 
@@ -728,13 +741,15 @@ describe('TextBuffer IO', () => {
         buffer.setEncoding('WINDOWS-1251')
         expect(encodingChanges).toEqual(['WINDOWS-1251'])
 
-        const buffer2 = new TextBuffer()
+        buffer2 = new TextBuffer()
         buffer2.onDidChangeEncoding((encoding) => encodingChanges.push(encoding))
         buffer2.setEncoding('WINDOWS-1251')
         expect(encodingChanges).toEqual(['WINDOWS-1251', 'WINDOWS-1251'])
 
         buffer2.setEncoding('WINDOWS-1251')
         expect(encodingChanges).toEqual(['WINDOWS-1251', 'WINDOWS-1251'])
+
+        done()
       })
     })
 
