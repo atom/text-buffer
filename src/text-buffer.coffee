@@ -220,7 +220,11 @@ class TextBuffer
       buffer.setPath(source)
     else
       buffer.setFile(source)
-    buffer.load(clearHistory: true, internal: true, mustExist: params?.mustExist).then -> buffer
+    buffer.load(clearHistory: true, internal: true, mustExist: params?.mustExist)
+      .then -> buffer
+      .catch (err) ->
+        buffer.destroy()
+        throw err
 
   # Public: Create a new buffer backed by the given file path. For better
   # performance, use {TextBuffer.load} instead.
@@ -236,7 +240,11 @@ class TextBuffer
   @loadSync: (filePath, params) ->
     buffer = new TextBuffer(params)
     buffer.setPath(filePath)
-    buffer.loadSync(internal: true, mustExist: params?.mustExist)
+    try
+      buffer.loadSync(internal: true, mustExist: params?.mustExist)
+    catch e
+      buffer.destroy()
+      throw e
     buffer
 
   # Public: Restore a {TextBuffer} based on an earlier state created using
