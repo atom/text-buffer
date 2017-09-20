@@ -2241,6 +2241,7 @@ describe('DisplayLayer', () => {
     })
   })
 
+  const randomizedTest =
   it('updates the displayed text correctly when the underlying buffer changes', () => {
     const now = Date.now()
 
@@ -2330,6 +2331,11 @@ describe('DisplayLayer', () => {
           verifyRightmostScreenPosition(freshDisplayLayer)
           verifyScreenLineIds(displayLayer, screenLinesById)
           verifyPositionTranslations(random, displayLayer)
+
+          if (randomizedTest.result.failedExpectations.length > 0) {
+            console.log(`Failing Seed: ${seed}`)
+            return
+          }
         }
       } catch (error) {
         console.log(`Failing Seed: ${seed}`)
