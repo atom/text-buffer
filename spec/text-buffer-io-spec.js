@@ -52,6 +52,15 @@ describe('TextBuffer IO', () => {
       })
     })
 
+    it('rejects if the given path is a directory', (done) => {
+      const dirPath = temp.mkdirSync('atom')
+      TextBuffer.load(dirPath).then(() => {
+        expect('Did not fail with EISDIR').toBeUndefined()
+      }, (err) => {
+        expect(err.code).toBe('EISDIR')
+      }).then(done, done)
+    })
+
     it('optionally rejects with an ENOENT if there is no file at the given path', (done) => {
       const filePath = 'does-not-exist.txt'
       TextBuffer.load(filePath, {mustExist: true}).then(() => {
