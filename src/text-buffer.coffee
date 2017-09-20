@@ -240,7 +240,11 @@ class TextBuffer
   @loadSync: (filePath, params) ->
     buffer = new TextBuffer(params)
     buffer.setPath(filePath)
-    buffer.loadSync(internal: true, mustExist: params?.mustExist)
+    try
+      buffer.loadSync(internal: true, mustExist: params?.mustExist)
+    catch e
+      buffer.destroy()
+      throw e
     buffer
 
   # Public: Restore a {TextBuffer} based on an earlier state created using
