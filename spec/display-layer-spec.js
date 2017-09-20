@@ -2408,17 +2408,17 @@ function verifyChangeEvent (displayLayer, fn) {
   let displayLayerCopy = displayLayer.copy()
   const previousTokenLines = getTokens(displayLayerCopy)
   displayLayerCopy.destroy()
-  let lastChanges = null
 
+  const allChanges = []
   const disposable = displayLayer.onDidChangeSync(function (changes) {
-    lastChanges = changes
+    allChanges.push(...changes)
   })
-
   fn()
   disposable.dispose()
+
   displayLayerCopy = displayLayer.copy()
   const expectedTokenLines = getTokens(displayLayerCopy)
-  updateTokenLines(previousTokenLines, displayLayerCopy, lastChanges)
+  updateTokenLines(previousTokenLines, displayLayerCopy, allChanges)
   displayLayerCopy.destroy()
   expect(previousTokenLines).toEqual(expectedTokenLines)
 }

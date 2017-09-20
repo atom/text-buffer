@@ -13,6 +13,16 @@ class TestLanguageMode {
     this.markerIndex = new MarkerIndex()
     this.classNamesByScopeId = new Map()
     this.emitter = new Emitter()
+    this.invalidatedRanges = []
+
+    if (this.buffer) {
+      this.buffer.onDidChangeText(() => {
+        for (const invalidatedRange of this.invalidatedRanges) {
+          this.emitHighlightingChangeEvent(invalidatedRange)
+        }
+        this.invalidatedRanges = []
+      })
+    }
 
     for (let value of decorations) {
       const className = value[0]
@@ -37,7 +47,7 @@ class TestLanguageMode {
     return new TestHighlightIterator(this)
   }
 
-  getInvalidatedRanges () { return this.invalidatedRanges }
+  getInvalidatedRanges () { return [] }
 
   onDidChangeHighlighting (fn) {
     return this.emitter.on('did-change-highlighting', fn)
@@ -48,10 +58,10 @@ class TestLanguageMode {
   }
 
   bufferDidChange ({oldRange, newRange}) {
-    this.invalidatedRanges = [Range.fromObject(newRange)]
+    this.invalidatedRanges.push(Range.fromObject(newRange))
     const {inside, overlap} = this.markerIndex.splice(oldRange.start, oldRange.getExtent(), newRange.getExtent())
-    overlap.forEach((id) => this.invalidatedRanges.push(this.markerIndex.getRange(id)))
-    inside.forEach((id) => this.invalidatedRanges.push(this.markerIndex.getRange(id)))
+    overlap.forEach((id) => this.invalidatedRanges.push(Range.fromObject(this.markerIndex.getRange(id))))
+    inside.forEach((id) => this.invalidatedRanges.push(Range.fromObject(this.markerIndex.getRange(id))))
 
     this.insertRandomDecorations(oldRange, newRange)
   }
