@@ -6,15 +6,14 @@ const EMPTY = []
 module.exports =
 class NullLanguageMode {
   bufferDidChange () {}
-  buildHighlightIterator () { return new NullHighlightIterator }
-  getInvalidatedRanges() { return EMPTY }
+  buildHighlightIterator () { return new NullHighlightIterator() }
   onDidChangeHighlighting () { return new Disposable(() => {}) }
 }
 
 class NullHighlightIterator {
   seek (position) { return EMPTY }
-  moveToSuccessor() { return false }
-  getPosition() { return Point.INFINITY }
-  getCloseTags() { return EMPTY }
-  getOpenTags() { return EMPTY }
+  moveToSuccessor () { return false }
+  getPosition () { return Point.INFINITY }
+  getCloseTags () { return EMPTY }
+  getOpenTags () { return EMPTY }
 }

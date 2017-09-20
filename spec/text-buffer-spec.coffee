@@ -113,7 +113,7 @@ describe "TextBuffer", ->
         events = []
         languageMode = {
           bufferDidChange: (e) -> events.push({source: languageMode, event: e}),
-          getInvalidatedRanges: -> []
+          onDidChangeHighlighting: -> {dispose: ->}
         }
         displayLayer1 = buffer.addDisplayLayer()
         displayLayer2 = buffer.addDisplayLayer()

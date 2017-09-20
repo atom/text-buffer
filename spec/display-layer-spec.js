@@ -1924,6 +1924,10 @@ describe('DisplayLayer', () => {
       buffer.setLanguageMode({
         buildHighlightIterator () {
           return iterator
+        },
+
+        onDidChangeHighlighting () {
+          return {dispose () {}}
         }
       })
 

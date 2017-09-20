@@ -33,28 +33,12 @@ class TestLanguageMode {
     }
   }
 
-  getNextMarkerId () {
-    const nextMarkerId = this.nextMarkerId
-    this.nextMarkerId += 2
-    return nextMarkerId
-  }
-
-  classNameForScopeId (scopeId) {
-    return this.classNamesByScopeId.get(scopeId)
-  }
-
   buildHighlightIterator () {
     return new TestHighlightIterator(this)
   }
 
-  getInvalidatedRanges () { return [] }
-
   onDidChangeHighlighting (fn) {
     return this.emitter.on('did-change-highlighting', fn)
-  }
-
-  emitHighlightingChangeEvent (range) {
-    this.emitter.emit('did-change-highlighting', range)
   }
 
   bufferDidChange ({oldRange, newRange}) {
@@ -64,6 +48,20 @@ class TestLanguageMode {
     inside.forEach((id) => this.invalidatedRanges.push(Range.fromObject(this.markerIndex.getRange(id))))
 
     this.insertRandomDecorations(oldRange, newRange)
+  }
+
+  emitHighlightingChangeEvent (range) {
+    this.emitter.emit('did-change-highlighting', range)
+  }
+
+  getNextMarkerId () {
+    const nextMarkerId = this.nextMarkerId
+    this.nextMarkerId += 2
+    return nextMarkerId
+  }
+
+  classNameForScopeId (scopeId) {
+    return this.classNamesByScopeId.get(scopeId)
   }
 
   insertRandomDecorations (oldRange, newRange) {

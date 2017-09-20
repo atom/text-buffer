@@ -1648,8 +1648,6 @@ class TextBuffer
   # Experimental: Set the LanguageMode for this buffer.
   #
   # * `languageMode` - an {Object} with the following methods:
-  #   * `getInvalidatedRanges` - A {Function} returning an {Array} of {Range}s representing the
-  #     spans of text whose syntax highlighting has changed due to the last buffer edit.
   #   * `onDidInvalidateRange` - An (optional) {Function} that takes a callback and calls it
   #     with a {Range} argument whenever the syntax is updated for a span of text due to
   #     asynchronous parsing.
