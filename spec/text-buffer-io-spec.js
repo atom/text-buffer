@@ -8,6 +8,7 @@ const Range = require('../src/range')
 const TextBuffer = require('../src/text-buffer')
 const {TextBuffer: NativeTextBuffer} = require('superstring')
 const fsAdmin = require('fs-admin')
+const pathwatcher = require('pathwatcher')
 
 process.on('unhandledRejection', console.error)
 
@@ -16,6 +17,14 @@ describe('TextBuffer IO', () => {
 
   afterEach(() => {
     if (buffer) buffer.destroy()
+
+    const watched = pathwatcher.getWatchedPaths()
+    if (watched.length > 0) {
+      for (const watchedPath of watched) {
+        console.error(`WARNING: leaked file watcher for path ${watchedPath}`)
+      }
+      pathwatcher.closeAllWatchers()
+    }
   })
 
   describe('.load', () => {
