@@ -58,7 +58,7 @@ describe('TextBuffer IO', () => {
         expect('Did not fail with mustExist: true').toBeUndefined()
       }, (err) => {
         expect(err.code).toBe('ENOENT')
-      }).then(done)
+      }).then(done, done)
     })
 
     describe('when a custom File object is given in place of the file path', () => {
