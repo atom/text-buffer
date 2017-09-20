@@ -192,6 +192,70 @@ describe "TextBuffer", ->
         expect(buffer.undo()).toBe true
         expect(buffer.lineForRow(0)).toBe "hellow"
 
+      it "still emits marker change events (regression)", ->
+        markerLayer = buffer.addMarkerLayer()
+        marker = markerLayer.markRange([[0, 0], [0, 3]])
+
+        markerLayerUpdateEventsCount = 0
+        markerChangeEvents = []
+        markerLayer.onDidUpdate -> markerLayerUpdateEventsCount++
+        marker.onDidChange (event) -> markerChangeEvents.push(event)
+
+        buffer.setTextInRange([[0, 0], [0, 1]], '', {undo: 'skip'})
+        expect(markerLayerUpdateEventsCount).toBe(1)
+        expect(markerChangeEvents).toEqual([{
+          wasValid: true, isValid: true,
+          hadTail: true, hasTail: true,
+          oldProperties: {}, newProperties: {},
+          oldHeadPosition: Point(0, 3), newHeadPosition: Point(0, 2),
+          oldTailPosition: Point(0, 0), newTailPosition: Point(0, 0),
+          textChanged: true
+        }])
+        markerChangeEvents.length = 0
+
+        buffer.transact ->
+          buffer.setTextInRange([[0, 0], [0, 1]], '', {undo: 'skip'})
+        expect(markerLayerUpdateEventsCount).toBe(2)
+        expect(markerChangeEvents).toEqual([{
+          wasValid: true, isValid: true,
+          hadTail: true, hasTail: true,
+          oldProperties: {}, newProperties: {},
+          oldHeadPosition: Point(0, 2), newHeadPosition: Point(0, 1),
+          oldTailPosition: Point(0, 0), newTailPosition: Point(0, 0),
+          textChanged: true
+        }])
+
+      it "still emits text change events (regression)", (done) ->
+        didChangeTextEvents = []
+        buffer.onDidChangeText (event) -> didChangeTextEvents.push(event)
+
+        buffer.onDidStopChanging ({changes}) ->
+          assertChangesEqual(changes, [{
+            oldRange: [[0, 0], [0, 1]],
+            newRange: [[0, 0], [0, 1]],
+            oldText: 'h',
+            newText: 'z'
+          }])
+          done()
+
+        buffer.setTextInRange([[0, 0], [0, 1]], 'y', {undo: 'skip'})
+        expect(didChangeTextEvents.length).toBe(1)
+        assertChangesEqual(didChangeTextEvents[0].changes, [{
+          oldRange: [[0, 0], [0, 1]],
+          newRange: [[0, 0], [0, 1]],
+          oldText: 'h',
+          newText: 'y'
+        }])
+
+        buffer.transact -> buffer.setTextInRange([[0, 0], [0, 1]], 'z', {undo: 'skip'})
+        expect(didChangeTextEvents.length).toBe(2)
+        assertChangesEqual(didChangeTextEvents[1].changes, [{
+          oldRange: [[0, 0], [0, 1]],
+          newRange: [[0, 0], [0, 1]],
+          oldText: 'y',
+          newText: 'z'
+        }])
+
     describe "when the normalizeLineEndings argument is true (the default)", ->
       describe "when the range's start row has a line ending", ->
         it "normalizes inserted line endings to match the line ending of the range's start row", ->
