@@ -60,7 +60,7 @@ describe('TextBuffer IO', () => {
       TextBuffer.load(dirPath).then(() => {
         expect('Did not fail with EISDIR').toBeUndefined()
       }, (err) => {
-        expect(err.code).toBe('EISDIR')
+        expect(err.code).toBe(process.platform === 'win32' ? 'EACCES' : 'EISDIR')
       }).then(done, done)
     })
 
@@ -109,7 +109,7 @@ describe('TextBuffer IO', () => {
         TextBuffer.loadSync(dirPath)
         expect('Did not fail with EISDIR').toBeUndefined()
       } catch (e) {
-        expect(e.code).toBe('EISDIR')
+        expect(err.code).toBe(process.platform === 'win32' ? 'EACCES' : 'EISDIR')
       }
     })
 
