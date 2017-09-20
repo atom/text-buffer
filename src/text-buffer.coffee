@@ -837,7 +837,13 @@ class TextBuffer
       newStart: oldRange.start, newEnd: traverse(oldRange.start, extentForText(newText))
       oldText, newText
     }
-    @applyChange(change, undo isnt 'skip')
+    newRange = @applyChange(change, undo isnt 'skip')
+
+    if @transactCallDepth is 0 and undo is 'skip'
+      @emitDidChangeTextEvent()
+      @emitMarkerChangeEvents()
+
+    newRange
 
   # Public: Insert text at the given position.
   #
