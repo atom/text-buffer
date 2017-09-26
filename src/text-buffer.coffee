@@ -579,8 +579,8 @@ class TextBuffer
   #
   # Returns a {Boolean}.
   isModified: ->
-    if @file?.existsSync()
-      @buffer.isModified()
+    if @file?
+      not @file.existsSync() or @buffer.isModified()
     else
       @buffer.getLength() > 0
 
