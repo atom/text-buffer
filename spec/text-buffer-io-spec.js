@@ -577,8 +577,8 @@ describe('TextBuffer IO', () => {
     })
 
     it('returns true for an empty buffer with a path', (done) => {
-      filePath = path.join(temp.mkdirSync(), 'file-to-delete')
-      TextBuffer.load(filePath).then(buffer => {
+      const filePath = path.join(temp.mkdirSync(), 'file-to-delete')
+      TextBuffer.load(filePath).then((buffer) => {
         expect(buffer.isModified()).toBe(true)
         done()
       })
