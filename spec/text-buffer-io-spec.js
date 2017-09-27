@@ -170,7 +170,7 @@ describe('TextBuffer IO', () => {
       buffer.reload().then(() => {
         expect(events).toEqual(['will-reload', 'did-reload'])
         expect(buffer.getText()).toBe('')
-        expect(buffer.isModified()).toBe(false)
+        expect(buffer.isModified()).toBe(true)
 
         buffer.undo()
         expect(buffer.getText()).toBe('cdefg')
