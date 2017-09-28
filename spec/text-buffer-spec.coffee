@@ -1931,6 +1931,64 @@ describe "TextBuffer", ->
         Range(Point(1, 2), Point(1, 6)),
       ])
 
+  describe "::findWordsWithSubsequence and ::findWordsWithSubsequenceInRange", ->
+    it 'resolves with all words matching the given query', (done) ->
+      buffer = new TextBuffer('banana bandana ban_ana bandaid band bNa\nbanana')
+      buffer.findWordsWithSubsequence('bna', '_', 4).then (results) ->
+        expect(JSON.parse(JSON.stringify(results))).toEqual([
+          {
+            score: 30,
+            matchIndices: [0, 1, 2],
+            positions: [{row: 0, column: 36}],
+            word: "bNa"
+          },
+          {
+            score: 16,
+            matchIndices: [0, 2, 4],
+            positions: [{row: 0, column: 15}],
+            word: "ban_ana"
+          },
+          {
+            score: 12,
+            matchIndices: [0, 2, 3],
+            positions: [{row: 0, column: 0}, {row: 1, column: 0}],
+            word: "banana"
+          },
+          {
+            score: 7,
+            matchIndices: [0, 5, 6],
+            positions: [{row: 0, column: 7}],
+            word: "bandana"
+          }
+        ])
+        done()
+
+    it 'resolves with all words matching the given query and range', (done) ->
+      range = {start: {column: 0, row: 0}, end: {column: 22, row: 0}}
+      buffer = new TextBuffer('banana bandana ban_ana bandaid band bNa\nbanana')
+      buffer.findWordsWithSubsequenceInRange('bna', '_', 3, range).then (results) ->
+        expect(JSON.parse(JSON.stringify(results))).toEqual([
+          {
+            score: 16,
+            matchIndices: [0, 2, 4],
+            positions: [{row: 0, column: 15}],
+            word: "ban_ana"
+          },
+          {
+            score: 12,
+            matchIndices: [0, 2, 3],
+            positions: [{row: 0, column: 0}],
+            word: "banana"
+          },
+          {
+            score: 7,
+            matchIndices: [0, 5, 6],
+            positions: [{row: 0, column: 7}],
+            word: "bandana"
+          }
+        ])
+        done()
+
   describe "::backwardsScanInRange(range, regex, fn)", ->
     beforeEach ->
       filePath = require.resolve('./fixtures/sample.js')
