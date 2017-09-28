@@ -1402,6 +1402,31 @@ class TextBuffer
   # regex.
   findAllSync: (regex) -> @buffer.findAllSync(regex)
 
+  # Experimental: Find fuzzy match suggestions in the buffer
+  #
+  # * `query` A {String} to search for.
+  # * `extraWordCharacters` A {String} of additional word characters to use when
+  #    deciphering word boundaries
+  # * `maxCount` A {Number} that limits the number of matches returned
+  #
+  # Returns an {Array} containing every {SubsequenceMatch} of text that matches the given
+  # query.
+  findWordsWithSubsequence: (query, extraWordCharacters, maxCount) ->
+    @buffer.findWordsWithSubsequence(query, extraWordCharacters, maxCount)
+
+  # Experimental: Find fuzzy match suggestions in the buffer in a given range
+  #
+  # * `query` A {String} to search for.
+  # * `extraWordCharacters` A {String} of additional word characters to use when
+  #    deciphering word boundaries
+  # * `maxCount` A {Number} that limits the number of matches returned
+  # * `range` A {Range} that specifies the portion of the buffer to search
+  #
+  # Returns an {Array} containing every {SubsequenceMatch} of text that matches the given
+  # query in the given range.
+  findWordsWithSubsequenceInRange: (query, extraWordCharacters, maxCount, range) ->
+    @buffer.findWordsWithSubsequenceInRange(query, extraWordCharacters, maxCount, range)
+
   ###
   Section: Buffer Range Details
   ###
