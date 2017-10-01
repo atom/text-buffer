@@ -1438,7 +1438,7 @@ class TextBuffer
   #
   # Returns a {Promise} that resolves with the first {Range} of text that
   # matches the given regex.
-  findInRange: (regex) -> @buffer.findInRange(regex)
+  findInRange: (regex, range) -> @buffer.findInRange(regex, range)
 
   # Experimental: Search the buffer for a given regex.
   #
@@ -1453,7 +1453,7 @@ class TextBuffer
   # * `range` A {Range} to search within.
   #
   # Returns the first {Range} of text that matches the given regex.
-  findInRangeSync: (regex) -> @buffer.findInRangeSync(regex)
+  findInRangeSync: (regex, range) -> @buffer.findInRangeSync(regex, range)
 
   # Experimental: Asynchronously search the buffer for a given regex.
   #
@@ -1470,7 +1470,7 @@ class TextBuffer
   #
   # Returns a {Promise} that resolves with an {Array} containing every
   # {Range} of text that matches the given regex.
-  findAllInRange: (regex) -> @buffer.findAllInRange(regex)
+  findAllInRange: (regex, range) -> @buffer.findAllInRange(regex, range)
 
   # Experimental: Run an regexp search on the buffer
   #
@@ -1487,7 +1487,7 @@ class TextBuffer
   #
   # Returns an {Array} containing every {Range} of text that matches the given
   # regex.
-  findAllInRangeSync: (regex) -> @buffer.findAllInRangeSync(regex)
+  findAllInRangeSync: (regex, range) -> @buffer.findAllInRangeSync(regex, range)
 
   # Experimental: Find fuzzy match suggestions in the buffer
   #
