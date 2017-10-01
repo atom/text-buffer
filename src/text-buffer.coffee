@@ -1423,21 +1423,54 @@ class TextBuffer
 
     replacements
 
-  # Experimental: Run an async regexp search on the buffer
+  # Experimental: Asynchronously search the buffer for a given regex.
   #
   # * `regex` A {RegExp} to search for.
   #
   # Returns a {Promise} that resolves with the first {Range} of text that
   # matches the given regex.
-  find: (regex) ->
-    @buffer.find(regex)
+  find: (regex) -> @buffer.find(regex)
 
-  # Experimental: Run a regexp search on the buffer
+  # Experimental: Asynchronously search a given range of the buffer for a given regex.
+  #
+  # * `regex` A {RegExp} to search for.
+  # * `range` A {Range} to search within.
+  #
+  # Returns a {Promise} that resolves with the first {Range} of text that
+  # matches the given regex.
+  findInRange: (regex) -> @buffer.findInRange(regex)
+
+  # Experimental: Search the buffer for a given regex.
   #
   # * `regex` A {RegExp} to search for.
   #
   # Returns the first {Range} of text that matches the given regex.
   findSync: (regex) -> @buffer.findSync(regex)
+
+  # Experimental: Search a given range of the buffer for a given regex.
+  #
+  # * `regex` A {RegExp} to search for.
+  # * `range` A {Range} to search within.
+  #
+  # Returns the first {Range} of text that matches the given regex.
+  findInRangeSync: (regex) -> @buffer.findInRangeSync(regex)
+
+  # Experimental: Asynchronously search the buffer for a given regex.
+  #
+  # * `regex` A {RegExp} to search for.
+  #
+  # Returns a {Promise} that resolves with an {Array} containing every
+  # {Range} of text that matches the given regex.
+  findAll: (regex) -> @buffer.findAll(regex)
+
+  # Experimental: Asynchronously search a given range of the buffer for a given regex.
+  #
+  # * `regex` A {RegExp} to search for.
+  # * `range` A {Range} to search within.
+  #
+  # Returns a {Promise} that resolves with an {Array} containing every
+  # {Range} of text that matches the given regex.
+  findAllInRange: (regex) -> @buffer.findAllInRange(regex)
 
   # Experimental: Run an regexp search on the buffer
   #
@@ -1446,6 +1479,15 @@ class TextBuffer
   # Returns an {Array} containing every {Range} of text that matches the given
   # regex.
   findAllSync: (regex) -> @buffer.findAllSync(regex)
+
+  # Experimental: Search a given range of the buffer for a given regex.
+  #
+  # * `regex` A {RegExp} to search for.
+  # * `range` A {Range} to search within.
+  #
+  # Returns an {Array} containing every {Range} of text that matches the given
+  # regex.
+  findAllInRangeSync: (regex) -> @buffer.findAllInRangeSync(regex)
 
   # Experimental: Find fuzzy match suggestions in the buffer
   #
