@@ -188,6 +188,45 @@ describe('TextBuffer IO', () => {
         done()
       })
     })
+
+    it('gracefully handles edits performed in onDidChange listeners that are called on reload', (done) => {
+      fs.writeFileSync(filePath, 'abcdXefg', 'utf8')
+
+      {
+        const subscription = buffer.onDidChange(() => {
+          subscription.dispose()
+          buffer.setText('')
+        })
+      }
+
+      {
+        const subscription = buffer.onDidChangeText(({changes}) => {
+          subscription.dispose()
+          expect(changes.length).toBe(1)
+          expect(changes[0].oldText).toBe('abcdefg')
+          expect(changes[0].newText).toBe('')
+        })
+      }
+
+      {
+        const subscription = buffer.onDidStopChanging(({changes}) => {
+          subscription.dispose()
+
+          expect(changes.length).toBe(1)
+          expect(changes[0].oldText).toBe('abcdefg')
+          expect(changes[0].newText).toBe('')
+
+          expect(buffer.getText()).toBe('')
+
+          buffer.undo()
+          expect(buffer.getText()).toBe('abcdefg')
+
+          done()
+        })
+      }
+
+      buffer.reload()
+    })
   })
 
   describe('.save', () => {
