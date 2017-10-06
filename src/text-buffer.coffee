@@ -1802,28 +1802,34 @@ class TextBuffer
     @cachedText = null
 
     if @loaded and patch and patch.getChangeCount() > 0
+      changes = patch.getChanges()
+
       if options?.clearHistory
         @historyProvider.clearUndoStack()
       else
         if @historyProvider.pushPatch
           @historyProvider.pushPatch(patch)
         else
-          @historyProvider.pushChanges(patch.getChanges())
+          @historyProvider.pushChanges(changes)
+
+      @changesSinceLastDidChangeTextEvent.push(changes...)
+      @changesSinceLastStoppedChangingEvent.push(changes...)
 
       if @markerLayers?
-        for change in patch.getChanges()
+        for change in changes
           for id, markerLayer of @markerLayers
             markerLayer.splice(
               change.newStart,
               traversal(change.oldEnd, change.oldStart),
               traversal(change.newEnd, change.newStart)
             )
+
       changeEvent.didChange = true
       @emitDidChangeEvent(changeEvent)
+
       markersSnapshot = @createMarkerSnapshot()
       @historyProvider.groupChangesSinceCheckpoint(checkpoint, {markers: markersSnapshot, deleteCheckpoint: true})
-      @changesSinceLastDidChangeTextEvent.push(patch.getChanges()...)
-      @changesSinceLastStoppedChangingEvent.push(patch.getChanges()...)
+
       @emitDidChangeTextEvent()
       @emitMarkerChangeEvents(markersSnapshot)
       @emitModifiedStatusChanged(@isModified())
