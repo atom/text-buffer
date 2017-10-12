@@ -1937,7 +1937,7 @@ describe "TextBuffer", ->
       buffer.findWordsWithSubsequence('bna', '_', 4).then (results) ->
         expect(JSON.parse(JSON.stringify(results))).toEqual([
           {
-            score: 30,
+            score: 29,
             matchIndices: [0, 1, 2],
             positions: [{row: 0, column: 36}],
             word: "bNa"
