@@ -14,6 +14,21 @@ newlineRegex = null
 # new Range([0, 1], [2, 3])
 # [[0, 1], [2, 3]] # Range compatible array
 # ```
+#
+# Within a text buffer, a range defines the inclusive `start` and exclusive
+# `end` of a range of characters. Newlines are only included if the `end`
+# {Point} is on a new line. For the example input
+#
+# ```text
+# First line
+# Second line
+# ```
+#
+# ranges therefore behave as follows:
+#
+# - Range `[[0, 0], [0, 5]]` is `First`
+# - Range `[[1, 2], [1, 6]]` is `cond`
+# - Range `[[0, 0], [1, 0]]` is `First line\n` (including newline)
 module.exports =
 class Range
   ###
