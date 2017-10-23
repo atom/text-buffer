@@ -13,7 +13,7 @@ const LINE_ENDING_INVISIBLES_REGEXP = new RegExp(`${CR_INVISIBLE}?${EOL_INVISIBL
 
 describe('DisplayLayer', () => {
   beforeEach(() => {
-    return jasmine.addCustomEqualityTester(require('underscore-plus').isEqual)
+    jasmine.addCustomEqualityTester(require('underscore-plus').isEqual)
   })
 
   describe('copy()', () => {
@@ -421,7 +421,7 @@ describe('DisplayLayer', () => {
       expect(displayLayer.getText()).toBe('a⋯j')
 
       verifyChangeEvent(displayLayer, () => {
-        return displayLayer.destroyFoldsIntersectingBufferRange([[1, 1], [2, 1]])
+        displayLayer.destroyFoldsIntersectingBufferRange([[1, 1], [2, 1]])
       })
 
       expect(displayLayer.getText()).toBe('abc\ndef\ngh⋯j')
@@ -429,21 +429,22 @@ describe('DisplayLayer', () => {
 
     it('allows all folds to be destroyed', () => {
       const buffer = new TextBuffer({
-        text: 'abc\ndef\nghi\nj'
+        text: 'abc\ndef\nghi\njkl\nmno'
       })
 
       const displayLayer = buffer.addDisplayLayer()
+      displayLayer.foldBufferRange([[4, 1], [4, 2]])
       displayLayer.foldBufferRange([[0, 1], [1, 2]])
       displayLayer.foldBufferRange([[1, 1], [2, 2]])
       displayLayer.foldBufferRange([[2, 1], [3, 0]])
       displayLayer.foldBufferRange([[2, 2], [3, 0]])
-      expect(displayLayer.getText()).toBe('a⋯j')
+      expect(displayLayer.getText()).toBe('a⋯jkl\nm⋯o')
 
       verifyChangeEvent(displayLayer, () => {
-        return displayLayer.destroyAllFolds()
+        displayLayer.destroyAllFolds()
       })
 
-      expect(displayLayer.getText()).toBe('abc\ndef\nghi\nj')
+      expect(displayLayer.getText()).toBe('abc\ndef\nghi\njkl\nmno')
     })
 
     it('automatically destroy folds when they become invalid after a buffer change', () => {
@@ -883,46 +884,60 @@ describe('DisplayLayer', () => {
     })
 
     it('translates points correctly on soft-wrapped lines', () => {
-      const buffer = new TextBuffer({
-        text: '   abc defgh'
-      })
+      {
+        const buffer = new TextBuffer({text: '   abc defgh'})
+        const displayLayer = buffer.addDisplayLayer({
+          softWrapColumn: 8,
+          softWrapHangingIndent: 2
+        })
 
-      const displayLayer = buffer.addDisplayLayer({
-        softWrapColumn: 8,
-        softWrapHangingIndent: 2
-      })
+        expect(displayLayer.getText()).toBe('   abc \n     def\n     gh')
+        expectPositionTranslations(displayLayer, [
+          [Point(0, 0), Point(0, 0)],
+          [Point(0, 1), Point(0, 1)],
+          [Point(0, 2), Point(0, 2)],
+          [Point(0, 3), Point(0, 3)],
+          [Point(0, 4), Point(0, 4)],
+          [Point(0, 5), Point(0, 5)],
+          [Point(0, 6), Point(0, 6)],
+          [Point(0, 7), [Point(0, 6), Point(0, 7)]],
+          [Point(0, 8), [Point(0, 6), Point(0, 7)]],
+          [Point(1, 0), [Point(0, 6), Point(0, 7)]],
+          [Point(1, 1), [Point(0, 6), Point(0, 7)]],
+          [Point(1, 2), [Point(0, 6), Point(0, 7)]],
+          [Point(1, 3), [Point(0, 6), Point(0, 7)]],
+          [Point(1, 4), [Point(0, 6), Point(0, 7)]],
+          [Point(1, 5), Point(0, 7)],
+          [Point(1, 6), Point(0, 8)],
+          [Point(1, 7), Point(0, 9)],
+          [Point(1, 8), [Point(0, 9), Point(0, 10)]],
+          [Point(1, 9), [Point(0, 9), Point(0, 10)]],
+          [Point(2, 0), [Point(0, 9), Point(0, 10)]],
+          [Point(2, 1), [Point(0, 9), Point(0, 10)]],
+          [Point(2, 2), [Point(0, 9), Point(0, 10)]],
+          [Point(2, 3), [Point(0, 9), Point(0, 10)]],
+          [Point(2, 4), [Point(0, 9), Point(0, 10)]],
+          [Point(2, 5), Point(0, 10)],
+          [Point(2, 6), Point(0, 11)],
+          [Point(2, 7), Point(0, 12)]
+        ])
+      }
 
-      expect(JSON.stringify(displayLayer.getText())).toBe(JSON.stringify('   abc \n     def\n     gh'))
+      {
+        // Translating in the middle of an atomic soft tab that has been soft-wrapped.
+        const buffer = new TextBuffer({text: '    '})
+        const displayLayer = buffer.addDisplayLayer({tabLength: 2, softWrapColumn: 3})
 
-      expectPositionTranslations(displayLayer, [
-        [Point(0, 0), Point(0, 0)],
-        [Point(0, 1), Point(0, 1)],
-        [Point(0, 2), Point(0, 2)],
-        [Point(0, 3), Point(0, 3)],
-        [Point(0, 4), Point(0, 4)],
-        [Point(0, 5), Point(0, 5)],
-        [Point(0, 6), Point(0, 6)],
-        [Point(0, 7), [Point(0, 6), Point(0, 7)]],
-        [Point(0, 8), [Point(0, 6), Point(0, 7)]],
-        [Point(1, 0), [Point(0, 6), Point(0, 7)]],
-        [Point(1, 1), [Point(0, 6), Point(0, 7)]],
-        [Point(1, 2), [Point(0, 6), Point(0, 7)]],
-        [Point(1, 3), [Point(0, 6), Point(0, 7)]],
-        [Point(1, 4), [Point(0, 6), Point(0, 7)]],
-        [Point(1, 5), Point(0, 7)],
-        [Point(1, 6), Point(0, 8)],
-        [Point(1, 7), Point(0, 9)],
-        [Point(1, 8), [Point(0, 9), Point(0, 10)]],
-        [Point(1, 9), [Point(0, 9), Point(0, 10)]],
-        [Point(2, 0), [Point(0, 9), Point(0, 10)]],
-        [Point(2, 1), [Point(0, 9), Point(0, 10)]],
-        [Point(2, 2), [Point(0, 9), Point(0, 10)]],
-        [Point(2, 3), [Point(0, 9), Point(0, 10)]],
-        [Point(2, 4), [Point(0, 9), Point(0, 10)]],
-        [Point(2, 5), Point(0, 10)],
-        [Point(2, 6), Point(0, 11)],
-        [Point(2, 7), Point(0, 12)]
-      ])
+        expect(displayLayer.getText()).toBe('   \n ')
+
+        expect(displayLayer.translateBufferPosition([0, 3], {clipDirection: 'backward'})).toEqual([0, 2])
+        expect(displayLayer.translateBufferPosition([0, 3], {clipDirection: 'closest'})).toEqual([0, 2])
+        expect(displayLayer.translateBufferPosition([0, 3], {clipDirection: 'forward'})).toEqual([1, 1])
+
+        expect(displayLayer.translateScreenPosition([1, 0], {clipDirection: 'backward'})).toEqual([0, 2])
+        expect(displayLayer.translateScreenPosition([1, 0], {clipDirection: 'closest'})).toEqual([0, 2])
+        expect(displayLayer.translateScreenPosition([1, 0], {clipDirection: 'forward'})).toEqual([0, 4])
+      }
     })
 
     it('prefers the skipSoftWrapIndentation option over clipDirection when translating points', () => {
@@ -2675,7 +2690,7 @@ function logTokens (displayLayer) { // eslint-disable-line
   }
 
   s += '])'
-  return console.log(s)
+  console.log(s)
 }
 
 function hasComputedAllScreenRows (displayLayer) {

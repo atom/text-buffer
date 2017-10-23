@@ -48,7 +48,7 @@ describe('TextBuffer IO', () => {
       TextBuffer.load(filePath).then((buf) => {
         buffer = buf
         expect(buffer.getText()).toBe('')
-        expect(buffer.isModified()).toBe(false)
+        expect(buffer.isModified()).toBe(true)
         expect(buffer.undo()).toBe(false)
         expect(buffer.getText()).toBe('')
         done()
@@ -170,7 +170,7 @@ describe('TextBuffer IO', () => {
       buffer.reload().then(() => {
         expect(events).toEqual(['will-reload', 'did-reload'])
         expect(buffer.getText()).toBe('')
-        expect(buffer.isModified()).toBe(false)
+        expect(buffer.isModified()).toBe(true)
 
         buffer.undo()
         expect(buffer.getText()).toBe('cdefg')
@@ -187,6 +187,45 @@ describe('TextBuffer IO', () => {
         expect(events).toEqual(['will-reload', 'did-reload'])
         done()
       })
+    })
+
+    it('gracefully handles edits performed in onDidChange listeners that are called on reload', (done) => {
+      fs.writeFileSync(filePath, 'abcdXefg', 'utf8')
+
+      {
+        const subscription = buffer.onDidChange(() => {
+          subscription.dispose()
+          buffer.setText('')
+        })
+      }
+
+      {
+        const subscription = buffer.onDidChangeText(({changes}) => {
+          subscription.dispose()
+          expect(changes.length).toBe(1)
+          expect(changes[0].oldText).toBe('abcdefg')
+          expect(changes[0].newText).toBe('')
+        })
+      }
+
+      {
+        const subscription = buffer.onDidStopChanging(({changes}) => {
+          subscription.dispose()
+
+          expect(changes.length).toBe(1)
+          expect(changes[0].oldText).toBe('abcdefg')
+          expect(changes[0].newText).toBe('')
+
+          expect(buffer.getText()).toBe('')
+
+          buffer.undo()
+          expect(buffer.getText()).toBe('abcdefg')
+
+          done()
+        })
+      }
+
+      buffer.reload()
     })
   })
 
@@ -576,6 +615,14 @@ describe('TextBuffer IO', () => {
       expect(buffer2.isModified()).toBeTruthy()
     })
 
+    it('returns true for an empty buffer with a path', (done) => {
+      const filePath = path.join(temp.mkdirSync(), 'file-to-delete')
+      TextBuffer.load(filePath).then((buffer) => {
+        expect(buffer.isModified()).toBe(true)
+        done()
+      })
+    })
+
     it('returns true for a non-empty buffer with no path', () => {
       buffer2 = new TextBuffer({text: 'something'})
       expect(buffer2.isModified()).toBeTruthy()
@@ -584,11 +631,6 @@ describe('TextBuffer IO', () => {
       expect(buffer2.isModified()).toBeTruthy()
 
       buffer2.setText('')
-      expect(buffer2.isModified()).toBeFalsy()
-    })
-
-    it('returns false until the buffer is fully loaded', () => {
-      buffer2 = new TextBuffer({filePath: '/some/path'})
       expect(buffer2.isModified()).toBeFalsy()
     })
   })

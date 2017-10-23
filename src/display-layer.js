@@ -217,7 +217,7 @@ class DisplayLayer {
   }
 
   destroyAllFolds () {
-    return this.destroyFoldMarkers(this.foldsMarkerLayer.getMarkers())
+    return this.destroyFoldMarkers(this.foldsMarkerLayer.findMarkers({}))
   }
 
   destroyFoldsIntersectingBufferRange (bufferRange) {
@@ -266,18 +266,20 @@ class DisplayLayer {
   translateBufferPosition (bufferPosition, options) {
     bufferPosition = this.buffer.clipPosition(bufferPosition)
     this.populateSpatialIndexIfNeeded(bufferPosition.row + 1, Infinity)
+
     const clipDirection = options && options.clipDirection || 'closest'
+    const columnDelta = this.getClipColumnDelta(bufferPosition, clipDirection)
+    if (columnDelta !== 0) {
+      bufferPosition = Point(bufferPosition.row, bufferPosition.column + columnDelta)
+    }
+
     let screenPosition = this.translateBufferPositionWithSpatialIndex(bufferPosition, clipDirection)
     const tabCount = this.tabCounts[screenPosition.row]
     if (tabCount > 0) {
       screenPosition = this.expandHardTabs(screenPosition, bufferPosition, tabCount)
     }
-    const columnDelta = this.getClipColumnDelta(bufferPosition, clipDirection)
-    if (columnDelta !== 0) {
-      return Point(screenPosition.row, screenPosition.column + columnDelta)
-    } else {
-      return Point.fromObject(screenPosition)
-    }
+
+    return Point.fromObject(screenPosition)
   }
 
   translateBufferPositionWithSpatialIndex (bufferPosition, clipDirection) {

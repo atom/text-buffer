@@ -36,7 +36,7 @@ class Range
   #   simply returned, or an array containing two {Point}s or point-compatible
   #   arrays.
   # * `copy` An optional boolean indicating whether to force the copying of objects
-  #   that are already ranges.˚
+  #   that are already ranges.
   #
   # Returns: A {Range} based on the given object.
   @fromObject: (object, copy) ->

@@ -580,8 +580,8 @@ class TextBuffer
   #
   # Returns a {Boolean}.
   isModified: ->
-    if @file?.existsSync()
-      @buffer.isModified()
+    if @file?
+      not @file.existsSync() or @buffer.isModified()
     else
       @buffer.getLength() > 0
 
@@ -1423,21 +1423,54 @@ class TextBuffer
 
     replacements
 
-  # Experimental: Run an async regexp search on the buffer
+  # Experimental: Asynchronously search the buffer for a given regex.
   #
   # * `regex` A {RegExp} to search for.
   #
   # Returns a {Promise} that resolves with the first {Range} of text that
   # matches the given regex.
-  find: (regex) ->
-    @buffer.find(regex)
+  find: (regex) -> @buffer.find(regex)
 
-  # Experimental: Run a regexp search on the buffer
+  # Experimental: Asynchronously search a given range of the buffer for a given regex.
+  #
+  # * `regex` A {RegExp} to search for.
+  # * `range` A {Range} to search within.
+  #
+  # Returns a {Promise} that resolves with the first {Range} of text that
+  # matches the given regex.
+  findInRange: (regex, range) -> @buffer.findInRange(regex, range)
+
+  # Experimental: Search the buffer for a given regex.
   #
   # * `regex` A {RegExp} to search for.
   #
   # Returns the first {Range} of text that matches the given regex.
   findSync: (regex) -> @buffer.findSync(regex)
+
+  # Experimental: Search a given range of the buffer for a given regex.
+  #
+  # * `regex` A {RegExp} to search for.
+  # * `range` A {Range} to search within.
+  #
+  # Returns the first {Range} of text that matches the given regex.
+  findInRangeSync: (regex, range) -> @buffer.findInRangeSync(regex, range)
+
+  # Experimental: Asynchronously search the buffer for a given regex.
+  #
+  # * `regex` A {RegExp} to search for.
+  #
+  # Returns a {Promise} that resolves with an {Array} containing every
+  # {Range} of text that matches the given regex.
+  findAll: (regex) -> @buffer.findAll(regex)
+
+  # Experimental: Asynchronously search a given range of the buffer for a given regex.
+  #
+  # * `regex` A {RegExp} to search for.
+  # * `range` A {Range} to search within.
+  #
+  # Returns a {Promise} that resolves with an {Array} containing every
+  # {Range} of text that matches the given regex.
+  findAllInRange: (regex, range) -> @buffer.findAllInRange(regex, range)
 
   # Experimental: Run an regexp search on the buffer
   #
@@ -1446,6 +1479,40 @@ class TextBuffer
   # Returns an {Array} containing every {Range} of text that matches the given
   # regex.
   findAllSync: (regex) -> @buffer.findAllSync(regex)
+
+  # Experimental: Search a given range of the buffer for a given regex.
+  #
+  # * `regex` A {RegExp} to search for.
+  # * `range` A {Range} to search within.
+  #
+  # Returns an {Array} containing every {Range} of text that matches the given
+  # regex.
+  findAllInRangeSync: (regex, range) -> @buffer.findAllInRangeSync(regex, range)
+
+  # Experimental: Find fuzzy match suggestions in the buffer
+  #
+  # * `query` A {String} to search for.
+  # * `extraWordCharacters` A {String} of additional word characters to use when
+  #    deciphering word boundaries
+  # * `maxCount` A {Number} that limits the number of matches returned
+  #
+  # Returns an {Array} containing every {SubsequenceMatch} of text that matches the given
+  # query.
+  findWordsWithSubsequence: (query, extraWordCharacters, maxCount) ->
+    @buffer.findWordsWithSubsequence(query, extraWordCharacters, maxCount)
+
+  # Experimental: Find fuzzy match suggestions in the buffer in a given range
+  #
+  # * `query` A {String} to search for.
+  # * `extraWordCharacters` A {String} of additional word characters to use when
+  #    deciphering word boundaries
+  # * `maxCount` A {Number} that limits the number of matches returned
+  # * `range` A {Range} that specifies the portion of the buffer to search
+  #
+  # Returns an {Array} containing every {SubsequenceMatch} of text that matches the given
+  # query in the given range.
+  findWordsWithSubsequenceInRange: (query, extraWordCharacters, maxCount, range) ->
+    @buffer.findWordsWithSubsequenceInRange(query, extraWordCharacters, maxCount, range)
 
   ###
   Section: Buffer Range Details
@@ -1772,28 +1839,34 @@ class TextBuffer
     @cachedText = null
 
     if @loaded and patch and patch.getChangeCount() > 0
+      changes = patch.getChanges()
+
       if options?.clearHistory
         @historyProvider.clearUndoStack()
       else
         if @historyProvider.pushPatch
           @historyProvider.pushPatch(patch)
         else
-          @historyProvider.pushChanges(patch.getChanges())
+          @historyProvider.pushChanges(changes)
+
+      @changesSinceLastDidChangeTextEvent.push(changes...)
+      @changesSinceLastStoppedChangingEvent.push(changes...)
 
       if @markerLayers?
-        for change in patch.getChanges()
+        for change in changes
           for id, markerLayer of @markerLayers
             markerLayer.splice(
               change.newStart,
               traversal(change.oldEnd, change.oldStart),
               traversal(change.newEnd, change.newStart)
             )
+
       changeEvent.didChange = true
       @emitDidChangeEvent(changeEvent)
+
       markersSnapshot = @createMarkerSnapshot()
       @historyProvider.groupChangesSinceCheckpoint(checkpoint, {markers: markersSnapshot, deleteCheckpoint: true})
-      @changesSinceLastDidChangeTextEvent.push(patch.getChanges()...)
-      @changesSinceLastStoppedChangingEvent.push(patch.getChanges()...)
+
       @emitDidChangeTextEvent()
       @emitMarkerChangeEvents(markersSnapshot)
       @emitModifiedStatusChanged(@isModified())
