@@ -13,7 +13,7 @@ const LINE_ENDING_INVISIBLES_REGEXP = new RegExp(`${CR_INVISIBLE}?${EOL_INVISIBL
 
 describe('DisplayLayer', () => {
   beforeEach(() => {
-    return jasmine.addCustomEqualityTester(require('underscore-plus').isEqual)
+    jasmine.addCustomEqualityTester(require('underscore-plus').isEqual)
   })
 
   describe('copy()', () => {
@@ -421,7 +421,7 @@ describe('DisplayLayer', () => {
       expect(displayLayer.getText()).toBe('a⋯j')
 
       verifyChangeEvent(displayLayer, () => {
-        return displayLayer.destroyFoldsIntersectingBufferRange([[1, 1], [2, 1]])
+        displayLayer.destroyFoldsIntersectingBufferRange([[1, 1], [2, 1]])
       })
 
       expect(displayLayer.getText()).toBe('abc\ndef\ngh⋯j')
@@ -429,21 +429,22 @@ describe('DisplayLayer', () => {
 
     it('allows all folds to be destroyed', () => {
       const buffer = new TextBuffer({
-        text: 'abc\ndef\nghi\nj'
+        text: 'abc\ndef\nghi\njkl\nmno'
       })
 
       const displayLayer = buffer.addDisplayLayer()
+      displayLayer.foldBufferRange([[4, 1], [4, 2]])
       displayLayer.foldBufferRange([[0, 1], [1, 2]])
       displayLayer.foldBufferRange([[1, 1], [2, 2]])
       displayLayer.foldBufferRange([[2, 1], [3, 0]])
       displayLayer.foldBufferRange([[2, 2], [3, 0]])
-      expect(displayLayer.getText()).toBe('a⋯j')
+      expect(displayLayer.getText()).toBe('a⋯jkl\nm⋯o')
 
       verifyChangeEvent(displayLayer, () => {
-        return displayLayer.destroyAllFolds()
+        displayLayer.destroyAllFolds()
       })
 
-      expect(displayLayer.getText()).toBe('abc\ndef\nghi\nj')
+      expect(displayLayer.getText()).toBe('abc\ndef\nghi\njkl\nmno')
     })
 
     it('automatically destroy folds when they become invalid after a buffer change', () => {
@@ -2682,7 +2683,7 @@ function logTokens (displayLayer) { // eslint-disable-line
   }
 
   s += '])'
-  return console.log(s)
+  console.log(s)
 }
 
 function hasComputedAllScreenRows (displayLayer) {

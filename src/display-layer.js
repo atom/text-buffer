@@ -223,7 +223,7 @@ class DisplayLayer {
   }
 
   destroyAllFolds () {
-    return this.destroyFoldMarkers(this.foldsMarkerLayer.getMarkers())
+    return this.destroyFoldMarkers(this.foldsMarkerLayer.findMarkers({}))
   }
 
   destroyFoldsIntersectingBufferRange (bufferRange) {
