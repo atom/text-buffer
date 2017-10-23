@@ -13,7 +13,7 @@ const LINE_ENDING_INVISIBLES_REGEXP = new RegExp(`${CR_INVISIBLE}?${EOL_INVISIBL
 
 describe('DisplayLayer', () => {
   beforeEach(() => {
-    return jasmine.addCustomEqualityTester(require('underscore-plus').isEqual)
+    jasmine.addCustomEqualityTester(require('underscore-plus').isEqual)
   })
 
   describe('copy()', () => {
@@ -421,7 +421,7 @@ describe('DisplayLayer', () => {
       expect(displayLayer.getText()).toBe('a⋯j')
 
       verifyChangeEvent(displayLayer, () => {
-        return displayLayer.destroyFoldsIntersectingBufferRange([[1, 1], [2, 1]])
+        displayLayer.destroyFoldsIntersectingBufferRange([[1, 1], [2, 1]])
       })
 
       expect(displayLayer.getText()).toBe('abc\ndef\ngh⋯j')
@@ -440,7 +440,7 @@ describe('DisplayLayer', () => {
       expect(displayLayer.getText()).toBe('a⋯j')
 
       verifyChangeEvent(displayLayer, () => {
-        return displayLayer.destroyAllFolds()
+        displayLayer.destroyAllFolds()
       })
 
       expect(displayLayer.getText()).toBe('abc\ndef\nghi\nj')
@@ -2682,7 +2682,7 @@ function logTokens (displayLayer) { // eslint-disable-line
   }
 
   s += '])'
-  return console.log(s)
+  console.log(s)
 }
 
 function hasComputedAllScreenRows (displayLayer) {
