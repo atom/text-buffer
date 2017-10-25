@@ -96,16 +96,6 @@ describe "TextBuffer", ->
       buffer.setTextInRange([[0, 2], [1, 3]], "y\nyou're o", normalizeLineEndings: false)
       expect(buffer.getText()).toEqual "hey\nyou're old\r\nhow are you doing?"
 
-    describe "before a change", ->
-      it "notifies ::onWillChange observers", ->
-        changeCount = 0
-        buffer.onWillChange (change) ->
-          expect(buffer.getText()).toBe "hello\nworld\r\nhow are you doing?"
-          changeCount++
-
-        buffer.setTextInRange([[0, 2], [2, 3]], "y there\r\ncat\nwhat", normalizeLineEndings: false)
-        expect(changeCount).toBe(1)
-
     describe "after a change", ->
       it "notifies, in order, decoration layers, display layers, ::onDidChange observers and display layer ::onDidChangeSync observers with the relevant details", ->
         events = []
@@ -2254,6 +2244,33 @@ describe "TextBuffer", ->
       expect(buffer.isEmpty()).toBeFalsy()
       buffer.setText('\n')
       expect(buffer.isEmpty()).toBeFalsy()
+
+  describe "::onWillChange", ->
+    it "notifies observers before a transaction, an undo or a redo", ->
+      changeCount = 0
+      expectedText = ''
+
+      buffer = new TextBuffer()
+      buffer.onWillChange (change) ->
+        expect(buffer.getText()).toBe expectedText
+        changeCount++
+
+      buffer.append('a')
+      expect(changeCount).toBe(1)
+      expectedText = 'a'
+
+      buffer.transact ->
+        buffer.append('b')
+        buffer.append('c')
+      expect(changeCount).toBe(2)
+      expectedText = 'abc'
+
+      buffer.undo()
+      expect(changeCount).toBe(3)
+      expectedText = 'a'
+
+      buffer.redo()
+      expect(changeCount).toBe(4)
 
   describe "::onDidChangeText(callback)",  ->
     beforeEach ->

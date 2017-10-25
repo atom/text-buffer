@@ -876,7 +876,6 @@ class TextBuffer
     changeEvent = {oldRange, newRange, oldText, newText}
     for id, displayLayer of @displayLayers
       displayLayer.bufferWillChange(changeEvent)
-    @emitter.emit('will-change')
 
     @buffer.setTextInRange(oldRange, newText)
 
@@ -1136,6 +1135,7 @@ class TextBuffer
   # Public: Undo the last operation. If a transaction is in progress, aborts it.
   undo: ->
     if pop = @historyProvider.undo()
+      @emitWillChangeEvent()
       @applyChange(change) for change in pop.textUpdates
       @restoreFromMarkerSnapshot(pop.markers)
       @emitDidChangeTextEvent()
@@ -1147,6 +1147,7 @@ class TextBuffer
   # Public: Redo the last operation
   redo: ->
     if pop = @historyProvider.redo()
+      @emitWillChangeEvent()
       @applyChange(change) for change in pop.textUpdates
       @restoreFromMarkerSnapshot(pop.markers)
       @emitDidChangeTextEvent()
@@ -1173,6 +1174,7 @@ class TextBuffer
       fn = groupingInterval
       groupingInterval = 0
 
+    @emitWillChangeEvent()
     checkpointBefore = @historyProvider.createCheckpoint(markers: @createMarkerSnapshot(), isBarrier: true)
 
     try
@@ -1220,6 +1222,7 @@ class TextBuffer
   # Returns a {Boolean} indicating whether the operation succeeded.
   revertToCheckpoint: (checkpoint, options) ->
     if truncated = @historyProvider.revertToCheckpoint(checkpoint, options)
+      @emitWillChangeEvent()
       @applyChange(change) for change in truncated.textUpdates
       @restoreFromMarkerSnapshot(truncated.markers)
       @emitDidChangeTextEvent()
@@ -1717,7 +1720,7 @@ class TextBuffer
           if patch and patch.getChangeCount() > 0
             checkpoint = @historyProvider.createCheckpoint(markers: @createMarkerSnapshot(), isBarrier: true)
             @emitter.emit('will-reload')
-            @emitter.emit('will-change')
+            @emitWillChangeEvent()
       )
     catch error
       if not options.mustExist and error.code is 'ENOENT'
@@ -1752,7 +1755,7 @@ class TextBuffer
           if patch.getChangeCount() > 0
             checkpoint = @historyProvider.createCheckpoint(markers: @createMarkerSnapshot(), isBarrier: true)
             @emitter.emit('will-reload')
-            @emitter.emit('will-change')
+            @emitWillChangeEvent()
           else if options?.discardChanges
             @emitter.emit('will-reload')
     ).then((patch) =>
@@ -1910,6 +1913,9 @@ class TextBuffer
 
     for markerLayerId, markerLayer of @markerLayers
       markerLayer.emitChangeEvents(snapshot?[markerLayerId])
+
+  emitWillChangeEvent: ->
+    @emitter.emit('will-change')
 
   emitDidChangeTextEvent: ->
     if @transactCallDepth is 0 and @changesSinceLastDidChangeTextEvent.length > 0
