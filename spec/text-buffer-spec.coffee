@@ -97,16 +97,14 @@ describe "TextBuffer", ->
       expect(buffer.getText()).toEqual "hey\nyou're old\r\nhow are you doing?"
 
     describe "before a change", ->
-      it "notifies ::onWillChange observers with the relevant details", ->
-        changes = []
+      it "notifies ::onWillChange observers", ->
+        changeCount = 0
         buffer.onWillChange (change) ->
           expect(buffer.getText()).toBe "hello\nworld\r\nhow are you doing?"
-          changes.push(change)
+          changeCount++
 
         buffer.setTextInRange([[0, 2], [2, 3]], "y there\r\ncat\nwhat", normalizeLineEndings: false)
-        expect(changes).toEqual [{
-          oldRange: [[0, 2], [2, 3]]
-        }]
+        expect(changeCount).toBe(1)
 
     describe "after a change", ->
       it "notifies, in order, decoration layers, display layers, ::onDidChange observers and display layer ::onDidChangeSync observers with the relevant details", ->

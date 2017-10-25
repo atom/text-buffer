@@ -255,7 +255,7 @@ describe('TextBuffer IO', () => {
       expect(buffer.isModified()).toBe(true)
 
       const changeEvents = []
-      buffer.onWillChange((event) => changeEvents.push(['will-change', event]))
+      buffer.onWillChange(() => changeEvents.push(['will-change']))
       buffer.onDidChange((event) => changeEvents.push(['did-change', event]))
       buffer.onDidChangeText((event) => changeEvents.push(['did-change-text', event]))
 
@@ -877,9 +877,9 @@ describe('TextBuffer IO', () => {
 
       const events = []
       buffer.onWillReload((event) => events.push(['will-reload']))
-      buffer.onWillChange((event) => {
+      buffer.onWillChange(() => {
         expect(buffer.getText()).toEqual('abcde')
-        events.push(['will-change', event])
+        events.push(['will-change'])
       })
       buffer.onDidChange((event) => {
         expect(buffer.getText()).toEqual(newText)
@@ -909,12 +909,7 @@ describe('TextBuffer IO', () => {
             'will-reload'
           ],
           [
-            'will-change', {
-              oldRange: Range(Point(0, 0), Point(0, 5)),
-              newRange: Range(Point(0, 0), Point(0, newText.length)),
-              oldText: 'abcde',
-              newText: newText
-            }
+            'will-change'
           ],
           [
             'did-change', {
@@ -951,11 +946,11 @@ describe('TextBuffer IO', () => {
       })
     })
 
-    it('passes the smallest possible change event to onWillChange and onDidChange listeners', (done) => {
+    it('passes the smallest possible change event to onDidChange listeners', (done) => {
       fs.writeFileSync(buffer.getPath(), 'abc de ')
 
       const events = []
-      buffer.onWillChange((event) => events.push(['will-change', event]))
+      buffer.onWillChange(() => events.push(['will-change']))
       buffer.onDidChange((event) => events.push(['did-change', event]))
       buffer.onDidChangeText((event) => events.push(['did-change-text', event]))
 
@@ -966,12 +961,7 @@ describe('TextBuffer IO', () => {
 
         expect(toPlainObject(events)).toEqual(toPlainObject([
           [
-            'will-change', {
-              oldRange: Range(Point(0, 3), Point(0, 5)),
-              newRange: Range(Point(0, 3), Point(0, 7)),
-              oldText: 'de',
-              newText: ' de '
-            }
+            'will-change'
           ],
           [
             'did-change', {
@@ -1027,7 +1017,7 @@ describe('TextBuffer IO', () => {
 
     it('does not fire duplicate change events when multiple changes happen on disk', (done) => {
       const changeEvents = []
-      buffer.onWillChange((event) => changeEvents.push('will-change'))
+      buffer.onWillChange(() => changeEvents.push('will-change'))
       buffer.onDidChange((event) => changeEvents.push('did-change'))
       buffer.onDidChangeText((event) => changeEvents.push('did-change-text'))
 
