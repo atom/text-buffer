@@ -2251,6 +2251,8 @@ describe "TextBuffer", ->
       expectedText = ''
 
       buffer = new TextBuffer()
+      checkpoint = buffer.createCheckpoint()
+
       buffer.onWillChange (change) ->
         expect(buffer.getText()).toBe expectedText
         changeCount++
@@ -2265,12 +2267,20 @@ describe "TextBuffer", ->
       expect(changeCount).toBe(2)
       expectedText = 'abc'
 
+      # Empty transactions do not cause onWillChange listeners to be called
+      buffer.transact ->
+      expect(changeCount).toBe(2)
+
       buffer.undo()
       expect(changeCount).toBe(3)
       expectedText = 'a'
 
       buffer.redo()
       expect(changeCount).toBe(4)
+      expectedText = 'abc'
+
+      buffer.revertToCheckpoint(checkpoint)
+      expect(changeCount).toBe(5)
 
   describe "::onDidChangeText(callback)",  ->
     beforeEach ->

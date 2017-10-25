@@ -160,6 +160,7 @@ class TextBuffer
     @nextMarkerId = 1
     @outstandingSaveCount = 0
     @loadCount = 0
+    @_emittedWillChangeEvent = false
 
     @setEncoding(params?.encoding)
     @setPreferredLineEnding(params?.preferredLineEnding)
@@ -329,8 +330,6 @@ class TextBuffer
   # any expensive operations via this method.
   #
   # * `callback` {Function} to be called when the buffer changes.
-  #   * `event` {Object} with the following keys:
-  #     * `oldRange` {Range} of the old text.
   #
   # Returns a {Disposable} on which `.dispose()` can be called to unsubscribe.
   onWillChange: (callback) ->
@@ -877,6 +876,7 @@ class TextBuffer
     for id, displayLayer of @displayLayers
       displayLayer.bufferWillChange(changeEvent)
 
+    @emitWillChangeEvent()
     @buffer.setTextInRange(oldRange, newText)
 
     if @markerLayers?
@@ -1174,7 +1174,6 @@ class TextBuffer
       fn = groupingInterval
       groupingInterval = 0
 
-    @emitWillChangeEvent()
     checkpointBefore = @historyProvider.createCheckpoint(markers: @createMarkerSnapshot(), isBarrier: true)
 
     try
@@ -1915,7 +1914,9 @@ class TextBuffer
       markerLayer.emitChangeEvents(snapshot?[markerLayerId])
 
   emitWillChangeEvent: ->
-    @emitter.emit('will-change')
+    unless @_emittedWillChangeEvent
+      @emitter.emit('will-change')
+      @_emittedWillChangeEvent = true
 
   emitDidChangeTextEvent: ->
     if @transactCallDepth is 0 and @changesSinceLastDidChangeTextEvent.length > 0
@@ -1925,6 +1926,7 @@ class TextBuffer
       @changesSinceLastDidChangeTextEvent.length = 0
       @emitter.emit 'did-change-text', {changes: compactedChanges}
       @debouncedEmitDidStopChangingEvent()
+      @_emittedWillChangeEvent = false
 
   # Identifies if the buffer belongs to multiple editors.
   #
