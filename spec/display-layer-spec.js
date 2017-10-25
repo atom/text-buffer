@@ -427,6 +427,25 @@ describe('DisplayLayer', () => {
       expect(displayLayer.getText()).toBe('abc\ndef\ngh⋯j')
     })
 
+    it('can destroy folds that contain an array of positions', () => {
+      const buffer = new TextBuffer({
+        text: 'abc\ndef\nghi\nj'
+      })
+
+      const displayLayer = buffer.addDisplayLayer()
+      displayLayer.foldBufferRange([[0, 1], [1, 2]])
+      displayLayer.foldBufferRange([[1, 1], [2, 2]])
+      displayLayer.foldBufferRange([[2, 1], [3, 0]])
+      displayLayer.foldBufferRange([[2, 2], [3, 0]])
+      expect(displayLayer.getText()).toBe('a⋯j')
+
+      verifyChangeEvent(displayLayer, () => {
+        displayLayer.destroyFoldsContainingBufferPositions([[1, 1], [2, 1]])
+      })
+
+      expect(displayLayer.getText()).toBe('abc\ndef\ng⋯j')
+    })
+
     it('allows all folds to be destroyed', () => {
       const buffer = new TextBuffer({
         text: 'abc\ndef\nghi\njkl\nmno'
