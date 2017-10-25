@@ -234,6 +234,23 @@ class DisplayLayer {
     )
   }
 
+  destroyFoldsContainingBufferPositions (bufferPositions, excludeEndpoints) {
+    const markersContainingPositions = new Set()
+    for (const position of bufferPositions) {
+      const clippedPosition = this.buffer.clipPosition(position)
+      const foundMarkers = this.foldsMarkerLayer.findMarkers({
+        containsPosition: clippedPosition
+      })
+      for (const marker of foundMarkers) {
+        if (!excludeEndpoints || marker.getRange().containsPoint(clippedPosition, true)) {
+          markersContainingPositions.add(marker)
+        }
+      }
+    }
+    const sortedMarkers = Array.from(markersContainingPositions).sort((a, b) => a.compare(b))
+    return this.destroyFoldMarkers(sortedMarkers)
+  }
+
   destroyFoldMarkers (foldMarkers) {
     const foldedRanges = []
     if (foldMarkers.length === 0) return foldedRanges
