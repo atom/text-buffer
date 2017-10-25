@@ -439,11 +439,19 @@ describe('DisplayLayer', () => {
       displayLayer.foldBufferRange([[2, 2], [3, 0]])
       expect(displayLayer.getText()).toBe('a⋯j')
 
+      // Exclude endpoints
       verifyChangeEvent(displayLayer, () => {
-        displayLayer.destroyFoldsContainingBufferPositions([[1, 1], [2, 1]])
+        displayLayer.destroyFoldsContainingBufferPositions([[1, 1], [2, 1]], true)
       })
 
       expect(displayLayer.getText()).toBe('abc\ndef\ng⋯j')
+
+      // Include endpoints
+      verifyChangeEvent(displayLayer, () => {
+        displayLayer.destroyFoldsContainingBufferPositions([[2, 2]], false)
+      })
+
+      expect(displayLayer.getText()).toBe('abc\ndef\nghi\nj')
     })
 
     it('allows all folds to be destroyed', () => {

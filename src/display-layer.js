@@ -234,14 +234,14 @@ class DisplayLayer {
     )
   }
 
-  destroyFoldsContainingBufferPositions (bufferPositions) {
+  destroyFoldsContainingBufferPositions (bufferPositions, excludeEndoints) {
     const markersContainingPositions = new Set()
     for (const position of bufferPositions) {
       const foundMarkers = this.foldsMarkerLayer.findMarkers({
         containsPosition: position
       })
       for (const marker of foundMarkers) {
-        if (marker.getRange().containsPoint(position, true)) {
+        if (!excludeEndoints || marker.getRange().containsPoint(position, true)) {
           markersContainingPositions.add(marker)
         }
       }
