@@ -443,14 +443,20 @@ describe('DisplayLayer', () => {
       verifyChangeEvent(displayLayer, () => {
         displayLayer.destroyFoldsContainingBufferPositions([[1, 1], [2, 1]], true)
       })
-
       expect(displayLayer.getText()).toBe('abc\ndef\ng⋯j')
 
       // Include endpoints
       verifyChangeEvent(displayLayer, () => {
         displayLayer.destroyFoldsContainingBufferPositions([[2, 2]], false)
       })
+      expect(displayLayer.getText()).toBe('abc\ndef\nghi\nj')
 
+      // Clips before checking containment
+      displayLayer.foldBufferRange([[3, 0], [3, 1]])
+      expect(displayLayer.getText()).toBe('abc\ndef\nghi\n⋯')
+      verifyChangeEvent(displayLayer, () => {
+        displayLayer.destroyFoldsContainingBufferPositions([[3, Infinity]], false)
+      })
       expect(displayLayer.getText()).toBe('abc\ndef\nghi\nj')
     })
 
