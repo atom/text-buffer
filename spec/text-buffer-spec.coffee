@@ -96,18 +96,6 @@ describe "TextBuffer", ->
       buffer.setTextInRange([[0, 2], [1, 3]], "y\nyou're o", normalizeLineEndings: false)
       expect(buffer.getText()).toEqual "hey\nyou're old\r\nhow are you doing?"
 
-    describe "before a change", ->
-      it "notifies ::onWillChange observers with the relevant details", ->
-        changes = []
-        buffer.onWillChange (change) ->
-          expect(buffer.getText()).toBe "hello\nworld\r\nhow are you doing?"
-          changes.push(change)
-
-        buffer.setTextInRange([[0, 2], [2, 3]], "y there\r\ncat\nwhat", normalizeLineEndings: false)
-        expect(changes).toEqual [{
-          oldRange: [[0, 2], [2, 3]]
-        }]
-
     describe "after a change", ->
       it "notifies, in order, decoration layers, display layers, ::onDidChange observers and display layer ::onDidChangeSync observers with the relevant details", ->
         events = []
@@ -2256,6 +2244,43 @@ describe "TextBuffer", ->
       expect(buffer.isEmpty()).toBeFalsy()
       buffer.setText('\n')
       expect(buffer.isEmpty()).toBeFalsy()
+
+  describe "::onWillChange", ->
+    it "notifies observers before a transaction, an undo or a redo", ->
+      changeCount = 0
+      expectedText = ''
+
+      buffer = new TextBuffer()
+      checkpoint = buffer.createCheckpoint()
+
+      buffer.onWillChange (change) ->
+        expect(buffer.getText()).toBe expectedText
+        changeCount++
+
+      buffer.append('a')
+      expect(changeCount).toBe(1)
+      expectedText = 'a'
+
+      buffer.transact ->
+        buffer.append('b')
+        buffer.append('c')
+      expect(changeCount).toBe(2)
+      expectedText = 'abc'
+
+      # Empty transactions do not cause onWillChange listeners to be called
+      buffer.transact ->
+      expect(changeCount).toBe(2)
+
+      buffer.undo()
+      expect(changeCount).toBe(3)
+      expectedText = 'a'
+
+      buffer.redo()
+      expect(changeCount).toBe(4)
+      expectedText = 'abc'
+
+      buffer.revertToCheckpoint(checkpoint)
+      expect(changeCount).toBe(5)
 
   describe "::onDidChangeText(callback)",  ->
     beforeEach ->

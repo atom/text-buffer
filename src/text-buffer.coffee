@@ -29,29 +29,20 @@ class CompositeChangeEvent
     oldText = null
     newText = null
 
-    Object.defineProperty(this, 'didChange', {
-      enumerable: false,
-      writable: true,
-      value: false
-    })
-
     Object.defineProperty(this, 'oldText', {
       enumerable: true,
       get: ->
         unless oldText?
-          if @didChange
-            oldBuffer = new NativeTextBuffer(@newText)
-            for change in patch.getChanges() by -1
-              oldBuffer.setTextInRange(
-                new Range(
-                  traversal(change.newStart, compositeStart),
-                  traversal(change.newEnd, compositeStart)
-                ),
-                change.oldText
-              )
-            oldText = oldBuffer.getText()
-          else
-            oldText = buffer.getTextInRange(@oldRange)
+          oldBuffer = new NativeTextBuffer(@newText)
+          for change in patch.getChanges() by -1
+            oldBuffer.setTextInRange(
+              new Range(
+                traversal(change.newStart, compositeStart),
+                traversal(change.newEnd, compositeStart)
+              ),
+              change.oldText
+            )
+          oldText = oldBuffer.getText()
         oldText
     })
 
@@ -59,19 +50,7 @@ class CompositeChangeEvent
       enumerable: true,
       get: ->
         unless newText?
-          if @didChange
-            newText = buffer.getTextInRange(@newRange)
-          else
-            newBuffer = new NativeTextBuffer(@oldText)
-            for change in patch.getChanges() by -1
-              newBuffer.setTextInRange(
-                new Range(
-                  traversal(change.oldStart, compositeStart),
-                  traversal(change.oldEnd, compositeStart)
-                ),
-                change.newText
-              )
-            newText = newBuffer.getText()
+          newText = buffer.getTextInRange(@newRange)
         newText
     })
 
@@ -181,6 +160,7 @@ class TextBuffer
     @nextMarkerId = 1
     @outstandingSaveCount = 0
     @loadCount = 0
+    @_emittedWillChangeEvent = false
 
     @setEncoding(params?.encoding)
     @setPreferredLineEnding(params?.preferredLineEnding)
@@ -350,8 +330,6 @@ class TextBuffer
   # any expensive operations via this method.
   #
   # * `callback` {Function} to be called when the buffer changes.
-  #   * `event` {Object} with the following keys:
-  #     * `oldRange` {Range} of the old text.
   #
   # Returns a {Disposable} on which `.dispose()` can be called to unsubscribe.
   onWillChange: (callback) ->
@@ -897,8 +875,8 @@ class TextBuffer
     changeEvent = {oldRange, newRange, oldText, newText}
     for id, displayLayer of @displayLayers
       displayLayer.bufferWillChange(changeEvent)
-    @emitter.emit 'will-change', {oldRange}
 
+    @emitWillChangeEvent()
     @buffer.setTextInRange(oldRange, newText)
 
     if @markerLayers?
@@ -1157,6 +1135,7 @@ class TextBuffer
   # Public: Undo the last operation. If a transaction is in progress, aborts it.
   undo: ->
     if pop = @historyProvider.undo()
+      @emitWillChangeEvent()
       @applyChange(change) for change in pop.textUpdates
       @restoreFromMarkerSnapshot(pop.markers)
       @emitDidChangeTextEvent()
@@ -1168,6 +1147,7 @@ class TextBuffer
   # Public: Redo the last operation
   redo: ->
     if pop = @historyProvider.redo()
+      @emitWillChangeEvent()
       @applyChange(change) for change in pop.textUpdates
       @restoreFromMarkerSnapshot(pop.markers)
       @emitDidChangeTextEvent()
@@ -1241,6 +1221,7 @@ class TextBuffer
   # Returns a {Boolean} indicating whether the operation succeeded.
   revertToCheckpoint: (checkpoint, options) ->
     if truncated = @historyProvider.revertToCheckpoint(checkpoint, options)
+      @emitWillChangeEvent()
       @applyChange(change) for change in truncated.textUpdates
       @restoreFromMarkerSnapshot(truncated.markers)
       @emitDidChangeTextEvent()
@@ -1730,17 +1711,15 @@ class TextBuffer
       Grim.deprecate('The .loadSync instance method is deprecated. Create a loaded buffer using TextBuffer.loadSync(filePath) instead.')
 
     checkpoint = null
-    changeEvent = null
     try
       patch = @buffer.loadSync(
         @getPath(),
         @getEncoding(),
         (percentDone, patch) =>
           if patch and patch.getChangeCount() > 0
-            changeEvent = new CompositeChangeEvent(@buffer, patch)
             checkpoint = @historyProvider.createCheckpoint(markers: @createMarkerSnapshot(), isBarrier: true)
             @emitter.emit('will-reload')
-            @emitter.emit('will-change', changeEvent)
+            @emitWillChangeEvent()
       )
     catch error
       if not options.mustExist and error.code is 'ENOENT'
@@ -1749,7 +1728,7 @@ class TextBuffer
       else
         throw error
 
-    @finishLoading(changeEvent, checkpoint, patch)
+    @finishLoading(checkpoint, patch)
 
   load: (options) ->
     unless options?.internal
@@ -1761,7 +1740,6 @@ class TextBuffer
       @file.createReadStream()
 
     checkpoint = null
-    changeEvent = null
     loadCount = ++@loadCount
     @buffer.load(
       source,
@@ -1774,14 +1752,13 @@ class TextBuffer
         return false if @loadCount > loadCount
         if patch
           if patch.getChangeCount() > 0
-            changeEvent = new CompositeChangeEvent(@buffer, patch)
             checkpoint = @historyProvider.createCheckpoint(markers: @createMarkerSnapshot(), isBarrier: true)
             @emitter.emit('will-reload')
-            @emitter.emit('will-change', changeEvent)
+            @emitWillChangeEvent()
           else if options?.discardChanges
             @emitter.emit('will-reload')
     ).then((patch) =>
-      @finishLoading(changeEvent, checkpoint, patch, options)
+      @finishLoading(checkpoint, patch, options)
     ).catch((error) =>
       if not options?.mustExist and error.code is 'ENOENT'
         @emitter.emit('will-reload')
@@ -1791,8 +1768,8 @@ class TextBuffer
         throw error
     )
 
-  finishLoading: (changeEvent, checkpoint, patch, options) ->
-    if @isDestroyed() or (@loaded and not changeEvent? and patch?)
+  finishLoading: (checkpoint, patch, options) ->
+    if @isDestroyed() or (@loaded and not checkpoint? and patch?)
       if options?.discardChanges
         @emitter.emit('did-reload')
       return null
@@ -1824,8 +1801,7 @@ class TextBuffer
               traversal(change.newEnd, change.newStart)
             )
 
-      changeEvent.didChange = true
-      @emitDidChangeEvent(changeEvent)
+      @emitDidChangeEvent(new CompositeChangeEvent(@buffer, patch))
 
       markersSnapshot = @createMarkerSnapshot()
       @historyProvider.groupChangesSinceCheckpoint(checkpoint, {markers: markersSnapshot, deleteCheckpoint: true})
@@ -1937,6 +1913,11 @@ class TextBuffer
     for markerLayerId, markerLayer of @markerLayers
       markerLayer.emitChangeEvents(snapshot?[markerLayerId])
 
+  emitWillChangeEvent: ->
+    unless @_emittedWillChangeEvent
+      @emitter.emit('will-change')
+      @_emittedWillChangeEvent = true
+
   emitDidChangeTextEvent: ->
     if @transactCallDepth is 0 and @changesSinceLastDidChangeTextEvent.length > 0
       compactedChanges = Object.freeze(normalizePatchChanges(
@@ -1945,6 +1926,7 @@ class TextBuffer
       @changesSinceLastDidChangeTextEvent.length = 0
       @emitter.emit 'did-change-text', {changes: compactedChanges}
       @debouncedEmitDidStopChangingEvent()
+      @_emittedWillChangeEvent = false
 
   # Identifies if the buffer belongs to multiple editors.
   #
