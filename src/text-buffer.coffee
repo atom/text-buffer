@@ -20,25 +20,29 @@ Grim = require 'grim'
 class TransactionAbortedError extends Error
   constructor: -> super
 
-class CompositeChangeEvent
-  constructor: (buffer, patch) ->
-    {oldStart: compositeStart, oldEnd, newEnd} = patch.getBounds()
-    @oldRange = new Range(compositeStart, oldEnd)
-    @newRange = new Range(compositeStart, newEnd)
+class ChangeEvent
+  constructor: (buffer, changes) ->
+    @changes = changes
+
+    start = changes[0].oldRange.start
+    oldEnd = changes[changes.length - 1].oldRange.end
+    newEnd = changes[changes.length - 1].newRange.end
+    @oldRange = new Range(start, oldEnd).freeze()
+    @newRange = new Range(start, newEnd).freeze()
 
     oldText = null
     newText = null
 
     Object.defineProperty(this, 'oldText', {
-      enumerable: true,
+      enumerable: false,
       get: ->
         unless oldText?
           oldBuffer = new NativeTextBuffer(@newText)
-          for change in patch.getChanges() by -1
+          for change in changes by -1
             oldBuffer.setTextInRange(
               new Range(
-                traversal(change.newStart, compositeStart),
-                traversal(change.newEnd, compositeStart)
+                traversal(change.newRange.start, start),
+                traversal(change.newRange.end, start)
               ),
               change.oldText
             )
@@ -47,28 +51,32 @@ class CompositeChangeEvent
     })
 
     Object.defineProperty(this, 'newText', {
-      enumerable: true,
+      enumerable: false,
       get: ->
         unless newText?
           newText = buffer.getTextInRange(@newRange)
         newText
     })
 
+  isEqual: (other) ->
+    (
+      @changes.length is other.changes.length and
+      @changes.every((change, i) -> change.isEqual(other.changes[i])) and
+      @oldRange.isEqual(other.oldRange) and
+      @newRange.isEqual(other.newRange)
+    )
+
 # Extended: A mutable text container with undo/redo support and the ability to
 # annotate logical regions in the text.
 #
-# ## Working With Aggregated Changes
+# ## Observing Changes
 #
-# When observing changes to the buffer's textual content, it is important to use
-# change-aggregating methods such as {::onDidChangeText}, {::onDidStopChanging},
-# and {::getChangesSinceCheckpoint} in order to maintain high performance. These
-# methods allows your code to respond to *sets* of changes rather than each
-# individual change.
-#
-# These methods report aggregated buffer updates as arrays of change objects
-# containing the following fields: `oldRange`, `newRange`, `oldText`, and
-# `newText`. The `oldText`, `newText`, and `newRange` fields are
-# self-explanatory, but the interepretation of `oldRange` is more nuanced:
+# You can observe changes in a {TextBuffer} using methods like {::onDidChange},
+# {::onDidStopChanging}, and {::getChangesSinceCheckpoint}. These methods report
+# aggregated buffer updates as arrays of change objects containing the following
+# fields: `oldRange`, `newRange`, `oldText`, and `newText`. The `oldText`,
+# `newText`, and `newRange` fields are self-explanatory, but the interepretation
+# of `oldRange` is more nuanced:
 #
 # The reported `oldRange` is the range of the replaced text in the original
 # contents of the buffer *irrespective of the spatial impact of any other
@@ -77,7 +85,7 @@ class CompositeChangeEvent
 # be to apply the changes in reverse:
 #
 # ```js
-# buffer1.onDidChangeText(({changes}) => {
+# buffer1.onDidChange(({changes}) => {
 #   for (const {oldRange, newText} of changes.reverse()) {
 #     buffer2.setTextInRange(oldRange, newText)
 #   }
@@ -89,7 +97,7 @@ class CompositeChangeEvent
 # {::setTextInRange}, as follows:
 #
 # ```js
-# buffer1.onDidChangeText(({changes}) => {
+# buffer1.onDidChange(({changes}) => {
 #   for (const {oldRange, newRange, newText} of changes) {
 #     const rangeToReplace = Range(
 #       newRange.start,
@@ -335,35 +343,14 @@ class TextBuffer
   onWillChange: (callback) ->
     @emitter.on 'will-change', callback
 
-  # Public: Invoke the given callback synchronously when the content of the
-  # buffer changes. **You should probably not be using this in packages**.
-  #
-  # Because observers are invoked synchronously, it's important not to perform
-  # any expensive operations via this method. Consider {::onDidStopChanging} to
-  # delay expensive operations until after changes stop occurring, or at the
-  # very least use {::onDidChangeText} to invoke your callback once *per
-  # transaction* rather than *once per change*. This will help prevent
-  # performance degredation when users of your package are typing with multiple
-  # cursors, and other scenarios in which multiple changes occur within
-  # transactions.
-  #
-  # * `callback` {Function} to be called when the buffer changes.
-  #   * `event` {Object} with the following keys:
-  #     * `oldRange` {Range} of the old text.
-  #     * `newRange` {Range} of the new text.
-  #     * `oldText` {String} containing the text that was replaced.
-  #     * `newText` {String} containing the text that was inserted.
-  #
-  # Returns a {Disposable} on which `.dispose()` can be called to unsubscribe.
-  onDidChange: (callback) ->
-    @emitter.on 'did-change', callback
-
   # Public: Invoke the given callback synchronously when a transaction finishes
   # with a list of all the changes in the transaction.
   #
   # * `callback` {Function} to be called when a transaction in which textual
   #   changes occurred is completed.
   #   * `event` {Object} with the following keys:
+  #     * `oldRange` The smallest combined {Range} containing all of the old text.
+  #     * `newRange` The smallest combined {Range} containing all of the new text.
   #     * `changes` {Array} of {Object}s summarizing the aggregated changes
   #       that occurred during the transaction. See *Working With Aggregated
   #       Changes* in the description of the {TextBuffer} class for details.
@@ -376,8 +363,11 @@ class TextBuffer
   #       * `newText`: A {String} representing the inserted text.
   #
   # Returns a {Disposable} on which `.dispose()` can be called to unsubscribe.
-  onDidChangeText: (callback) ->
+  onDidChange: (callback) ->
     @emitter.on 'did-change-text', callback
+
+  # Public: This is now identical to {onDidChange}.
+  onDidChangeText: (callback) -> @onDidChange(callback)
 
   preemptDidChange: (callback) ->
     @emitter.preempt 'did-change', callback
@@ -388,7 +378,7 @@ class TextBuffer
   #
   # This method can be used to perform potentially expensive operations that
   # don't need to be performed synchronously. If you need to run your callback
-  # synchronously, use {::onDidChangeText} instead.
+  # synchronously, use {::onDidChange} instead.
   #
   # * `callback` {Function} to be called when the buffer stops changing.
   #   * `event` {Object} with the following keys:
@@ -1198,9 +1188,7 @@ class TextBuffer
   abortTransaction: ->
     throw new TransactionAbortedError("Transaction aborted.")
 
-  # Public: Clear the undo stack. When calling this method within a transaction,
-  # the {::onDidChangeText} event will not be triggered because the information
-  # describing the changes is lost.
+  # Public: Clear the undo stack.
   clearUndoStack: -> @historyProvider.clearUndoStack()
 
   # Public: Create a pointer to the current state of the buffer for use
@@ -1801,8 +1789,6 @@ class TextBuffer
               traversal(change.newEnd, change.newStart)
             )
 
-      @emitDidChangeEvent(new CompositeChangeEvent(@buffer, patch))
-
       markersSnapshot = @createMarkerSnapshot()
       @historyProvider.groupChangesSinceCheckpoint(checkpoint, {markers: markersSnapshot, deleteCheckpoint: true})
 
@@ -1924,7 +1910,8 @@ class TextBuffer
         patchFromChanges(@changesSinceLastDidChangeTextEvent).getChanges()
       ))
       @changesSinceLastDidChangeTextEvent.length = 0
-      @emitter.emit 'did-change-text', {changes: compactedChanges}
+      if compactedChanges.length > 0
+        @emitter.emit 'did-change-text', new ChangeEvent(this, compactedChanges)
       @debouncedEmitDidStopChangingEvent()
       @_emittedWillChangeEvent = false
 

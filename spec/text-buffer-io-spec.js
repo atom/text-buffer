@@ -193,18 +193,12 @@ describe('TextBuffer IO', () => {
       fs.writeFileSync(filePath, 'abcdXefg', 'utf8')
 
       {
-        const subscription = buffer.onDidChange(() => {
-          subscription.dispose()
-          buffer.setText('')
-        })
-      }
-
-      {
-        const subscription = buffer.onDidChangeText(({changes}) => {
+        const subscription = buffer.onDidChange(({changes}) => {
           subscription.dispose()
           expect(changes.length).toBe(1)
-          expect(changes[0].oldText).toBe('abcdefg')
-          expect(changes[0].newText).toBe('')
+          expect(changes[0].oldText).toBe('')
+          expect(changes[0].newText).toBe('X')
+          buffer.setText('')
         })
       }
 
@@ -217,6 +211,9 @@ describe('TextBuffer IO', () => {
           expect(changes[0].newText).toBe('')
 
           expect(buffer.getText()).toBe('')
+
+          buffer.undo()
+          expect(buffer.getText()).toBe('abcdXefg')
 
           buffer.undo()
           expect(buffer.getText()).toBe('abcdefg')
@@ -257,7 +254,6 @@ describe('TextBuffer IO', () => {
       const changeEvents = []
       buffer.onWillChange(() => changeEvents.push(['will-change']))
       buffer.onDidChange((event) => changeEvents.push(['did-change', event]))
-      buffer.onDidChangeText((event) => changeEvents.push(['did-change-text', event]))
 
       buffer.save().then(() => {
         expect(buffer.isModified()).toBe(false)
@@ -881,11 +877,7 @@ describe('TextBuffer IO', () => {
         expect(buffer.getText()).toEqual('abcde')
         events.push(['will-change'])
       })
-      buffer.onDidChange((event) => {
-        expect(buffer.getText()).toEqual(newText)
-        events.push(['did-change', event])
-      })
-      buffer.onDidChangeText((event) => events.push(['did-change-text', event]))
+      buffer.onDidChange((event) => events.push(['did-change', event]))
       buffer.onDidReload((event) => events.push(['did-reload']))
 
       const markerB = buffer.markRange(Range(Point(0, 1), Point(0, 2)))
@@ -915,12 +907,6 @@ describe('TextBuffer IO', () => {
             'did-change', {
               oldRange: Range(Point(0, 0), Point(0, 5)),
               newRange: Range(Point(0, 0), Point(0, newText.length)),
-              oldText: 'abcde',
-              newText: newText
-            }
-          ],
-          [
-            'did-change-text', {
               changes: [
                 {
                   oldRange: Range(Point.ZERO, Point.ZERO),
@@ -952,7 +938,6 @@ describe('TextBuffer IO', () => {
       const events = []
       buffer.onWillChange(() => events.push(['will-change']))
       buffer.onDidChange((event) => events.push(['did-change', event]))
-      buffer.onDidChangeText((event) => events.push(['did-change-text', event]))
 
       const subscription = buffer.onDidReload(() => {
         subscription.dispose()
@@ -967,12 +952,6 @@ describe('TextBuffer IO', () => {
             'did-change', {
               oldRange: Range(Point(0, 3), Point(0, 5)),
               newRange: Range(Point(0, 3), Point(0, 7)),
-              oldText: 'de',
-              newText: ' de '
-            }
-          ],
-          [
-            'did-change-text', {
               changes: [
                 {
                   oldRange: Range(Point(0, 3), Point(0, 3)),
@@ -1000,7 +979,6 @@ describe('TextBuffer IO', () => {
       buffer.onWillReload((event) => events.push(event))
       buffer.onDidReload((event) => events.push(event))
       buffer.onDidChange((event) => events.push(event))
-      buffer.onDidChangeText((event) => events.push(event))
       buffer.onDidConflict((event) => events.push(event))
 
       fs.writeFileSync(buffer.getPath(), 'abcde')
@@ -1019,7 +997,6 @@ describe('TextBuffer IO', () => {
       const changeEvents = []
       buffer.onWillChange(() => changeEvents.push('will-change'))
       buffer.onDidChange((event) => changeEvents.push('did-change'))
-      buffer.onDidChangeText((event) => changeEvents.push('did-change-text'))
 
       // We debounce file system change events to avoid redundant loads. But
       // for large files, another file system change event may occur *after* the
@@ -1049,9 +1026,9 @@ describe('TextBuffer IO', () => {
         }, buffer.fileChangeDelay + 50)
       }, buffer.fileChangeDelay + 50)
 
-      const subscription = buffer.onDidChangeText(() => {
+      const subscription = buffer.onDidChange(() => {
         if (buffer.getText() === 'abcdef') {
-          expect(changeEvents).toEqual(['will-change', 'did-change', 'did-change-text'])
+          expect(changeEvents).toEqual(['will-change', 'did-change'])
           subscription.dispose()
           done()
         }
