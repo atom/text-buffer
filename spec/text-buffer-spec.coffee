@@ -2264,7 +2264,7 @@ describe "TextBuffer", ->
       buffer.setText('\n')
       expect(buffer.isEmpty()).toBeFalsy()
 
-  describe "::onWillChange", ->
+  describe "::onWillChange(callback)", ->
     it "notifies observers before a transaction, an undo or a redo", ->
       changeCount = 0
       expectedText = ''
@@ -2301,14 +2301,14 @@ describe "TextBuffer", ->
       buffer.revertToCheckpoint(checkpoint)
       expect(changeCount).toBe(5)
 
-  describe "::onDidChangeText(callback)",  ->
+  describe "::onDidChange(callback)",  ->
     beforeEach ->
       filePath = require.resolve('./fixtures/sample.js')
       buffer = TextBuffer.loadSync(filePath)
 
     it "notifies observers after a transaction, an undo or a redo", ->
       textChanges = []
-      buffer.onDidChangeText ({changes}) -> textChanges.push(changes...)
+      buffer.onDidChange ({changes}) -> textChanges.push(changes...)
 
       buffer.insert([0, 0], "abc")
       buffer.delete([[0, 0], [0, 1]])
@@ -2402,12 +2402,12 @@ describe "TextBuffer", ->
 
     it "doesn't notify observers after an empty transaction", ->
       didChangeTextSpy = jasmine.createSpy()
-      buffer.onDidChangeText(didChangeTextSpy)
+      buffer.onDidChange(didChangeTextSpy)
       buffer.transact(->)
       expect(didChangeTextSpy).not.toHaveBeenCalled()
 
     it "doesn't throw an error when clearing the undo stack within a transaction", ->
-      buffer.onDidChangeText(didChangeTextSpy = jasmine.createSpy())
+      buffer.onDidChange(didChangeTextSpy = jasmine.createSpy())
       expect(-> buffer.transact(-> buffer.clearUndoStack())).not.toThrowError()
       expect(didChangeTextSpy).not.toHaveBeenCalled()
 
@@ -2476,8 +2476,8 @@ describe "TextBuffer", ->
               ])
               done()
 
-    it "provides the correct changes when the buffer is mutated in the onDidChangeText callback", (done) ->
-      buffer.onDidChangeText ({changes}) ->
+    it "provides the correct changes when the buffer is mutated in the onDidChange callback", (done) ->
+      buffer.onDidChange ({changes}) ->
         switch changes[0].newText
           when 'a'
             buffer.insert(changes[0].newRange.end, 'b')
