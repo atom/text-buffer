@@ -93,6 +93,15 @@ class TextChange {
     this.oldText = oldText
     this.newText = newText
   }
+
+  isEqual (other) {
+    return (
+      this.oldRange.isEqual(other.oldRange) &&
+      this.newRange.isEqual(other.newRange) &&
+      this.oldText === other.oldText &&
+      this.newText === other.newText
+    )
+  }
 }
 
 Object.defineProperty(TextChange.prototype, 'start', {

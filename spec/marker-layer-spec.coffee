@@ -183,7 +183,7 @@ describe "MarkerLayer", ->
       displayLayerDidChange = false
 
       changeCount = 0
-      buffer.onDidChangeText ->
+      buffer.onDidChange ->
         changeCount++
 
       updateCount = 0
