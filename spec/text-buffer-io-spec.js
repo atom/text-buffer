@@ -159,6 +159,27 @@ describe('TextBuffer IO', () => {
       })
     })
 
+    it('notifies decoration layers and display layers of the change', (done) => {
+      fs.writeFileSync(filePath, 'abcdefghijk', 'utf8')
+
+      const events = []
+
+      const displayLayer = buffer.addDisplayLayer()
+      displayLayer.onDidChangeSync((event) => events.push(['display-layer', event]))
+
+      buffer.registerTextDecorationLayer({
+        bufferDidChange ({oldRange, newRange}) { events.push(['decoration-layer', {oldRange, newRange}]) }
+      })
+
+      buffer.reload().then(() => {
+        expect(events).toEqual([
+          ['decoration-layer', {oldRange: Range(Point(0, 7), Point(0, 7)), newRange: Range(Point(0, 7), Point(0, 11))}],
+          ['display-layer', [{start: Point(0, 0), oldExtent: Point(1, 0), newExtent: Point(1, 0)}]]
+        ])
+        done()
+      })
+    })
+
     it('clears the contents of the buffer when the file doesn\t exist', (done) => {
       buffer.delete([[0, 0], [0, 2]])
 

@@ -105,22 +105,36 @@ class TextChange {
 }
 
 Object.defineProperty(TextChange.prototype, 'start', {
-  get: function () {
-    return this.newRange.start
-  },
+  get () { return this.newRange.start },
+  enumerable: false
+})
+
+Object.defineProperty(TextChange.prototype, 'oldStart', {
+  get () { return this.oldRange.start },
+  enumerable: false
+})
+
+Object.defineProperty(TextChange.prototype, 'newStart', {
+  get () { return this.newRange.start },
+  enumerable: false
+})
+
+Object.defineProperty(TextChange.prototype, 'oldEnd', {
+  get () { return this.oldRange.end },
+  enumerable: false
+})
+
+Object.defineProperty(TextChange.prototype, 'newEnd', {
+  get () { return this.newRange.end },
   enumerable: false
 })
 
 Object.defineProperty(TextChange.prototype, 'oldExtent', {
-  get: function () {
-    return this.oldRange.getExtent()
-  },
+  get () { return this.oldRange.getExtent() },
   enumerable: false
 })
 
 Object.defineProperty(TextChange.prototype, 'newExtent', {
-  get: function () {
-    return this.newRange.getExtent()
-  },
+  get () { return this.newRange.getExtent() },
   enumerable: false
 })

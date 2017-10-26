@@ -24,9 +24,9 @@ class ChangeEvent
   constructor: (buffer, changes) ->
     @changes = changes
 
-    start = changes[0].oldRange.start
-    oldEnd = changes[changes.length - 1].oldRange.end
-    newEnd = changes[changes.length - 1].newRange.end
+    start = changes[0].oldStart
+    oldEnd = changes[changes.length - 1].oldEnd
+    newEnd = changes[changes.length - 1].newEnd
     @oldRange = new Range(start, oldEnd).freeze()
     @newRange = new Range(start, newEnd).freeze()
 
@@ -1792,6 +1792,7 @@ class TextBuffer
       markersSnapshot = @createMarkerSnapshot()
       @historyProvider.groupChangesSinceCheckpoint(checkpoint, {markers: markersSnapshot, deleteCheckpoint: true})
 
+      @emitDidChangeEvent(new ChangeEvent(this, changes))
       @emitDidChangeTextEvent()
       @emitMarkerChangeEvents(markersSnapshot)
       @emitModifiedStatusChanged(@isModified())
