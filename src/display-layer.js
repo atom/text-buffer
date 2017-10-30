@@ -825,7 +825,7 @@ class DisplayLayer {
       combinedChanges.splice(Point(startRow, 0), extent, extent)
     }
 
-    return Object.freeze(combinedChanges.getChanges().map((hunk) => {
+    this.emitDidChangeSyncEvent(combinedChanges.getChanges().map((hunk) => {
       return {
         start: Point.fromObject(hunk.newStart),
         oldExtent: traversal(hunk.oldEnd, hunk.oldStart),
