@@ -1126,7 +1126,11 @@ class TextBuffer
   undo: ->
     if pop = @historyProvider.undo()
       @emitWillChangeEvent()
-      @applyChange(change) for change in pop.textUpdates
+      @transactCallDepth++
+      try
+        @applyChange(change) for change in pop.textUpdates
+      finally
+        @transactCallDepth--
       @restoreFromMarkerSnapshot(pop.markers)
       @emitDidChangeTextEvent()
       @emitMarkerChangeEvents(pop.markers)
@@ -1138,7 +1142,11 @@ class TextBuffer
   redo: ->
     if pop = @historyProvider.redo()
       @emitWillChangeEvent()
-      @applyChange(change) for change in pop.textUpdates
+      @transactCallDepth++
+      try
+        @applyChange(change) for change in pop.textUpdates
+      finally
+        @transactCallDepth--
       @restoreFromMarkerSnapshot(pop.markers)
       @emitDidChangeTextEvent()
       @emitMarkerChangeEvents(pop.markers)
@@ -1210,7 +1218,11 @@ class TextBuffer
   revertToCheckpoint: (checkpoint, options) ->
     if truncated = @historyProvider.revertToCheckpoint(checkpoint, options)
       @emitWillChangeEvent()
-      @applyChange(change) for change in truncated.textUpdates
+      @transactCallDepth++
+      try
+        @applyChange(change) for change in truncated.textUpdates
+      finally
+        @transactCallDepth--
       @restoreFromMarkerSnapshot(truncated.markers)
       @emitDidChangeTextEvent()
       @emitter.emit 'did-update-markers'

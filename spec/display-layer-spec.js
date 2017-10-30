@@ -2221,6 +2221,84 @@ describe('DisplayLayer', () => {
         }
       ])
     })
+
+    it('calls the callback only one time per text buffer transaction', () => {
+      const buffer = new TextBuffer({
+        text: 'abc\ndef\nghi\njkl\nmno'
+      })
+
+      const displayLayer = buffer.addDisplayLayer({tabLength: 4})
+
+      const events = []
+      displayLayer.onDidChangeSync((changes) => events.push(changes))
+
+      const checkpoint = buffer.createCheckpoint()
+
+      buffer.transact(() => {
+        buffer.setTextInRange([[0, 1], [0, 1]], '\n')
+        buffer.setTextInRange([[4, 2], [4, 2]], '\n')
+        buffer.setTextInRange([[4, 2], [4, 2]], '.')
+        buffer.setTextInRange([[4, 3], [4, 3]], '.')
+        buffer.setTextInRange([[4, 4], [4, 4]], '.')
+      })
+      expect(events).toEqual([[
+        {
+          start: Point(0, 0),
+          oldExtent: Point(1, 0),
+          newExtent: Point(2, 0)
+        },
+        {
+          start: Point(4, 0),
+          oldExtent: Point(1, 0),
+          newExtent: Point(2, 0)
+        }
+      ]])
+
+      events.length = 0
+      buffer.undo()
+      expect(events).toEqual([[
+        {
+          start: Point(0, 0),
+          oldExtent: Point(2, 0),
+          newExtent: Point(1, 0)
+        },
+        {
+          start: Point(3, 0),
+          oldExtent: Point(2, 0),
+          newExtent: Point(1, 0)
+        }
+      ]])
+
+      events.length = 0
+      buffer.redo()
+      expect(events).toEqual([[
+        {
+          start: Point(0, 0),
+          oldExtent: Point(1, 0),
+          newExtent: Point(2, 0)
+        },
+        {
+          start: Point(4, 0),
+          oldExtent: Point(1, 0),
+          newExtent: Point(2, 0)
+        }
+      ]])
+
+      events.length = 0
+      buffer.revertToCheckpoint(checkpoint)
+      expect(events).toEqual([[
+        {
+          start: Point(0, 0),
+          oldExtent: Point(2, 0),
+          newExtent: Point(1, 0)
+        },
+        {
+          start: Point(3, 0),
+          oldExtent: Point(2, 0),
+          newExtent: Point(1, 0)
+        }
+      ]])
+    })
   })
 
   describe('.getApproximateScreenLineCount()', () => {
