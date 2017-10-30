@@ -97,7 +97,7 @@ describe "TextBuffer", ->
       expect(buffer.getText()).toEqual "hey\nyou're old\r\nhow are you doing?"
 
     describe "after a change", ->
-      it "notifies, in order, decoration layers, display layers, and display layer ::onDidChangeSync observers with the relevant details", ->
+      it "notifies, in order, decoration layers, display layers, and display layer ::onDidChange observers with the relevant details", ->
         buffer = new TextBuffer("hello\nworld\r\nhow are you doing?")
 
         events = []
@@ -120,7 +120,7 @@ describe "TextBuffer", ->
         buffer.registerTextDecorationLayer(textDecorationLayer1) # insert a duplicate decoration layer
         buffer.registerTextDecorationLayer(textDecorationLayer2)
         buffer.onDidChange (e) -> events.push({source: 'buffer', event: JSON.parse(JSON.stringify(e))})
-        displayLayer1.onDidChangeSync (e) -> events.push({source: 'display-layer-event', event: e})
+        displayLayer1.onDidChange (e) -> events.push({source: 'display-layer-event', event: e})
 
         buffer.transact ->
           buffer.setTextInRange([[0, 2], [2, 3]], "y there\r\ncat\nwhat", normalizeLineEndings: false)

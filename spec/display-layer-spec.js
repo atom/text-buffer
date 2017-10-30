@@ -1989,7 +1989,7 @@ describe('DisplayLayer', () => {
       displayLayer.setTextDecorationLayer(decorationLayer)
       const allChanges = []
 
-      displayLayer.onDidChangeSync((changes) => allChanges.push(...changes))
+      displayLayer.onDidChange((changes) => allChanges.push(...changes))
 
       decorationLayer.emitInvalidateRangeEvent([[2, 1], [3, 2]])
 
@@ -2167,7 +2167,7 @@ describe('DisplayLayer', () => {
     })
   })
 
-  describe('.onDidChangeSync', () => {
+  describe('.onDidChange', () => {
     it('calls the given callback when the display layer\'s content changes', () => {
       const buffer = new TextBuffer({
         text: 'abc\ndef\nghi\njkl\nmno'
@@ -2176,7 +2176,7 @@ describe('DisplayLayer', () => {
       const displayLayer = buffer.addDisplayLayer({tabLength: 4})
 
       const events = []
-      displayLayer.onDidChangeSync((changes) => events.push(...changes))
+      displayLayer.onDidChange((changes) => events.push(...changes))
 
       displayLayer.foldBufferRange(Range(Point(1, 1), Point(2, 2)))
       expect(events).toEqual([
@@ -2230,7 +2230,7 @@ describe('DisplayLayer', () => {
       const displayLayer = buffer.addDisplayLayer({tabLength: 4})
 
       const events = []
-      displayLayer.onDidChangeSync((changes) => events.push(changes))
+      displayLayer.onDidChange((changes) => events.push(changes))
 
       const checkpoint = buffer.createCheckpoint()
 
@@ -2594,7 +2594,7 @@ function verifyChangeEvent (displayLayer, fn) {
   displayLayerCopy.destroy()
   let changes = []
 
-  const disposable = displayLayer.onDidChangeSync((event) => {
+  const disposable = displayLayer.onDidChange((event) => {
     changes.push(...event)
   })
 

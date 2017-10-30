@@ -165,7 +165,7 @@ describe('TextBuffer IO', () => {
       const events = []
 
       const displayLayer = buffer.addDisplayLayer()
-      displayLayer.onDidChangeSync((event) => events.push(['display-layer', event]))
+      displayLayer.onDidChange((event) => events.push(['display-layer', event]))
 
       buffer.registerTextDecorationLayer({
         bufferDidChange ({oldRange, newRange}) { events.push(['decoration-layer', {oldRange, newRange}]) }

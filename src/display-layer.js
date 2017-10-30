@@ -154,7 +154,7 @@ class DisplayLayer {
         const endRow = this.translateBufferPositionWithSpatialIndex(Point(endBufferRow, 0), 'backward').row
         const extent = Point(endRow - startRow, 0)
         spliceArray(this.cachedScreenLines, startRow, extent.row, new Array(extent.row))
-        this.emitDidChangeSyncEvent([{
+        this.emitChangeEvent([{
           start: Point(startRow, 0),
           oldExtent: extent,
           newExtent: extent
@@ -186,8 +186,8 @@ class DisplayLayer {
     this.displayMarkerLayersById.delete(id)
   }
 
-  onDidChangeSync (callback) {
-    return this.emitter.on('did-change-sync', callback)
+  onDidChange (callback) {
+    return this.emitter.on('did-change', callback)
   }
 
   onDidReset (callback) {
@@ -208,7 +208,7 @@ class DisplayLayer {
     if (containingFoldMarkers.length === 0) {
       const foldStartRow = bufferRange.start.row
       const foldEndRow = bufferRange.end.row + 1
-      this.emitDidChangeSyncEvent([
+      this.emitChangeEvent([
         this.updateSpatialIndex(foldStartRow, foldEndRow, foldEndRow, Infinity)
       ])
       this.notifyObserversIfMarkerScreenPositionsChanged()
@@ -270,7 +270,7 @@ class DisplayLayer {
       foldMarker.destroy()
     }
 
-    this.emitDidChangeSyncEvent([this.updateSpatialIndex(
+    this.emitChangeEvent([this.updateSpatialIndex(
       combinedRangeStart.row,
       combinedRangeEnd.row + 1,
       combinedRangeEnd.row + 1,
@@ -825,7 +825,7 @@ class DisplayLayer {
       combinedChanges.splice(Point(startRow, 0), extent, extent)
     }
 
-    this.emitDidChangeSyncEvent(combinedChanges.getChanges().map((hunk) => {
+    this.emitChangeEvent(combinedChanges.getChanges().map((hunk) => {
       return {
         start: Point.fromObject(hunk.newStart),
         oldExtent: traversal(hunk.oldEnd, hunk.oldStart),
@@ -834,9 +834,9 @@ class DisplayLayer {
     }))
   }
 
-  emitDidChangeSyncEvent (event) {
+  emitChangeEvent (event) {
     if (this.buffer.transactCallDepth === 0) {
-      this.emitter.emit('did-change-sync', event)
+      this.emitter.emit('did-change', event)
     } else {
       for (const change of event) {
         this.deferredChangeEventPatch.splice(change.start, change.oldExtent, change.newExtent)
@@ -846,7 +846,7 @@ class DisplayLayer {
 
   emitDeferredChangeEvents () {
     if (this.deferredChangeEventPatch.getChangeCount() > 0) {
-      this.emitter.emit('did-change-sync', this.deferredChangeEventPatch.getChanges().map((change) => ({
+      this.emitter.emit('did-change', this.deferredChangeEventPatch.getChanges().map((change) => ({
         start: change.newStart,
         oldExtent: traversal(change.oldEnd, change.oldStart),
         newExtent: traversal(change.newEnd, change.newStart)

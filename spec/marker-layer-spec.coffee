@@ -219,7 +219,7 @@ describe "MarkerLayer", ->
       expect(updateCount).toBe(6)
 
       # update events happen after updating display layers when there is no parent transaction.
-      displayLayer.onDidChangeSync ->
+      displayLayer.onDidChange ->
         displayLayerDidChange = true
       buffer.undo()
       expect(updateCount).toBe(7)
