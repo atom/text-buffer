@@ -1906,15 +1906,19 @@ class TextBuffer
       @_emittedWillChangeEvent = true
 
   emitDidChangeTextEvent: ->
-    if @transactCallDepth is 0 and @changesSinceLastDidChangeTextEvent.length > 0
-      compactedChanges = Object.freeze(normalizePatchChanges(
-        patchFromChanges(@changesSinceLastDidChangeTextEvent).getChanges()
-      ))
-      @changesSinceLastDidChangeTextEvent.length = 0
-      if compactedChanges.length > 0
-        @emitter.emit 'did-change-text', new ChangeEvent(this, compactedChanges)
-      @debouncedEmitDidStopChangingEvent()
-      @_emittedWillChangeEvent = false
+    if @transactCallDepth is 0
+      if @changesSinceLastDidChangeTextEvent.length > 0
+        compactedChanges = Object.freeze(normalizePatchChanges(
+          patchFromChanges(@changesSinceLastDidChangeTextEvent).getChanges()
+        ))
+        @changesSinceLastDidChangeTextEvent.length = 0
+        if compactedChanges.length > 0
+          @emitter.emit 'did-change-text', new ChangeEvent(this, compactedChanges)
+        @debouncedEmitDidStopChangingEvent()
+        @_emittedWillChangeEvent = false
+      for id, displayLayer of @displayLayers
+        displayLayer.emitDeferredChangeEvents()
+    return
 
   # Identifies if the buffer belongs to multiple editors.
   #

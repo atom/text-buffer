@@ -98,6 +98,8 @@ describe "TextBuffer", ->
 
     describe "after a change", ->
       it "notifies, in order, decoration layers, display layers, and display layer ::onDidChangeSync observers with the relevant details", ->
+        buffer = new TextBuffer("hello\nworld\r\nhow are you doing?")
+
         events = []
         textDecorationLayer1 = {
           bufferDidChange: (e) -> events.push({source: 'decoration-layer-1', event: e})
@@ -118,11 +120,11 @@ describe "TextBuffer", ->
         buffer.registerTextDecorationLayer(textDecorationLayer1) # insert a duplicate decoration layer
         buffer.registerTextDecorationLayer(textDecorationLayer2)
         buffer.onDidChange (e) -> events.push({source: 'buffer', event: JSON.parse(JSON.stringify(e))})
+        displayLayer1.onDidChangeSync (e) -> events.push({source: 'display-layer-event', event: e})
 
-        disposable = displayLayer1.onDidChangeSync ->
-          disposable.dispose()
+        buffer.transact ->
+          buffer.setTextInRange([[0, 2], [2, 3]], "y there\r\ncat\nwhat", normalizeLineEndings: false)
           buffer.setTextInRange([[1, 1], [1, 2]], "abc", normalizeLineEndings: false)
-        buffer.setTextInRange([[0, 2], [2, 3]], "y there\r\ncat\nwhat", normalizeLineEndings: false)
 
         changeEvent1 = {
           oldRange: [[0, 2], [2, 3]], newRange: [[0, 2], [2, 4]]
@@ -157,6 +159,14 @@ describe "TextBuffer", ->
                 }
               ]
             }
+          },
+          {
+            source: 'display-layer-event',
+            event: [{
+              start: Point(0, 0),
+              oldExtent: Point(3, 0),
+              newExtent: Point(3, 0)
+            }]
           }
         ]
 

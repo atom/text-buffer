@@ -2167,6 +2167,62 @@ describe('DisplayLayer', () => {
     })
   })
 
+  describe('.onDidChangeSync', () => {
+    it('calls the given callback when the display layer\'s content changes', () => {
+      const buffer = new TextBuffer({
+        text: 'abc\ndef\nghi\njkl\nmno'
+      })
+
+      const displayLayer = buffer.addDisplayLayer({tabLength: 4})
+
+      const events = []
+      displayLayer.onDidChangeSync((changes) => events.push(...changes))
+
+      displayLayer.foldBufferRange(Range(Point(1, 1), Point(2, 2)))
+      expect(events).toEqual([
+        {
+          start: Point(1, 0),
+          oldExtent: Point(2, 0),
+          newExtent: Point(1, 0)
+        }
+      ])
+
+      events.length = 0
+      displayLayer.foldBufferRange(Range(Point(3, 1), Point(4, 2)))
+      expect(events).toEqual([
+        {
+          start: Point(2, 0),
+          oldExtent: Point(2, 0),
+          newExtent: Point(1, 0)
+        }
+      ])
+
+      events.length = 0
+      displayLayer.destroyAllFolds()
+      expect(events).toEqual([
+        {
+          start: Point(1, 0),
+          oldExtent: Point(2, 0),
+          newExtent: Point(4, 0)
+        }
+      ])
+
+      // When multiple changes occur in a transaction, the changes are combined.
+      events.length = 0
+      buffer.transact(() => {
+        displayLayer.foldBufferRange(Range(Point(1, 1), Point(2, 2)))
+        displayLayer.foldBufferRange(Range(Point(3, 1), Point(4, 2)))
+      })
+      expect(events).toEqual([
+        {
+          start: Point(1, 0),
+          oldExtent: Point(4, 0),
+          newExtent: Point(2, 0)
+        }
+      ])
+    })
+  })
+
   describe('.getApproximateScreenLineCount()', () => {
     it('estimates the screen line count based on the currently-indexed portion of the buffer', () => {
       const buffer = new TextBuffer({
@@ -2458,10 +2514,10 @@ function verifyChangeEvent (displayLayer, fn) {
   displayLayerCopy.setTextDecorationLayer(displayLayer.getTextDecorationLayer())
   const previousTokenLines = getTokens(displayLayerCopy)
   displayLayerCopy.destroy()
-  let lastChanges = null
+  let changes = []
 
-  const disposable = displayLayer.onDidChangeSync(function (changes) {
-    lastChanges = changes
+  const disposable = displayLayer.onDidChangeSync((event) => {
+    changes.push(...event)
   })
 
   fn()
@@ -2469,7 +2525,7 @@ function verifyChangeEvent (displayLayer, fn) {
   displayLayerCopy = displayLayer.copy()
   displayLayerCopy.setTextDecorationLayer(displayLayer.getTextDecorationLayer())
   const expectedTokenLines = getTokens(displayLayerCopy)
-  updateTokenLines(previousTokenLines, displayLayerCopy, lastChanges)
+  updateTokenLines(previousTokenLines, displayLayerCopy, changes)
   displayLayerCopy.destroy()
   expect(previousTokenLines).toEqual(expectedTokenLines)
 }

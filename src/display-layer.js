@@ -24,6 +24,7 @@ class DisplayLayer {
     this.textDecorationLayer = new EmptyDecorationLayer()
     this.displayMarkerLayersById = new Map()
     this.destroyed = false
+    this.deferredChangeEventPatch = new Patch()
 
     this.invisibles = params.invisibles != null ? params.invisibles : {}
     this.tabLength = params.tabLength != null ? params.tabLength : 4
@@ -834,7 +835,24 @@ class DisplayLayer {
   }
 
   emitDidChangeSyncEvent (event) {
-    this.emitter.emit('did-change-sync', event)
+    if (this.buffer.transactCallDepth === 0) {
+      this.emitter.emit('did-change-sync', event)
+    } else {
+      for (const change of event) {
+        this.deferredChangeEventPatch.splice(change.start, change.oldExtent, change.newExtent)
+      }
+    }
+  }
+
+  emitDeferredChangeEvents () {
+    if (this.deferredChangeEventPatch.getChangeCount() > 0) {
+      this.emitter.emit('did-change-sync', this.deferredChangeEventPatch.getChanges().map((change) => ({
+        start: change.newStart,
+        oldExtent: traversal(change.oldEnd, change.oldStart),
+        newExtent: traversal(change.newEnd, change.newStart)
+      })))
+      this.deferredChangeEventPatch = new Patch()
+    }
   }
 
   notifyObserversIfMarkerScreenPositionsChanged () {
