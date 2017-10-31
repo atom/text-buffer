@@ -1994,9 +1994,8 @@ describe('DisplayLayer', () => {
       decorationLayer.emitInvalidateRangeEvent([[2, 1], [3, 2]])
 
       expect(allChanges).toEqual([{
-        start: Point(1, 0),
-        oldExtent: Point(2, 0),
-        newExtent: Point(2, 0)
+        oldRange: Range(Point(1, 0), Point(3, 0)),
+        newRange: Range(Point(1, 0), Point(3, 0))
       }])
     })
 
@@ -2181,9 +2180,8 @@ describe('DisplayLayer', () => {
       displayLayer.foldBufferRange(Range(Point(1, 1), Point(2, 2)))
       expect(events).toEqual([
         {
-          start: Point(1, 0),
-          oldExtent: Point(2, 0),
-          newExtent: Point(1, 0)
+          oldRange: Range(Point(1, 0), Point(3, 0)),
+          newRange: Range(Point(1, 0), Point(2, 0))
         }
       ])
 
@@ -2191,9 +2189,8 @@ describe('DisplayLayer', () => {
       displayLayer.foldBufferRange(Range(Point(3, 1), Point(4, 2)))
       expect(events).toEqual([
         {
-          start: Point(2, 0),
-          oldExtent: Point(2, 0),
-          newExtent: Point(1, 0)
+          oldRange: Range(Point(2, 0), Point(4, 0)),
+          newRange: Range(Point(2, 0), Point(3, 0))
         }
       ])
 
@@ -2201,9 +2198,8 @@ describe('DisplayLayer', () => {
       displayLayer.destroyAllFolds()
       expect(events).toEqual([
         {
-          start: Point(1, 0),
-          oldExtent: Point(2, 0),
-          newExtent: Point(4, 0)
+          oldRange: Range(Point(1, 0), Point(3, 0)),
+          newRange: Range(Point(1, 0), Point(5, 0))
         }
       ])
 
@@ -2215,9 +2211,8 @@ describe('DisplayLayer', () => {
       })
       expect(events).toEqual([
         {
-          start: Point(1, 0),
-          oldExtent: Point(4, 0),
-          newExtent: Point(2, 0)
+          oldRange: Range(Point(1, 0), Point(5, 0)),
+          newRange: Range(Point(1, 0), Point(3, 0))
         }
       ])
     })
@@ -2243,14 +2238,12 @@ describe('DisplayLayer', () => {
       })
       expect(events).toEqual([[
         {
-          start: Point(0, 0),
-          oldExtent: Point(1, 0),
-          newExtent: Point(2, 0)
+          oldRange: Range(Point(0, 0), Point(1, 0)),
+          newRange: Range(Point(0, 0), Point(2, 0))
         },
         {
-          start: Point(4, 0),
-          oldExtent: Point(1, 0),
-          newExtent: Point(2, 0)
+          oldRange: Range(Point(3, 0), Point(4, 0)),
+          newRange: Range(Point(4, 0), Point(6, 0))
         }
       ]])
 
@@ -2258,14 +2251,12 @@ describe('DisplayLayer', () => {
       buffer.undo()
       expect(events).toEqual([[
         {
-          start: Point(0, 0),
-          oldExtent: Point(2, 0),
-          newExtent: Point(1, 0)
+          oldRange: Range(Point(0, 0), Point(2, 0)),
+          newRange: Range(Point(0, 0), Point(1, 0))
         },
         {
-          start: Point(3, 0),
-          oldExtent: Point(2, 0),
-          newExtent: Point(1, 0)
+          oldRange: Range(Point(4, 0), Point(6, 0)),
+          newRange: Range(Point(3, 0), Point(4, 0))
         }
       ]])
 
@@ -2273,14 +2264,12 @@ describe('DisplayLayer', () => {
       buffer.redo()
       expect(events).toEqual([[
         {
-          start: Point(0, 0),
-          oldExtent: Point(1, 0),
-          newExtent: Point(2, 0)
+          oldRange: Range(Point(0, 0), Point(1, 0)),
+          newRange: Range(Point(0, 0), Point(2, 0))
         },
         {
-          start: Point(4, 0),
-          oldExtent: Point(1, 0),
-          newExtent: Point(2, 0)
+          oldRange: Range(Point(3, 0), Point(4, 0)),
+          newRange: Range(Point(4, 0), Point(6, 0))
         }
       ]])
 
@@ -2288,14 +2277,12 @@ describe('DisplayLayer', () => {
       buffer.revertToCheckpoint(checkpoint)
       expect(events).toEqual([[
         {
-          start: Point(0, 0),
-          oldExtent: Point(2, 0),
-          newExtent: Point(1, 0)
+          oldRange: Range(Point(0, 0), Point(2, 0)),
+          newRange: Range(Point(0, 0), Point(1, 0))
         },
         {
-          start: Point(3, 0),
-          oldExtent: Point(2, 0),
-          newExtent: Point(1, 0)
+          oldRange: Range(Point(4, 0), Point(6, 0)),
+          newRange: Range(Point(3, 0), Point(4, 0))
         }
       ]])
     })
@@ -2834,9 +2821,9 @@ function getTokenBoundaries (displayLayer, startRow = 0, endRow = displayLayer.g
 }
 
 function updateTokenLines (tokenLines, displayLayer, changes) {
-  for (const {start, oldExtent, newExtent} of changes || []) {
-    const newTokenLines = getTokens(displayLayer, start.row, start.row + newExtent.row)
-    tokenLines.splice(start.row, oldExtent.row, ...newTokenLines)
+  for (const {oldRange, newRange} of changes || []) {
+    const newTokenLines = getTokens(displayLayer, newRange.start.row, newRange.end.row)
+    tokenLines.splice(newRange.start.row, oldRange.end.row - oldRange.start.row, ...newTokenLines)
   }
 }
 

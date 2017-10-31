@@ -163,9 +163,8 @@ describe "TextBuffer", ->
           {
             source: 'display-layer-event',
             event: [{
-              start: Point(0, 0),
-              oldExtent: Point(3, 0),
-              newExtent: Point(3, 0)
+              oldRange: Range(Point(0, 0), Point(3, 0)),
+              newRange: Range(Point(0, 0), Point(3, 0))
             }]
           }
         ]
