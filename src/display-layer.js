@@ -24,6 +24,7 @@ class DisplayLayer {
     this.textDecorationLayer = new EmptyDecorationLayer()
     this.displayMarkerLayersById = new Map()
     this.destroyed = false
+    this.changesSinceLastEvent = new Patch()
 
     this.invisibles = params.invisibles != null ? params.invisibles : {}
     this.tabLength = params.tabLength != null ? params.tabLength : 4
@@ -153,11 +154,7 @@ class DisplayLayer {
         const endRow = this.translateBufferPositionWithSpatialIndex(Point(endBufferRow, 0), 'backward').row
         const extent = Point(endRow - startRow, 0)
         spliceArray(this.cachedScreenLines, startRow, extent.row, new Array(extent.row))
-        this.emitDidChangeSyncEvent([{
-          start: Point(startRow, 0),
-          oldExtent: extent,
-          newExtent: extent
-        }])
+        this.didChange({start: Point(startRow, 0), oldExtent: extent, newExtent: extent})
       })
     }
   }
@@ -185,8 +182,8 @@ class DisplayLayer {
     this.displayMarkerLayersById.delete(id)
   }
 
-  onDidChangeSync (callback) {
-    return this.emitter.on('did-change-sync', callback)
+  onDidChange (callback) {
+    return this.emitter.on('did-change', callback)
   }
 
   onDidReset (callback) {
@@ -207,9 +204,7 @@ class DisplayLayer {
     if (containingFoldMarkers.length === 0) {
       const foldStartRow = bufferRange.start.row
       const foldEndRow = bufferRange.end.row + 1
-      this.emitDidChangeSyncEvent([
-        this.updateSpatialIndex(foldStartRow, foldEndRow, foldEndRow, Infinity)
-      ])
+      this.didChange(this.updateSpatialIndex(foldStartRow, foldEndRow, foldEndRow, Infinity))
       this.notifyObserversIfMarkerScreenPositionsChanged()
     }
     return foldId
@@ -269,12 +264,12 @@ class DisplayLayer {
       foldMarker.destroy()
     }
 
-    this.emitDidChangeSyncEvent([this.updateSpatialIndex(
+    this.didChange(this.updateSpatialIndex(
       combinedRangeStart.row,
       combinedRangeEnd.row + 1,
       combinedRangeEnd.row + 1,
       Infinity
-    )])
+    ))
     this.notifyObserversIfMarkerScreenPositionsChanged()
 
     return foldedRanges
@@ -807,10 +802,8 @@ class DisplayLayer {
       }
     }
 
-    const combinedChanges = new Patch()
     this.indexedBufferRowCount += newEndRow - oldEndRow
-    const {start, oldExtent, newExtent} = this.updateSpatialIndex(startRow, oldEndRow + 1, newEndRow + 1, Infinity)
-    combinedChanges.splice(start, oldExtent, newExtent)
+    this.didChange(this.updateSpatialIndex(startRow, oldEndRow + 1, newEndRow + 1, Infinity))
 
     for (let bufferRange of this.textDecorationLayer.getInvalidatedRanges()) {
       bufferRange = Range.fromObject(bufferRange)
@@ -821,20 +814,25 @@ class DisplayLayer {
       const endRow = this.translateBufferPositionWithSpatialIndex(Point(endBufferRow, 0), 'backward').row
       const extent = Point(endRow - startRow, 0)
       spliceArray(this.cachedScreenLines, startRow, extent.row, new Array(extent.row))
-      combinedChanges.splice(Point(startRow, 0), extent, extent)
+      this.didChange({start: Point(startRow, 0), oldExtent: extent, newExtent: extent})
     }
-
-    return Object.freeze(combinedChanges.getChanges().map((hunk) => {
-      return {
-        start: Point.fromObject(hunk.newStart),
-        oldExtent: traversal(hunk.oldEnd, hunk.oldStart),
-        newExtent: traversal(hunk.newEnd, hunk.newStart)
-      }
-    }))
   }
 
-  emitDidChangeSyncEvent (event) {
-    this.emitter.emit('did-change-sync', event)
+  didChange ({start, oldExtent, newExtent}) {
+    this.changesSinceLastEvent.splice(start, oldExtent, newExtent)
+    if (this.buffer.transactCallDepth === 0) this.emitDeferredChangeEvents()
+  }
+
+  emitDeferredChangeEvents () {
+    if (this.changesSinceLastEvent.getChangeCount() > 0) {
+      this.emitter.emit('did-change', this.changesSinceLastEvent.getChanges().map((change) => {
+        return {
+          oldRange: new Range(change.oldStart, change.oldEnd),
+          newRange: new Range(change.newStart, change.newEnd)
+        }
+      }))
+      this.changesSinceLastEvent = new Patch()
+    }
   }
 
   notifyObserversIfMarkerScreenPositionsChanged () {

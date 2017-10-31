@@ -369,9 +369,6 @@ class TextBuffer
   # Public: This is now identical to {onDidChange}.
   onDidChangeText: (callback) -> @onDidChange(callback)
 
-  preemptDidChange: (callback) ->
-    @emitter.preempt 'did-change', callback
-
   # Public: Invoke the given callback asynchronously following one or more
   # changes after {::getStoppedChangingDelay} milliseconds elapse without an
   # additional change.
@@ -884,16 +881,9 @@ class TextBuffer
     # Emit the change event on all the registered text decoration layers.
     @textDecorationLayers.forEach (textDecorationLayer) ->
       textDecorationLayer.bufferDidChange(changeEvent)
-    # Emit the change event on all the registered display layers.
-    changeEventsByDisplayLayer = new Map()
     for id, displayLayer of @displayLayers
       event = displayLayer.bufferDidChange(changeEvent)
-      changeEventsByDisplayLayer.set(displayLayer, event)
-    # Emit a normal `did-change` event for other subscribers too.
-    @emitter.emit 'did-change', changeEvent
-    # Emit a `did-change-sync` event from all the registered display layers.
-    changeEventsByDisplayLayer.forEach (event, displayLayer) ->
-      displayLayer.emitDidChangeSyncEvent(event)
+    return
 
   # Public: Delete the text in the given range.
   #
@@ -1126,7 +1116,11 @@ class TextBuffer
   undo: ->
     if pop = @historyProvider.undo()
       @emitWillChangeEvent()
-      @applyChange(change) for change in pop.textUpdates
+      @transactCallDepth++
+      try
+        @applyChange(change) for change in pop.textUpdates
+      finally
+        @transactCallDepth--
       @restoreFromMarkerSnapshot(pop.markers)
       @emitDidChangeTextEvent()
       @emitMarkerChangeEvents(pop.markers)
@@ -1138,7 +1132,11 @@ class TextBuffer
   redo: ->
     if pop = @historyProvider.redo()
       @emitWillChangeEvent()
-      @applyChange(change) for change in pop.textUpdates
+      @transactCallDepth++
+      try
+        @applyChange(change) for change in pop.textUpdates
+      finally
+        @transactCallDepth--
       @restoreFromMarkerSnapshot(pop.markers)
       @emitDidChangeTextEvent()
       @emitMarkerChangeEvents(pop.markers)
@@ -1210,7 +1208,11 @@ class TextBuffer
   revertToCheckpoint: (checkpoint, options) ->
     if truncated = @historyProvider.revertToCheckpoint(checkpoint, options)
       @emitWillChangeEvent()
-      @applyChange(change) for change in truncated.textUpdates
+      @transactCallDepth++
+      try
+        @applyChange(change) for change in truncated.textUpdates
+      finally
+        @transactCallDepth--
       @restoreFromMarkerSnapshot(truncated.markers)
       @emitDidChangeTextEvent()
       @emitter.emit 'did-update-markers'
@@ -1906,15 +1908,19 @@ class TextBuffer
       @_emittedWillChangeEvent = true
 
   emitDidChangeTextEvent: ->
-    if @transactCallDepth is 0 and @changesSinceLastDidChangeTextEvent.length > 0
-      compactedChanges = Object.freeze(normalizePatchChanges(
-        patchFromChanges(@changesSinceLastDidChangeTextEvent).getChanges()
-      ))
-      @changesSinceLastDidChangeTextEvent.length = 0
-      if compactedChanges.length > 0
-        @emitter.emit 'did-change-text', new ChangeEvent(this, compactedChanges)
-      @debouncedEmitDidStopChangingEvent()
-      @_emittedWillChangeEvent = false
+    if @transactCallDepth is 0
+      if @changesSinceLastDidChangeTextEvent.length > 0
+        compactedChanges = Object.freeze(normalizePatchChanges(
+          patchFromChanges(@changesSinceLastDidChangeTextEvent).getChanges()
+        ))
+        @changesSinceLastDidChangeTextEvent.length = 0
+        if compactedChanges.length > 0
+          @emitter.emit 'did-change-text', new ChangeEvent(this, compactedChanges)
+        @debouncedEmitDidStopChangingEvent()
+        @_emittedWillChangeEvent = false
+      for id, displayLayer of @displayLayers
+        displayLayer.emitDeferredChangeEvents()
+    return
 
   # Identifies if the buffer belongs to multiple editors.
   #

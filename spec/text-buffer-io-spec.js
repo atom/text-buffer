@@ -165,7 +165,7 @@ describe('TextBuffer IO', () => {
       const events = []
 
       const displayLayer = buffer.addDisplayLayer()
-      displayLayer.onDidChangeSync((event) => events.push(['display-layer', event]))
+      displayLayer.onDidChange((event) => events.push(['display-layer', event]))
 
       buffer.registerTextDecorationLayer({
         bufferDidChange ({oldRange, newRange}) { events.push(['decoration-layer', {oldRange, newRange}]) }
@@ -174,7 +174,7 @@ describe('TextBuffer IO', () => {
       buffer.reload().then(() => {
         expect(events).toEqual([
           ['decoration-layer', {oldRange: Range(Point(0, 7), Point(0, 7)), newRange: Range(Point(0, 7), Point(0, 11))}],
-          ['display-layer', [{start: Point(0, 0), oldExtent: Point(1, 0), newExtent: Point(1, 0)}]]
+          ['display-layer', [{oldRange: Range(Point(0, 0), Point(1, 0)), newRange: Range(Point(0, 0), Point(1, 0))}]]
         ])
         done()
       })
