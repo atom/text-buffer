@@ -134,8 +134,7 @@ class ScreenLineBuilder {
         // specially.
         if (nextCharacter === '\t') {
           this.emitHardTab()
-        } else if ((this.inLeadingWhitespace || this.inTrailingWhitespace) &&
-                    nextCharacter === ' ' && this.displayLayer.invisibles.space) {
+        } else if (nextCharacter === ' ' && this.displayLayer.invisibles.space) {
           this.emitText(this.displayLayer.invisibles.space)
         } else {
           this.emitText(nextCharacter)
@@ -184,7 +183,7 @@ class ScreenLineBuilder {
       if (this.inTrailingWhitespace) this.currentBuiltInClassNameFlags |= TRAILING_WHITESPACE
 
       if (nextCharacter === ' ') {
-        if ((this.inLeadingWhitespace || this.inTrailingWhitespace) && this.displayLayer.invisibles.space) {
+        if (this.displayLayer.invisibles.space) {
           this.currentBuiltInClassNameFlags |= INVISIBLE_CHARACTER
         }
 

@@ -721,7 +721,7 @@ describe('DisplayLayer', () => {
       })
 
       expect(JSON.stringify(displayLayer.getText())).toBe(
-        JSON.stringify('•••••abc \n     de \n     fgh \n     ijk\n••lmnopqr\n  st')
+        JSON.stringify('•••••abc•\n     de•\n     fgh•\n     ijk\n••lmnopqr\n  st')
       )
 
       expectTokenBoundaries(displayLayer, [
@@ -743,7 +743,17 @@ describe('DisplayLayer', () => {
         {
           close: ['invisible-character leading-whitespace indent-guide'],
           open: [],
-          text: 'abc '
+          text: 'abc'
+        },
+        {
+          close: [],
+          open: ['invisible-character'],
+          text: '•'
+        },
+        {
+          close: ['invisible-character'],
+          open: [],
+          text: ''
         },
         {
           close: [],
@@ -763,7 +773,17 @@ describe('DisplayLayer', () => {
         {
           close: ['indent-guide'],
           open: [],
-          text: 'de '
+          text: 'de'
+        },
+        {
+          close: [],
+          open: ['invisible-character'],
+          text: '•'
+        },
+        {
+          close: ['invisible-character'],
+          open: [],
+          text: ''
         },
         {
           close: [],
@@ -783,7 +803,17 @@ describe('DisplayLayer', () => {
         {
           close: ['indent-guide'],
           open: [],
-          text: 'fgh '
+          text: 'fgh'
+        },
+        {
+          close: [],
+          open: ['invisible-character'],
+          text: '•'
+        },
+        {
+          close: ['invisible-character'],
+          open: [],
+          text: ''
         },
         {
           close: [],
@@ -1096,9 +1126,9 @@ describe('DisplayLayer', () => {
   })
 
   describe('invisibles', () => {
-    it('replaces leading whitespaces with the corresponding invisible character, appropriately decorated', () => {
+    it('replaces all whitespace with the corresponding invisible character, appropriately decorated', () => {
       const buffer = new TextBuffer({
-        text: 'az\n  b c\n   d\n \t e'
+        text: 'az\n  b c \t  \n   d     \n \t e'
       })
 
       const displayLayer = buffer.addDisplayLayer({
@@ -1109,7 +1139,7 @@ describe('DisplayLayer', () => {
         }
       })
 
-      expect(displayLayer.getText()).toBe('az\n••b c\n•••d\n•   •e')
+      expect(displayLayer.getText()).toBe('az\n••b•c•  ••\n•••d•••••\n•   •e')
 
       expectTokenBoundaries(displayLayer, [{
         text: 'az',
@@ -1120,8 +1150,32 @@ describe('DisplayLayer', () => {
         close: [],
         open: ['invisible-character leading-whitespace']
       }, {
-        text: 'b c',
+        text: 'b',
         close: ['invisible-character leading-whitespace'],
+        open: []
+      }, {
+        text: '•',
+        close: [],
+        open: ['invisible-character']
+      }, {
+        text: 'c',
+        close: ['invisible-character'],
+        open: []
+      }, {
+        text: '•',
+        close: [],
+        open: ['invisible-character trailing-whitespace']
+      }, {
+        text: '  ',
+        close: ['invisible-character trailing-whitespace'],
+        open: ['hard-tab trailing-whitespace']
+      }, {
+        text: '••',
+        close: ['hard-tab trailing-whitespace'],
+        open: ['invisible-character trailing-whitespace']
+      }, {
+        text: '',
+        close: ['invisible-character trailing-whitespace'],
         open: []
       }, {
         text: '•••',
@@ -1130,6 +1184,14 @@ describe('DisplayLayer', () => {
       }, {
         text: 'd',
         close: ['invisible-character leading-whitespace'],
+        open: []
+      }, {
+        text: '•••••',
+        close: [],
+        open: ['invisible-character trailing-whitespace']
+      }, {
+        text: '',
+        close: ['invisible-character trailing-whitespace'],
         open: []
       }, {
         text: '•',
@@ -1146,70 +1208,6 @@ describe('DisplayLayer', () => {
       }, {
         text: 'e',
         close: ['invisible-character leading-whitespace'],
-        open: []
-      }])
-    })
-
-    it('replaces trailing whitespaces with the corresponding invisible character, appropriately decorated', () => {
-      const buffer = new TextBuffer('abcd\n       \nefgh   jkl\nmno  pqr   \nst  uvw  \t  ')
-
-      const displayLayer = buffer.addDisplayLayer({
-        tabLength: 4,
-
-        invisibles: {
-          space: '•'
-        }
-      })
-
-      expect(displayLayer.getText()).toEqual('abcd\n•••••••\nefgh   jkl\nmno  pqr•••\nst  uvw••   ••')
-
-      expectTokenBoundaries(displayLayer, [{
-        text: 'abcd',
-        close: [],
-        open: []
-      }, {
-        text: '•••••••',
-        close: [],
-        open: ['invisible-character trailing-whitespace']
-      }, {
-        text: '',
-        close: ['invisible-character trailing-whitespace'],
-        open: []
-      }, {
-        text: 'efgh   jkl',
-        close: [],
-        open: []
-      }, {
-        text: 'mno  pqr',
-        close: [],
-        open: []
-      }, {
-        text: '•••',
-        close: [],
-        open: ['invisible-character trailing-whitespace']
-      }, {
-        text: '',
-        close: ['invisible-character trailing-whitespace'],
-        open: []
-      }, {
-        text: 'st  uvw',
-        close: [],
-        open: []
-      }, {
-        text: '••',
-        close: [],
-        open: ['invisible-character trailing-whitespace']
-      }, {
-        text: '   ',
-        close: ['invisible-character trailing-whitespace'],
-        open: ['hard-tab trailing-whitespace']
-      }, {
-        text: '••',
-        close: ['hard-tab trailing-whitespace'],
-        open: ['invisible-character trailing-whitespace']
-      }, {
-        text: '',
-        close: ['invisible-character trailing-whitespace'],
         open: []
       }])
     })
