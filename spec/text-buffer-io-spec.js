@@ -160,7 +160,7 @@ describe('TextBuffer IO', () => {
     })
 
     it('notifies decoration layers and display layers of the change', (done) => {
-      fs.writeFileSync(filePath, 'abcdefghijk', 'utf8')
+      fs.writeFileSync(filePath, 'abcdefGHIJK', 'utf8')
 
       const events = []
 
@@ -168,13 +168,29 @@ describe('TextBuffer IO', () => {
       displayLayer.onDidChange((event) => events.push(['display-layer', event]))
 
       buffer.registerTextDecorationLayer({
-        bufferDidChange ({oldRange, newRange}) { events.push(['decoration-layer', {oldRange, newRange}]) }
+        bufferDidChange ({oldRange, newRange, oldText, newText}) {
+          events.push(['decoration-layer', {oldRange, newRange, oldText, newText}])
+        }
       })
 
       buffer.reload().then(() => {
         expect(events).toEqual([
-          ['decoration-layer', {oldRange: Range(Point(0, 7), Point(0, 7)), newRange: Range(Point(0, 7), Point(0, 11))}],
-          ['display-layer', [{oldRange: Range(Point(0, 0), Point(1, 0)), newRange: Range(Point(0, 0), Point(1, 0))}]]
+          [
+            'decoration-layer',
+            {
+              oldRange: Range(Point(0, 6), Point(0, 7)),
+              newRange: Range(Point(0, 6), Point(0, 11)),
+              oldText: 'g',
+              newText: 'GHIJK'
+            }
+          ],
+          [
+            'display-layer',
+            [{
+              oldRange: Range(Point(0, 0), Point(1, 0)),
+              newRange: Range(Point(0, 0), Point(1, 0))
+            }]
+          ]
         ])
         done()
       })
@@ -214,11 +230,18 @@ describe('TextBuffer IO', () => {
       fs.writeFileSync(filePath, 'abcdXefg', 'utf8')
 
       {
-        const subscription = buffer.onDidChange(({changes}) => {
+        const subscription = buffer.onDidChange((event) => {
           subscription.dispose()
-          expect(changes.length).toBe(1)
-          expect(changes[0].oldText).toBe('')
-          expect(changes[0].newText).toBe('X')
+
+          // Legacy properties
+          expect(event.oldRange).toEqual(Range(Point(0, 4), Point(0, 4)))
+          expect(event.newRange).toEqual(Range(Point(0, 4), Point(0, 5)))
+          expect(event.oldText).toBe('')
+          expect(event.newText).toBe('X')
+
+          expect(event.changes.length).toBe(1)
+          expect(event.changes[0].oldText).toBe('')
+          expect(event.changes[0].newText).toBe('X')
           buffer.setText('')
         })
       }
