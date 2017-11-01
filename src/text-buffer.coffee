@@ -566,6 +566,10 @@ class TextBuffer
   # * `filePath` A {String} representing the new file path
   setPath: (filePath) ->
     return if filePath is @getPath()
+    if @file? and filePath
+      @file.setPath filePath
+      @updateFilePath()
+      return
     @setFile(new File(filePath) if filePath)
 
   # Experimental: Set a custom {File} object as the buffer's backing store.
@@ -588,8 +592,11 @@ class TextBuffer
   setFile: (file) ->
     return if file?.getPath() is @getPath()
     @file = file
+    @file?.setEncoding?(@getEncoding())
+    @updateFilePath()
+
+  updateFilePath: ->
     if @file?
-      @file.setEncoding?(@getEncoding())
       @subscribeToFile()
     @emitter.emit 'did-change-path', @getPath()
 
