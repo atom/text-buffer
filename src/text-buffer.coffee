@@ -22,7 +22,7 @@ class TransactionAbortedError extends Error
 
 class ChangeEvent
   constructor: (buffer, changes) ->
-    @changes = changes
+    @changes = Object.freeze(normalizePatchChanges(changes))
 
     start = changes[0].oldStart
     oldEnd = changes[changes.length - 1].oldEnd
@@ -41,8 +41,8 @@ class ChangeEvent
           for change in changes by -1
             oldBuffer.setTextInRange(
               new Range(
-                traversal(change.newRange.start, start),
-                traversal(change.newRange.end, start)
+                traversal(change.newStart, start),
+                traversal(change.newEnd, start)
               ),
               change.oldText
             )
@@ -1910,9 +1910,7 @@ class TextBuffer
   emitDidChangeTextEvent: ->
     if @transactCallDepth is 0
       if @changesSinceLastDidChangeTextEvent.length > 0
-        compactedChanges = Object.freeze(normalizePatchChanges(
-          patchFromChanges(@changesSinceLastDidChangeTextEvent).getChanges()
-        ))
+        compactedChanges = patchFromChanges(@changesSinceLastDidChangeTextEvent).getChanges()
         @changesSinceLastDidChangeTextEvent.length = 0
         if compactedChanges.length > 0
           @emitter.emit 'did-change-text', new ChangeEvent(this, compactedChanges)
