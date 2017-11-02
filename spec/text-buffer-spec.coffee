@@ -96,40 +96,30 @@ describe "TextBuffer", ->
       buffer.setTextInRange([[0, 2], [1, 3]], "y\nyou're o", normalizeLineEndings: false)
       expect(buffer.getText()).toEqual "hey\nyou're old\r\nhow are you doing?"
 
-    describe "before a change", ->
-      it "notifies ::onWillChange observers with the relevant details", ->
-        changes = []
-        buffer.onWillChange (change) ->
-          expect(buffer.getText()).toBe "hello\nworld\r\nhow are you doing?"
-          changes.push(change)
-
-        buffer.setTextInRange([[0, 2], [2, 3]], "y there\r\ncat\nwhat", normalizeLineEndings: false)
-        expect(changes).toEqual [{
-          oldRange: [[0, 2], [2, 3]]
-        }]
-
     describe "after a change", ->
-      it "notifies, in order, the language mode, display layers, ::onDidChange observers and display layer ::onDidChangeSync observers with the relevant details", ->
+      it "notifies, in order: the language mode, display layers, and display layer ::onDidChange observers with the relevant details", ->
+        buffer = new TextBuffer("hello\nworld\r\nhow are you doing?")
+
         events = []
         languageMode = {
-          bufferDidChange: (e) -> events.push({source: languageMode, event: e}),
+          bufferDidChange: (e) -> events.push({source: 'language-mode', event: e}),
           onDidChangeHighlighting: -> {dispose: ->}
         }
         displayLayer1 = buffer.addDisplayLayer()
         displayLayer2 = buffer.addDisplayLayer()
         spyOn(displayLayer1, 'bufferDidChange').and.callFake (e) ->
-          events.push({source: displayLayer1, event: e})
+          events.push({source: 'display-layer-1', event: e})
           DisplayLayer.prototype.bufferDidChange.call(displayLayer1, e)
         spyOn(displayLayer2, 'bufferDidChange').and.callFake (e) ->
-          events.push({source: displayLayer2, event: e})
+          events.push({source: 'display-layer-2', event: e})
           DisplayLayer.prototype.bufferDidChange.call(displayLayer2, e)
-        buffer.onDidChange (e) -> events.push({source: buffer, event: e})
         buffer.setLanguageMode(languageMode)
+        buffer.onDidChange (e) -> events.push({source: 'buffer', event: JSON.parse(JSON.stringify(e))})
+        displayLayer1.onDidChange (e) -> events.push({source: 'display-layer-event', event: e})
 
-        disposable = displayLayer1.onDidChangeSync ->
-          disposable.dispose()
+        buffer.transact ->
+          buffer.setTextInRange([[0, 2], [2, 3]], "y there\r\ncat\nwhat", normalizeLineEndings: false)
           buffer.setTextInRange([[1, 1], [1, 2]], "abc", normalizeLineEndings: false)
-        buffer.setTextInRange([[0, 2], [2, 3]], "y there\r\ncat\nwhat", normalizeLineEndings: false)
 
         changeEvent1 = {
           oldRange: [[0, 2], [2, 3]], newRange: [[0, 2], [2, 4]]
@@ -140,15 +130,36 @@ describe "TextBuffer", ->
           oldText: "a", newText: "abc",
         }
         expect(events).toEqual [
-          {source: languageMode, event: changeEvent1},
-          {source: displayLayer1, event: changeEvent1},
-          {source: displayLayer2, event: changeEvent1},
-          {source: buffer, event: changeEvent1},
+          {source: 'language-mode', event: changeEvent1},
+          {source: 'display-layer-1', event: changeEvent1},
+          {source: 'display-layer-2', event: changeEvent1},
 
-          {source: languageMode, event: changeEvent2},
-          {source: displayLayer1, event: changeEvent2},
-          {source: displayLayer2, event: changeEvent2},
-          {source: buffer, event: changeEvent2}
+          {source: 'language-mode', event: changeEvent2},
+          {source: 'display-layer-1', event: changeEvent2},
+          {source: 'display-layer-2', event: changeEvent2},
+
+          {
+            source: 'buffer',
+            event: {
+              oldRange: Range(Point(0, 2), Point(2, 3)),
+              newRange: Range(Point(0, 2), Point(2, 4)),
+              changes: [
+                {
+                  oldRange: Range(Point(0, 2), Point(2, 3)),
+                  newRange: Range(Point(0, 2), Point(2, 4)),
+                  oldText: "llo\nworld\r\nhow",
+                  newText: "y there\r\ncabct\nwhat"
+                }
+              ]
+            }
+          },
+          {
+            source: 'display-layer-event',
+            event: [{
+              oldRange: Range(Point(0, 0), Point(3, 0)),
+              newRange: Range(Point(0, 0), Point(3, 0))
+            }]
+          }
         ]
 
     it "returns the newRange of the change", ->
@@ -224,8 +235,8 @@ describe "TextBuffer", ->
         }])
 
       it "still emits text change events (regression)", (done) ->
-        didChangeTextEvents = []
-        buffer.onDidChangeText (event) -> didChangeTextEvents.push(event)
+        didChangeEvents = []
+        buffer.onDidChange (event) -> didChangeEvents.push(event)
 
         buffer.onDidStopChanging ({changes}) ->
           assertChangesEqual(changes, [{
@@ -237,8 +248,8 @@ describe "TextBuffer", ->
           done()
 
         buffer.setTextInRange([[0, 0], [0, 1]], 'y', {undo: 'skip'})
-        expect(didChangeTextEvents.length).toBe(1)
-        assertChangesEqual(didChangeTextEvents[0].changes, [{
+        expect(didChangeEvents.length).toBe(1)
+        assertChangesEqual(didChangeEvents[0].changes, [{
           oldRange: [[0, 0], [0, 1]],
           newRange: [[0, 0], [0, 1]],
           oldText: 'h',
@@ -246,8 +257,8 @@ describe "TextBuffer", ->
         }])
 
         buffer.transact -> buffer.setTextInRange([[0, 0], [0, 1]], 'z', {undo: 'skip'})
-        expect(didChangeTextEvents.length).toBe(2)
-        assertChangesEqual(didChangeTextEvents[1].changes, [{
+        expect(didChangeEvents.length).toBe(2)
+        assertChangesEqual(didChangeEvents[1].changes, [{
           oldRange: [[0, 0], [0, 1]],
           newRange: [[0, 0], [0, 1]],
           oldText: 'y',
@@ -276,28 +287,28 @@ describe "TextBuffer", ->
           expect(changeEvents[1].newText).toBe "ms\r\ndo you\r\nlike\r\ndirt"
 
           buffer.setTextInRange([[5, 1], [5, 3]], '\r')
-          expect(changeEvents[2]).toEqual({
+          expect(changeEvents[2].changes).toEqual([{
             oldRange: [[5, 1], [5, 3]],
             newRange: [[5, 1], [6, 0]],
             oldText: 'ik',
             newText: '\r\n'
-          })
+          }])
 
           buffer.undo()
-          expect(changeEvents[3]).toEqual({
+          expect(changeEvents[3].changes).toEqual([{
             oldRange: [[5, 1], [6, 0]],
             newRange: [[5, 1], [5, 3]],
             oldText: '\r\n',
             newText: 'ik'
-          })
+          }])
 
           buffer.redo()
-          expect(changeEvents[4]).toEqual({
+          expect(changeEvents[4].changes).toEqual([{
             oldRange: [[5, 1], [5, 3]],
             newRange: [[5, 1], [6, 0]],
             oldText: 'ik',
             newText: '\r\n'
-          })
+          }])
 
       describe "when the range's start row has no line ending (because it's the last line of the buffer)", ->
         describe "when the buffer contains no newlines", ->
@@ -2255,14 +2266,51 @@ describe "TextBuffer", ->
       buffer.setText('\n')
       expect(buffer.isEmpty()).toBeFalsy()
 
-  describe "::onDidChangeText(callback)",  ->
+  describe "::onWillChange(callback)", ->
+    it "notifies observers before a transaction, an undo or a redo", ->
+      changeCount = 0
+      expectedText = ''
+
+      buffer = new TextBuffer()
+      checkpoint = buffer.createCheckpoint()
+
+      buffer.onWillChange (change) ->
+        expect(buffer.getText()).toBe expectedText
+        changeCount++
+
+      buffer.append('a')
+      expect(changeCount).toBe(1)
+      expectedText = 'a'
+
+      buffer.transact ->
+        buffer.append('b')
+        buffer.append('c')
+      expect(changeCount).toBe(2)
+      expectedText = 'abc'
+
+      # Empty transactions do not cause onWillChange listeners to be called
+      buffer.transact ->
+      expect(changeCount).toBe(2)
+
+      buffer.undo()
+      expect(changeCount).toBe(3)
+      expectedText = 'a'
+
+      buffer.redo()
+      expect(changeCount).toBe(4)
+      expectedText = 'abc'
+
+      buffer.revertToCheckpoint(checkpoint)
+      expect(changeCount).toBe(5)
+
+  describe "::onDidChange(callback)",  ->
     beforeEach ->
       filePath = require.resolve('./fixtures/sample.js')
       buffer = TextBuffer.loadSync(filePath)
 
     it "notifies observers after a transaction, an undo or a redo", ->
       textChanges = []
-      buffer.onDidChangeText ({changes}) -> textChanges.push(changes...)
+      buffer.onDidChange ({changes}) -> textChanges.push(changes...)
 
       buffer.insert([0, 0], "abc")
       buffer.delete([[0, 0], [0, 1]])
@@ -2356,12 +2404,12 @@ describe "TextBuffer", ->
 
     it "doesn't notify observers after an empty transaction", ->
       didChangeTextSpy = jasmine.createSpy()
-      buffer.onDidChangeText(didChangeTextSpy)
+      buffer.onDidChange(didChangeTextSpy)
       buffer.transact(->)
       expect(didChangeTextSpy).not.toHaveBeenCalled()
 
     it "doesn't throw an error when clearing the undo stack within a transaction", ->
-      buffer.onDidChangeText(didChangeTextSpy = jasmine.createSpy())
+      buffer.onDidChange(didChangeTextSpy = jasmine.createSpy())
       expect(-> buffer.transact(-> buffer.clearUndoStack())).not.toThrowError()
       expect(didChangeTextSpy).not.toHaveBeenCalled()
 
@@ -2430,8 +2478,8 @@ describe "TextBuffer", ->
               ])
               done()
 
-    it "provides the correct changes when the buffer is mutated in the onDidChangeText callback", (done) ->
-      buffer.onDidChangeText ({changes}) ->
+    it "provides the correct changes when the buffer is mutated in the onDidChange callback", (done) ->
+      buffer.onDidChange ({changes}) ->
         switch changes[0].newText
           when 'a'
             buffer.insert(changes[0].newRange.end, 'b')

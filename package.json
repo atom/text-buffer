@@ -1,6 +1,6 @@
 {
   "name": "text-buffer",
-  "version": "13.4.0-1",
+  "version": "13.8.1",
   "description": "A container for large mutable strings with annotated regions",
   "main": "./lib/text-buffer",
   "scripts": {
@@ -53,11 +53,11 @@
     "event-kit": "^2.4.0",
     "fs-admin": "^0.1.4",
     "fs-plus": "^3.0.0",
-    "grim": "^2.0.1",
+    "grim": "^2.0.2",
     "mkdirp": "^0.5.1",
     "pathwatcher": "8.0.1",
     "serializable": "^1.0.3",
-    "superstring": "^2.2.6",
+    "superstring": "^2.2.7",
     "underscore-plus": "^1.0.0"
   }
 }

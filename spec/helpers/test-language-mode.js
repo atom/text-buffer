@@ -16,7 +16,7 @@ class TestLanguageMode {
     this.invalidatedRanges = []
 
     if (this.buffer) {
-      this.buffer.onDidChangeText(() => {
+      this.buffer.onDidChange(() => {
         for (const invalidatedRange of this.invalidatedRanges) {
           this.emitHighlightingChangeEvent(invalidatedRange)
         }

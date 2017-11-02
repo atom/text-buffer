@@ -427,6 +427,39 @@ describe('DisplayLayer', () => {
       expect(displayLayer.getText()).toBe('abc\ndef\ngh⋯j')
     })
 
+    it('can destroy folds that contain an array of positions', () => {
+      const buffer = new TextBuffer({
+        text: 'abc\ndef\nghi\nj'
+      })
+
+      const displayLayer = buffer.addDisplayLayer()
+      displayLayer.foldBufferRange([[0, 1], [1, 2]])
+      displayLayer.foldBufferRange([[1, 1], [2, 2]])
+      displayLayer.foldBufferRange([[2, 1], [3, 0]])
+      displayLayer.foldBufferRange([[2, 2], [3, 0]])
+      expect(displayLayer.getText()).toBe('a⋯j')
+
+      // Exclude endpoints
+      verifyChangeEvent(displayLayer, () => {
+        displayLayer.destroyFoldsContainingBufferPositions([[1, 1], [2, 1]], true)
+      })
+      expect(displayLayer.getText()).toBe('abc\ndef\ng⋯j')
+
+      // Include endpoints
+      verifyChangeEvent(displayLayer, () => {
+        displayLayer.destroyFoldsContainingBufferPositions([[2, 2]], false)
+      })
+      expect(displayLayer.getText()).toBe('abc\ndef\nghi\nj')
+
+      // Clips before checking containment
+      displayLayer.foldBufferRange([[3, 0], [3, 1]])
+      expect(displayLayer.getText()).toBe('abc\ndef\nghi\n⋯')
+      verifyChangeEvent(displayLayer, () => {
+        displayLayer.destroyFoldsContainingBufferPositions([[3, Infinity]], false)
+      })
+      expect(displayLayer.getText()).toBe('abc\ndef\nghi\nj')
+    })
+
     it('allows all folds to be destroyed', () => {
       const buffer = new TextBuffer({
         text: 'abc\ndef\nghi\njkl\nmno'
@@ -1960,14 +1993,13 @@ describe('DisplayLayer', () => {
       buffer.setLanguageMode(languageMode)
       const allChanges = []
 
-      displayLayer.onDidChangeSync((changes) => allChanges.push(...changes))
+      displayLayer.onDidChange((changes) => allChanges.push(...changes))
 
       languageMode.emitHighlightingChangeEvent([[2, 1], [3, 2]])
 
       expect(allChanges).toEqual([{
-        start: Point(1, 0),
-        oldExtent: Point(2, 0),
-        newExtent: Point(2, 0)
+        oldRange: Range(Point(1, 0), Point(3, 0)),
+        newRange: Range(Point(1, 0), Point(3, 0))
       }])
     })
 
@@ -2135,6 +2167,128 @@ describe('DisplayLayer', () => {
       expect(displayLayer.translateBufferPosition([1, 8], {
         clipDirection: 'forward'
       })).toEqual([0, 8])
+    })
+  })
+
+  describe('.onDidChange', () => {
+    it('calls the given callback when the display layer\'s content changes', () => {
+      const buffer = new TextBuffer({
+        text: 'abc\ndef\nghi\njkl\nmno'
+      })
+
+      const displayLayer = buffer.addDisplayLayer({tabLength: 4})
+
+      const events = []
+      displayLayer.onDidChange((changes) => events.push(...changes))
+
+      displayLayer.foldBufferRange(Range(Point(1, 1), Point(2, 2)))
+      expect(events).toEqual([
+        {
+          oldRange: Range(Point(1, 0), Point(3, 0)),
+          newRange: Range(Point(1, 0), Point(2, 0))
+        }
+      ])
+
+      events.length = 0
+      displayLayer.foldBufferRange(Range(Point(3, 1), Point(4, 2)))
+      expect(events).toEqual([
+        {
+          oldRange: Range(Point(2, 0), Point(4, 0)),
+          newRange: Range(Point(2, 0), Point(3, 0))
+        }
+      ])
+
+      events.length = 0
+      displayLayer.destroyAllFolds()
+      expect(events).toEqual([
+        {
+          oldRange: Range(Point(1, 0), Point(3, 0)),
+          newRange: Range(Point(1, 0), Point(5, 0))
+        }
+      ])
+
+      // When multiple changes occur in a transaction, the changes are combined.
+      events.length = 0
+      buffer.transact(() => {
+        displayLayer.foldBufferRange(Range(Point(1, 1), Point(2, 2)))
+        displayLayer.foldBufferRange(Range(Point(3, 1), Point(4, 2)))
+      })
+      expect(events).toEqual([
+        {
+          oldRange: Range(Point(1, 0), Point(5, 0)),
+          newRange: Range(Point(1, 0), Point(3, 0))
+        }
+      ])
+    })
+
+    it('calls the callback only one time per text buffer transaction', () => {
+      const buffer = new TextBuffer({
+        text: 'abc\ndef\nghi\njkl\nmno'
+      })
+
+      const displayLayer = buffer.addDisplayLayer({tabLength: 4})
+
+      const events = []
+      displayLayer.onDidChange((changes) => events.push(changes))
+
+      const checkpoint = buffer.createCheckpoint()
+
+      buffer.transact(() => {
+        buffer.setTextInRange([[0, 1], [0, 1]], '\n')
+        buffer.setTextInRange([[4, 2], [4, 2]], '\n')
+        buffer.setTextInRange([[4, 2], [4, 2]], '.')
+        buffer.setTextInRange([[4, 3], [4, 3]], '.')
+        buffer.setTextInRange([[4, 4], [4, 4]], '.')
+      })
+      expect(events).toEqual([[
+        {
+          oldRange: Range(Point(0, 0), Point(1, 0)),
+          newRange: Range(Point(0, 0), Point(2, 0))
+        },
+        {
+          oldRange: Range(Point(3, 0), Point(4, 0)),
+          newRange: Range(Point(4, 0), Point(6, 0))
+        }
+      ]])
+
+      events.length = 0
+      buffer.undo()
+      expect(events).toEqual([[
+        {
+          oldRange: Range(Point(0, 0), Point(2, 0)),
+          newRange: Range(Point(0, 0), Point(1, 0))
+        },
+        {
+          oldRange: Range(Point(4, 0), Point(6, 0)),
+          newRange: Range(Point(3, 0), Point(4, 0))
+        }
+      ]])
+
+      events.length = 0
+      buffer.redo()
+      expect(events).toEqual([[
+        {
+          oldRange: Range(Point(0, 0), Point(1, 0)),
+          newRange: Range(Point(0, 0), Point(2, 0))
+        },
+        {
+          oldRange: Range(Point(3, 0), Point(4, 0)),
+          newRange: Range(Point(4, 0), Point(6, 0))
+        }
+      ]])
+
+      events.length = 0
+      buffer.revertToCheckpoint(checkpoint)
+      expect(events).toEqual([[
+        {
+          oldRange: Range(Point(0, 0), Point(2, 0)),
+          newRange: Range(Point(0, 0), Point(1, 0))
+        },
+        {
+          oldRange: Range(Point(4, 0), Point(6, 0)),
+          newRange: Range(Point(3, 0), Point(4, 0))
+        }
+      ]])
     })
   })
 
@@ -2435,7 +2589,7 @@ function verifyChangeEvent (displayLayer, fn) {
   displayLayerCopy.destroy()
 
   const allChanges = []
-  const disposable = displayLayer.onDidChangeSync(function (changes) {
+  const disposable = displayLayer.onDidChange((changes) => {
     allChanges.push(...changes)
   })
   fn()
@@ -2674,9 +2828,9 @@ function getTokenBoundaries (displayLayer, startRow = 0, endRow = displayLayer.g
 }
 
 function updateTokenLines (tokenLines, displayLayer, changes) {
-  for (const {start, oldExtent, newExtent} of changes || []) {
-    const newTokenLines = getTokens(displayLayer, start.row, start.row + newExtent.row)
-    tokenLines.splice(start.row, oldExtent.row, ...newTokenLines)
+  for (const {oldRange, newRange} of changes || []) {
+    const newTokenLines = getTokens(displayLayer, newRange.start.row, newRange.end.row)
+    tokenLines.splice(newRange.start.row, oldRange.end.row - oldRange.start.row, ...newTokenLines)
   }
 }
 

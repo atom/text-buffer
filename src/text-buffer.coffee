@@ -21,76 +21,63 @@ Grim = require 'grim'
 class TransactionAbortedError extends Error
   constructor: -> super
 
-class CompositeChangeEvent
-  constructor: (buffer, patch) ->
-    {oldStart: compositeStart, oldEnd, newEnd} = patch.getBounds()
-    @oldRange = new Range(compositeStart, oldEnd)
-    @newRange = new Range(compositeStart, newEnd)
+class ChangeEvent
+  constructor: (buffer, changes) ->
+    @changes = Object.freeze(normalizePatchChanges(changes))
+
+    start = changes[0].oldStart
+    oldEnd = changes[changes.length - 1].oldEnd
+    newEnd = changes[changes.length - 1].newEnd
+    @oldRange = new Range(start, oldEnd).freeze()
+    @newRange = new Range(start, newEnd).freeze()
 
     oldText = null
     newText = null
 
-    Object.defineProperty(this, 'didChange', {
-      enumerable: false,
-      writable: true,
-      value: false
-    })
-
     Object.defineProperty(this, 'oldText', {
-      enumerable: true,
+      enumerable: false,
       get: ->
         unless oldText?
-          if @didChange
-            oldBuffer = new NativeTextBuffer(@newText)
-            for change in patch.getChanges() by -1
-              oldBuffer.setTextInRange(
-                new Range(
-                  traversal(change.newStart, compositeStart),
-                  traversal(change.newEnd, compositeStart)
-                ),
-                change.oldText
-              )
-            oldText = oldBuffer.getText()
-          else
-            oldText = buffer.getTextInRange(@oldRange)
+          oldBuffer = new NativeTextBuffer(@newText)
+          for change in changes by -1
+            oldBuffer.setTextInRange(
+              new Range(
+                traversal(change.newStart, start),
+                traversal(change.newEnd, start)
+              ),
+              change.oldText
+            )
+          oldText = oldBuffer.getText()
         oldText
     })
 
     Object.defineProperty(this, 'newText', {
-      enumerable: true,
+      enumerable: false,
       get: ->
         unless newText?
-          if @didChange
-            newText = buffer.getTextInRange(@newRange)
-          else
-            newBuffer = new NativeTextBuffer(@oldText)
-            for change in patch.getChanges() by -1
-              newBuffer.setTextInRange(
-                new Range(
-                  traversal(change.oldStart, compositeStart),
-                  traversal(change.oldEnd, compositeStart)
-                ),
-                change.newText
-              )
-            newText = newBuffer.getText()
+          newText = buffer.getTextInRange(@newRange)
         newText
     })
+
+  isEqual: (other) ->
+    (
+      @changes.length is other.changes.length and
+      @changes.every((change, i) -> change.isEqual(other.changes[i])) and
+      @oldRange.isEqual(other.oldRange) and
+      @newRange.isEqual(other.newRange)
+    )
 
 # Extended: A mutable text container with undo/redo support and the ability to
 # annotate logical regions in the text.
 #
-# ## Working With Aggregated Changes
+# ## Observing Changes
 #
-# When observing changes to the buffer's textual content, it is important to use
-# change-aggregating methods such as {::onDidChangeText}, {::onDidStopChanging},
-# and {::getChangesSinceCheckpoint} in order to maintain high performance. These
-# methods allows your code to respond to *sets* of changes rather than each
-# individual change.
-#
-# These methods report aggregated buffer updates as arrays of change objects
-# containing the following fields: `oldRange`, `newRange`, `oldText`, and
-# `newText`. The `oldText`, `newText`, and `newRange` fields are
-# self-explanatory, but the interepretation of `oldRange` is more nuanced:
+# You can observe changes in a {TextBuffer} using methods like {::onDidChange},
+# {::onDidStopChanging}, and {::getChangesSinceCheckpoint}. These methods report
+# aggregated buffer updates as arrays of change objects containing the following
+# fields: `oldRange`, `newRange`, `oldText`, and `newText`. The `oldText`,
+# `newText`, and `newRange` fields are self-explanatory, but the interepretation
+# of `oldRange` is more nuanced:
 #
 # The reported `oldRange` is the range of the replaced text in the original
 # contents of the buffer *irrespective of the spatial impact of any other
@@ -99,7 +86,7 @@ class CompositeChangeEvent
 # be to apply the changes in reverse:
 #
 # ```js
-# buffer1.onDidChangeText(({changes}) => {
+# buffer1.onDidChange(({changes}) => {
 #   for (const {oldRange, newText} of changes.reverse()) {
 #     buffer2.setTextInRange(oldRange, newText)
 #   }
@@ -111,7 +98,7 @@ class CompositeChangeEvent
 # {::setTextInRange}, as follows:
 #
 # ```js
-# buffer1.onDidChangeText(({changes}) => {
+# buffer1.onDidChange(({changes}) => {
 #   for (const {oldRange, newRange, newText} of changes) {
 #     const rangeToReplace = Range(
 #       newRange.start,
@@ -182,6 +169,7 @@ class TextBuffer
     @nextMarkerId = 1
     @outstandingSaveCount = 0
     @loadCount = 0
+    @_emittedWillChangeEvent = false
 
     @setEncoding(params?.encoding)
     @setPreferredLineEnding(params?.preferredLineEnding)
@@ -351,35 +339,10 @@ class TextBuffer
   # any expensive operations via this method.
   #
   # * `callback` {Function} to be called when the buffer changes.
-  #   * `event` {Object} with the following keys:
-  #     * `oldRange` {Range} of the old text.
   #
   # Returns a {Disposable} on which `.dispose()` can be called to unsubscribe.
   onWillChange: (callback) ->
     @emitter.on 'will-change', callback
-
-  # Public: Invoke the given callback synchronously when the content of the
-  # buffer changes. **You should probably not be using this in packages**.
-  #
-  # Because observers are invoked synchronously, it's important not to perform
-  # any expensive operations via this method. Consider {::onDidStopChanging} to
-  # delay expensive operations until after changes stop occurring, or at the
-  # very least use {::onDidChangeText} to invoke your callback once *per
-  # transaction* rather than *once per change*. This will help prevent
-  # performance degredation when users of your package are typing with multiple
-  # cursors, and other scenarios in which multiple changes occur within
-  # transactions.
-  #
-  # * `callback` {Function} to be called when the buffer changes.
-  #   * `event` {Object} with the following keys:
-  #     * `oldRange` {Range} of the old text.
-  #     * `newRange` {Range} of the new text.
-  #     * `oldText` {String} containing the text that was replaced.
-  #     * `newText` {String} containing the text that was inserted.
-  #
-  # Returns a {Disposable} on which `.dispose()` can be called to unsubscribe.
-  onDidChange: (callback) ->
-    @emitter.on 'did-change', callback
 
   # Public: Invoke the given callback synchronously when a transaction finishes
   # with a list of all the changes in the transaction.
@@ -387,6 +350,8 @@ class TextBuffer
   # * `callback` {Function} to be called when a transaction in which textual
   #   changes occurred is completed.
   #   * `event` {Object} with the following keys:
+  #     * `oldRange` The smallest combined {Range} containing all of the old text.
+  #     * `newRange` The smallest combined {Range} containing all of the new text.
   #     * `changes` {Array} of {Object}s summarizing the aggregated changes
   #       that occurred during the transaction. See *Working With Aggregated
   #       Changes* in the description of the {TextBuffer} class for details.
@@ -399,11 +364,11 @@ class TextBuffer
   #       * `newText`: A {String} representing the inserted text.
   #
   # Returns a {Disposable} on which `.dispose()` can be called to unsubscribe.
-  onDidChangeText: (callback) ->
+  onDidChange: (callback) ->
     @emitter.on 'did-change-text', callback
 
-  preemptDidChange: (callback) ->
-    @emitter.preempt 'did-change', callback
+  # Public: This is now identical to {onDidChange}.
+  onDidChangeText: (callback) -> @onDidChange(callback)
 
   # Public: Invoke the given callback asynchronously following one or more
   # changes after {::getStoppedChangingDelay} milliseconds elapse without an
@@ -411,7 +376,7 @@ class TextBuffer
   #
   # This method can be used to perform potentially expensive operations that
   # don't need to be performed synchronously. If you need to run your callback
-  # synchronously, use {::onDidChangeText} instead.
+  # synchronously, use {::onDidChange} instead.
   #
   # * `callback` {Function} to be called when the buffer stops changing.
   #   * `event` {Object} with the following keys:
@@ -898,8 +863,8 @@ class TextBuffer
     changeEvent = {oldRange, newRange, oldText, newText}
     for id, displayLayer of @displayLayers
       displayLayer.bufferWillChange(changeEvent)
-    @emitter.emit 'will-change', {oldRange}
 
+    @emitWillChangeEvent()
     @buffer.setTextInRange(oldRange, newText)
 
     if @markerLayers?
@@ -914,18 +879,11 @@ class TextBuffer
     newRange
 
   emitDidChangeEvent: (changeEvent) ->
-    # Emit the change event to the language mode
-    @languageMode.bufferDidChange(changeEvent)
-    # Emit the change event on all the registered display layers.
-    changeEventsByDisplayLayer = new Map()
-    for id, displayLayer of @displayLayers
-      event = displayLayer.bufferDidChange(changeEvent)
-      changeEventsByDisplayLayer.set(displayLayer, event)
-    # Emit a normal `did-change` event for other subscribers too.
-    @emitter.emit 'did-change', changeEvent
-    # Emit a `did-change-sync` event from all the registered display layers.
-    changeEventsByDisplayLayer.forEach (event, displayLayer) ->
-      displayLayer.emitDidChangeSyncEvent(event)
+    unless changeEvent.oldRange.isEmpty() and changeEvent.newRange.isEmpty()
+      @languageMode.bufferDidChange(changeEvent)
+      for id, displayLayer of @displayLayers
+        event = displayLayer.bufferDidChange(changeEvent)
+    return
 
   # Public: Delete the text in the given range.
   #
@@ -1157,7 +1115,12 @@ class TextBuffer
   # Public: Undo the last operation. If a transaction is in progress, aborts it.
   undo: ->
     if pop = @historyProvider.undo()
-      @applyChange(change) for change in pop.textUpdates
+      @emitWillChangeEvent()
+      @transactCallDepth++
+      try
+        @applyChange(change) for change in pop.textUpdates
+      finally
+        @transactCallDepth--
       @restoreFromMarkerSnapshot(pop.markers)
       @emitDidChangeTextEvent()
       @emitMarkerChangeEvents(pop.markers)
@@ -1168,7 +1131,12 @@ class TextBuffer
   # Public: Redo the last operation
   redo: ->
     if pop = @historyProvider.redo()
-      @applyChange(change) for change in pop.textUpdates
+      @emitWillChangeEvent()
+      @transactCallDepth++
+      try
+        @applyChange(change) for change in pop.textUpdates
+      finally
+        @transactCallDepth--
       @restoreFromMarkerSnapshot(pop.markers)
       @emitDidChangeTextEvent()
       @emitMarkerChangeEvents(pop.markers)
@@ -1218,9 +1186,7 @@ class TextBuffer
   abortTransaction: ->
     throw new TransactionAbortedError("Transaction aborted.")
 
-  # Public: Clear the undo stack. When calling this method within a transaction,
-  # the {::onDidChangeText} event will not be triggered because the information
-  # describing the changes is lost.
+  # Public: Clear the undo stack.
   clearUndoStack: -> @historyProvider.clearUndoStack()
 
   # Public: Create a pointer to the current state of the buffer for use
@@ -1241,7 +1207,12 @@ class TextBuffer
   # Returns a {Boolean} indicating whether the operation succeeded.
   revertToCheckpoint: (checkpoint, options) ->
     if truncated = @historyProvider.revertToCheckpoint(checkpoint, options)
-      @applyChange(change) for change in truncated.textUpdates
+      @emitWillChangeEvent()
+      @transactCallDepth++
+      try
+        @applyChange(change) for change in truncated.textUpdates
+      finally
+        @transactCallDepth--
       @restoreFromMarkerSnapshot(truncated.markers)
       @emitDidChangeTextEvent()
       @emitter.emit 'did-update-markers'
@@ -1767,17 +1738,15 @@ class TextBuffer
       Grim.deprecate('The .loadSync instance method is deprecated. Create a loaded buffer using TextBuffer.loadSync(filePath) instead.')
 
     checkpoint = null
-    changeEvent = null
     try
       patch = @buffer.loadSync(
         @getPath(),
         @getEncoding(),
         (percentDone, patch) =>
           if patch and patch.getChangeCount() > 0
-            changeEvent = new CompositeChangeEvent(@buffer, patch)
             checkpoint = @historyProvider.createCheckpoint(markers: @createMarkerSnapshot(), isBarrier: true)
             @emitter.emit('will-reload')
-            @emitter.emit('will-change', changeEvent)
+            @emitWillChangeEvent()
       )
     catch error
       if not options.mustExist and error.code is 'ENOENT'
@@ -1786,7 +1755,7 @@ class TextBuffer
       else
         throw error
 
-    @finishLoading(changeEvent, checkpoint, patch)
+    @finishLoading(checkpoint, patch)
 
   load: (options) ->
     unless options?.internal
@@ -1798,7 +1767,6 @@ class TextBuffer
       @file.createReadStream()
 
     checkpoint = null
-    changeEvent = null
     loadCount = ++@loadCount
     @buffer.load(
       source,
@@ -1811,14 +1779,13 @@ class TextBuffer
         return false if @loadCount > loadCount
         if patch
           if patch.getChangeCount() > 0
-            changeEvent = new CompositeChangeEvent(@buffer, patch)
             checkpoint = @historyProvider.createCheckpoint(markers: @createMarkerSnapshot(), isBarrier: true)
             @emitter.emit('will-reload')
-            @emitter.emit('will-change', changeEvent)
+            @emitWillChangeEvent()
           else if options?.discardChanges
             @emitter.emit('will-reload')
     ).then((patch) =>
-      @finishLoading(changeEvent, checkpoint, patch, options)
+      @finishLoading(checkpoint, patch, options)
     ).catch((error) =>
       if not options?.mustExist and error.code is 'ENOENT'
         @emitter.emit('will-reload')
@@ -1828,8 +1795,8 @@ class TextBuffer
         throw error
     )
 
-  finishLoading: (changeEvent, checkpoint, patch, options) ->
-    if @isDestroyed() or (@loaded and not changeEvent? and patch?)
+  finishLoading: (checkpoint, patch, options) ->
+    if @isDestroyed() or (@loaded and not checkpoint? and patch?)
       if options?.discardChanges
         @emitter.emit('did-reload')
       return null
@@ -1861,12 +1828,10 @@ class TextBuffer
               traversal(change.newEnd, change.newStart)
             )
 
-      changeEvent.didChange = true
-      @emitDidChangeEvent(changeEvent)
-
       markersSnapshot = @createMarkerSnapshot()
       @historyProvider.groupChangesSinceCheckpoint(checkpoint, {markers: markersSnapshot, deleteCheckpoint: true})
 
+      @emitDidChangeEvent(new ChangeEvent(this, changes))
       @emitDidChangeTextEvent()
       @emitMarkerChangeEvents(markersSnapshot)
       @emitModifiedStatusChanged(@isModified())
@@ -1974,14 +1939,23 @@ class TextBuffer
     for markerLayerId, markerLayer of @markerLayers
       markerLayer.emitChangeEvents(snapshot?[markerLayerId])
 
+  emitWillChangeEvent: ->
+    unless @_emittedWillChangeEvent
+      @emitter.emit('will-change')
+      @_emittedWillChangeEvent = true
+
   emitDidChangeTextEvent: ->
-    if @transactCallDepth is 0 and @changesSinceLastDidChangeTextEvent.length > 0
-      compactedChanges = Object.freeze(normalizePatchChanges(
-        patchFromChanges(@changesSinceLastDidChangeTextEvent).getChanges()
-      ))
-      @changesSinceLastDidChangeTextEvent.length = 0
-      @emitter.emit 'did-change-text', {changes: compactedChanges}
-      @debouncedEmitDidStopChangingEvent()
+    if @transactCallDepth is 0
+      if @changesSinceLastDidChangeTextEvent.length > 0
+        compactedChanges = patchFromChanges(@changesSinceLastDidChangeTextEvent).getChanges()
+        @changesSinceLastDidChangeTextEvent.length = 0
+        if compactedChanges.length > 0
+          @emitter.emit 'did-change-text', new ChangeEvent(this, compactedChanges)
+        @debouncedEmitDidStopChangingEvent()
+        @_emittedWillChangeEvent = false
+      for id, displayLayer of @displayLayers
+        displayLayer.emitDeferredChangeEvents()
+    return
 
   # Identifies if the buffer belongs to multiple editors.
   #

@@ -159,6 +159,47 @@ describe('TextBuffer IO', () => {
       })
     })
 
+    it('notifies decoration layers and display layers of the change', (done) => {
+      fs.writeFileSync(filePath, 'abcdefGHIJK', 'utf8')
+
+      const events = []
+
+      const displayLayer = buffer.addDisplayLayer()
+      displayLayer.onDidChange((event) => events.push(['display-layer', event]))
+
+      buffer.setLanguageMode({
+        bufferDidChange ({oldRange, newRange, oldText, newText}) {
+          events.push(['decoration-layer', {oldRange, newRange, oldText, newText}])
+        },
+
+        onDidChangeHighlighting () {
+          return {dispose () {}}
+        }
+      })
+
+      buffer.reload().then(() => {
+        expect(events).toEqual([
+          [
+            'decoration-layer',
+            {
+              oldRange: Range(Point(0, 6), Point(0, 7)),
+              newRange: Range(Point(0, 6), Point(0, 11)),
+              oldText: 'g',
+              newText: 'GHIJK'
+            }
+          ],
+          [
+            'display-layer',
+            [{
+              oldRange: Range(Point(0, 0), Point(1, 0)),
+              newRange: Range(Point(0, 0), Point(1, 0))
+            }]
+          ]
+        ])
+        done()
+      })
+    })
+
     it('clears the contents of the buffer when the file doesn\t exist', (done) => {
       buffer.delete([[0, 0], [0, 2]])
 
@@ -193,18 +234,19 @@ describe('TextBuffer IO', () => {
       fs.writeFileSync(filePath, 'abcdXefg', 'utf8')
 
       {
-        const subscription = buffer.onDidChange(() => {
+        const subscription = buffer.onDidChange((event) => {
           subscription.dispose()
-          buffer.setText('')
-        })
-      }
 
-      {
-        const subscription = buffer.onDidChangeText(({changes}) => {
-          subscription.dispose()
-          expect(changes.length).toBe(1)
-          expect(changes[0].oldText).toBe('abcdefg')
-          expect(changes[0].newText).toBe('')
+          // Legacy properties
+          expect(event.oldRange).toEqual(Range(Point(0, 4), Point(0, 4)))
+          expect(event.newRange).toEqual(Range(Point(0, 4), Point(0, 5)))
+          expect(event.oldText).toBe('')
+          expect(event.newText).toBe('X')
+
+          expect(event.changes.length).toBe(1)
+          expect(event.changes[0].oldText).toBe('')
+          expect(event.changes[0].newText).toBe('X')
+          buffer.setText('')
         })
       }
 
@@ -217,6 +259,9 @@ describe('TextBuffer IO', () => {
           expect(changes[0].newText).toBe('')
 
           expect(buffer.getText()).toBe('')
+
+          buffer.undo()
+          expect(buffer.getText()).toBe('abcdXefg')
 
           buffer.undo()
           expect(buffer.getText()).toBe('abcdefg')
@@ -255,9 +300,8 @@ describe('TextBuffer IO', () => {
       expect(buffer.isModified()).toBe(true)
 
       const changeEvents = []
-      buffer.onWillChange((event) => changeEvents.push(['will-change', event]))
+      buffer.onWillChange(() => changeEvents.push(['will-change']))
       buffer.onDidChange((event) => changeEvents.push(['did-change', event]))
-      buffer.onDidChangeText((event) => changeEvents.push(['did-change-text', event]))
 
       buffer.save().then(() => {
         expect(buffer.isModified()).toBe(false)
@@ -877,15 +921,11 @@ describe('TextBuffer IO', () => {
 
       const events = []
       buffer.onWillReload((event) => events.push(['will-reload']))
-      buffer.onWillChange((event) => {
+      buffer.onWillChange(() => {
         expect(buffer.getText()).toEqual('abcde')
-        events.push(['will-change', event])
+        events.push(['will-change'])
       })
-      buffer.onDidChange((event) => {
-        expect(buffer.getText()).toEqual(newText)
-        events.push(['did-change', event])
-      })
-      buffer.onDidChangeText((event) => events.push(['did-change-text', event]))
+      buffer.onDidChange((event) => events.push(['did-change', event]))
       buffer.onDidReload((event) => events.push(['did-reload']))
 
       const markerB = buffer.markRange(Range(Point(0, 1), Point(0, 2)))
@@ -909,23 +949,12 @@ describe('TextBuffer IO', () => {
             'will-reload'
           ],
           [
-            'will-change', {
-              oldRange: Range(Point(0, 0), Point(0, 5)),
-              newRange: Range(Point(0, 0), Point(0, newText.length)),
-              oldText: 'abcde',
-              newText: newText
-            }
+            'will-change'
           ],
           [
             'did-change', {
               oldRange: Range(Point(0, 0), Point(0, 5)),
               newRange: Range(Point(0, 0), Point(0, newText.length)),
-              oldText: 'abcde',
-              newText: newText
-            }
-          ],
-          [
-            'did-change-text', {
               changes: [
                 {
                   oldRange: Range(Point.ZERO, Point.ZERO),
@@ -951,13 +980,12 @@ describe('TextBuffer IO', () => {
       })
     })
 
-    it('passes the smallest possible change event to onWillChange and onDidChange listeners', (done) => {
+    it('passes the smallest possible change event to onDidChange listeners', (done) => {
       fs.writeFileSync(buffer.getPath(), 'abc de ')
 
       const events = []
-      buffer.onWillChange((event) => events.push(['will-change', event]))
+      buffer.onWillChange(() => events.push(['will-change']))
       buffer.onDidChange((event) => events.push(['did-change', event]))
-      buffer.onDidChangeText((event) => events.push(['did-change-text', event]))
 
       const subscription = buffer.onDidReload(() => {
         subscription.dispose()
@@ -966,23 +994,12 @@ describe('TextBuffer IO', () => {
 
         expect(toPlainObject(events)).toEqual(toPlainObject([
           [
-            'will-change', {
-              oldRange: Range(Point(0, 3), Point(0, 5)),
-              newRange: Range(Point(0, 3), Point(0, 7)),
-              oldText: 'de',
-              newText: ' de '
-            }
+            'will-change'
           ],
           [
             'did-change', {
               oldRange: Range(Point(0, 3), Point(0, 5)),
               newRange: Range(Point(0, 3), Point(0, 7)),
-              oldText: 'de',
-              newText: ' de '
-            }
-          ],
-          [
-            'did-change-text', {
               changes: [
                 {
                   oldRange: Range(Point(0, 3), Point(0, 3)),
@@ -1010,7 +1027,6 @@ describe('TextBuffer IO', () => {
       buffer.onWillReload((event) => events.push(event))
       buffer.onDidReload((event) => events.push(event))
       buffer.onDidChange((event) => events.push(event))
-      buffer.onDidChangeText((event) => events.push(event))
       buffer.onDidConflict((event) => events.push(event))
 
       fs.writeFileSync(buffer.getPath(), 'abcde')
@@ -1027,9 +1043,8 @@ describe('TextBuffer IO', () => {
 
     it('does not fire duplicate change events when multiple changes happen on disk', (done) => {
       const changeEvents = []
-      buffer.onWillChange((event) => changeEvents.push('will-change'))
+      buffer.onWillChange(() => changeEvents.push('will-change'))
       buffer.onDidChange((event) => changeEvents.push('did-change'))
-      buffer.onDidChangeText((event) => changeEvents.push('did-change-text'))
 
       // We debounce file system change events to avoid redundant loads. But
       // for large files, another file system change event may occur *after* the
@@ -1059,9 +1074,9 @@ describe('TextBuffer IO', () => {
         }, buffer.fileChangeDelay + 50)
       }, buffer.fileChangeDelay + 50)
 
-      const subscription = buffer.onDidChangeText(() => {
+      const subscription = buffer.onDidChange(() => {
         if (buffer.getText() === 'abcdef') {
-          expect(changeEvents).toEqual(['will-change', 'did-change', 'did-change-text'])
+          expect(changeEvents).toEqual(['will-change', 'did-change'])
           subscription.dispose()
           done()
         }
