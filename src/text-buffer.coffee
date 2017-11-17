@@ -1713,10 +1713,10 @@ class TextBuffer
   #        that begin at the current position.
   setLanguageMode: (languageMode) ->
     if languageMode isnt @languageMode
-      @languageMode = languageMode
+      @languageMode = languageMode or new NullLanguageMode()
       for id, displayLayer of @displayLayers
         displayLayer.bufferDidChangeLanguageMode(languageMode)
-      @emitter.emit('did-change-language-mode')
+      @emitter.emit('did-change-language-mode', @languageMode)
     return
 
   # Experimental: Call the given callback whenever the buffer's language mode changes.

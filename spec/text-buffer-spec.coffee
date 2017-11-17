@@ -2514,6 +2514,26 @@ describe "TextBuffer", ->
       buffer.append("b\nc")
       expect(buffer.getText()).toBe "ab\nc"
 
+  describe "language modes", ->
+    it "notifies ::onDidChangeLanguageMode observers when the language mode changes", ->
+      buffer = new TextBuffer()
+      expect(buffer.getLanguageMode().getLanguageName()).toBe('None')
+
+      events = []
+      buffer.onDidChangeLanguageMode (event) -> events.push(event)
+
+      languageMode = {
+        getLanguageName: -> 'Mylang',
+        onDidChangeHighlighting: -> {dispose: ->}
+      }
+
+      buffer.setLanguageMode(languageMode)
+      expect(events).toEqual([languageMode])
+
+      buffer.setLanguageMode(null)
+      expect(events.length).toBe(2)
+      expect(events[1].getLanguageName()).toBe('None')
+
   describe "line ending support", ->
     beforeEach ->
       filePath = require.resolve('./fixtures/sample.js')
