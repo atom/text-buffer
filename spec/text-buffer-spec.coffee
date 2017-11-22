@@ -2514,7 +2514,36 @@ describe "TextBuffer", ->
       buffer.append("b\nc")
       expect(buffer.getText()).toBe "ab\nc"
 
-  describe "language modes", ->
+  describe "::setLanguageMode", ->
+    it "destroys the previous language mode", ->
+      buffer = new TextBuffer()
+
+      languageMode1 = {
+        alive: true,
+        getLanguageName: 'Language 1'
+        destroy: -> @alive = false
+        onDidChangeHighlighting: -> {dispose: ->}
+      }
+
+      languageMode2 = {
+        alive: true,
+        getLanguageName: 'Language 1'
+        destroy: -> @alive = false
+        onDidChangeHighlighting: -> {dispose: ->}
+      }
+
+      buffer.setLanguageMode(languageMode1)
+      expect(languageMode1.alive).toBe(true)
+      expect(languageMode2.alive).toBe(true)
+
+      buffer.setLanguageMode(languageMode2)
+      expect(languageMode1.alive).toBe(false)
+      expect(languageMode2.alive).toBe(true)
+
+      buffer.destroy()
+      expect(languageMode1.alive).toBe(false)
+      expect(languageMode2.alive).toBe(false)
+
     it "notifies ::onDidChangeLanguageMode observers when the language mode changes", ->
       buffer = new TextBuffer()
       expect(buffer.getLanguageMode().getLanguageName()).toBe('None')

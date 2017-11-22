@@ -1713,6 +1713,7 @@ class TextBuffer
   #        that begin at the current position.
   setLanguageMode: (languageMode) ->
     if languageMode isnt @languageMode
+      @languageMode.destroy?()
       @languageMode = languageMode or new NullLanguageMode()
       for id, displayLayer of @displayLayers
         displayLayer.bufferDidChangeLanguageMode(languageMode)
@@ -1859,6 +1860,7 @@ class TextBuffer
 
       @cachedText = null
       @historyProvider.clear?()
+      @languageMode.destroy?()
 
   isAlive: -> not @destroyed
 
