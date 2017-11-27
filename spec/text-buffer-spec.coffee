@@ -121,36 +121,25 @@ describe "TextBuffer", ->
           buffer.setTextInRange([[0, 2], [2, 3]], "y there\r\ncat\nwhat", normalizeLineEndings: false)
           buffer.setTextInRange([[1, 1], [1, 2]], "abc", normalizeLineEndings: false)
 
-        changeEvent1 = {
-          oldRange: [[0, 2], [2, 3]], newRange: [[0, 2], [2, 4]]
-          oldText: "llo\nworld\r\nhow", newText: "y there\r\ncat\nwhat",
-        }
-        changeEvent2 = {
-          oldRange: [[1, 1], [1, 2]], newRange: [[1, 1], [1, 4]]
-          oldText: "a", newText: "abc",
-        }
+        consolidatedChanges = [
+          {
+            oldRange: Range(Point(0, 2), Point(2, 3)),
+            newRange: Range(Point(0, 2), Point(2, 4)),
+            oldText: "llo\nworld\r\nhow",
+            newText: "y there\r\ncabct\nwhat"
+          }
+        ]
+
         expect(events).toEqual [
-          {source: 'language-mode', event: changeEvent1},
-          {source: 'display-layer-1', event: changeEvent1},
-          {source: 'display-layer-2', event: changeEvent1},
-
-          {source: 'language-mode', event: changeEvent2},
-          {source: 'display-layer-1', event: changeEvent2},
-          {source: 'display-layer-2', event: changeEvent2},
-
+          {source: 'language-mode', event: consolidatedChanges},
+          {source: 'display-layer-1', event: consolidatedChanges},
+          {source: 'display-layer-2', event: consolidatedChanges},
           {
             source: 'buffer',
             event: {
               oldRange: Range(Point(0, 2), Point(2, 3)),
               newRange: Range(Point(0, 2), Point(2, 4)),
-              changes: [
-                {
-                  oldRange: Range(Point(0, 2), Point(2, 3)),
-                  newRange: Range(Point(0, 2), Point(2, 4)),
-                  oldText: "llo\nworld\r\nhow",
-                  newText: "y there\r\ncabct\nwhat"
-                }
-              ]
+              changes: consolidatedChanges
             }
           },
           {

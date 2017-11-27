@@ -780,33 +780,37 @@ class DisplayLayer {
     this.populateSpatialIndexIfNeeded(endRow + 1, Infinity)
   }
 
-  bufferDidChange ({oldRange, newRange}) {
-    let startRow = oldRange.start.row
-    let oldEndRow = oldRange.end.row
-    let newEndRow = newRange.end.row
+  bufferDidChange (changes) {
+    for (let i = changes.length - 1; i >= 0; i--) {
+      const {oldRange, newRange} = changes[i]
 
-    // Indent guides on sequences of blank lines are affected by the content of
-    // adjacent lines.
-    if (this.showIndentGuides) {
-      while (startRow > 0) {
-        if (this.buffer.lineLengthForRow(startRow - 1) > 0) break
-        startRow--
+      let startRow = oldRange.start.row
+      let oldEndRow = oldRange.end.row
+      let newEndRow = startRow + newRange.end.row - newRange.start.row
+
+      // Indent guides on sequences of blank lines are affected by the content of
+      // adjacent lines.
+      if (this.showIndentGuides) {
+        while (startRow > 0) {
+          if (this.buffer.lineLengthForRow(startRow - 1) > 0) break
+          startRow--
+        }
+
+        while (newEndRow < this.buffer.getLastRow()) {
+          if (this.buffer.lineLengthForRow(newEndRow + 1) > 0) break
+          oldEndRow++
+          newEndRow++
+        }
       }
 
-      while (newEndRow < this.buffer.getLastRow()) {
-        if (this.buffer.lineLengthForRow(newEndRow + 1) > 0) break
-        oldEndRow++
-        newEndRow++
-      }
+      this.indexedBufferRowCount += newEndRow - oldEndRow
+      this.didChange(this.updateSpatialIndex(startRow, oldEndRow + 1, newEndRow + 1, Infinity), false)
     }
-
-    this.indexedBufferRowCount += newEndRow - oldEndRow
-    this.didChange(this.updateSpatialIndex(startRow, oldEndRow + 1, newEndRow + 1, Infinity))
   }
 
-  didChange ({start, oldExtent, newExtent}) {
+  didChange ({start, oldExtent, newExtent}, allowEmitting = true) {
     this.changesSinceLastEvent.splice(start, oldExtent, newExtent)
-    if (this.buffer.transactCallDepth === 0) this.emitDeferredChangeEvents()
+    if (allowEmitting && this.buffer.transactCallDepth === 0) this.emitDeferredChangeEvents()
   }
 
   emitDeferredChangeEvents () {

@@ -15,6 +15,10 @@ process.on('unhandledRejection', console.error)
 describe('TextBuffer IO', () => {
   let buffer, buffer2
 
+  beforeEach(() => {
+    jasmine.addCustomEqualityTester(require('underscore-plus').isEqual)
+  })
+
   afterEach(() => {
     if (buffer) buffer.destroy()
     if (buffer2) buffer2.destroy()
@@ -168,8 +172,8 @@ describe('TextBuffer IO', () => {
       displayLayer.onDidChange((event) => events.push(['display-layer', event]))
 
       buffer.setLanguageMode({
-        bufferDidChange ({oldRange, newRange, oldText, newText}) {
-          events.push(['decoration-layer', {oldRange, newRange, oldText, newText}])
+        bufferDidChange (changes) {
+          events.push(['decoration-layer', changes])
         },
 
         onDidChangeHighlighting () {
@@ -178,15 +182,15 @@ describe('TextBuffer IO', () => {
       })
 
       buffer.reload().then(() => {
-        expect(events).toEqual([
+        expect(events[0]).toEqual([
           [
             'decoration-layer',
-            {
+            [{
               oldRange: Range(Point(0, 6), Point(0, 7)),
               newRange: Range(Point(0, 6), Point(0, 11)),
               oldText: 'g',
               newText: 'GHIJK'
-            }
+            }]
           ],
           [
             'display-layer',
@@ -195,7 +199,7 @@ describe('TextBuffer IO', () => {
               newRange: Range(Point(0, 0), Point(1, 0))
             }]
           ]
-        ])
+        ][0])
         done()
       })
     })
@@ -944,7 +948,7 @@ describe('TextBuffer IO', () => {
         expect(markerB.isValid()).toBe(true)
         expect(markerD.isValid()).toBe(false)
 
-        expect(toPlainObject(events)).toEqual(toPlainObject([
+        expect(events).toEqual([
           [
             'will-reload'
           ],
@@ -974,7 +978,7 @@ describe('TextBuffer IO', () => {
           [
             'did-reload'
           ]
-        ]))
+        ])
 
         done()
       })
@@ -992,7 +996,7 @@ describe('TextBuffer IO', () => {
 
         expect(buffer.getText()).toBe('abc de ')
 
-        expect(toPlainObject(events)).toEqual(toPlainObject([
+        expect(events).toEqual([
           [
             'will-change'
           ],
@@ -1016,7 +1020,7 @@ describe('TextBuffer IO', () => {
               ]
             }
           ]
-        ]))
+        ])
 
         done()
       })
@@ -1220,8 +1224,4 @@ function stopChangingPromise () {
 
 function timeoutPromise (duration) {
   return new Promise((resolve) => setTimeout(resolve, duration))
-}
-
-function toPlainObject (value) {
-  return JSON.parse(JSON.stringify(value))
 }

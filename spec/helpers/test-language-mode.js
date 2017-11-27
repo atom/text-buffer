@@ -41,13 +41,15 @@ class TestLanguageMode {
     return this.emitter.on('did-change-highlighting', fn)
   }
 
-  bufferDidChange ({oldRange, newRange}) {
-    this.invalidatedRanges.push(Range.fromObject(newRange))
-    const {inside, overlap} = this.markerIndex.splice(oldRange.start, oldRange.getExtent(), newRange.getExtent())
-    overlap.forEach((id) => this.invalidatedRanges.push(Range.fromObject(this.markerIndex.getRange(id))))
-    inside.forEach((id) => this.invalidatedRanges.push(Range.fromObject(this.markerIndex.getRange(id))))
-
-    this.insertRandomDecorations(oldRange, newRange)
+  bufferDidChange (changes) {
+    for (let i = changes.length - 1; i >= 0; i--) {
+      const {oldRange, newRange} = changes[i]
+      this.invalidatedRanges.push(Range.fromObject(newRange))
+      const {inside, overlap} = this.markerIndex.splice(oldRange.start, oldRange.getExtent(), newRange.getExtent())
+      overlap.forEach((id) => this.invalidatedRanges.push(Range.fromObject(this.markerIndex.getRange(id))))
+      inside.forEach((id) => this.invalidatedRanges.push(Range.fromObject(this.markerIndex.getRange(id))))
+      this.insertRandomDecorations(oldRange, newRange)
+    }
   }
 
   emitHighlightingChangeEvent (range) {

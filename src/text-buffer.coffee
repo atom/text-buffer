@@ -23,11 +23,10 @@ class TransactionAbortedError extends Error
 
 class ChangeEvent
   constructor: (buffer, changes) ->
-    @changes = Object.freeze(normalizePatchChanges(changes))
-
-    start = changes[0].oldStart
-    oldEnd = changes[changes.length - 1].oldEnd
-    newEnd = changes[changes.length - 1].newEnd
+    @changes = changes
+    start = changes[0].oldRange.start
+    oldEnd = changes[changes.length - 1].oldRange.end
+    newEnd = changes[changes.length - 1].newRange.end
     @oldRange = new Range(start, oldEnd).freeze()
     @newRange = new Range(start, newEnd).freeze()
 
@@ -42,8 +41,8 @@ class ChangeEvent
           for change in changes by -1
             oldBuffer.setTextInRange(
               new Range(
-                traversal(change.newStart, start),
-                traversal(change.newEnd, start)
+                traversal(change.newRange.start, start),
+                traversal(change.newRange.end, start)
               ),
               change.oldText
             )
@@ -875,15 +874,7 @@ class TextBuffer
     @cachedText = null
     @changesSinceLastDidChangeTextEvent.push(change)
     @changesSinceLastStoppedChangingEvent.push(change)
-    @emitDidChangeEvent(changeEvent)
     newRange
-
-  emitDidChangeEvent: (changeEvent) ->
-    unless changeEvent.oldRange.isEmpty() and changeEvent.newRange.isEmpty()
-      @languageMode.bufferDidChange(changeEvent)
-      for id, displayLayer of @displayLayers
-        event = displayLayer.bufferDidChange(changeEvent)
-    return
 
   # Public: Delete the text in the given range.
   #
@@ -1832,7 +1823,6 @@ class TextBuffer
       markersSnapshot = @createMarkerSnapshot()
       @historyProvider.groupChangesSinceCheckpoint(checkpoint, {markers: markersSnapshot, deleteCheckpoint: true})
 
-      @emitDidChangeEvent(new ChangeEvent(this, changes))
       @emitDidChangeTextEvent()
       @emitMarkerChangeEvents(markersSnapshot)
       @emitModifiedStatusChanged(@isModified())
@@ -1949,9 +1939,13 @@ class TextBuffer
   emitDidChangeTextEvent: ->
     if @transactCallDepth is 0
       if @changesSinceLastDidChangeTextEvent.length > 0
-        compactedChanges = patchFromChanges(@changesSinceLastDidChangeTextEvent).getChanges()
+        patch = patchFromChanges(@changesSinceLastDidChangeTextEvent)
+        compactedChanges = Object.freeze(normalizePatchChanges(patch.getChanges()))
         @changesSinceLastDidChangeTextEvent.length = 0
         if compactedChanges.length > 0
+          @languageMode.bufferDidChange(compactedChanges)
+          for id, displayLayer of @displayLayers
+            event = displayLayer.bufferDidChange(compactedChanges)
           @emitter.emit 'did-change-text', new ChangeEvent(this, compactedChanges)
         @debouncedEmitDidStopChangingEvent()
         @_emittedWillChangeEvent = false
