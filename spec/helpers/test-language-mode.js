@@ -5,7 +5,7 @@ const Range = require('../../src/range')
 const {MAX_BUILT_IN_SCOPE_ID} = require('../../src/constants')
 
 module.exports =
-class TestDecorationLayer {
+class TestLanguageMode {
   constructor (decorations, buffer, random) {
     this.buffer = buffer
     this.random = random
@@ -13,6 +13,16 @@ class TestDecorationLayer {
     this.markerIndex = new MarkerIndex()
     this.classNamesByScopeId = new Map()
     this.emitter = new Emitter()
+    this.invalidatedRanges = []
+
+    if (this.buffer) {
+      this.buffer.onDidChange(() => {
+        for (const invalidatedRange of this.invalidatedRanges) {
+          this.emitHighlightingChangeEvent(invalidatedRange)
+        }
+        this.invalidatedRanges = []
+      })
+    }
 
     for (let value of decorations) {
       const className = value[0]
@@ -21,10 +31,27 @@ class TestDecorationLayer {
       this.markerIndex.insert(markerId, Point.fromObject(rangeStart), Point.fromObject(rangeEnd))
       this.classNamesByScopeId.set(markerId, className)
     }
+  }
 
-    if (this.buffer) {
-      this.buffer.registerTextDecorationLayer(this)
-    }
+  buildHighlightIterator () {
+    return new TestHighlightIterator(this)
+  }
+
+  onDidChangeHighlighting (fn) {
+    return this.emitter.on('did-change-highlighting', fn)
+  }
+
+  bufferDidChange ({oldRange, newRange}) {
+    this.invalidatedRanges.push(Range.fromObject(newRange))
+    const {inside, overlap} = this.markerIndex.splice(oldRange.start, oldRange.getExtent(), newRange.getExtent())
+    overlap.forEach((id) => this.invalidatedRanges.push(Range.fromObject(this.markerIndex.getRange(id))))
+    inside.forEach((id) => this.invalidatedRanges.push(Range.fromObject(this.markerIndex.getRange(id))))
+
+    this.insertRandomDecorations(oldRange, newRange)
+  }
+
+  emitHighlightingChangeEvent (range) {
+    this.emitter.emit('did-change-highlighting', range)
   }
 
   getNextMarkerId () {
@@ -35,29 +62,6 @@ class TestDecorationLayer {
 
   classNameForScopeId (scopeId) {
     return this.classNamesByScopeId.get(scopeId)
-  }
-
-  buildIterator () {
-    return new TestDecorationLayerIterator(this)
-  }
-
-  getInvalidatedRanges () { return this.invalidatedRanges }
-
-  onDidInvalidateRange (fn) {
-    return this.emitter.on('did-invalidate-range', fn)
-  }
-
-  emitInvalidateRangeEvent (range) {
-    return this.emitter.emit('did-invalidate-range', range)
-  }
-
-  bufferDidChange ({oldRange, newRange}) {
-    this.invalidatedRanges = [Range.fromObject(newRange)]
-    const {inside, overlap} = this.markerIndex.splice(oldRange.start, oldRange.getExtent(), newRange.getExtent())
-    overlap.forEach((id) => this.invalidatedRanges.push(this.markerIndex.getRange(id)))
-    inside.forEach((id) => this.invalidatedRanges.push(this.markerIndex.getRange(id)))
-
-    this.insertRandomDecorations(oldRange, newRange)
   }
 
   insertRandomDecorations (oldRange, newRange) {
@@ -101,7 +105,7 @@ class TestDecorationLayer {
   }
 }
 
-class TestDecorationLayerIterator {
+class TestHighlightIterator {
   constructor (layer) {
     this.layer = layer
   }

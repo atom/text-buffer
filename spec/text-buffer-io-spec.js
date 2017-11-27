@@ -167,9 +167,13 @@ describe('TextBuffer IO', () => {
       const displayLayer = buffer.addDisplayLayer()
       displayLayer.onDidChange((event) => events.push(['display-layer', event]))
 
-      buffer.registerTextDecorationLayer({
+      buffer.setLanguageMode({
         bufferDidChange ({oldRange, newRange, oldText, newText}) {
           events.push(['decoration-layer', {oldRange, newRange, oldText, newText}])
+        },
+
+        onDidChangeHighlighting () {
+          return {dispose () {}}
         }
       })
 

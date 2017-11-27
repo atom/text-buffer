@@ -97,16 +97,13 @@ describe "TextBuffer", ->
       expect(buffer.getText()).toEqual "hey\nyou're old\r\nhow are you doing?"
 
     describe "after a change", ->
-      it "notifies, in order, decoration layers, display layers, and display layer ::onDidChange observers with the relevant details", ->
+      it "notifies, in order: the language mode, display layers, and display layer ::onDidChange observers with the relevant details", ->
         buffer = new TextBuffer("hello\nworld\r\nhow are you doing?")
 
         events = []
-        textDecorationLayer1 = {
-          bufferDidChange: (e) -> events.push({source: 'decoration-layer-1', event: e})
-        }
-        textDecorationLayer2 = {
-          bufferDidChange: (e) -> events.push({source: 'decoration-layer-2', event: e}),
-          jasmineToString: -> '<TextDecorationLayer2>'
+        languageMode = {
+          bufferDidChange: (e) -> events.push({source: 'language-mode', event: e}),
+          onDidChangeHighlighting: -> {dispose: ->}
         }
         displayLayer1 = buffer.addDisplayLayer()
         displayLayer2 = buffer.addDisplayLayer()
@@ -116,9 +113,7 @@ describe "TextBuffer", ->
         spyOn(displayLayer2, 'bufferDidChange').and.callFake (e) ->
           events.push({source: 'display-layer-2', event: e})
           DisplayLayer.prototype.bufferDidChange.call(displayLayer2, e)
-        buffer.registerTextDecorationLayer(textDecorationLayer1)
-        buffer.registerTextDecorationLayer(textDecorationLayer1) # insert a duplicate decoration layer
-        buffer.registerTextDecorationLayer(textDecorationLayer2)
+        buffer.setLanguageMode(languageMode)
         buffer.onDidChange (e) -> events.push({source: 'buffer', event: JSON.parse(JSON.stringify(e))})
         displayLayer1.onDidChange (e) -> events.push({source: 'display-layer-event', event: e})
 
@@ -135,13 +130,11 @@ describe "TextBuffer", ->
           oldText: "a", newText: "abc",
         }
         expect(events).toEqual [
-          {source: 'decoration-layer-1', event: changeEvent1},
-          {source: 'decoration-layer-2', event: changeEvent1},
+          {source: 'language-mode', event: changeEvent1},
           {source: 'display-layer-1', event: changeEvent1},
           {source: 'display-layer-2', event: changeEvent1},
 
-          {source: 'decoration-layer-1', event: changeEvent2},
-          {source: 'decoration-layer-2', event: changeEvent2},
+          {source: 'language-mode', event: changeEvent2},
           {source: 'display-layer-1', event: changeEvent2},
           {source: 'display-layer-2', event: changeEvent2},
 
@@ -2520,6 +2513,55 @@ describe "TextBuffer", ->
       expect(buffer.getText()).toBe "a"
       buffer.append("b\nc")
       expect(buffer.getText()).toBe "ab\nc"
+
+  describe "::setLanguageMode", ->
+    it "destroys the previous language mode", ->
+      buffer = new TextBuffer()
+
+      languageMode1 = {
+        alive: true,
+        getLanguageName: 'Language 1'
+        destroy: -> @alive = false
+        onDidChangeHighlighting: -> {dispose: ->}
+      }
+
+      languageMode2 = {
+        alive: true,
+        getLanguageName: 'Language 1'
+        destroy: -> @alive = false
+        onDidChangeHighlighting: -> {dispose: ->}
+      }
+
+      buffer.setLanguageMode(languageMode1)
+      expect(languageMode1.alive).toBe(true)
+      expect(languageMode2.alive).toBe(true)
+
+      buffer.setLanguageMode(languageMode2)
+      expect(languageMode1.alive).toBe(false)
+      expect(languageMode2.alive).toBe(true)
+
+      buffer.destroy()
+      expect(languageMode1.alive).toBe(false)
+      expect(languageMode2.alive).toBe(false)
+
+    it "notifies ::onDidChangeLanguageMode observers when the language mode changes", ->
+      buffer = new TextBuffer()
+      expect(buffer.getLanguageMode().getLanguageName()).toBe('None')
+
+      events = []
+      buffer.onDidChangeLanguageMode (event) -> events.push(event)
+
+      languageMode = {
+        getLanguageName: -> 'Mylang',
+        onDidChangeHighlighting: -> {dispose: ->}
+      }
+
+      buffer.setLanguageMode(languageMode)
+      expect(events).toEqual([languageMode])
+
+      buffer.setLanguageMode(null)
+      expect(events.length).toBe(2)
+      expect(events[1].getLanguageName()).toBe('None')
 
   describe "line ending support", ->
     beforeEach ->
