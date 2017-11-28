@@ -8,7 +8,6 @@ class NullLanguageMode {
   bufferDidChange () {}
   buildHighlightIterator () { return new NullHighlightIterator() }
   onDidChangeHighlighting () { return new Disposable(() => {}) }
-  getLanguageName () { return 'None' }
 }
 
 class NullHighlightIterator {

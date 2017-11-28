@@ -10,6 +10,7 @@ DefaultHistoryProvider = require '../src/default-history-provider'
 TextBuffer = require '../src/text-buffer'
 SampleText = fs.readFileSync(join(__dirname, 'fixtures', 'sample.js'), 'utf8')
 {buildRandomLines, getRandomBufferRange} = require './helpers/random'
+NullLanguageMode = require '../src/null-language-mode'
 
 describe "TextBuffer", ->
   buffer = null
@@ -2520,14 +2521,12 @@ describe "TextBuffer", ->
 
       languageMode1 = {
         alive: true,
-        getLanguageName: 'Language 1'
         destroy: -> @alive = false
         onDidChangeHighlighting: -> {dispose: ->}
       }
 
       languageMode2 = {
         alive: true,
-        getLanguageName: 'Language 1'
         destroy: -> @alive = false
         onDidChangeHighlighting: -> {dispose: ->}
       }
@@ -2546,22 +2545,24 @@ describe "TextBuffer", ->
 
     it "notifies ::onDidChangeLanguageMode observers when the language mode changes", ->
       buffer = new TextBuffer()
-      expect(buffer.getLanguageMode().getLanguageName()).toBe('None')
+      expect(buffer.getLanguageMode() instanceof NullLanguageMode).toBe(true)
 
       events = []
       buffer.onDidChangeLanguageMode (event) -> events.push(event)
 
       languageMode = {
-        getLanguageName: -> 'Mylang',
         onDidChangeHighlighting: -> {dispose: ->}
       }
 
       buffer.setLanguageMode(languageMode)
-      expect(events).toEqual([languageMode])
+      expect(buffer.getLanguageMode()).toBe(languageMode)
+      expect(events.length).toBe(1)
+      expect(events[0]).toBe(languageMode)
 
       buffer.setLanguageMode(null)
+      expect(buffer.getLanguageMode() instanceof NullLanguageMode).toBe(true)
       expect(events.length).toBe(2)
-      expect(events[1].getLanguageName()).toBe('None')
+      expect(events[1]).toBe(buffer.getLanguageMode())
 
   describe "line ending support", ->
     beforeEach ->
