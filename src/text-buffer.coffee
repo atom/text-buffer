@@ -943,15 +943,15 @@ class TextBuffer
 
   # Public: Create a layer to contain a set of related markers.
   #
-  # * `options` An object contaning the following keys:
-  #   * `maintainHistory` A {Boolean} indicating whether or not the state of
-  #     this layer should be restored on undo/redo operations. Defaults to
-  #     `false`.
-  #   * `persistent` A {Boolean} indicating whether or not this marker layer
-  #     should be serialized and deserialized along with the rest of the
-  #     buffer. Defaults to `false`. If `true`, the marker layer's id will be
-  #     maintained across the serialization boundary, allowing you to retrieve
-  #     it via {::getMarkerLayer}.
+  # * `options` (optional) An object contaning the following keys:
+  #   * `maintainHistory` (optional) A {Boolean} indicating whether or not the
+  #     state of this layer should be restored on undo/redo operations. Defaults
+  #     to `false`.
+  #   * `persistent` (optional) A {Boolean} indicating whether or not this
+  #     marker layer should be serialized and deserialized along with the rest
+  #     of the buffer. Defaults to `false`. If `true`, the marker layer's id
+  #     will be maintained across the serialization boundary, allowing you to
+  #     retrieve it via {::getMarkerLayer}.
   #
   # Returns a {MarkerLayer}.
   addMarkerLayer: (options) ->
