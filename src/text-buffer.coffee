@@ -667,9 +667,10 @@ class TextBuffer
   getLastLine: ->
     @lineForRow(@getLastRow())
 
-  # Public: Get the text of the line at the given row, without its line ending.
+  # Public: Get the text of the line at the given 0-indexed row, without its
+  # line ending.
   #
-  # * `row` A {Number} representing a 0-indexed row.
+  # * `row` A {Number} representing the row.
   #
   # Returns a {String}.
   lineForRow: (row) -> @buffer.lineForRow(row)
