@@ -963,7 +963,7 @@ class TextBuffer
   #
   # * `id` The id of the marker layer to retrieve.
   #
-  # Returns a {MarkerLayer} or `undefined` if no layer exists with the given
+  # Returns a {MarkerLayer} or undefined if no layer exists with the given
   # id.
   getMarkerLayer: (id) ->
     @markerLayers[id]
