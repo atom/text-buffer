@@ -894,15 +894,15 @@ class TextBuffer
   delete: (range) ->
     @setTextInRange(range, '')
 
-  # Public: Delete the line associated with a specified row.
+  # Public: Delete the line associated with a specified 0-indexed row.
   #
-  # * `row` A {Number} representing the 0-indexed row to delete.
+  # * `row` A {Number} representing the row to delete.
   #
   # Returns the {Range} of the deleted text.
   deleteRow: (row) ->
     @deleteRows(row, row)
 
-  # Public: Delete the lines associated with the specified row range.
+  # Public: Delete the lines associated with the specified 0-indexed row range.
   #
   # If the row range is out of bounds, it will be clipped. If the startRow is
   # greater than the end row, they will be reordered.
