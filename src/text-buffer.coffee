@@ -904,8 +904,8 @@ class TextBuffer
 
   # Public: Delete the lines associated with the specified 0-indexed row range.
   #
-  # If the row range is out of bounds, it will be clipped. If the startRow is
-  # greater than the end row, they will be reordered.
+  # If the row range is out of bounds, it will be clipped. If the `startRow` is
+  # greater than the `endRow`, they will be reordered.
   #
   # * `startRow` A {Number} representing the first row to delete.
   # * `endRow` A {Number} representing the last row to delete, inclusive.
