@@ -1184,6 +1184,9 @@ class TextBuffer
     @emitMarkerChangeEvents(endMarkerSnapshot)
     result
 
+  # Public: Abort the currently running transaction
+  #
+  # Only intended to be called within the `fn` option to {::transact}
   abortTransaction: ->
     throw new TransactionAbortedError("Transaction aborted.")
 
