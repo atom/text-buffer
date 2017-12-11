@@ -970,17 +970,17 @@ class TextBuffer
 
   # Public: Get the default {MarkerLayer}.
   #
-  # All marker APIs not tied to an explicit layer interact with this default
+  # All {Marker} APIs not tied to an explicit layer interact with this default
   # layer.
   #
   # Returns a {MarkerLayer}.
   getDefaultMarkerLayer: ->
     @defaultMarkerLayer
 
-  # Public: Create a marker with the given range in the default marker layer.
-  # This marker will maintain its logical location as the buffer is changed, so
-  # if you mark a particular word, the marker will remain over that word even if
-  # the word's location in the buffer changes.
+  # Public: Create a {Marker} with the given range in the default {MarkerLayer}.
+  # This marker will maintain its logical location as the buffer is changed,
+  # so if you mark a particular word, the marker will remain over that word
+  # even if the word's location in the buffer changes.
   #
   # * `range` A {Range} or range-compatible {Array}
   # * `properties` A hash of key-value pairs to associate with the marker. There
@@ -1011,7 +1011,7 @@ class TextBuffer
   # Returns a {Marker}.
   markRange: (range, properties) -> @defaultMarkerLayer.markRange(range, properties)
 
-  # Public: Create a marker at the given position with no tail in the default
+  # Public: Create a {Marker} at the given position with no tail in the default
   # marker layer.
   #
   # * `position` {Point} or point-compatible {Array}
