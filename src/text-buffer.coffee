@@ -1115,6 +1115,8 @@ class TextBuffer
     }
 
   # Public: Undo the last operation. If a transaction is in progress, aborts it.
+  #
+  # Returns a {Boolean} of whether or not a change was made.
   undo: ->
     if pop = @historyProvider.undo()
       @emitWillChangeEvent()
@@ -1131,6 +1133,8 @@ class TextBuffer
       false
 
   # Public: Redo the last operation
+  #
+  # Returns a {Boolean} of whether or not a change was made.
   redo: ->
     if pop = @historyProvider.redo()
       @emitWillChangeEvent()
