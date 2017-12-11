@@ -1201,7 +1201,7 @@ class TextBuffer
   # Public: Create a pointer to the current state of the buffer for use
   # with {::revertToCheckpoint} and {::groupChangesSinceCheckpoint}.
   #
-  # Returns a checkpoint value.
+  # Returns a checkpoint id value.
   createCheckpoint: ->
     @historyProvider.createCheckpoint(markers: @createMarkerSnapshot(), isBarrier: false)
 
@@ -1213,9 +1213,11 @@ class TextBuffer
   # undo history, no changes will be made to the buffer and this method will
   # return `false`.
   #
+  # * `checkpoint` {Number} id of the checkpoint to revert to.
+  #
   # Returns a {Boolean} indicating whether the operation succeeded.
-  revertToCheckpoint: (checkpoint, options) ->
-    if truncated = @historyProvider.revertToCheckpoint(checkpoint, options)
+  revertToCheckpoint: (checkpoint) ->
+    if truncated = @historyProvider.revertToCheckpoint(checkpoint)
       @emitWillChangeEvent()
       @transactCallDepth++
       try
@@ -1236,6 +1238,8 @@ class TextBuffer
   # If the given checkpoint is no longer present in the undo history, no
   # grouping will be performed and this method will return `false`.
   #
+  # * `checkpoint` {Number} id of the checkpoint to group changes since.
+  #
   # Returns a {Boolean} indicating whether the operation succeeded.
   groupChangesSinceCheckpoint: (checkpoint) ->
     @historyProvider.groupChangesSinceCheckpoint(checkpoint, {markers: @createMarkerSnapshot(), deleteCheckpoint: false})
@@ -1244,6 +1248,8 @@ class TextBuffer
   #
   # If the given checkpoint is no longer present in the undo history, this
   # method will return an empty {Array}.
+  #
+  # * `checkpoint` {Number} id of the checkpoint to get changes since.
   #
   # Returns an {Array} of {Object}s with the following fields that summarize
   #  the aggregated changes since the checkpoint. See *Working With Aggregated
