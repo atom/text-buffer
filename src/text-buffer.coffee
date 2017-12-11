@@ -943,7 +943,7 @@ class TextBuffer
 
   # Public: Create a layer to contain a set of related markers.
   #
-  # * `options` (optional) An object contaning the following keys:
+  # * `options` (optional) An {Object} contaning the following keys:
   #   * `maintainHistory` (optional) A {Boolean} indicating whether or not the
   #     state of this layer should be restored on undo/redo operations. Defaults
   #     to `false`.
