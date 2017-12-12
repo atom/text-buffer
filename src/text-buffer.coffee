@@ -667,9 +667,10 @@ class TextBuffer
   getLastLine: ->
     @lineForRow(@getLastRow())
 
-  # Public: Get the text of the line at the given row, without its line ending.
+  # Public: Get the text of the line at the given 0-indexed row, without its
+  # line ending.
   #
-  # * `row` A {Number} representing a 0-indexed row.
+  # * `row` A {Number} representing the row.
   #
   # Returns a {String}.
   lineForRow: (row) -> @buffer.lineForRow(row)
@@ -893,18 +894,18 @@ class TextBuffer
   delete: (range) ->
     @setTextInRange(range, '')
 
-  # Public: Delete the line associated with a specified row.
+  # Public: Delete the line associated with a specified 0-indexed row.
   #
-  # * `row` A {Number} representing the 0-indexed row to delete.
+  # * `row` A {Number} representing the row to delete.
   #
   # Returns the {Range} of the deleted text.
   deleteRow: (row) ->
     @deleteRows(row, row)
 
-  # Public: Delete the lines associated with the specified row range.
+  # Public: Delete the lines associated with the specified 0-indexed row range.
   #
-  # If the row range is out of bounds, it will be clipped. If the startRow is
-  # greater than the end row, they will be reordered.
+  # If the row range is out of bounds, it will be clipped. If the `startRow` is
+  # greater than the `endRow`, they will be reordered.
   #
   # * `startRow` A {Number} representing the first row to delete.
   # * `endRow` A {Number} representing the last row to delete, inclusive.
@@ -942,15 +943,15 @@ class TextBuffer
 
   # Public: Create a layer to contain a set of related markers.
   #
-  # * `options` An object contaning the following keys:
-  #   * `maintainHistory` A {Boolean} indicating whether or not the state of
-  #     this layer should be restored on undo/redo operations. Defaults to
-  #     `false`.
-  #   * `persistent` A {Boolean} indicating whether or not this marker layer
-  #     should be serialized and deserialized along with the rest of the
-  #     buffer. Defaults to `false`. If `true`, the marker layer's id will be
-  #     maintained across the serialization boundary, allowing you to retrieve
-  #     it via {::getMarkerLayer}.
+  # * `options` (optional) An {Object} contaning the following keys:
+  #   * `maintainHistory` (optional) A {Boolean} indicating whether or not the
+  #     state of this layer should be restored on undo/redo operations. Defaults
+  #     to `false`.
+  #   * `persistent` (optional) A {Boolean} indicating whether or not this
+  #     marker layer should be serialized and deserialized along with the rest
+  #     of the buffer. Defaults to `false`. If `true`, the marker layer's id
+  #     will be maintained across the serialization boundary, allowing you to
+  #     retrieve it via {::getMarkerLayer}.
   #
   # Returns a {MarkerLayer}.
   addMarkerLayer: (options) ->
@@ -969,21 +970,22 @@ class TextBuffer
 
   # Public: Get the default {MarkerLayer}.
   #
-  # All marker APIs not tied to an explicit layer interact with this default
+  # All {Marker} APIs not tied to an explicit layer interact with this default
   # layer.
   #
   # Returns a {MarkerLayer}.
   getDefaultMarkerLayer: ->
     @defaultMarkerLayer
 
-  # Public: Create a marker with the given range in the default marker layer.
-  # This marker will maintain its logical location as the buffer is changed, so
-  # if you mark a particular word, the marker will remain over that word even if
-  # the word's location in the buffer changes.
+  # Public: Create a {Marker} with the given range in the default {MarkerLayer}.
+  # This marker will maintain its logical location as the buffer is changed,
+  # so if you mark a particular word, the marker will remain over that word
+  # even if the word's location in the buffer changes.
   #
   # * `range` A {Range} or range-compatible {Array}
-  # * `properties` A hash of key-value pairs to associate with the marker. There
-  #   are also reserved property names that have marker-specific meaning.
+  # * `properties` (optional) A hash of key-value pairs to associate with the
+  #   marker. There are also reserved property names that have marker-specific
+  #   meaning.
   #   * `reversed` (optional) {Boolean} Creates the marker in a reversed
   #     orientation. (default: false)
   #   * `invalidate` (optional) {String} Determines the rules by which changes
@@ -1000,17 +1002,17 @@ class TextBuffer
   #     * __touch__: The marker is invalidated by a change that touches the marked
   #       region in any way, including changes that end at the marker's
   #       start or start at the marker's end. This is the most fragile strategy.
-  #   * `exclusive` {Boolean} indicating whether insertions at the start or end
-  #     of the marked range should be interpreted as happening *outside* the
-  #     marker. Defaults to `false`, except when using the `inside`
-  #     invalidation strategy or when when the marker has no tail, in which
-  #     case it defaults to true. Explicitly assigning this option overrides
-  #     behavior in all circumstances.
+  #   * `exclusive` (optional) {Boolean} indicating whether insertions at the
+  #     start or end of the marked range should be interpreted as happening
+  #     *outside* the marker. Defaults to `false`, except when using the
+  #     `inside` invalidation strategy or when when the marker has no tail, in
+  #     which case it defaults to true. Explicitly assigning this option
+  #     overrides behavior in all circumstances.
   #
   # Returns a {Marker}.
   markRange: (range, properties) -> @defaultMarkerLayer.markRange(range, properties)
 
-  # Public: Create a marker at the given position with no tail in the default
+  # Public: Create a {Marker} at the given position with no tail in the default
   # marker layer.
   #
   # * `position` {Point} or point-compatible {Array}
@@ -1029,12 +1031,12 @@ class TextBuffer
   #     * __touch__: The marker is invalidated by a change that touches the marked
   #       region in any way, including changes that end at the marker's
   #       start or start at the marker's end. This is the most fragile strategy.
-  #   * `exclusive` {Boolean} indicating whether insertions at the start or end
-  #     of the marked range should be interpreted as happening *outside* the
-  #     marker. Defaults to `false`, except when using the `inside`
-  #     invalidation strategy or when when the marker has no tail, in which
-  #     case it defaults to true. Explicitly assigning this option overrides
-  #     behavior in all circumstances.
+  #   * `exclusive` (optional) {Boolean} indicating whether insertions at the
+  #     start or end of the marked range should be interpreted as happening
+  #     *outside* the marker. Defaults to `false`, except when using the
+  #     `inside` invalidation strategy or when when the marker has no tail, in
+  #     which case it defaults to true. Explicitly assigning this option
+  #     overrides behavior in all circumstances.
   #
   # Returns a {Marker}.
   markPosition: (position, options) -> @defaultMarkerLayer.markPosition(position, options)
@@ -1113,6 +1115,8 @@ class TextBuffer
     }
 
   # Public: Undo the last operation. If a transaction is in progress, aborts it.
+  #
+  # Returns a {Boolean} of whether or not a change was made.
   undo: ->
     if pop = @historyProvider.undo()
       @emitWillChangeEvent()
@@ -1129,6 +1133,8 @@ class TextBuffer
       false
 
   # Public: Redo the last operation
+  #
+  # Returns a {Boolean} of whether or not a change was made.
   redo: ->
     if pop = @historyProvider.redo()
       @emitWillChangeEvent()
@@ -1183,6 +1189,9 @@ class TextBuffer
     @emitMarkerChangeEvents(endMarkerSnapshot)
     result
 
+  # Public: Abort the currently running transaction
+  #
+  # Only intended to be called within the `fn` option to {::transact}
   abortTransaction: ->
     throw new TransactionAbortedError("Transaction aborted.")
 
@@ -1192,7 +1201,7 @@ class TextBuffer
   # Public: Create a pointer to the current state of the buffer for use
   # with {::revertToCheckpoint} and {::groupChangesSinceCheckpoint}.
   #
-  # Returns a checkpoint value.
+  # Returns a checkpoint id value.
   createCheckpoint: ->
     @historyProvider.createCheckpoint(markers: @createMarkerSnapshot(), isBarrier: false)
 
@@ -1204,9 +1213,11 @@ class TextBuffer
   # undo history, no changes will be made to the buffer and this method will
   # return `false`.
   #
+  # * `checkpoint` {Number} id of the checkpoint to revert to.
+  #
   # Returns a {Boolean} indicating whether the operation succeeded.
-  revertToCheckpoint: (checkpoint, options) ->
-    if truncated = @historyProvider.revertToCheckpoint(checkpoint, options)
+  revertToCheckpoint: (checkpoint) ->
+    if truncated = @historyProvider.revertToCheckpoint(checkpoint)
       @emitWillChangeEvent()
       @transactCallDepth++
       try
@@ -1227,6 +1238,8 @@ class TextBuffer
   # If the given checkpoint is no longer present in the undo history, no
   # grouping will be performed and this method will return `false`.
   #
+  # * `checkpoint` {Number} id of the checkpoint to group changes since.
+  #
   # Returns a {Boolean} indicating whether the operation succeeded.
   groupChangesSinceCheckpoint: (checkpoint) ->
     @historyProvider.groupChangesSinceCheckpoint(checkpoint, {markers: @createMarkerSnapshot(), deleteCheckpoint: false})
@@ -1235,6 +1248,8 @@ class TextBuffer
   #
   # If the given checkpoint is no longer present in the undo history, this
   # method will return an empty {Array}.
+  #
+  # * `checkpoint` {Number} id of the checkpoint to get changes since.
   #
   # Returns an {Array} of {Object}s with the following fields that summarize
   #  the aggregated changes since the checkpoint. See *Working With Aggregated
@@ -1529,7 +1544,7 @@ class TextBuffer
   # * `row` A {Number} representing a 0-indexed row.
   # * `includeNewline` A {Boolean} indicating whether or not to include the
   #   newline, which results in a range that extends to the start
-  #   of the next line.
+  #   of the next line. (default: `false`)
   #
   # Returns a {Range}.
   rangeForRow: (row, includeNewline) ->
@@ -1546,7 +1561,7 @@ class TextBuffer
   #
   # The position is clipped prior to translating.
   #
-  # * `position` A {Point}.
+  # * `position` A {Point} or point-compatible {Array}.
   #
   # Returns a {Number}.
   characterIndexForPosition: (position) ->
