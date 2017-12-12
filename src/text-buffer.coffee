@@ -1561,7 +1561,7 @@ class TextBuffer
   #
   # The position is clipped prior to translating.
   #
-  # * `position` A {Point}.
+  # * `position` A {Point} or point-compatible {Array}.
   #
   # Returns a {Number}.
   characterIndexForPosition: (position) ->
