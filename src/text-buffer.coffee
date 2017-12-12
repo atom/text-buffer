@@ -1544,7 +1544,7 @@ class TextBuffer
   # * `row` A {Number} representing a 0-indexed row.
   # * `includeNewline` A {Boolean} indicating whether or not to include the
   #   newline, which results in a range that extends to the start
-  #   of the next line.
+  #   of the next line. (default: `false`)
   #
   # Returns a {Range}.
   rangeForRow: (row, includeNewline) ->
