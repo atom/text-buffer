@@ -200,7 +200,7 @@ describe "TextBuffer", ->
         expect(buffer.lineForRow(0)).toBe "yellow"
 
         expect(buffer.undo()).toBe true
-        expect(buffer.lineForRow(0)).toBe "hellow"
+        expect(buffer.lineForRow(0)).toBe "hello"
 
       it "still emits marker change events (regression)", ->
         markerLayer = buffer.addMarkerLayer()
@@ -912,6 +912,69 @@ describe "TextBuffer", ->
 
       buffer.undo()
       expect(buffer.getText()).toBe "a"
+
+  describe "::groupLastChanges()", ->
+    it "groups the last two changes into a single transaction", ->
+      buffer = new TextBuffer()
+      layer = buffer.addMarkerLayer({maintainHistory: true})
+
+      buffer.append('a')
+
+      # Group two transactions, ensure before/after markers snapshots are preserved
+      marker = layer.markPosition([0, 0])
+      buffer.transact ->
+        buffer.append('b')
+      buffer.createCheckpoint()
+      buffer.transact ->
+        buffer.append('ccc')
+        marker.setHeadPosition([0, 2])
+
+      expect(buffer.groupLastChanges()).toBe(true)
+      buffer.undo()
+      expect(marker.getHeadPosition()).toEqual([0, 0])
+      expect(buffer.getText()).toBe('a')
+      buffer.redo()
+      expect(marker.getHeadPosition()).toEqual([0, 2])
+      buffer.undo()
+
+      # Group two bare changes
+      buffer.transact ->
+        buffer.append('b')
+        buffer.createCheckpoint()
+        buffer.append('c')
+        expect(buffer.groupLastChanges()).toBe(true)
+        buffer.undo()
+        expect(buffer.getText()).toBe('a')
+
+      # Group a transaction with a bare change
+      buffer.transact ->
+        buffer.transact ->
+          buffer.append('b')
+          buffer.append('c')
+        buffer.append('d')
+        expect(buffer.groupLastChanges()).toBe(true)
+        buffer.undo()
+        expect(buffer.getText()).toBe('a')
+
+      # Group a bare change with a transaction
+      buffer.transact ->
+        buffer.append('b')
+        buffer.transact ->
+          buffer.append('c')
+          buffer.append('d')
+        expect(buffer.groupLastChanges()).toBe(true)
+        buffer.undo()
+        expect(buffer.getText()).toBe('a')
+
+      # Can't group past the beginning of an open transaction
+      buffer.transact ->
+        expect(buffer.groupLastChanges()).toBe(false)
+        buffer.append('b')
+        expect(buffer.groupLastChanges()).toBe(false)
+        buffer.append('c')
+        expect(buffer.groupLastChanges()).toBe(true)
+        buffer.undo()
+        expect(buffer.getText()).toBe('a')
 
   describe "::setHistoryProvider(provider)", ->
     it "replaces the currently active history provider with the passed one", ->
@@ -2335,7 +2398,7 @@ describe "TextBuffer", ->
       buffer.transact ->
         buffer.insert([1, 0], "v")
         buffer.insert([1, 1], "x")
-        buffer.setTextInRange([[1, 2], [1, 2]], "y", {undo: 'skip'})
+        buffer.insert([1, 2], "y")
         buffer.insert([2, 3], "zw")
         buffer.delete([[2, 3], [2, 4]])
 
@@ -2358,9 +2421,9 @@ describe "TextBuffer", ->
       buffer.undo()
       assertChangesEqual(textChanges, [
         {
-          oldRange: [[1, 0], [1, 2]],
+          oldRange: [[1, 0], [1, 3]],
           newRange: [[1, 0], [1, 0]],
-          oldText: "vx",
+          oldText: "vxy",
           newText: "",
         },
         {
@@ -2376,9 +2439,9 @@ describe "TextBuffer", ->
       assertChangesEqual(textChanges, [
         {
           oldRange: [[1, 0], [1, 0]],
-          newRange: [[1, 0], [1, 2]],
+          newRange: [[1, 0], [1, 3]],
           oldText: "",
-          newText: "vx",
+          newText: "vxy",
         },
         {
           oldRange: [[2, 3], [2, 3]],
@@ -2435,7 +2498,7 @@ describe "TextBuffer", ->
           buffer.transact ->
             buffer.insert([0, 0], 'b')
             buffer.insert([1, 0], 'c')
-            buffer.setTextInRange([[1, 1], [1, 1]], 'd', {undo: 'skip'})
+            buffer.insert([1, 1], 'd')
         expect(didStopChangingCallback).not.toHaveBeenCalled()
 
         wait delay / 2, ->
@@ -2471,9 +2534,9 @@ describe "TextBuffer", ->
                   newText: "",
                 },
                 {
-                  oldRange: [[1, 0], [1, 1]],
+                  oldRange: [[1, 0], [1, 2]],
                   newRange: [[1, 0], [1, 0]],
-                  oldText: "c",
+                  oldText: "cd",
                   newText: "",
                 },
               ])

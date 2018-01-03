@@ -786,7 +786,10 @@ class TextBuffer
   # * `text` A {String}
   # * `options` (optional) {Object}
   #   * `normalizeLineEndings` (optional) {Boolean} (default: true)
-  #   * `undo` (optional) {String} 'skip' will skip the undo system
+  #   * `undo` (optional) *Deprecated* {String} 'skip' will cause this change
+  #     to be grouped with the preceding change for the purposes of undo and
+  #     redo. This property is deprecated. Call groupLastChanges() on the
+  #     buffer after instead.
   #
   # Returns the {Range} of the inserted text.
   setTextInRange: (range, newText, options) ->
@@ -794,8 +797,10 @@ class TextBuffer
       {normalizeLineEndings, undo} = options
     normalizeLineEndings ?= true
 
-    if @transactCallDepth is 0 and undo isnt 'skip'
-      return @transact => @setTextInRange(range, newText, options)
+    if @transactCallDepth is 0
+      newRange = @transact => @setTextInRange(range, newText, {normalizeLineEndings})
+      @groupLastChanges() if undo is 'skip'
+      return newRange
 
     oldRange = @clipRange(range)
     oldText = @getTextInRange(oldRange)
@@ -812,12 +817,8 @@ class TextBuffer
       newStart: oldRange.start, newEnd: traverse(oldRange.start, extentForText(newText))
       oldText, newText
     }
-    newRange = @applyChange(change, undo isnt 'skip')
-
-    if @transactCallDepth is 0 and undo is 'skip'
-      @emitDidChangeTextEvent()
-      @emitMarkerChangeEvents()
-
+    newRange = @applyChange(change, true)
+    @groupLastChanges() if undo is 'skip'
     newRange
 
   # Public: Insert text at the given position.
@@ -1243,6 +1244,15 @@ class TextBuffer
   # Returns a {Boolean} indicating whether the operation succeeded.
   groupChangesSinceCheckpoint: (checkpoint) ->
     @historyProvider.groupChangesSinceCheckpoint(checkpoint, {markers: @createMarkerSnapshot(), deleteCheckpoint: false})
+
+  # Public: Group the last two text changes for purposes of undo/redo.
+  #
+  # This operation will only succeed if there are two changes on the undo
+  # stack. It will not group past the beginning of an open transaction.
+  #
+  # Returns a {Boolean} indicating whether the operation succeeded.
+  groupLastChanges: ->
+    @historyProvider.groupLastChanges()
 
   # Public: Returns a list of changes since the given checkpoint.
   #
