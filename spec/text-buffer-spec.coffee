@@ -200,7 +200,7 @@ describe "TextBuffer", ->
         expect(buffer.lineForRow(0)).toBe "yellow"
 
         expect(buffer.undo()).toBe true
-        expect(buffer.lineForRow(0)).toBe "hellow"
+        expect(buffer.lineForRow(0)).toBe "hello"
 
       it "still emits marker change events (regression)", ->
         markerLayer = buffer.addMarkerLayer()
@@ -2398,7 +2398,7 @@ describe "TextBuffer", ->
       buffer.transact ->
         buffer.insert([1, 0], "v")
         buffer.insert([1, 1], "x")
-        buffer.setTextInRange([[1, 2], [1, 2]], "y", {undo: 'skip'})
+        buffer.insert([1, 2], "y")
         buffer.insert([2, 3], "zw")
         buffer.delete([[2, 3], [2, 4]])
 
@@ -2421,9 +2421,9 @@ describe "TextBuffer", ->
       buffer.undo()
       assertChangesEqual(textChanges, [
         {
-          oldRange: [[1, 0], [1, 2]],
+          oldRange: [[1, 0], [1, 3]],
           newRange: [[1, 0], [1, 0]],
-          oldText: "vx",
+          oldText: "vxy",
           newText: "",
         },
         {
@@ -2439,9 +2439,9 @@ describe "TextBuffer", ->
       assertChangesEqual(textChanges, [
         {
           oldRange: [[1, 0], [1, 0]],
-          newRange: [[1, 0], [1, 2]],
+          newRange: [[1, 0], [1, 3]],
           oldText: "",
-          newText: "vx",
+          newText: "vxy",
         },
         {
           oldRange: [[2, 3], [2, 3]],
@@ -2498,7 +2498,7 @@ describe "TextBuffer", ->
           buffer.transact ->
             buffer.insert([0, 0], 'b')
             buffer.insert([1, 0], 'c')
-            buffer.setTextInRange([[1, 1], [1, 1]], 'd', {undo: 'skip'})
+            buffer.insert([1, 1], 'd')
         expect(didStopChangingCallback).not.toHaveBeenCalled()
 
         wait delay / 2, ->
@@ -2534,9 +2534,9 @@ describe "TextBuffer", ->
                   newText: "",
                 },
                 {
-                  oldRange: [[1, 0], [1, 1]],
+                  oldRange: [[1, 0], [1, 2]],
                   newRange: [[1, 0], [1, 0]],
-                  oldText: "c",
+                  oldText: "cd",
                   newText: "",
                 },
               ])
