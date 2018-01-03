@@ -99,6 +99,33 @@ class DefaultHistoryProvider
     else
       null
 
+  groupLastChanges: ->
+    markerSnapshotAfter = null
+    markerSnapshotBefore = null
+    patchesSinceCheckpoint = []
+
+    for entry, i in @undoStack by -1
+      switch entry.constructor
+        when Checkpoint
+          return false if entry.isBarrier
+        when Transaction
+          if patchesSinceCheckpoint.length is 0
+            markerSnapshotAfter = entry.markerSnapshotAfter
+          else if patchesSinceCheckpoint.length is 1
+            markerSnapshotBefore = entry.markerSnapshotBefore
+          patchesSinceCheckpoint.unshift(entry.patch)
+        when Patch
+          patchesSinceCheckpoint.unshift(entry)
+        else
+          throw new Error("Unexpected undo stack entry type: #{entry.constructor.name}")
+
+      if patchesSinceCheckpoint.length is 2
+        composedPatch = Patch.compose(patchesSinceCheckpoint)
+        @undoStack.splice(i)
+        @undoStack.push(new Transaction(markerSnapshotBefore, composedPatch, markerSnapshotAfter))
+        return true
+    return
+
   enforceUndoStackSizeLimit: ->
     if @undoStack.length > @maxUndoEntries
       @undoStack.splice(0, @undoStack.length - @maxUndoEntries)

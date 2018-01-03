@@ -1231,6 +1231,9 @@ class TextBuffer
   groupChangesSinceCheckpoint: (checkpoint) ->
     @historyProvider.groupChangesSinceCheckpoint(checkpoint, {markers: @createMarkerSnapshot(), deleteCheckpoint: false})
 
+  groupLastChanges: ->
+    @historyProvider.groupLastChanges()
+
   # Public: Returns a list of changes since the given checkpoint.
   #
   # If the given checkpoint is no longer present in the undo history, this

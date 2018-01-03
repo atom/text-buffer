@@ -913,6 +913,69 @@ describe "TextBuffer", ->
       buffer.undo()
       expect(buffer.getText()).toBe "a"
 
+  describe "::groupLastChanges()", ->
+    it "groups the last two changes into a single transaction", ->
+      buffer = new TextBuffer()
+      layer = buffer.addMarkerLayer({maintainHistory: true})
+
+      buffer.append('a')
+
+      # Group two transactions, ensure before/after markers snapshots are preserved
+      marker = layer.markPosition([0, 0])
+      buffer.transact ->
+        buffer.append('b')
+      buffer.createCheckpoint()
+      buffer.transact ->
+        buffer.append('ccc')
+        marker.setHeadPosition([0, 2])
+
+      expect(buffer.groupLastChanges()).toBe(true)
+      buffer.undo()
+      expect(marker.getHeadPosition()).toEqual([0, 0])
+      expect(buffer.getText()).toBe('a')
+      buffer.redo()
+      expect(marker.getHeadPosition()).toEqual([0, 2])
+      buffer.undo()
+
+      # Group two bare changes
+      buffer.transact ->
+        buffer.append('b')
+        buffer.createCheckpoint()
+        buffer.append('c')
+        expect(buffer.groupLastChanges()).toBe(true)
+        buffer.undo()
+        expect(buffer.getText()).toBe('a')
+
+      # Group a transaction with a bare change
+      buffer.transact ->
+        buffer.transact ->
+          buffer.append('b')
+          buffer.append('c')
+        buffer.append('d')
+        expect(buffer.groupLastChanges()).toBe(true)
+        buffer.undo()
+        expect(buffer.getText()).toBe('a')
+
+      # Group a bare change with a transaction
+      buffer.transact ->
+        buffer.append('b')
+        buffer.transact ->
+          buffer.append('c')
+          buffer.append('d')
+        expect(buffer.groupLastChanges()).toBe(true)
+        buffer.undo()
+        expect(buffer.getText()).toBe('a')
+
+      # Can't group past the beginning of an open transaction
+      buffer.transact ->
+        expect(buffer.groupLastChanges()).toBe(false)
+        buffer.append('b')
+        expect(buffer.groupLastChanges()).toBe(false)
+        buffer.append('c')
+        expect(buffer.groupLastChanges()).toBe(true)
+        buffer.undo()
+        expect(buffer.getText()).toBe('a')
+
   describe "::setHistoryProvider(provider)", ->
     it "replaces the currently active history provider with the passed one", ->
       buffer = new TextBuffer({text: ''})
