@@ -1232,6 +1232,12 @@ class TextBuffer
   groupChangesSinceCheckpoint: (checkpoint) ->
     @historyProvider.groupChangesSinceCheckpoint(checkpoint, {markers: @createMarkerSnapshot(), deleteCheckpoint: false})
 
+  # Public: Group the last two text changes for purposes of undo/redo.
+  #
+  # This operation will only succeed if there are two changes on the undo
+  # stack. It will not group past the beginning of an open transaction.
+  #
+  # Returns a {Boolean} indicating whether the operation succeeded.
   groupLastChanges: ->
     @historyProvider.groupLastChanges()
 
