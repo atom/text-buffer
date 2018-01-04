@@ -1725,16 +1725,24 @@ class TextBuffer
   # Experimental: Set the LanguageMode for this buffer.
   #
   # * `languageMode` - an {Object} with the following methods:
-  #   * `onDidInvalidateRange` - An (optional) {Function} that takes a callback and calls it
-  #     with a {Range} argument whenever the syntax is updated for a span of text due to
-  #     asynchronous parsing.
-  #   * `buildIterator` - A function that returns an iterator object with the following methods:
-  #     * `moveToSuccessor` - A {Function} that advances the iterator to the next token
-  #     * `getPosition` - A {Function} that returns a {Point} representing the iterator's current
+  #   * `getLanguageId` - A {Function} that returns a {String} identifying the language.
+  #   * `bufferDidChange` - A {Function} that is called whenever the buffer changes.
+  #     * `change` An {Object} with the following fields:
+  #       * `oldText` {String} The deleted text
+  #       * `oldRange` The {Range} of the deleted text before the change took place.
+  #       * `newText` {String} The inserted text
+  #       * `newRange` The {Range} of the inserted text after the change took place.
+  #   * `onDidChangeHighlighting` - A {Function} that takes a callback {Function} and calls it with
+  #     a {Range} argument whenever the syntax of a given part of the buffer is updated.
+  #   * `buildHighlightIterator` - A function that returns an iterator object with the following
+  #     methods:
+  #     * `seek` A {Function} that takes a {Point} and resets the iterator to that position.
+  #     * `moveToSuccessor` A {Function} that advances the iterator to the next token
+  #     * `getPosition` A {Function} that returns a {Point} representing the iterator's current
   #       position in the buffer.
-  #     * `getCloseTags` - A {Function} that returns an {Array} of {Number}s representing tokens
+  #     * `getCloseTags` A {Function} that returns an {Array} of {Number}s representing tokens
   #        that end at the current position.
-  #     * `getOpenTags` - A {Function} that returns an {Array} of {Number}s representing tokens
+  #     * `getOpenTags` A {Function} that returns an {Array} of {Number}s representing tokens
   #        that begin at the current position.
   setLanguageMode: (languageMode) ->
     if languageMode isnt @languageMode
