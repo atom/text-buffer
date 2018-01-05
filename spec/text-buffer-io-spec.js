@@ -707,26 +707,29 @@ describe('TextBuffer IO', () => {
         })
       })
 
-      it('can restore from a state created with an old version of TextBuffer', (done) => {
+      it('can restore from a state created with an old version of TextBuffer', async (done) => {
         const filePath = temp.openSync('atom').path
         fs.writeFileSync(filePath, 'abc\ndef\n')
 
-        TextBuffer.load(filePath).then((buf) => {
-          buffer = buf
-          buffer.append('ghi\n')
-          const state = buffer.serialize()
+        buffer = await TextBuffer.load(filePath)
+        buffer.append('ghi\n')
+        const state = buffer.serialize()
 
-          // This was the old serialization format
-          delete state.outstandingChanges
-          state.text = buffer.getText()
+        // This was the old serialization format
+        delete state.outstandingChanges
+        state.text = buffer.getText()
+        state.digestWhenLastPersisted = buffer.file.getDigestSync()
 
-          TextBuffer.deserialize(state).then((buf2) => {
-            buffer2 = buf2
-            expect(buffer2.getText()).toBe(buffer.getText())
-            expect(buffer2.isModified()).toBe(true)
-            done()
-          })
-        })
+        buffer2 = await TextBuffer.deserialize(state)
+        expect(buffer2.getText()).toBe(buffer.getText())
+        expect(buffer2.isModified()).toBe(true)
+
+        fs.writeFileSync(filePath, '!')
+        const buffer3 = await TextBuffer.deserialize(state)
+        expect(buffer3.getText()).toBe('!')
+        buffer3.destroy()
+
+        done()
       })
     })
 

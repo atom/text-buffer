@@ -251,7 +251,8 @@ class TextBuffer
       promise = @load(params.filePath, params).then (buffer) ->
         # TODO - Remove this once Atom 1.19 stable has been out for a while.
         if typeof params.text is 'string'
-          buffer.setText(params.text)
+          if params.digestWhenLastPersisted is buffer.file?.getDigestSync?()
+            buffer.setText(params.text)
 
         else if buffer.digestWhenLastPersisted is params.digestWhenLastPersisted
           buffer.buffer.deserializeChanges(params.outstandingChanges)
