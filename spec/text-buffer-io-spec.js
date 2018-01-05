@@ -74,7 +74,7 @@ describe('TextBuffer IO', () => {
     })
 
     describe('when a custom File object is given in place of the file path', () => {
-      it('loads the buffer using the file\s createReadStream method', (done) => {
+      it('loads the buffer using the file\'s createReadStream method', (done) => {
         const filePath = temp.openSync('atom').path
         fs.writeFileSync(filePath, 'abc\ndef')
 
@@ -467,7 +467,7 @@ describe('TextBuffer IO', () => {
 
         spyOn(NativeTextBuffer.prototype, 'save').and.callFake(function (destination, encoding) {
           if (destination === filePath) {
-            return Promise.reject({code: 'EACCES', message: 'Permission denied'})
+            return Promise.reject(Object.assign(new Error('Permission denied'), {code: 'EACCES'}))
           }
 
           return save.call(this, destination, encoding)
@@ -1204,7 +1204,7 @@ class ReverseCaseFile {
 }
 
 function reverseCase (buffer, encoding) {
-  const result = new Buffer(buffer.length)
+  const result = Buffer.alloc(buffer.length)
   for (let i = 0, n = buffer.length; i < n; i++) {
     const character = String.fromCharCode(buffer[i])
     result[i] = (character === character.toLowerCase()
