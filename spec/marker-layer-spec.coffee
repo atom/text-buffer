@@ -114,10 +114,13 @@ describe "MarkerLayer", ->
         marker4 = layer3.markRange([[1, 0], [1, 3]], g: 'h', invalidate: 'never')
         expect(marker2ChangeCount).toBe(1)
 
+      createdMarker = null
+      layer3.onDidCreateMarker((m) => createdMarker = m)
       buffer.undo()
 
       expect(buffer.getText()).toBe 'foo'
       expect(marker1.isDestroyed()).toBe false
+      expect(createdMarker).toBe(marker1)
       markers = layer3.findMarkers({})
       expect(markers.length).toBe 2
       expect(markers[0]).toBe marker1

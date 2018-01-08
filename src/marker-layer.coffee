@@ -296,6 +296,7 @@ class MarkerLayer
           {range} = snapshot
           @index.insert(marker.id, range.start, range.end)
           marker.update(marker.getRange(), snapshot, true, true)
+          @emitter.emit 'did-create-marker', marker if @emitCreateMarkerEvents
         else
           newMarker = @createMarker(snapshot.range, snapshot, true)
 
