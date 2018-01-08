@@ -385,13 +385,19 @@ class DefaultHistoryProvider
         else
           throw new Error("Unexpected undoStack entry type during deserialization: #{entry.type}")
 
-  serializeSnapshot: (snapshot, options) ->
+  serializeSnapshot: (layerSnapshot, options) ->
     return unless options.markerLayers
 
-    layers = {}
-    for id, snapshot of snapshot when @buffer.getMarkerLayer(id)?.persistent
-      layers[id] = snapshot
-    layers
+    serializedLayerSnapshots = {}
+    for layerId, layerSnapshot of layerSnapshot
+      continue unless @buffer.getMarkerLayer(layerId)?.persistent
+      serializedMarkerSnapshots = {}
+      for markerId, markerSnapshot of layerSnapshot
+        serializedMarkerSnapshot = Object.assign({}, markerSnapshot)
+        delete serializedMarkerSnapshot.marker
+        serializedMarkerSnapshots[markerId] = serializedMarkerSnapshot
+      serializedLayerSnapshots[layerId] = serializedMarkerSnapshots
+    serializedLayerSnapshots
 
 snapshotFromCheckpoint = (checkpoint) ->
   {
