@@ -117,11 +117,13 @@ describe "MarkerLayer", ->
       buffer.undo()
 
       expect(buffer.getText()).toBe 'foo'
+      expect(marker1.isDestroyed()).toBe false
       markers = layer3.findMarkers({})
       expect(markers.length).toBe 2
-      expect(markers[0].getProperties()).toEqual {c: 'd'}
+      expect(markers[0]).toBe marker1
+      expect(markers[0].getProperties()).toEqual {a: 'b'}
       expect(markers[0].getRange()).toEqual [[0, 0], [0, 0]]
-      expect(markers[1].getProperties()).toEqual {a: 'b'}
+      expect(markers[1].getProperties()).toEqual {c: 'd'}
       expect(markers[1].getRange()).toEqual [[0, 0], [0, 0]]
       expect(marker2ChangeCount).toBe(2)
 

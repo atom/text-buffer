@@ -290,7 +290,14 @@ class MarkerLayer
       if marker = @markersById[id]
         marker.update(marker.getRange(), snapshot, true, true)
       else
-        newMarker = @createMarker(snapshot.range, snapshot, true)
+        {marker} = snapshot
+        if marker
+          @markersById[marker.id] = marker
+          {range} = snapshot
+          @index.insert(marker.id, range.start, range.end)
+          marker.update(marker.getRange(), snapshot, true, true)
+        else
+          newMarker = @createMarker(snapshot.range, snapshot, true)
 
     for id in existingMarkerIds
       if (marker = @markersById[id]) and (not snapshots[id]?)
@@ -301,7 +308,7 @@ class MarkerLayer
     ranges = @index.dump()
     for id in Object.keys(@markersById)
       marker = @markersById[id]
-      result[id] = marker.getSnapshot(Range.fromObject(ranges[id]), false)
+      result[id] = marker.getSnapshot(Range.fromObject(ranges[id]))
     result
 
   emitChangeEvents: (snapshot) ->
@@ -314,7 +321,9 @@ class MarkerLayer
     markersById = {}
     for id in Object.keys(@markersById)
       marker = @markersById[id]
-      markersById[id] = marker.getSnapshot(Range.fromObject(ranges[id]), false)
+      snapshot = marker.getSnapshot(Range.fromObject(ranges[id]), false)
+      markersById[id] = snapshot
+
     {@id, @maintainHistory, @persistent, markersById, version: SerializationVersion}
 
   deserialize: (state) ->
