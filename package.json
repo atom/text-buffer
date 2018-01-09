@@ -1,6 +1,6 @@
 {
   "name": "text-buffer",
-  "version": "13.10.1",
+  "version": "13.11.0-1",
   "description": "A container for large mutable strings with annotated regions",
   "main": "./lib/text-buffer",
   "scripts": {
@@ -28,7 +28,7 @@
     "coffee-script": "^1.10.0",
     "coffeelint": "1.16.0",
     "dedent": "^0.6.0",
-    "electron": "1.6",
+    "electron": "1.7",
     "grunt": "^0.4.5",
     "grunt-atomdoc": "^1.0.1",
     "grunt-cli": "^0.1.13",
