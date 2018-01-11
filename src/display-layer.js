@@ -507,10 +507,10 @@ class DisplayLayer {
           } else if (clipDirection === 'forward') {
             return Point(targetScreenPosition.row, unexpandedScreenColumn + 1)
           } else {
-            if (targetScreenPosition.column - expandedScreenColumn > nextTabStopColumn - targetScreenPosition.column) {
-              return Point(targetScreenPosition.row, unexpandedScreenColumn)
-            } else {
+            if (targetScreenPosition.column > Math.ceil((nextTabStopColumn + expandedScreenColumn) / 2)) {
               return Point(targetScreenPosition.row, unexpandedScreenColumn + 1)
+            } else {
+              return Point(targetScreenPosition.row, unexpandedScreenColumn)
             }
           }
         }

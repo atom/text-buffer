@@ -2131,6 +2131,23 @@ describe('DisplayLayer', () => {
         clipDirection: 'forward'
       })).toEqual([0, 8])
     })
+
+    it('clips to the closest tab stop when translating a screen position that is in the middle of a hard tab', () => {
+      const buffer = new TextBuffer({text: '\t\t\t'})
+      const displayLayer = buffer.addDisplayLayer({tabLength: 4})
+
+      expect(displayLayer.translateScreenPosition([0, 0])).toEqual([0, 0])
+      expect(displayLayer.translateScreenPosition([0, 1])).toEqual([0, 0])
+      expect(displayLayer.translateScreenPosition([0, 2])).toEqual([0, 0])
+      expect(displayLayer.translateScreenPosition([0, 3])).toEqual([0, 1])
+      expect(displayLayer.translateScreenPosition([0, 4])).toEqual([0, 1])
+
+      expect(displayLayer.translateScreenPosition([0, 8])).toEqual([0, 2])
+      expect(displayLayer.translateScreenPosition([0, 9])).toEqual([0, 2])
+      expect(displayLayer.translateScreenPosition([0, 10])).toEqual([0, 2])
+      expect(displayLayer.translateScreenPosition([0, 11])).toEqual([0, 3])
+      expect(displayLayer.translateScreenPosition([0, 12])).toEqual([0, 3])
+    })
   })
 
   describe('.getApproximateScreenLineCount()', () => {
