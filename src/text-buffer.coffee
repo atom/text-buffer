@@ -1747,11 +1747,12 @@ class TextBuffer
   #        that begin at the current position.
   setLanguageMode: (languageMode) ->
     if languageMode isnt @languageMode
+      oldLanguageMode = @languageMode
       @languageMode.destroy?()
       @languageMode = languageMode or new NullLanguageMode()
       for id, displayLayer of @displayLayers
         displayLayer.bufferDidChangeLanguageMode(languageMode)
-      @emitter.emit('did-change-language-mode', @languageMode)
+      @emitter.emit('did-change-language-mode', {newMode: @languageMode, oldMode: oldLanguageMode})
     return
 
   # Experimental: Call the given callback whenever the buffer's language mode changes.
@@ -1759,10 +1760,12 @@ class TextBuffer
   # * `callback` - A {Function} to call when the language mode changes.
   #   * `languageMode` - The buffer's new language mode {Object}. See {TextBuffer::setLanguageMode}
   #     for its interface.
+  #   * `oldlanguageMode` - The buffer's old language mode {Object}. See {TextBuffer::setLanguageMode}
+  #     for its interface.
   #
   # Returns a {Disposable} that can be used to stop the callback from being called.
   onDidChangeLanguageMode: (callback) ->
-    @emitter.on('did-change-language-mode', callback)
+    @emitter.on('did-change-language-mode', ({newMode, oldMode}) -> callback(newMode, oldMode))
 
   ###
   Section: Private Utility Methods

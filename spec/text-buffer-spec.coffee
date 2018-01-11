@@ -2611,7 +2611,7 @@ describe "TextBuffer", ->
       expect(buffer.getLanguageMode() instanceof NullLanguageMode).toBe(true)
 
       events = []
-      buffer.onDidChangeLanguageMode (event) -> events.push(event)
+      buffer.onDidChangeLanguageMode (newMode, oldMode) -> events.push({newMode: newMode, oldMode: oldMode})
 
       languageMode = {
         onDidChangeHighlighting: -> {dispose: ->}
@@ -2620,12 +2620,14 @@ describe "TextBuffer", ->
       buffer.setLanguageMode(languageMode)
       expect(buffer.getLanguageMode()).toBe(languageMode)
       expect(events.length).toBe(1)
-      expect(events[0]).toBe(languageMode)
+      expect(events[0].newMode).toBe(languageMode)
+      expect(events[0].oldMode instanceof NullLanguageMode).toBe(true)
 
       buffer.setLanguageMode(null)
       expect(buffer.getLanguageMode() instanceof NullLanguageMode).toBe(true)
       expect(events.length).toBe(2)
-      expect(events[1]).toBe(buffer.getLanguageMode())
+      expect(events[1].newMode).toBe(buffer.getLanguageMode())
+      expect(events[1].oldMode).toBe(languageMode)
 
   describe "line ending support", ->
     beforeEach ->
