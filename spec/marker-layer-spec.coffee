@@ -115,7 +115,7 @@ describe "MarkerLayer", ->
         expect(marker2ChangeCount).toBe(1)
 
       createdMarker = null
-      layer3.onDidCreateMarker((m) => createdMarker = m)
+      layer3.onDidCreateMarker((m) -> createdMarker = m)
       buffer.undo()
 
       expect(buffer.getText()).toBe 'foo'
