@@ -170,6 +170,12 @@ describe "MarkerLayer", ->
       # Should not throw an exception
       buffer.undo()
 
+  describe "when role is provided for the layer", ->
+    it "getRole() returns it's role", ->
+      expect(buffer.addMarkerLayer(role: "role1").getRole()).toBe("role1")
+      expect(buffer.addMarkerLayer(role: "role2").getRole()).toBe("role2")
+      expect(buffer.addMarkerLayer().getRole()).toBe(undefined)
+
   describe "::findMarkers(params)", ->
     it "does not find markers from other layers", ->
       defaultMarker = buffer.markRange([[0, 3], [0, 6]])

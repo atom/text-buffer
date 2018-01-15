@@ -483,6 +483,210 @@ describe "TextBuffer", ->
       expect(undoCount).toBe 12
       expect(buffer.getText()).toBe '0\n'
 
+  describe "::createMarkerSnapshot", ->
+    markerLayers = null
+
+    beforeEach ->
+      buffer = new TextBuffer
+
+      markerLayers = [
+        buffer.addMarkerLayer(maintainHistory: true, role: "role1")
+        buffer.addMarkerLayer(maintainHistory: true, role: "role2")
+        buffer.addMarkerLayer(maintainHistory: true, role: "role1")
+        buffer.addMarkerLayer(maintainHistory: true)
+      ]
+
+    describe "activeMarkerLayer is not passed", ->
+      it "take snapshot of all markerLayers", ->
+        snapshot = buffer.createMarkerSnapshot()
+        markerLayerIdsInSnapshot = Object.keys(snapshot)
+        expect(markerLayerIdsInSnapshot.length).toBe(4)
+        expect(markerLayers[0].id in markerLayerIdsInSnapshot).toBe(true)
+        expect(markerLayers[1].id in markerLayerIdsInSnapshot).toBe(true)
+        expect(markerLayers[2].id in markerLayerIdsInSnapshot).toBe(true)
+        expect(markerLayers[3].id in markerLayerIdsInSnapshot).toBe(true)
+
+    describe "activeMarkerLayer is passed", ->
+      it "skip snapshotting of other marker layers with the same role of activeMarkerLayer", ->
+        snapshot = buffer.createMarkerSnapshot(markerLayers[0])
+        markerLayerIdsInSnapshot = Object.keys(snapshot)
+        expect(markerLayerIdsInSnapshot.length).toBe(3)
+        expect(markerLayers[0].id in markerLayerIdsInSnapshot).toBe(true)
+        expect(markerLayers[1].id in markerLayerIdsInSnapshot).toBe(true)
+        expect(markerLayers[2].id in markerLayerIdsInSnapshot).toBe(false)
+        expect(markerLayers[3].id in markerLayerIdsInSnapshot).toBe(true)
+
+        snapshot = buffer.createMarkerSnapshot(markerLayers[2])
+        markerLayerIdsInSnapshot = Object.keys(snapshot)
+        expect(markerLayerIdsInSnapshot.length).toBe(3)
+        expect(markerLayers[0].id in markerLayerIdsInSnapshot).toBe(false)
+        expect(markerLayers[1].id in markerLayerIdsInSnapshot).toBe(true)
+        expect(markerLayers[2].id in markerLayerIdsInSnapshot).toBe(true)
+        expect(markerLayers[3].id in markerLayerIdsInSnapshot).toBe(true)
+
+  describe "role-aware marker snapshotting and restoration on transact/undo/redo", ->
+    [markerLayers, marker0, marker1, marker2, textUndo, textRedo, rangesBefore, rangesAfter] = []
+    ensureMarkerLayer = (markerLayer, range) ->
+      markers = markerLayer.findMarkers({})
+      expect(markers.length).toBe(1)
+      expect(markers[0].getRange()).toEqual(range)
+
+    getFirstMarker = (markerLayer) ->
+      markerLayer.findMarkers({})[0]
+
+    beforeEach ->
+      buffer = new TextBuffer(text: "00000000\n11111111\n22222222\n33333333\n")
+
+      markerLayers = [
+        buffer.addMarkerLayer(maintainHistory: true, role: "role1")
+        buffer.addMarkerLayer(maintainHistory: true, role: "role1")
+        buffer.addMarkerLayer(maintainHistory: true, role: "role1")
+      ]
+
+      textUndo = "00000000\n11111111\n22222222\n33333333\n"
+      textRedo = "00000000\n11111111\n22222222\n33333333\n44444444\n"
+
+      rangesBefore = [
+        [[0, 1], [0, 1]]
+        [[0, 2], [0, 2]]
+        [[0, 3], [0, 3]]
+      ]
+      rangesAfter = [
+        [[2, 1], [2, 1]]
+        [[2, 2], [2, 2]]
+        [[2, 3], [2, 3]]
+      ]
+
+      marker0 = markerLayers[0].markRange(rangesBefore[0])
+      marker1 = markerLayers[1].markRange(rangesBefore[1])
+      marker2 = markerLayers[2].markRange(rangesBefore[2])
+
+    it "restore snapshot from other marker layers with the same role on undo/redo", ->
+      # Snapshot is taken for markerLayers[0] only, markerLayer[1] and markerLayer[2] are skipped
+      buffer.transact {activeMarkerLayer: markerLayers[0]}, ->
+        buffer.append("44444444\n")
+        marker0.setRange(rangesAfter[0])
+        marker1.setRange(rangesAfter[1])
+        marker2.setRange(rangesAfter[2])
+
+      buffer.undo({activeMarkerLayer: markerLayers[0]})
+      expect(buffer.getText()).toBe(textUndo)
+
+      ensureMarkerLayer(markerLayers[0], rangesBefore[0])
+      ensureMarkerLayer(markerLayers[1], rangesAfter[1])
+      ensureMarkerLayer(markerLayers[2], rangesAfter[2])
+      expect(getFirstMarker(markerLayers[0])).toBe(marker0)
+      expect(getFirstMarker(markerLayers[1])).toBe(marker1)
+      expect(getFirstMarker(markerLayers[2])).toBe(marker2)
+
+      buffer.redo({activeMarkerLayer: markerLayers[0]})
+      expect(buffer.getText()).toBe(textRedo)
+
+      ensureMarkerLayer(markerLayers[0], rangesAfter[0])
+      ensureMarkerLayer(markerLayers[1], rangesAfter[1])
+      ensureMarkerLayer(markerLayers[2], rangesAfter[2])
+      expect(getFirstMarker(markerLayers[0])).toBe(marker0)
+      expect(getFirstMarker(markerLayers[1])).toBe(marker1)
+      expect(getFirstMarker(markerLayers[2])).toBe(marker2)
+
+      buffer.undo({activeMarkerLayer: markerLayers[1]})
+      expect(buffer.getText()).toBe(textUndo)
+
+      ensureMarkerLayer(markerLayers[0], rangesAfter[0])
+      ensureMarkerLayer(markerLayers[1], rangesBefore[0])
+      ensureMarkerLayer(markerLayers[2], rangesAfter[2])
+      expect(getFirstMarker(markerLayers[0])).toBe(marker0)
+      expect(getFirstMarker(markerLayers[1])).not.toBe(marker1)
+      expect(getFirstMarker(markerLayers[2])).toBe(marker2)
+      expect(marker1.isDestroyed()).toBe(true)
+
+      buffer.redo({activeMarkerLayer: markerLayers[2]})
+      expect(buffer.getText()).toBe(textRedo)
+
+      ensureMarkerLayer(markerLayers[0], rangesAfter[0])
+      ensureMarkerLayer(markerLayers[1], rangesBefore[0])
+      ensureMarkerLayer(markerLayers[2], rangesAfter[0])
+      expect(getFirstMarker(markerLayers[0])).toBe(marker0)
+      expect(getFirstMarker(markerLayers[1])).not.toBe(marker1)
+      expect(getFirstMarker(markerLayers[2])).not.toBe(marker2)
+      expect(marker1.isDestroyed()).toBe(true)
+      expect(marker2.isDestroyed()).toBe(true)
+
+      buffer.undo({activeMarkerLayer: markerLayers[2]})
+      expect(buffer.getText()).toBe(textUndo)
+
+      ensureMarkerLayer(markerLayers[0], rangesAfter[0])
+      ensureMarkerLayer(markerLayers[1], rangesBefore[0])
+      ensureMarkerLayer(markerLayers[2], rangesBefore[0])
+      expect(getFirstMarker(markerLayers[0])).toBe(marker0)
+      expect(getFirstMarker(markerLayers[1])).not.toBe(marker1)
+      expect(getFirstMarker(markerLayers[2])).not.toBe(marker2)
+      expect(marker1.isDestroyed()).toBe(true)
+      expect(marker2.isDestroyed()).toBe(true)
+
+    it "fallback to normal behavior when snaphot includes multipe layerSnapshot of same role", ->
+      # Transact without activeMarkerLayer.
+      # Taken snapshot includes layerSnapshot of markerLayer[0], markerLayer[1] and markerLayer[2]
+      buffer.transact ->
+        buffer.append("44444444\n")
+        marker0.setRange(rangesAfter[0])
+        marker1.setRange(rangesAfter[1])
+        marker2.setRange(rangesAfter[2])
+
+      buffer.undo({activeMarkerLayer: markerLayers[0]})
+      expect(buffer.getText()).toBe(textUndo)
+
+      ensureMarkerLayer(markerLayers[0], rangesBefore[0])
+      ensureMarkerLayer(markerLayers[1], rangesBefore[1])
+      ensureMarkerLayer(markerLayers[2], rangesBefore[2])
+      expect(getFirstMarker(markerLayers[0])).toBe(marker0)
+      expect(getFirstMarker(markerLayers[1])).toBe(marker1)
+      expect(getFirstMarker(markerLayers[2])).toBe(marker2)
+
+      buffer.redo({activeMarkerLayer: markerLayers[0]})
+      expect(buffer.getText()).toBe(textRedo)
+
+      ensureMarkerLayer(markerLayers[0], rangesAfter[0])
+      ensureMarkerLayer(markerLayers[1], rangesAfter[1])
+      ensureMarkerLayer(markerLayers[2], rangesAfter[2])
+      expect(getFirstMarker(markerLayers[0])).toBe(marker0)
+      expect(getFirstMarker(markerLayers[1])).toBe(marker1)
+      expect(getFirstMarker(markerLayers[2])).toBe(marker2)
+
+    describe "role based snapshotting of createCheckpoint, groupChangesSinceCheckpoint", ->
+      it "skip snapshotting of other marker layers with the same role of activeMarkerLayer", ->
+        eventHandler = jasmine.createSpy('eventHandler')
+
+        args = []
+        spyOn(buffer, 'createMarkerSnapshot').and.callFake (arg) -> args.push(arg)
+
+        checkpoint1 = buffer.createCheckpoint({activeMarkerLayer: markerLayers[0]})
+        checkpoint2 = buffer.createCheckpoint()
+        checkpoint3 = buffer.createCheckpoint({activeMarkerLayer: markerLayers[2]})
+        checkpoint4 = buffer.createCheckpoint({activeMarkerLayer: markerLayers[1]})
+        expect(args).toEqual([
+          markerLayers[0],
+          undefined,
+          markerLayers[2],
+          markerLayers[1],
+        ])
+
+        buffer.groupChangesSinceCheckpoint(checkpoint4, {activeMarkerLayer: markerLayers[0]})
+        buffer.groupChangesSinceCheckpoint(checkpoint3, {activeMarkerLayer: markerLayers[2]})
+        buffer.groupChangesSinceCheckpoint(checkpoint2)
+        buffer.groupChangesSinceCheckpoint(checkpoint1, {activeMarkerLayer: markerLayers[1]})
+        expect(args).toEqual([
+          markerLayers[0],
+          undefined,
+          markerLayers[2],
+          markerLayers[1],
+
+          markerLayers[0],
+          markerLayers[2],
+          undefined,
+          markerLayers[1],
+        ])
+
   describe "transactions", ->
     now = null
 
@@ -1167,7 +1371,7 @@ describe "TextBuffer", ->
       bufferA.createCheckpoint()
       bufferA.setTextInRange([[0, 5], [0, 5]], " there")
       bufferA.transact -> bufferA.setTextInRange([[1, 0], [1, 5]], "friend")
-      layerA = bufferA.addMarkerLayer(maintainHistory: true, persistent: true)
+      layerA = bufferA.addMarkerLayer(maintainHistory: true, persistent: true, role: "role1")
       layerA.markRange([[0, 6], [0, 8]], reversed: true, foo: 1)
       marker2A = bufferA.markPosition([2, 2], bar: 2)
       bufferA.transact ->
@@ -1192,6 +1396,7 @@ describe "TextBuffer", ->
         bufferB.redo()
         expect(bufferB.getText()).toBe "hellooo there\ngood friend\r\nhow are you doing??"
         expectSameMarkers(bufferB.getMarkerLayer(layerA.id), layerA)
+        expect(bufferB.getMarkerLayer(layerA.id).getRole()).toBe "role1"
         expect(bufferB.getMarkerLayer(layerA.id).maintainHistory).toBe true
         expect(bufferB.getMarkerLayer(layerA.id).persistent).toBe true
 
