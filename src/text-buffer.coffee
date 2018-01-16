@@ -1362,6 +1362,7 @@ class TextBuffer
     global = regex.global
     flags = "gm"
     flags += "i" if regex.ignoreCase
+    flags += "u" if regex.unicode
     regex = new RegExp(regex.source, flags)
 
     if regexIsSingleLine(regex)
