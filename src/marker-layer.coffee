@@ -251,7 +251,7 @@ class MarkerLayer
   # * `callback` A {Function} that will be called with a {Marker} whenever a
   #   new marker is created.
   #
-  # You should prefer {onDidUpdate} when synchronous notifications aren't
+  # You should prefer {::onDidUpdate} when synchronous notifications aren't
   # absolutely necessary.
   #
   # Returns a {Disposable}.
