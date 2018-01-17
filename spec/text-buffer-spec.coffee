@@ -2009,6 +2009,27 @@ describe "TextBuffer", ->
         Range(Point(1, 2), Point(1, 6)),
       ])
 
+  describe "::findAndMarkAllInRangeSync(markerLayer, regex, range, options)", ->
+    it "populates the marker index with the matching ranges", ->
+      buffer = new TextBuffer('abc def\nghi jkl\n')
+      layer = buffer.addMarkerLayer()
+      markers = buffer.findAndMarkAllInRangeSync(layer, /\w+/g, [[0, 1], [1, 6]], {invalidate: 'inside'})
+      expect(markers.map((marker) -> marker.getRange())).toEqual([
+        [[0, 1], [0, 3]],
+        [[0, 4], [0, 7]],
+        [[1, 0], [1, 3]],
+        [[1, 4], [1, 6]]
+      ])
+      expect(markers[0].getInvalidationStrategy()).toBe('inside')
+      expect(markers[0].isExclusive()).toBe(true)
+
+      markers = buffer.findAndMarkAllInRangeSync(layer, /abc/g, [[0, 0], [1, 0]], {invalidate: 'touch'})
+      expect(markers.map((marker) -> marker.getRange())).toEqual([
+        [[0, 0], [0, 3]]
+      ])
+      expect(markers[0].getInvalidationStrategy()).toBe('touch')
+      expect(markers[0].isExclusive()).toBe(false)
+
   describe "::findWordsWithSubsequence and ::findWordsWithSubsequenceInRange", ->
     it 'resolves with all words matching the given query', (done) ->
       buffer = new TextBuffer('banana bandana ban_ana bandaid band bNa\nbanana')
