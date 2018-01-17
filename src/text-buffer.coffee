@@ -12,7 +12,6 @@ Range = require './range'
 DefaultHistoryProvider = require './default-history-provider'
 NullLanguageMode = require './null-language-mode'
 MarkerLayer = require './marker-layer'
-MatchIterator = require './match-iterator'
 DisplayLayer = require './display-layer'
 {spliceArray, newlineRegex, patchFromChanges, normalizePatchChanges, regexIsSingleLine, extentForText, debounce} = require './helpers'
 {traverse, traversal} = require './point-helpers'
@@ -1359,23 +1358,28 @@ class TextBuffer
       options = {}
 
     range = @clipRange(range)
-    global = regex.global
-    flags = "gm"
-    flags += "i" if regex.ignoreCase
-    regex = new RegExp(regex.source, flags)
+    matchRanges = @findAllInRangeSync(regex, range)
+    previousRow = 0
+    replacementColumnDelta = 0
+    increment = if reverse then -1 else 1
 
-    if regexIsSingleLine(regex)
-      if reverse
-        iterator = new MatchIterator.BackwardsSingleLine(this, regex, range, options)
-      else
-        iterator = new MatchIterator.ForwardsSingleLine(this, regex, range, options)
-    else
-      if reverse
-        iterator = new MatchIterator.BackwardsMultiLine(this, regex, range, @backwardsScanChunkSize, options)
-      else
-        iterator = new MatchIterator.ForwardsMultiLine(this, regex, range, options)
+    for matchRange in matchRanges by increment
+      continue if range.end.isEqual(matchRange.start) and range.end.column > 0
+      if matchRange.start.row isnt previousRow
+        replacementColumnDelta = 0
+      previousRow = matchRange.start.row
+      matchRange.start.column += replacementColumnDelta
+      matchRange.end.column += replacementColumnDelta
 
-    iterator.iterate(callback, global)
+      argument = new SearchCallbackArgument(this, Range.fromObject(matchRange), regex, options)
+      callback(argument)
+      break if argument.stopped or not regex.global
+
+      if not reverse and argument.replacementText?
+        replacementColumnDelta +=
+          matchRange.start.column + argument.replacementText.length -
+          matchRange.end.column
+    return
 
   # Public: Scan regular expression matches in a given range in reverse order,
   # calling the given iterator function on each match.
@@ -2081,3 +2085,41 @@ class TextBuffer
       @markerLayersWithPendingUpdateEvents.add(layer)
 
   getNextMarkerId: -> @nextMarkerId++
+
+class SearchCallbackArgument
+  lineTextOffset: 0
+
+  @addContextLines = (argument, options) ->
+    argument.leadingContextLines = []
+    row = Math.max(0, argument.range.start.row - (options.leadingContextLineCount or 0))
+    while row < argument.range.start.row
+      argument.leadingContextLines.push(argument.buffer.lineForRow(row))
+      row += 1
+
+    argument.trailingContextLines = []
+    for i in [0...(options.trailingContextLineCount or 0)]
+      row = argument.range.start.row + i + 1
+      break if row >= argument.buffer.getLineCount()
+      argument.trailingContextLines.push(argument.buffer.lineForRow(row))
+
+  Object.defineProperty this.prototype, 'lineText',
+    get: -> @buffer.lineForRow(@range.start.row)
+
+  Object.defineProperty this.prototype, 'matchText',
+    get: -> @buffer.getTextInRange(@range)
+
+  Object.defineProperty this.prototype, 'match',
+    get: ->
+      @regex.lastIndex = 0
+      @regex.exec(@matchText)
+
+  constructor: (@buffer, @range, @regex, options) ->
+    @stopped = false
+    @replacementText = null
+    SearchCallbackArgument.addContextLines(this, options)
+
+  replace: (text) =>
+    @replacementText = text
+    @buffer.setTextInRange(@range, text)
+
+  stop: => @stopped = true
