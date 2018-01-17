@@ -84,7 +84,7 @@ class DisplayMarkerLayer
   # * `callback` A {Function} that will be called with a {TextEditorMarker}
   #   whenever a new marker is created.
   #
-  # You should prefer {onDidUpdate} when synchronous notifications aren't
+  # You should prefer {::onDidUpdate} when synchronous notifications aren't
   # absolutely necessary.
   #
   # Returns a {Disposable}.
