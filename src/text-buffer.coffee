@@ -11,6 +11,7 @@ Point = require './point'
 Range = require './range'
 DefaultHistoryProvider = require './default-history-provider'
 NullLanguageMode = require './null-language-mode'
+Marker = require './marker'
 MarkerLayer = require './marker-layer'
 DisplayLayer = require './display-layer'
 {spliceArray, newlineRegex, patchFromChanges, normalizePatchChanges, regexIsSingleLine, extentForText, debounce} = require './helpers'
@@ -1489,6 +1490,33 @@ class TextBuffer
   # Returns an {Array} containing every {Range} of text that matches the given
   # regex.
   findAllInRangeSync: (regex, range) -> @buffer.findAllInRangeSync(regex, range)
+
+  # Experimental: Search a given range of the buffer for a given regex. Store
+  # the matching ranges in the given marker layer.
+  #
+  # * `markerLayer` A {MarkerLayer} to populate.
+  # * `regex` A {RegExp} to search for.
+  # * `range` A {Range} to search within.
+  #
+  # Returns an {Array} of {Marker}s representing the matches.
+  findAndMarkAllInRangeSync: (markerLayer, regex, range, options = {}) ->
+    startId = @nextMarkerId
+    exclusive = not options.exclusive ? (options.invalidate is 'inside' or not options.tailed)
+    @nextMarkerId += @buffer.findAndMarkAllSync(
+      markerLayer.index,
+      startId,
+      exclusive,
+      regex,
+      Range.fromObject(range)
+    )
+    markers = []
+    id = startId
+    while id < @nextMarkerId
+      marker = new Marker(id, markerLayer, null, options, true)
+      markerLayer.markersById[id] = marker
+      markers.push(marker)
+      id++
+    markers
 
   # Experimental: Find fuzzy match suggestions in the buffer
   #

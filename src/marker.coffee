@@ -58,7 +58,7 @@ class Marker
 
   @delegatesMethods 'containsPoint', 'containsRange', 'intersectsRow', toMethod: 'getRange'
 
-  constructor: (@id, @layer, range, params) ->
+  constructor: (@id, @layer, range, params, exclusivitySet = false) ->
     {@tailed, @reversed, @valid, @invalidate, @exclusive, @properties} = params
     @emitter = new Emitter
     @tailed ?= true
@@ -68,7 +68,7 @@ class Marker
     @properties ?= {}
     @hasChangeObservers = false
     Object.freeze(@properties)
-    @layer.setMarkerIsExclusive(@id, @isExclusive())
+    @layer.setMarkerIsExclusive(@id, @isExclusive()) unless exclusivitySet
 
   ###
   Section: Event Subscription
