@@ -1346,6 +1346,11 @@ describe "TextBuffer", ->
       buffer = new TextBuffer("abc\ndef\nghi")
       expect(buffer.getRange()).toEqual [[0, 0], [2, 3]]
 
+  describe "::getLength()", ->
+    it "returns the lenght of the entire buffer text", ->
+      buffer = new TextBuffer("abc\ndef\nghi")
+      expect(buffer.getLength()).toBe("abc\ndef\nghi".length)
+
   describe "::rangeForRow(row, includeNewline)", ->
     beforeEach ->
       buffer = new TextBuffer("this\nis a test\r\ntesting")
