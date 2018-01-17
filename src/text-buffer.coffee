@@ -1548,6 +1548,9 @@ class TextBuffer
   # Returns a {Point}.
   getEndPosition: -> Point.fromObject(@buffer.getExtent())
 
+  # Public: Get the length of the buffer's text.
+  getLength: -> @buffer.getLength()
+
   # Public: Get the length of the buffer in characters.
   #
   # Returns a {Number}.
