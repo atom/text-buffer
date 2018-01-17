@@ -368,7 +368,7 @@ class TextBuffer
   onDidChange: (callback) ->
     @emitter.on 'did-change-text', callback
 
-  # Public: This is now identical to {onDidChange}.
+  # Public: This is now identical to {::onDidChange}.
   onDidChangeText: (callback) -> @onDidChange(callback)
 
   # Public: Invoke the given callback asynchronously following one or more
