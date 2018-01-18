@@ -172,9 +172,24 @@ describe "MarkerLayer", ->
 
   describe "when role is provided for the layer", ->
     it "getRole() returns it's role", ->
-      expect(buffer.addMarkerLayer(role: "role1").getRole()).toBe("role1")
-      expect(buffer.addMarkerLayer(role: "role2").getRole()).toBe("role2")
-      expect(buffer.addMarkerLayer().getRole()).toBe(undefined)
+      expect(Object.keys(buffer.markerLayerIdsByRole).length).toBe(0)
+
+      layerRoleA1 = buffer.addMarkerLayer(role: "role-a")
+      layerRoleB1 = buffer.addMarkerLayer(role: "role-b")
+      layerNoRole = buffer.addMarkerLayer()
+      expect(layerRoleA1.getRole()).toBe("role-a")
+      expect(layerRoleB1.getRole()).toBe("role-b")
+      expect(layerNoRole.getRole()).toBe(undefined)
+
+      expect(buffer.markerLayerIdsByRole["role-a"].has(layerRoleA1.id)).toBe(true)
+      expect(buffer.markerLayerIdsByRole["role-a"].size).toBe(1)
+      expect(buffer.markerLayerIdsByRole["role-b"].has(layerRoleB1.id)).toBe(true)
+      expect(buffer.markerLayerIdsByRole["role-b"].size).toBe(1)
+
+      layerRoleA2 = buffer.addMarkerLayer(role: "role-a")
+      expect(buffer.markerLayerIdsByRole["role-a"].has(layerRoleA1.id)).toBe(true)
+      expect(buffer.markerLayerIdsByRole["role-a"].has(layerRoleA2.id)).toBe(true)
+      expect(buffer.markerLayerIdsByRole["role-a"].size).toBe(2)
 
   describe "::findMarkers(params)", ->
     it "does not find markers from other layers", ->

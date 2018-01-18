@@ -35,6 +35,7 @@ class MarkerLayer
     @maintainHistory = options?.maintainHistory ? false
     @destroyInvalidatedMarkers = options?.destroyInvalidatedMarkers ? false
     @role = options?.role
+    @delegate.addRoleId(@role, @id) if @role?
     @persistent = options?.persistent ? false
     @emitter = new Emitter
     @index = new MarkerIndex
@@ -343,6 +344,7 @@ class MarkerLayer
     @id = state.id
     @maintainHistory = state.maintainHistory
     @role = state.role
+    @delegate.addRoleId(@role, @id) if @role?
     @persistent = state.persistent
     for id, markerState of state.markersById
       range = Range.fromObject(markerState.range)

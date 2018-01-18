@@ -961,9 +961,6 @@ class TextBuffer
   addMarkerLayer: (options) ->
     layer = new MarkerLayer(this, String(@nextMarkerLayerId++), options)
     @markerLayers[layer.id] = layer
-    if layer.role
-      @markerLayerIdsByRole[layer.role] ?= new Set()
-      @markerLayerIdsByRole[layer.role].add(layer.id)
     layer
 
   # Public: Get a {MarkerLayer} by id.
@@ -1844,6 +1841,9 @@ class TextBuffer
   ###
   Section: Private Utility Methods
   ###
+  addRoleId: (role, markerLayerId) ->
+    @markerLayerIdsByRole[role] ?= new Set()
+    @markerLayerIdsByRole[role].add(markerLayerId)
 
   loadSync: (options) ->
     unless options?.internal

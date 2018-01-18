@@ -1441,6 +1441,9 @@ describe "TextBuffer", ->
         expect(bufferB.getText()).toBe "hellooo there\ngood friend\r\nhow are you doing??"
         expectSameMarkers(bufferB.getMarkerLayer(layerA.id), layerA)
         expect(bufferB.getMarkerLayer(layerA.id).getRole()).toBe "role1"
+        expect(Object.keys(bufferB.markerLayerIdsByRole)).toEqual(["role1"])
+        expect(bufferB.markerLayerIdsByRole["role1"].size).toBe(1)
+        expect(bufferB.markerLayerIdsByRole["role1"].has(layerA.id)).toBe(true)
         expect(bufferB.getMarkerLayer(layerA.id).maintainHistory).toBe true
         expect(bufferB.getMarkerLayer(layerA.id).persistent).toBe true
 
