@@ -281,12 +281,13 @@ describe "MarkerLayer", ->
 
   describe "::copy", ->
     it "creates a new marker layer with markers in the same states", ->
-      originalLayer = buffer.addMarkerLayer(maintainHistory: true)
+      originalLayer = buffer.addMarkerLayer(maintainHistory: true, role: "role1")
       originalLayer.markRange([[0, 1], [0, 3]], a: 'b')
       originalLayer.markPosition([0, 2])
 
       copy = originalLayer.copy()
       expect(copy).not.toBe originalLayer
+      expect(copy.getRole()).toBe("role1")
 
       markers = copy.getMarkers()
       expect(markers.length).toBe 2

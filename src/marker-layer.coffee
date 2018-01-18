@@ -48,7 +48,7 @@ class MarkerLayer
   # Public: Create a copy of this layer with markers in the same state and
   # locations.
   copy: ->
-    copy = @delegate.addMarkerLayer({@maintainHistory})
+    copy = @delegate.addMarkerLayer({@maintainHistory, @role})
     for markerId, marker of @markersById
       snapshot = marker.getSnapshot(null)
       copy.createMarker(marker.getRange(), marker.getSnapshot())
