@@ -166,6 +166,7 @@ class TextBuffer
     @markerLayers = {}
     @markerLayers[@defaultMarkerLayer.id] = @defaultMarkerLayer
     @markerLayersWithPendingUpdateEvents = new Set()
+    @markerLayerIdsByRole = {}
     @nextMarkerId = 1
     @outstandingSaveCount = 0
     @loadCount = 0
@@ -960,6 +961,9 @@ class TextBuffer
   addMarkerLayer: (options) ->
     layer = new MarkerLayer(this, String(@nextMarkerLayerId++), options)
     @markerLayers[layer.id] = layer
+    if layer.role
+      @markerLayerIdsByRole[layer.role] ?= new Set()
+      @markerLayerIdsByRole[layer.role].add(layer.id)
     layer
 
   # Public: Get a {MarkerLayer} by id.
@@ -2027,7 +2031,9 @@ class TextBuffer
   createMarkerSnapshot: (activeMarkerLayer) ->
     snapshot = {}
 
-    role = activeMarkerLayer?.getRole()
+    if activeMarkerLayer?
+      activeMarkerLayer = @getMarkerLayer(activeMarkerLayer.id)
+      role = activeMarkerLayer.getRole()
 
     for markerLayerId, markerLayer of @markerLayers when markerLayer.maintainHistory
       if role? and (markerLayer.getRole() is role) and (markerLayer isnt activeMarkerLayer)
@@ -2036,20 +2042,21 @@ class TextBuffer
     snapshot
 
   restoreFromMarkerSnapshot: (snapshot, activeMarkerLayer) ->
-    role = activeMarkerLayer?.getRole()
-    if role?
-      # When snapshot includes multiple layerSnapshot of same `role`, disable snapshot restore target redirection
-      # to avoid multiple layerSnapshot being restored to single markerLayer, its just confusing.
-      layerSnapshotsOfSameRole = Object.keys(snapshot).filter (markerLayerId) =>
-        @markerLayers[markerLayerId].getRole() is role
-      if layerSnapshotsOfSameRole.length isnt 1
-        role = null
+    if activeMarkerLayer?
+      activeMarkerLayer = @getMarkerLayer(activeMarkerLayer.id)
+      role = activeMarkerLayer.getRole()
 
-    for markerLayerId, layerSnapshot of snapshot when markerLayer = @markerLayers[markerLayerId]
-      if role? and markerLayer.getRole() is role
-        activeMarkerLayer.restoreFromSnapshot(layerSnapshot, activeMarkerLayer isnt markerLayer)
+      # When snapshot includes multiple layerSnapshot of `role`, disable snapshot restore target redirection
+      # to avoid multiple layerSnapshots being restored to single markerLayer.
+      layerSnapshotIdsOfRole = Object.keys(snapshot).filter (layerId) => @markerLayerIdsByRole[role].has(layerId)
+      if layerSnapshotIdsOfRole.length is 1
+        layerSnapshotRestoreToActiveMarkerLayer = snapshot[layerSnapshotIdsOfRole[0]]
+
+    for markerLayerId, layerSnapshot of snapshot
+      if layerSnapshotRestoreToActiveMarkerLayer? and layerSnapshotRestoreToActiveMarkerLayer is layerSnapshot
+        activeMarkerLayer.restoreFromSnapshot(layerSnapshot, activeMarkerLayer.id isnt markerLayerId)
       else
-        markerLayer.restoreFromSnapshot(layerSnapshot)
+        @markerLayers[markerLayerId]?.restoreFromSnapshot(layerSnapshot)
 
   emitMarkerChangeEvents: (snapshot) ->
     if @transactCallDepth is 0
