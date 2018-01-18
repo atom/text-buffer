@@ -1841,9 +1841,9 @@ class TextBuffer
   ###
   Section: Private Utility Methods
   ###
-  addRoleId: (role, markerLayerId) ->
+  registerRoleForMarkerLayer: (role, markerLayer) ->
     @markerLayerIdsByRole[role] ?= new Set()
-    @markerLayerIdsByRole[role].add(markerLayerId)
+    @markerLayerIdsByRole[role].add(markerLayer.id)
 
   loadSync: (options) ->
     unless options?.internal
