@@ -697,7 +697,7 @@ describe "TextBuffer", ->
       expect(getFirstMarker(markerLayers[1])).toBe(marker1)
       expect(getFirstMarker(markerLayers[2])).toBe(marker2)
 
-    describe "role based snapshotting of createCheckpoint, groupChangesSinceCheckpoint", ->
+    describe "role based snapshotting on createCheckpoint, groupChangesSinceCheckpoint", ->
       it "skip snapshotting of other marker layers with the same role of activeMarkerLayer", ->
         eventHandler = jasmine.createSpy('eventHandler')
 
