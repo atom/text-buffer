@@ -624,6 +624,50 @@ describe "TextBuffer", ->
       expect(marker1.isDestroyed()).toBe(true)
       expect(marker2.isDestroyed()).toBe(true)
 
+    it "can restore snapshot taken at destroyed markerLayer to given activeMarkerLayer", ->
+      buffer.transact {activeMarkerLayer: markerLayers[1]}, ->
+        buffer.append("44444444\n")
+        marker0.setRange(rangesAfter[0])
+        marker1.setRange(rangesAfter[1])
+        marker2.setRange(rangesAfter[2])
+
+      markerLayers[1].destroy()
+      expect(buffer.getMarkerLayer(markerLayers[0].id)).toBeTruthy()
+      expect(buffer.getMarkerLayer(markerLayers[1].id)).toBeFalsy()
+      expect(buffer.getMarkerLayer(markerLayers[2].id)).toBeTruthy()
+      expect(marker0.isDestroyed()).toBe(false)
+      expect(marker1.isDestroyed()).toBe(true)
+      expect(marker2.isDestroyed()).toBe(false)
+
+      buffer.undo({activeMarkerLayer: markerLayers[0]})
+      expect(buffer.getText()).toBe(textUndo)
+
+      ensureMarkerLayer(markerLayers[0], rangesBefore[1])
+      ensureMarkerLayer(markerLayers[2], rangesAfter[2])
+      expect(marker0.isDestroyed()).toBe(true)
+      expect(marker2.isDestroyed()).toBe(false)
+
+      buffer.redo({activeMarkerLayer: markerLayers[0]})
+      expect(buffer.getText()).toBe(textRedo)
+      ensureMarkerLayer(markerLayers[0], rangesAfter[1])
+      ensureMarkerLayer(markerLayers[2], rangesAfter[2])
+
+      markerLayers[3] = markerLayers[2].copy()
+      ensureMarkerLayer(markerLayers[3], rangesAfter[2])
+      markerLayers[0].destroy()
+      markerLayers[2].destroy()
+      expect(buffer.getMarkerLayer(markerLayers[0].id)).toBeFalsy()
+      expect(buffer.getMarkerLayer(markerLayers[1].id)).toBeFalsy()
+      expect(buffer.getMarkerLayer(markerLayers[2].id)).toBeFalsy()
+      expect(buffer.getMarkerLayer(markerLayers[3].id)).toBeTruthy()
+
+      buffer.undo({activeMarkerLayer: markerLayers[3]})
+      expect(buffer.getText()).toBe(textUndo)
+      ensureMarkerLayer(markerLayers[3], rangesBefore[1])
+      buffer.redo({activeMarkerLayer: markerLayers[3]})
+      expect(buffer.getText()).toBe(textRedo)
+      ensureMarkerLayer(markerLayers[3], rangesAfter[1])
+
     it "fallback to normal behavior when snaphot includes multipe layerSnapshot of same role", ->
       # Transact without activeMarkerLayer.
       # Taken snapshot includes layerSnapshot of markerLayer[0], markerLayer[1] and markerLayer[2]
