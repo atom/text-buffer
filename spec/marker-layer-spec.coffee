@@ -303,6 +303,9 @@ describe "MarkerLayer", ->
       copy = originalLayer.copy()
       expect(copy).not.toBe originalLayer
       expect(copy.getRole()).toBe("role1")
+      expect(buffer.markerLayerIdsByRole["role1"].has(originalLayer.id)).toBe(true)
+      expect(buffer.markerLayerIdsByRole["role1"].has(copy.id)).toBe(true)
+      expect(buffer.markerLayerIdsByRole["role1"].size).toBe(2)
 
       markers = copy.getMarkers()
       expect(markers.length).toBe 2
