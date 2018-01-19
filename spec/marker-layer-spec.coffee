@@ -171,25 +171,29 @@ describe "MarkerLayer", ->
       buffer.undo()
 
   describe "when role is provided for the layer", ->
-    it "getRole() returns it's role", ->
-      expect(Object.keys(buffer.markerLayerIdsByRole).length).toBe(0)
+    it "getRole() returns it's role and keep track of ids of 'selenctions' role", ->
+      expect(buffer.selectionsMarkerLayerIds.size).toBe 0
 
-      layerRoleA1 = buffer.addMarkerLayer(role: "role-a")
-      layerRoleB1 = buffer.addMarkerLayer(role: "role-b")
-      layerNoRole = buffer.addMarkerLayer()
-      expect(layerRoleA1.getRole()).toBe("role-a")
-      expect(layerRoleB1.getRole()).toBe("role-b")
-      expect(layerNoRole.getRole()).toBe(undefined)
+      selectionsMarkerLayer1 = buffer.addMarkerLayer(role: "selections")
+      expect(selectionsMarkerLayer1.getRole()).toBe "selections"
 
-      expect(buffer.markerLayerIdsByRole["role-a"].has(layerRoleA1.id)).toBe(true)
-      expect(buffer.markerLayerIdsByRole["role-a"].size).toBe(1)
-      expect(buffer.markerLayerIdsByRole["role-b"].has(layerRoleB1.id)).toBe(true)
-      expect(buffer.markerLayerIdsByRole["role-b"].size).toBe(1)
+      expect(buffer.addMarkerLayer(role: "role-1").getRole()).toBe "role-1"
+      expect(buffer.addMarkerLayer().getRole()).toBe undefined
 
-      layerRoleA2 = buffer.addMarkerLayer(role: "role-a")
-      expect(buffer.markerLayerIdsByRole["role-a"].has(layerRoleA1.id)).toBe(true)
-      expect(buffer.markerLayerIdsByRole["role-a"].has(layerRoleA2.id)).toBe(true)
-      expect(buffer.markerLayerIdsByRole["role-a"].size).toBe(2)
+      expect(buffer.selectionsMarkerLayerIds.size).toBe 1
+      expect(buffer.selectionsMarkerLayerIds.has(selectionsMarkerLayer1.id)).toBe true
+
+      selectionsMarkerLayer2 = buffer.addMarkerLayer(role: "selections")
+      expect(selectionsMarkerLayer2.getRole()).toBe "selections"
+
+      expect(buffer.selectionsMarkerLayerIds.size).toBe 2
+      expect(buffer.selectionsMarkerLayerIds.has(selectionsMarkerLayer2.id)).toBe true
+
+      selectionsMarkerLayer1.destroy()
+      selectionsMarkerLayer2.destroy()
+      expect(buffer.selectionsMarkerLayerIds.size).toBe 2
+      expect(buffer.selectionsMarkerLayerIds.has(selectionsMarkerLayer1.id)).toBe true
+      expect(buffer.selectionsMarkerLayerIds.has(selectionsMarkerLayer2.id)).toBe true
 
   describe "::findMarkers(params)", ->
     it "does not find markers from other layers", ->
@@ -296,16 +300,12 @@ describe "MarkerLayer", ->
 
   describe "::copy", ->
     it "creates a new marker layer with markers in the same states", ->
-      originalLayer = buffer.addMarkerLayer(maintainHistory: true, role: "role1")
+      originalLayer = buffer.addMarkerLayer(maintainHistory: true)
       originalLayer.markRange([[0, 1], [0, 3]], a: 'b')
       originalLayer.markPosition([0, 2])
 
       copy = originalLayer.copy()
       expect(copy).not.toBe originalLayer
-      expect(copy.getRole()).toBe("role1")
-      expect(buffer.markerLayerIdsByRole["role1"].has(originalLayer.id)).toBe(true)
-      expect(buffer.markerLayerIdsByRole["role1"].has(copy.id)).toBe(true)
-      expect(buffer.markerLayerIdsByRole["role1"].size).toBe(2)
 
       markers = copy.getMarkers()
       expect(markers.length).toBe 2
@@ -313,6 +313,15 @@ describe "MarkerLayer", ->
       expect(markers[0].getProperties()).toEqual {a: 'b'}
       expect(markers[1].getRange()).toEqual [[0, 2], [0, 2]]
       expect(markers[1].hasTail()).toBe false
+
+    it "copy marker layer role", ->
+      originalLayer = buffer.addMarkerLayer(maintainHistory: true, role: "selections")
+      copy = originalLayer.copy()
+      expect(copy).not.toBe originalLayer
+      expect(copy.getRole()).toBe("selections")
+      expect(buffer.selectionsMarkerLayerIds.has(originalLayer.id)).toBe true
+      expect(buffer.selectionsMarkerLayerIds.has(copy.id)).toBe true
+      expect(buffer.selectionsMarkerLayerIds.size).toBe 2
 
   describe "::destroy", ->
     it "destroys the layer's markers", ->

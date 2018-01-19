@@ -166,7 +166,7 @@ class TextBuffer
     @markerLayers = {}
     @markerLayers[@defaultMarkerLayer.id] = @defaultMarkerLayer
     @markerLayersWithPendingUpdateEvents = new Set()
-    @markerLayerIdsByRole = {}
+    @selectionsMarkerLayerIds = new Set()
     @nextMarkerId = 1
     @outstandingSaveCount = 0
     @loadCount = 0
@@ -1121,9 +1121,8 @@ class TextBuffer
   # Public: Undo the last operation. If a transaction is in progress, aborts it.
   #
   # * `options` (optional) {Object}
-  #   * `activeMarkerLayer` (optional)
-  #     Marker layer's snapshot with the same role as given activeMarkerLayer
-  #     is restored to activeMarkerLayer
+  #   * `selectionsMarkerLayer` (optional)
+  #     Restore snapshot of selections marker layer to given selectionsMarkerLayer.
   #
   # Returns a {Boolean} of whether or not a change was made.
   undo: (options) ->
@@ -1134,7 +1133,7 @@ class TextBuffer
         @applyChange(change) for change in pop.textUpdates
       finally
         @transactCallDepth--
-      @restoreFromMarkerSnapshot(pop.markers, options?.activeMarkerLayer)
+      @restoreFromMarkerSnapshot(pop.markers, options?.selectionsMarkerLayer)
       @emitDidChangeTextEvent()
       @emitMarkerChangeEvents(pop.markers)
       true
@@ -1144,9 +1143,8 @@ class TextBuffer
   # Public: Redo the last operation
   #
   # * `options` (optional) {Object}
-  #   * `activeMarkerLayer` (optional)
-  #     Marker layer's snapshot with the same role as given activeMarkerLayer
-  #     is restored to activeMarkerLayer
+  #   * `selectionsMarkerLayer` (optional)
+  #     Restore snapshot of selections marker layer to given selectionsMarkerLayer.
   #
   # Returns a {Boolean} of whether or not a change was made.
   redo: (options) ->
@@ -1157,7 +1155,7 @@ class TextBuffer
         @applyChange(change) for change in pop.textUpdates
       finally
         @transactCallDepth--
-      @restoreFromMarkerSnapshot(pop.markers, options?.activeMarkerLayer)
+      @restoreFromMarkerSnapshot(pop.markers, options?.selectionsMarkerLayer)
       @emitDidChangeTextEvent()
       @emitMarkerChangeEvents(pop.markers)
       true
@@ -1177,8 +1175,8 @@ class TextBuffer
   #     a transaction with a positive `groupingInterval` is committed while the
   #     previous transaction is still open for grouping, the two transactions
   #     are merged with respect to undo and redo.
-  #   * `activeMarkerLayer` (optional)
-  #     When provided, skip taking snapshot for other markerLayers of the same role.
+  #   * `selectionsMarkerLayer` (optional)
+  #     When provided, skip taking snapshot for other selections markerLayers except given one.
   # * `groupingInterval` (optional) The {Number} of milliseconds for which this
   #   transaction should be considered 'open for grouping' after it begins. If a
   #   transaction with a positive `groupingInterval` is committed while the previous
@@ -1190,12 +1188,12 @@ class TextBuffer
       fn = options
       groupingInterval = 0
     else if typeof options is 'object'
-      {groupingInterval, activeMarkerLayer} = options
+      {groupingInterval, selectionsMarkerLayer} = options
       groupingInterval ?= 0
     else
       groupingInterval = options
 
-    checkpointBefore = @historyProvider.createCheckpoint(markers: @createMarkerSnapshot(activeMarkerLayer), isBarrier: true)
+    checkpointBefore = @historyProvider.createCheckpoint(markers: @createMarkerSnapshot(selectionsMarkerLayer), isBarrier: true)
 
     try
       @transactCallDepth++
@@ -1208,7 +1206,7 @@ class TextBuffer
       @transactCallDepth--
 
     return result if @isDestroyed()
-    endMarkerSnapshot = @createMarkerSnapshot(activeMarkerLayer)
+    endMarkerSnapshot = @createMarkerSnapshot(selectionsMarkerLayer)
     @historyProvider.groupChangesSinceCheckpoint(checkpointBefore, {markers: endMarkerSnapshot, deleteCheckpoint: true})
     @historyProvider.applyGroupingInterval(groupingInterval)
     @historyProvider.enforceUndoStackSizeLimit()
@@ -1229,12 +1227,12 @@ class TextBuffer
   # with {::revertToCheckpoint} and {::groupChangesSinceCheckpoint}.
   #
   # * `options` (optional) {Object}
-  #   * `activeMarkerLayer` (optional)
-  #     When provided, skip taking snapshot for other markerLayers of the same role.
+  #   * `selectionsMarkerLayer` (optional)
+  #     When provided, skip taking snapshot for other selections markerLayers except given one.
   #
   # Returns a checkpoint id value.
   createCheckpoint: (options) ->
-    @historyProvider.createCheckpoint(markers: @createMarkerSnapshot(options?.activeMarkerLayer), isBarrier: false)
+    @historyProvider.createCheckpoint(markers: @createMarkerSnapshot(options?.selectionsMarkerLayer), isBarrier: false)
 
   # Public: Revert the buffer to the state it was in when the given
   # checkpoint was created.
@@ -1246,9 +1244,8 @@ class TextBuffer
   #
   # * `checkpoint` {Number} id of the checkpoint to revert to.
   # * `options` (optional) {Object}
-  #   * `activeMarkerLayer` (optional)
-  #     Marker layer's snapshot with the same role as given activeMarkerLayer
-  #     is restored to activeMarkerLayer
+  #   * `selectionsMarkerLayer` (optional)
+  #     Restore snapshot of selections marker layer to given selectionsMarkerLayer.
   #
   # Returns a {Boolean} indicating whether the operation succeeded.
   revertToCheckpoint: (checkpoint, options) ->
@@ -1259,7 +1256,7 @@ class TextBuffer
         @applyChange(change) for change in truncated.textUpdates
       finally
         @transactCallDepth--
-      @restoreFromMarkerSnapshot(truncated.markers, options?.activeMarkerLayer)
+      @restoreFromMarkerSnapshot(truncated.markers, options?.selectionsMarkerLayer)
       @emitDidChangeTextEvent()
       @emitter.emit 'did-update-markers'
       @emitMarkerChangeEvents(truncated.markers)
@@ -1275,12 +1272,12 @@ class TextBuffer
   #
   # * `checkpoint` {Number} id of the checkpoint to group changes since.
   # * `options` (optional) {Object}
-  #   * `activeMarkerLayer` (optional)
-  #     When provided, skip taking snapshot for other markerLayers of the same role.
+  #   * `selectionsMarkerLayer` (optional)
+  #     When provided, skip taking snapshot for other selections markerLayers except given one.
   #
   # Returns a {Boolean} indicating whether the operation succeeded.
   groupChangesSinceCheckpoint: (checkpoint, options) ->
-    @historyProvider.groupChangesSinceCheckpoint(checkpoint, {markers: @createMarkerSnapshot(options?.activeMarkerLayer), deleteCheckpoint: false})
+    @historyProvider.groupChangesSinceCheckpoint(checkpoint, {markers: @createMarkerSnapshot(options?.selectionsMarkerLayer), deleteCheckpoint: false})
 
   # Public: Group the last two text changes for purposes of undo/redo.
   #
@@ -1841,9 +1838,8 @@ class TextBuffer
   ###
   Section: Private Utility Methods
   ###
-  registerRoleForMarkerLayer: (role, markerLayer) ->
-    @markerLayerIdsByRole[role] ?= new Set()
-    @markerLayerIdsByRole[role].add(markerLayer.id)
+  registerSelectionsMarkerLayer: (markerLayer) ->
+    @selectionsMarkerLayerIds.add(markerLayer.id)
 
   loadSync: (options) ->
     unless options?.internal
@@ -2028,33 +2024,29 @@ class TextBuffer
       @fileSubscriptions.add @file.onWillThrowWatchError (error) =>
         @emitter.emit 'will-throw-watch-error', error
 
-  createMarkerSnapshot: (activeMarkerLayer) ->
+  createMarkerSnapshot: (selectionsMarkerLayer) ->
     snapshot = {}
 
-    if activeMarkerLayer?
-      activeMarkerLayer = @getMarkerLayer(activeMarkerLayer.id)
-      role = activeMarkerLayer.getRole()
-
     for markerLayerId, markerLayer of @markerLayers when markerLayer.maintainHistory
-      if role? and (markerLayer.getRole() is role) and (markerLayer isnt activeMarkerLayer)
+      if selectionsMarkerLayer? and markerLayer.getRole() is "selections" and markerLayerId isnt selectionsMarkerLayer.id
         continue
       snapshot[markerLayerId] = markerLayer.createSnapshot()
     snapshot
 
-  restoreFromMarkerSnapshot: (snapshot, activeMarkerLayer) ->
-    if activeMarkerLayer?
-      activeMarkerLayer = @getMarkerLayer(activeMarkerLayer.id)
-      role = activeMarkerLayer.getRole()
+  restoreFromMarkerSnapshot: (snapshot, selectionsMarkerLayer) ->
+    console.log 'restore', selectionsMarkerLayer
 
+    if selectionsMarkerLayer?
       # When snapshot includes multiple layerSnapshot of `role`, disable snapshot restore target redirection
       # to avoid multiple layerSnapshots being restored to single markerLayer.
-      layerSnapshotIdsOfRole = Object.keys(snapshot).filter (layerId) => @markerLayerIdsByRole[role].has(layerId)
-      if layerSnapshotIdsOfRole.length is 1
-        layerSnapshotRestoreToActiveMarkerLayer = snapshot[layerSnapshotIdsOfRole[0]]
+      selectionsSnapshotIds = Object.keys(snapshot).filter (id) => @selectionsMarkerLayerIds.has(id)
+      if selectionsSnapshotIds.length is 1
+        selectionsSnapshotId = selectionsSnapshotIds[0]
+        alwaysCreate = selectionsSnapshotId isnt selectionsMarkerLayer.id
 
     for markerLayerId, layerSnapshot of snapshot
-      if layerSnapshotRestoreToActiveMarkerLayer? and layerSnapshotRestoreToActiveMarkerLayer is layerSnapshot
-        activeMarkerLayer.restoreFromSnapshot(layerSnapshot, activeMarkerLayer.id isnt markerLayerId)
+      if selectionsMarkerLayer? and markerLayerId is selectionsSnapshotId
+        @markerLayers[selectionsMarkerLayer.id].restoreFromSnapshot(layerSnapshot, alwaysCreate)
       else
         @markerLayers[markerLayerId]?.restoreFromSnapshot(layerSnapshot)
 
