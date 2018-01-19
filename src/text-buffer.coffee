@@ -2034,19 +2034,15 @@ class TextBuffer
     snapshot
 
   restoreFromMarkerSnapshot: (snapshot, selectionsMarkerLayer) ->
-    console.log 'restore', selectionsMarkerLayer
-
     if selectionsMarkerLayer?
-      # When snapshot includes multiple layerSnapshot of `role`, disable snapshot restore target redirection
-      # to avoid multiple layerSnapshots being restored to single markerLayer.
+      # Do selective selections marker restoration only when snapshot includes single selections snapshot.
       selectionsSnapshotIds = Object.keys(snapshot).filter (id) => @selectionsMarkerLayerIds.has(id)
       if selectionsSnapshotIds.length is 1
         selectionsSnapshotId = selectionsSnapshotIds[0]
-        alwaysCreate = selectionsSnapshotId isnt selectionsMarkerLayer.id
 
     for markerLayerId, layerSnapshot of snapshot
-      if selectionsMarkerLayer? and markerLayerId is selectionsSnapshotId
-        @markerLayers[selectionsMarkerLayer.id].restoreFromSnapshot(layerSnapshot, alwaysCreate)
+      if markerLayerId is selectionsSnapshotId
+        @markerLayers[selectionsMarkerLayer.id].restoreFromSnapshot(layerSnapshot, markerLayerId isnt selectionsMarkerLayer.id)
       else
         @markerLayers[markerLayerId]?.restoreFromSnapshot(layerSnapshot)
 
