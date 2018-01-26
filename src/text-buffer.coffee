@@ -2133,6 +2133,9 @@ class SearchCallbackArgument
       break if row >= argument.buffer.getLineCount()
       argument.trailingContextLines.push(argument.buffer.lineForRow(row))
 
+  Object.defineProperty this.prototype, 'row',
+    get: -> @range.start.row
+
   Object.defineProperty this.prototype, 'lineText',
     get: -> @buffer.lineForRow(@range.start.row)
 
