@@ -1341,35 +1341,6 @@ describe "TextBuffer", ->
           expect(buffer2.getPath()).toBeUndefined()
           expect(buffer2.getText()).toBe("abc")
 
-  describe "::emitDidChangePath()", ->
-    beforeEach ->
-      buffer = new TextBuffer("this\nis a test\r\ntesting")
-
-    afterEach ->
-      buffer.destroy()
-
-    it "does not reset a path that is null", ->
-      didChangePathCallback = jasmine.createSpy()
-      buffer.onDidChangePath(didChangePathCallback)
-      buffer.emitDidChangePath()
-      expect(didChangePathCallback).toHaveBeenCalledWith(undefined)
-      expect(buffer.getPath()).toBe(undefined)
-
-    it "does not change the path of a saved file", ->
-      didChangePathCallback = jasmine.createSpy()
-      buffer.onDidChangePath(didChangePathCallback)
-      tempDir = fs.realpathSync(temp.mkdirSync('text-buffer'))
-      filePath = join(tempDir, "new_file")
-      fs.writeFileSync(filePath, "")
-      buffer.setPath(filePath)
-      didChangePathCallback.calls.reset()
-      buffer.emitDidChangePath()
-
-      expect(didChangePathCallback).toHaveBeenCalledWith(filePath)
-      expect(buffer.getPath()).toBe(filePath)
-
-      fs.removeSync(filePath)
-
   describe "::getRange()", ->
     it "returns the range of the entire buffer text", ->
       buffer = new TextBuffer("abc\ndef\nghi")

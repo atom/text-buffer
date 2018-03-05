@@ -570,9 +570,6 @@ class TextBuffer
     return if filePath is @getPath()
     @setFile(new File(filePath) if filePath)
 
-  emitDidChangePath: ->
-    @emitter.emit 'did-change-path', @getPath()
-
   # Experimental: Set a custom {File} object as the buffer's backing store.
   #
   # * `file` An {Object} with the following properties:
