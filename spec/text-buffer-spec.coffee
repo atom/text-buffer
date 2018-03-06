@@ -1372,6 +1372,31 @@ describe "TextBuffer", ->
         expect(buffer.rangeForRow(-1)).toEqual([[0, 0], [0, 4]])
         expect(buffer.rangeForRow(10)).toEqual([[2, 0], [2, 7]])
 
+    describe "::emitDidChangePath()", ->
+      beforeEach ->
+        buffer = new TextBuffer("this\nis a test\r\ntesting")
+      afterEach ->
+        buffer.destroy()
+      it "does not reset a path that is null", ->
+        didChangePathCallback = jasmine.createSpy()
+        buffer.onDidChangePath(didChangePathCallback)
+        buffer.emitDidChangePath()
+        expect(didChangePathCallback).toHaveBeenCalledWith(undefined)
+        expect(buffer.getPath()).toBe(undefined)
+
+      it "does not change the path of a saved file", ->
+        didChangePathCallback = jasmine.createSpy()
+        buffer.onDidChangePath(didChangePathCallback)
+        tempDir = fs.realpathSync(temp.mkdirSync('text-buffer'))
+        filePath = join(tempDir, "new_file")
+        fs.writeFileSync(filePath, "")
+        buffer.setPath(filePath)
+        didChangePathCallback.calls.reset()
+        buffer.emitDidChangePath()
+        expect(didChangePathCallback).toHaveBeenCalledWith(filePath)
+        expect(buffer.getPath()).toBe(filePath)
+        fs.removeSync(filePath)
+
   describe "::onDidChangePath()", ->
     [filePath, newPath, bufferToChange, eventHandler] = []
 
