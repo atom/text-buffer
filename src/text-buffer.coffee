@@ -576,6 +576,7 @@ class TextBuffer
   #   * `getPath` A {Function} that returns the {String} path to the file.
   #   * `createReadStream` A {Function} that returns a `Readable` stream
   #     that can be used to load the file's content.
+  #   * `existsSync` A {function} that returns the {Boolean}, true if the file exists, false otherwise
   #   * `createWriteStream` A {Function} that returns a `Writable` stream
   #     that can be used to save content to the file.
   #   * `onDidChange` (optional) A {Function} that invokes its callback argument
