@@ -578,7 +578,7 @@ class TextBuffer
   #     that can be used to load the file's content.
   #   * `createWriteStream` A {Function} that returns a `Writable` stream
   #     that can be used to save content to the file.
-  #   * `existsSync` A {function} that returns the {Boolean}, true if the file exists, false otherwise
+  #   * `existsSync` A {Function} that returns a {Boolean}, true if the file exists, false otherwise.
   #   * `onDidChange` (optional) A {Function} that invokes its callback argument
   #     when the file changes. The method should return a {Disposable} that
   #     can be used to prevent further calls to the callback.
