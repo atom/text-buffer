@@ -166,6 +166,7 @@ class TextBuffer
     @markerLayers = {}
     @markerLayers[@defaultMarkerLayer.id] = @defaultMarkerLayer
     @markerLayersWithPendingUpdateEvents = new Set()
+    @selectionsMarkerLayerIds = new Set()
     @nextMarkerId = 1
     @outstandingSaveCount = 0
     @loadCount = 0
@@ -955,6 +956,7 @@ class TextBuffer
   #     of the buffer. Defaults to `false`. If `true`, the marker layer's id
   #     will be maintained across the serialization boundary, allowing you to
   #     retrieve it via {::getMarkerLayer}.
+  #   * `role` (optional) A {String} indicating role of this marker layer
   #
   # Returns a {MarkerLayer}.
   addMarkerLayer: (options) ->
@@ -1119,8 +1121,12 @@ class TextBuffer
 
   # Public: Undo the last operation. If a transaction is in progress, aborts it.
   #
+  # * `options` (optional) {Object}
+  #   * `selectionsMarkerLayer` (optional)
+  #     Restore snapshot of selections marker layer to given selectionsMarkerLayer.
+  #
   # Returns a {Boolean} of whether or not a change was made.
-  undo: ->
+  undo: (options) ->
     if pop = @historyProvider.undo()
       @emitWillChangeEvent()
       @transactCallDepth++
@@ -1128,7 +1134,7 @@ class TextBuffer
         @applyChange(change) for change in pop.textUpdates
       finally
         @transactCallDepth--
-      @restoreFromMarkerSnapshot(pop.markers)
+      @restoreFromMarkerSnapshot(pop.markers, options?.selectionsMarkerLayer)
       @emitDidChangeTextEvent()
       @emitMarkerChangeEvents(pop.markers)
       true
@@ -1137,8 +1143,12 @@ class TextBuffer
 
   # Public: Redo the last operation
   #
+  # * `options` (optional) {Object}
+  #   * `selectionsMarkerLayer` (optional)
+  #     Restore snapshot of selections marker layer to given selectionsMarkerLayer.
+  #
   # Returns a {Boolean} of whether or not a change was made.
-  redo: ->
+  redo: (options) ->
     if pop = @historyProvider.redo()
       @emitWillChangeEvent()
       @transactCallDepth++
@@ -1146,7 +1156,7 @@ class TextBuffer
         @applyChange(change) for change in pop.textUpdates
       finally
         @transactCallDepth--
-      @restoreFromMarkerSnapshot(pop.markers)
+      @restoreFromMarkerSnapshot(pop.markers, options?.selectionsMarkerLayer)
       @emitDidChangeTextEvent()
       @emitMarkerChangeEvents(pop.markers)
       true
@@ -1160,18 +1170,31 @@ class TextBuffer
   # abort the transaction, call {::abortTransaction} to terminate the function's
   # execution and revert any changes performed up to the abortion.
   #
+  # * `options` (optional) {Object}
+  #   * `groupingInterval` (optional) The {Number} of milliseconds for which this
+  #     transaction should be considered 'open for grouping' after it begins. If
+  #     a transaction with a positive `groupingInterval` is committed while the
+  #     previous transaction is still open for grouping, the two transactions
+  #     are merged with respect to undo and redo.
+  #   * `selectionsMarkerLayer` (optional)
+  #     When provided, skip taking snapshot for other selections markerLayers except given one.
   # * `groupingInterval` (optional) The {Number} of milliseconds for which this
   #   transaction should be considered 'open for grouping' after it begins. If a
   #   transaction with a positive `groupingInterval` is committed while the previous
   #   transaction is still open for grouping, the two transactions are merged with
   #   respect to undo and redo.
   # * `fn` A {Function} to call inside the transaction.
-  transact: (groupingInterval, fn) ->
-    if typeof groupingInterval is 'function'
-      fn = groupingInterval
+  transact: (options, fn) ->
+    if typeof options is 'function'
+      fn = options
       groupingInterval = 0
+    else if typeof options is 'object'
+      {groupingInterval, selectionsMarkerLayer} = options
+      groupingInterval ?= 0
+    else
+      groupingInterval = options
 
-    checkpointBefore = @historyProvider.createCheckpoint(markers: @createMarkerSnapshot(), isBarrier: true)
+    checkpointBefore = @historyProvider.createCheckpoint(markers: @createMarkerSnapshot(selectionsMarkerLayer), isBarrier: true)
 
     try
       @transactCallDepth++
@@ -1184,7 +1207,7 @@ class TextBuffer
       @transactCallDepth--
 
     return result if @isDestroyed()
-    endMarkerSnapshot = @createMarkerSnapshot()
+    endMarkerSnapshot = @createMarkerSnapshot(selectionsMarkerLayer)
     @historyProvider.groupChangesSinceCheckpoint(checkpointBefore, {markers: endMarkerSnapshot, deleteCheckpoint: true})
     @historyProvider.applyGroupingInterval(groupingInterval)
     @historyProvider.enforceUndoStackSizeLimit()
@@ -1204,9 +1227,13 @@ class TextBuffer
   # Public: Create a pointer to the current state of the buffer for use
   # with {::revertToCheckpoint} and {::groupChangesSinceCheckpoint}.
   #
+  # * `options` (optional) {Object}
+  #   * `selectionsMarkerLayer` (optional)
+  #     When provided, skip taking snapshot for other selections markerLayers except given one.
+  #
   # Returns a checkpoint id value.
-  createCheckpoint: ->
-    @historyProvider.createCheckpoint(markers: @createMarkerSnapshot(), isBarrier: false)
+  createCheckpoint: (options) ->
+    @historyProvider.createCheckpoint(markers: @createMarkerSnapshot(options?.selectionsMarkerLayer), isBarrier: false)
 
   # Public: Revert the buffer to the state it was in when the given
   # checkpoint was created.
@@ -1217,9 +1244,12 @@ class TextBuffer
   # return `false`.
   #
   # * `checkpoint` {Number} id of the checkpoint to revert to.
+  # * `options` (optional) {Object}
+  #   * `selectionsMarkerLayer` (optional)
+  #     Restore snapshot of selections marker layer to given selectionsMarkerLayer.
   #
   # Returns a {Boolean} indicating whether the operation succeeded.
-  revertToCheckpoint: (checkpoint) ->
+  revertToCheckpoint: (checkpoint, options) ->
     if truncated = @historyProvider.revertToCheckpoint(checkpoint)
       @emitWillChangeEvent()
       @transactCallDepth++
@@ -1227,7 +1257,7 @@ class TextBuffer
         @applyChange(change) for change in truncated.textUpdates
       finally
         @transactCallDepth--
-      @restoreFromMarkerSnapshot(truncated.markers)
+      @restoreFromMarkerSnapshot(truncated.markers, options?.selectionsMarkerLayer)
       @emitDidChangeTextEvent()
       @emitter.emit 'did-update-markers'
       @emitMarkerChangeEvents(truncated.markers)
@@ -1242,10 +1272,13 @@ class TextBuffer
   # grouping will be performed and this method will return `false`.
   #
   # * `checkpoint` {Number} id of the checkpoint to group changes since.
+  # * `options` (optional) {Object}
+  #   * `selectionsMarkerLayer` (optional)
+  #     When provided, skip taking snapshot for other selections markerLayers except given one.
   #
   # Returns a {Boolean} indicating whether the operation succeeded.
-  groupChangesSinceCheckpoint: (checkpoint) ->
-    @historyProvider.groupChangesSinceCheckpoint(checkpoint, {markers: @createMarkerSnapshot(), deleteCheckpoint: false})
+  groupChangesSinceCheckpoint: (checkpoint, options) ->
+    @historyProvider.groupChangesSinceCheckpoint(checkpoint, {markers: @createMarkerSnapshot(options?.selectionsMarkerLayer), deleteCheckpoint: false})
 
   # Public: Group the last two text changes for purposes of undo/redo.
   #
@@ -1806,6 +1839,8 @@ class TextBuffer
   ###
   Section: Private Utility Methods
   ###
+  registerSelectionsMarkerLayer: (markerLayer) ->
+    @selectionsMarkerLayerIds.add(markerLayer.id)
 
   loadSync: (options) ->
     unless options?.internal
@@ -1990,16 +2025,27 @@ class TextBuffer
       @fileSubscriptions.add @file.onWillThrowWatchError (error) =>
         @emitter.emit 'will-throw-watch-error', error
 
-  createMarkerSnapshot: ->
+  createMarkerSnapshot: (selectionsMarkerLayer) ->
     snapshot = {}
-    for markerLayerId, markerLayer of @markerLayers
-      if markerLayer.maintainHistory
-        snapshot[markerLayerId] = markerLayer.createSnapshot()
+
+    for markerLayerId, markerLayer of @markerLayers when markerLayer.maintainHistory
+      if selectionsMarkerLayer? and markerLayer.getRole() is "selections" and markerLayerId isnt selectionsMarkerLayer.id
+        continue
+      snapshot[markerLayerId] = markerLayer.createSnapshot()
     snapshot
 
-  restoreFromMarkerSnapshot: (snapshot) ->
+  restoreFromMarkerSnapshot: (snapshot, selectionsMarkerLayer) ->
+    if selectionsMarkerLayer?
+      # Do selective selections marker restoration only when snapshot includes single selections snapshot.
+      selectionsSnapshotIds = Object.keys(snapshot).filter (id) => @selectionsMarkerLayerIds.has(id)
+      if selectionsSnapshotIds.length is 1
+        selectionsSnapshotId = selectionsSnapshotIds[0]
+
     for markerLayerId, layerSnapshot of snapshot
-      @markerLayers[markerLayerId]?.restoreFromSnapshot(layerSnapshot)
+      if markerLayerId is selectionsSnapshotId
+        @markerLayers[selectionsMarkerLayer.id].restoreFromSnapshot(layerSnapshot, markerLayerId isnt selectionsMarkerLayer.id)
+      else
+        @markerLayers[markerLayerId]?.restoreFromSnapshot(layerSnapshot)
 
   emitMarkerChangeEvents: (snapshot) ->
     if @transactCallDepth is 0

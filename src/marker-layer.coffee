@@ -34,6 +34,8 @@ class MarkerLayer
   constructor: (@delegate, @id, options) ->
     @maintainHistory = options?.maintainHistory ? false
     @destroyInvalidatedMarkers = options?.destroyInvalidatedMarkers ? false
+    @role = options?.role
+    @delegate.registerSelectionsMarkerLayer(this) if @role is "selections"
     @persistent = options?.persistent ? false
     @emitter = new Emitter
     @index = new MarkerIndex
@@ -47,7 +49,7 @@ class MarkerLayer
   # Public: Create a copy of this layer with markers in the same state and
   # locations.
   copy: ->
-    copy = @delegate.addMarkerLayer({@maintainHistory})
+    copy = @delegate.addMarkerLayer({@maintainHistory, @role})
     for markerId, marker of @markersById
       snapshot = marker.getSnapshot(null)
       copy.createMarker(marker.getRange(), marker.getSnapshot())
@@ -153,6 +155,12 @@ class MarkerLayer
       return unless marker.matchesParams(params)
       result.push(marker)
     result.sort (a, b) -> a.compare(b)
+
+  # Public: Get the role of the marker layer e.g. `atom.selection`.
+  #
+  # Returns a {String}.
+  getRole: ->
+    @role
 
   ###
   Section: Marker creation
@@ -279,7 +287,7 @@ class MarkerLayer
         else
           marker.valid = false
 
-  restoreFromSnapshot: (snapshots) ->
+  restoreFromSnapshot: (snapshots, alwaysCreate) ->
     return unless snapshots?
 
     snapshotIds = Object.keys(snapshots)
@@ -287,6 +295,10 @@ class MarkerLayer
 
     for id in snapshotIds
       snapshot = snapshots[id]
+      if alwaysCreate
+        @createMarker(snapshot.range, snapshot, true)
+        continue
+
       if marker = @markersById[id]
         marker.update(marker.getRange(), snapshot, true, true)
       else
@@ -325,12 +337,14 @@ class MarkerLayer
       snapshot = marker.getSnapshot(Range.fromObject(ranges[id]), false)
       markersById[id] = snapshot
 
-    {@id, @maintainHistory, @persistent, markersById, version: SerializationVersion}
+    {@id, @maintainHistory, @role, @persistent, markersById, version: SerializationVersion}
 
   deserialize: (state) ->
     return unless state.version is SerializationVersion
     @id = state.id
     @maintainHistory = state.maintainHistory
+    @role = state.role
+    @delegate.registerSelectionsMarkerLayer(this) if @role is "selections"
     @persistent = state.persistent
     for id, markerState of state.markersById
       range = Range.fromObject(markerState.range)

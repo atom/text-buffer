@@ -170,6 +170,31 @@ describe "MarkerLayer", ->
       # Should not throw an exception
       buffer.undo()
 
+  describe "when a role is provided for the layer", ->
+    it "getRole() returns its role and keeps track of ids of 'selections' role", ->
+      expect(buffer.selectionsMarkerLayerIds.size).toBe 0
+
+      selectionsMarkerLayer1 = buffer.addMarkerLayer(role: "selections")
+      expect(selectionsMarkerLayer1.getRole()).toBe "selections"
+
+      expect(buffer.addMarkerLayer(role: "role-1").getRole()).toBe "role-1"
+      expect(buffer.addMarkerLayer().getRole()).toBe undefined
+
+      expect(buffer.selectionsMarkerLayerIds.size).toBe 1
+      expect(buffer.selectionsMarkerLayerIds.has(selectionsMarkerLayer1.id)).toBe true
+
+      selectionsMarkerLayer2 = buffer.addMarkerLayer(role: "selections")
+      expect(selectionsMarkerLayer2.getRole()).toBe "selections"
+
+      expect(buffer.selectionsMarkerLayerIds.size).toBe 2
+      expect(buffer.selectionsMarkerLayerIds.has(selectionsMarkerLayer2.id)).toBe true
+
+      selectionsMarkerLayer1.destroy()
+      selectionsMarkerLayer2.destroy()
+      expect(buffer.selectionsMarkerLayerIds.size).toBe 2
+      expect(buffer.selectionsMarkerLayerIds.has(selectionsMarkerLayer1.id)).toBe true
+      expect(buffer.selectionsMarkerLayerIds.has(selectionsMarkerLayer2.id)).toBe true
+
   describe "::findMarkers(params)", ->
     it "does not find markers from other layers", ->
       defaultMarker = buffer.markRange([[0, 3], [0, 6]])
@@ -288,6 +313,15 @@ describe "MarkerLayer", ->
       expect(markers[0].getProperties()).toEqual {a: 'b'}
       expect(markers[1].getRange()).toEqual [[0, 2], [0, 2]]
       expect(markers[1].hasTail()).toBe false
+
+    it "copies the marker layer role", ->
+      originalLayer = buffer.addMarkerLayer(maintainHistory: true, role: "selections")
+      copy = originalLayer.copy()
+      expect(copy).not.toBe originalLayer
+      expect(copy.getRole()).toBe("selections")
+      expect(buffer.selectionsMarkerLayerIds.has(originalLayer.id)).toBe true
+      expect(buffer.selectionsMarkerLayerIds.has(copy.id)).toBe true
+      expect(buffer.selectionsMarkerLayerIds.size).toBe 2
 
   describe "::destroy", ->
     it "destroys the layer's markers", ->
