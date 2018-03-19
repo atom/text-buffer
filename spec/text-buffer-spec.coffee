@@ -496,8 +496,8 @@ describe "TextBuffer", ->
         buffer.addMarkerLayer(maintainHistory: true)
       ]
 
-    describe "selectionsMarkerLayer is not passed", ->
-      it "take snapshot of all markerLayers", ->
+    describe "when selectionsMarkerLayer is not passed", ->
+      it "takes a snapshot of all markerLayers", ->
         snapshot = buffer.createMarkerSnapshot()
         markerLayerIdsInSnapshot = Object.keys(snapshot)
         expect(markerLayerIdsInSnapshot.length).toBe(4)
@@ -506,8 +506,8 @@ describe "TextBuffer", ->
         expect(markerLayers[2].id in markerLayerIdsInSnapshot).toBe(true)
         expect(markerLayers[3].id in markerLayerIdsInSnapshot).toBe(true)
 
-    describe "selectionsMarkerLayer is passed", ->
-      it "skip snapshotting of other 'selection' role marker layers", ->
+    describe "when selectionsMarkerLayer is passed", ->
+      it "skips snapshotting of other 'selection' role marker layers", ->
         snapshot = buffer.createMarkerSnapshot(markerLayers[0])
         markerLayerIdsInSnapshot = Object.keys(snapshot)
         expect(markerLayerIdsInSnapshot.length).toBe(3)
@@ -561,7 +561,7 @@ describe "TextBuffer", ->
       marker1 = markerLayers[1].markRange(rangesBefore[1])
       marker2 = markerLayers[2].markRange(rangesBefore[2])
 
-    it "restore snapshot from other selections marker layers on undo/redo", ->
+    it "restores a snapshot from other selections marker layers on undo/redo", ->
       # Snapshot is taken for markerLayers[0] only, markerLayer[1] and markerLayer[2] are skipped
       buffer.transact {selectionsMarkerLayer: markerLayers[0]}, ->
         buffer.append("44444444\n")
@@ -624,7 +624,7 @@ describe "TextBuffer", ->
       expect(marker1.isDestroyed()).toBe(true)
       expect(marker2.isDestroyed()).toBe(true)
 
-    it "can restore snapshot taken at destroyed selections marker layer to given selectionsMarkerLayer", ->
+    it "can restore a snapshot taken at a destroyed selections marker layer given selectionsMarkerLayer", ->
       buffer.transact {selectionsMarkerLayer: markerLayers[1]}, ->
         buffer.append("44444444\n")
         marker0.setRange(rangesAfter[0])
@@ -668,7 +668,7 @@ describe "TextBuffer", ->
       expect(buffer.getText()).toBe(textRedo)
       ensureMarkerLayer(markerLayers[3], rangesAfter[1])
 
-    it "fallback to normal behavior when snaphot includes multipe layerSnapshot of selections marker layer", ->
+    it "falls back to normal behavior when the snaphot includes multiple layerSnapshots of selections marker layers", ->
       # Transact without selectionsMarkerLayer.
       # Taken snapshot includes layerSnapshot of markerLayer[0], markerLayer[1] and markerLayer[2]
       buffer.transact ->
@@ -698,7 +698,7 @@ describe "TextBuffer", ->
       expect(getFirstMarker(markerLayers[2])).toBe(marker2)
 
     describe "selections marker layer's selective snapshotting on createCheckpoint, groupChangesSinceCheckpoint", ->
-      it "skip snapshotting of other marker layers with the same role of selectionsMarkerLayer", ->
+      it "skips snapshotting of other marker layers with the same role as the selectionsMarkerLayer", ->
         eventHandler = jasmine.createSpy('eventHandler')
 
         args = []

@@ -170,8 +170,8 @@ describe "MarkerLayer", ->
       # Should not throw an exception
       buffer.undo()
 
-  describe "when role is provided for the layer", ->
-    it "getRole() returns it's role and keep track of ids of 'selenctions' role", ->
+  describe "when a role is provided for the layer", ->
+    it "getRole() returns its role and keeps track of ids of 'selections' role", ->
       expect(buffer.selectionsMarkerLayerIds.size).toBe 0
 
       selectionsMarkerLayer1 = buffer.addMarkerLayer(role: "selections")
@@ -314,7 +314,7 @@ describe "MarkerLayer", ->
       expect(markers[1].getRange()).toEqual [[0, 2], [0, 2]]
       expect(markers[1].hasTail()).toBe false
 
-    it "copy marker layer role", ->
+    it "copies the marker layer role", ->
       originalLayer = buffer.addMarkerLayer(maintainHistory: true, role: "selections")
       copy = originalLayer.copy()
       expect(copy).not.toBe originalLayer
