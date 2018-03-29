@@ -728,6 +728,12 @@ class TextBuffer
         return row unless @isRowBlank(row)
     null
 
+  # Extended: Return true if the buffer contains any astral-plane Unicode characters that
+  # are encoded as surrogate pairs.
+  #
+  # Returns a {Boolean}.
+  hasAstral: -> @buffer.hasAstral()
+
   ###
   Section: Mutating Text
   ###
