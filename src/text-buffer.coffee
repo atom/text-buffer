@@ -170,6 +170,7 @@ class TextBuffer
     @nextMarkerId = 1
     @outstandingSaveCount = 0
     @loadCount = 0
+    @cachedHasAstral = null
     @_emittedWillChangeEvent = false
 
     @setEncoding(params?.encoding)
@@ -732,7 +733,12 @@ class TextBuffer
   # are encoded as surrogate pairs.
   #
   # Returns a {Boolean}.
-  hasAstral: -> @buffer.hasAstral()
+  hasAstral: ->
+    if @cachedHasAstral isnt null
+      @cachedHasAstral
+    else
+      @cachedHasAstral = @buffer.hasAstral()
+      @cachedHasAstral
 
   ###
   Section: Mutating Text
@@ -2072,6 +2078,7 @@ class TextBuffer
       @_emittedWillChangeEvent = true
 
   emitDidChangeTextEvent: ->
+    @cachedHasAstral = null
     if @transactCallDepth is 0
       if @changesSinceLastDidChangeTextEvent.length > 0
         compactedChanges = patchFromChanges(@changesSinceLastDidChangeTextEvent).getChanges()
