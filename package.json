@@ -54,7 +54,7 @@
     "mkdirp": "^0.5.1",
     "pathwatcher": "8.0.1",
     "serializable": "^1.0.3",
-    "superstring": "^2.2.20",
+    "superstring": "2.3.0",
     "underscore-plus": "^1.0.0"
   },
   "standard": {

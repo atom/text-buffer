@@ -2609,6 +2609,13 @@ describe "TextBuffer", ->
       buffer.setText('\n')
       expect(buffer.isEmpty()).toBeFalsy()
 
+  describe "::hasAstral()", ->
+    it "returns true for buffers containing surrogate pairs", ->
+      expect(new TextBuffer('hooray 😄').hasAstral()).toBeTruthy()
+
+    it "returns false for buffers that do not contain surrogate pairs", ->
+      expect(new TextBuffer('nope').hasAstral()).toBeFalsy()
+
   describe "::onWillChange(callback)", ->
     it "notifies observers before a transaction, an undo or a redo", ->
       changeCount = 0

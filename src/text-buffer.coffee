@@ -170,6 +170,7 @@ class TextBuffer
     @nextMarkerId = 1
     @outstandingSaveCount = 0
     @loadCount = 0
+    @cachedHasAstral = null
     @_emittedWillChangeEvent = false
 
     @setEncoding(params?.encoding)
@@ -727,6 +728,17 @@ class TextBuffer
       for row in [(startRow + 1)..lastRow]
         return row unless @isRowBlank(row)
     null
+
+  # Extended: Return true if the buffer contains any astral-plane Unicode characters that
+  # are encoded as surrogate pairs.
+  #
+  # Returns a {Boolean}.
+  hasAstral: ->
+    if @cachedHasAstral isnt null
+      @cachedHasAstral
+    else
+      @cachedHasAstral = @buffer.hasAstral()
+      @cachedHasAstral
 
   ###
   Section: Mutating Text
@@ -2066,6 +2078,7 @@ class TextBuffer
       @_emittedWillChangeEvent = true
 
   emitDidChangeTextEvent: ->
+    @cachedHasAstral = null
     if @transactCallDepth is 0
       if @changesSinceLastDidChangeTextEvent.length > 0
         compactedChanges = patchFromChanges(@changesSinceLastDidChangeTextEvent).getChanges()
