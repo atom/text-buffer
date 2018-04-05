@@ -810,6 +810,8 @@ class TextBuffer
   setTextInRange: (range, newText, options) ->
     if options?
       {normalizeLineEndings, undo} = options
+      Grim.deprecate('The `undo` option is deprecated. Call groupLastChanges() on the TextBuffer afterward instead.') if undo?
+
     normalizeLineEndings ?= true
 
     if @transactCallDepth is 0
