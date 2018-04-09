@@ -810,6 +810,8 @@ class TextBuffer
   setTextInRange: (range, newText, options) ->
     if options?
       {normalizeLineEndings, undo} = options
+      Grim.deprecate('The `undo` option is deprecated. Call groupLastChanges() on the TextBuffer afterward instead.') if undo?
+
     normalizeLineEndings ?= true
 
     if @transactCallDepth is 0
@@ -843,7 +845,9 @@ class TextBuffer
   # * `text` A {String} representing the text to insert.
   # * `options` (optional) {Object}
   #   * `normalizeLineEndings` (optional) {Boolean} (default: true)
-  #   * `undo` (optional) {String} 'skip' will skip the undo system
+  #   * `undo` (optional) *Deprecated* {String} 'skip' will skip the undo
+  #     system. This property is deprecated. Call groupLastChanges() on the
+  #     {TextBuffer} afterward instead.
   #
   # Returns the {Range} of the inserted text.
   insert: (position, text, options) ->
@@ -854,7 +858,9 @@ class TextBuffer
   # * `text` A {String} representing the text text to append.
   # * `options` (optional) {Object}
   #   * `normalizeLineEndings` (optional) {Boolean} (default: true)
-  #   * `undo` (optional) {String} 'skip' will skip the undo system
+  #   * `undo` (optional) *Deprecated* {String} 'skip' will skip the undo
+  #     system. This property is deprecated. Call groupLastChanges() on the
+  #     {TextBuffer} afterward instead.
   #
   # Returns the {Range} of the inserted text
   append: (text, options) ->
