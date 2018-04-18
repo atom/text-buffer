@@ -29,7 +29,8 @@ class ScreenLineBuilder {
 
     endScreenRow = this.displayLayer.findBoundaryFollowingScreenRow(endScreenRow)
 
-    let decorationIterator
+    let didSeekDecorationIterator = false
+    const decorationIterator = this.displayLayer.buffer.languageMode.buildHighlightIterator()
     const hunks = this.displayLayer.spatialIndex.getChangesInNewRange(Point(this.screenRow, 0), Point(endScreenRow, 0))
     let hunkIndex = 0
 
@@ -78,10 +79,8 @@ class ScreenLineBuilder {
       this.inLeadingWhitespace = true
       this.inTrailingWhitespace = false
 
-      if (!decorationIterator) {
-        decorationIterator = this.displayLayer.buffer.languageMode.buildHighlightIterator()
-        this.scopeIdsToReopen = decorationIterator.seek(Point(this.bufferRow, this.bufferColumn))
-      } else if (this.compareBufferPosition(decorationIterator.getPosition()) > 0) {
+      if (!didSeekDecorationIterator || this.compareBufferPosition(decorationIterator.getPosition())) {
+        didSeekDecorationIterator = true
         this.scopeIdsToReopen = decorationIterator.seek(Point(this.bufferRow, this.bufferColumn))
       }
 
