@@ -6,6 +6,7 @@ const Range = require('../src/range')
 const {buildRandomLines, getRandomBufferRange} = require('./helpers/random')
 const SAMPLE_TEXT = require('./helpers/sample-text')
 const TestLanguageMode = require('./helpers/test-language-mode')
+const {Emitter} = require('event-kit')
 
 const EOL_INVISIBLE = '¬'
 const CR_INVISIBLE = '¤'
@@ -2044,6 +2045,48 @@ describe('DisplayLayer', () => {
           open: []
         }
       ])
+    })
+
+    describe('when the language mode emits `onDidChangeHighlighting` events inside `buildHighlightIterator`', () => {
+      it('maintains a stable set of screen line ids unless the buffer changes (regression)', () => {
+        const buffer = new TextBuffer({
+          text: 'abc\ndefg'
+        })
+
+        buffer.setLanguageMode({
+          emitter: new Emitter(),
+
+          bufferDidChange () {
+            this.didChange = true
+          },
+
+          onDidChangeHighlighting (callback) {
+            return this.emitter.on('did-change-highlighting', callback)
+          },
+
+          buildHighlightIterator () {
+            if (this.didChange) {
+              this.emitter.emit('did-change-highlighting', Range(Point(0, 0), Point(0, 0)))
+              this.didChange = false
+            }
+
+            return {
+              seek () { return [] },
+              getOpenScopeIds () { return [] },
+              getCloseScopeIds () { return [] },
+              getPosition () { return Point.INFINITY }
+            }
+          }
+        })
+
+        const displayLayer = buffer.addDisplayLayer()
+        displayLayer.getScreenLines()
+
+        buffer.insert([1, 4], 'h')
+        const screenLineIds1 = displayLayer.getScreenLines().map(l => l.id)
+        const screenLineIds2 = displayLayer.getScreenLines().map(l => l.id)
+        expect(screenLineIds2).toEqual(screenLineIds1)
+      })
     })
   })
 
