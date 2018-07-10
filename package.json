@@ -1,6 +1,6 @@
 {
   "name": "text-buffer",
-  "version": "13.14.4",
+  "version": "13.14.5",
   "description": "A container for large mutable strings with annotated regions",
   "main": "./lib/text-buffer",
   "scripts": {
