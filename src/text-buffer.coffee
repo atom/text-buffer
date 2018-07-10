@@ -114,6 +114,7 @@ class TextBuffer
   @Point: Point
   @Range: Range
   @newlineRegex: newlineRegex
+  @spliceArray: spliceArray
 
   encoding: null
   stoppedChangingDelay: 300
