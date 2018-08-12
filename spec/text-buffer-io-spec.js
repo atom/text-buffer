@@ -266,9 +266,10 @@ describe('TextBuffer IO', () => {
 
   describe('.save', () => {
     let filePath
+    let tempDir
 
     beforeEach(() => {
-      const tempDir = temp.mkdirSync()
+      tempDir = temp.mkdirSync()
       filePath = path.join(tempDir, 'temp.txt')
       fs.writeFileSync(filePath, '')
       buffer = new TextBuffer()
@@ -439,6 +440,17 @@ describe('TextBuffer IO', () => {
           expect(events.length).toBe(0)
           done()
         }, buffer.fileChangeDelay))
+      })
+
+      it('passes setPath to the custom File object', (done) => {
+        const newPath = path.join(tempDir, 'temp2.txt')
+        fs.writeFileSync(newPath, '')
+        buffer.setPath(newPath)
+        buffer.setText('test')
+        buffer.save().then(() => {
+          expect(fs.readFileSync(newPath, 'utf8')).toEqual('TEST')
+          done()
+        })
       })
     })
 
@@ -1112,6 +1124,10 @@ class ReverseCaseFile {
 
   getPath () {
     return this.path
+  }
+
+  setPath (path) {
+    this.path = path
   }
 
   createReadStream () {
