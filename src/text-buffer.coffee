@@ -618,6 +618,12 @@ class TextBuffer
   # Public: Returns the {String} encoding of this buffer.
   getEncoding: -> @encoding ? @file?.getEncoding()
 
+  # Public: Detects the encoding of this buffer.
+  #
+  # Returns a promise that resolves to a {String},
+  # or is rejected if the encoding was unable to be detected.
+  detectEncoding: -> @file?.detectEncoding()
+
   setPreferredLineEnding: (preferredLineEnding=null) ->
     @preferredLineEnding = preferredLineEnding
 
