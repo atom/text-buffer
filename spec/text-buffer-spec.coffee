@@ -64,7 +64,7 @@ describe "TextBuffer", ->
       expect(uniqueBufferIds.size).toBe(bufferIds.length)
 
   describe "::destroy()", ->
-    it "clears the buffer's state", ->
+    it "clears the buffer's state", (done) ->
       filePath = temp.openSync('atom').path
       buffer = new TextBuffer()
       buffer.setPath(filePath)
@@ -75,7 +75,9 @@ describe "TextBuffer", ->
       expect(buffer.getText()).toBe('')
       buffer.undo()
       expect(buffer.getText()).toBe('')
-      expect(-> buffer.save()).toThrowError(/Can't save destroyed buffer/)
+      buffer.save().catch (error) ->
+        expect(error.message).toMatch(/Can't save destroyed buffer/)
+        done()
 
   describe "::setTextInRange(range, text)", ->
     beforeEach ->
@@ -1562,12 +1564,14 @@ describe "TextBuffer", ->
         expect(bufferB.getId()).toEqual(bufferA.getId())
         done()
 
-    it "doesn't deserialize a state that was serialized with a different buffer version", ->
+    it "doesn't deserialize a state that was serialized with a different buffer version", (done) ->
       bufferA = new TextBuffer()
       serializedBuffer = JSON.parse(JSON.stringify(bufferA.serialize()))
       serializedBuffer.version = 123456789
 
-      expect(TextBuffer.deserialize(serializedBuffer)).toBeUndefined()
+      TextBuffer.deserialize(serializedBuffer).then (bufferB) ->
+        expect(bufferB).toBeUndefined()
+        done()
 
     it "doesn't deserialize a state referencing a file that no longer exists", (done) ->
       tempDir = fs.realpathSync(temp.mkdirSync('text-buffer'))
@@ -1586,13 +1590,14 @@ describe "TextBuffer", ->
       ).then(done, done)
 
     describe "when the serialized buffer was unsaved and had no path", ->
-      it "restores the previous unsaved state of the buffer", ->
+      it "restores the previous unsaved state of the buffer", (done) ->
         buffer = new TextBuffer()
         buffer.setText("abc")
 
         TextBuffer.deserialize(buffer.serialize()).then (buffer2) ->
           expect(buffer2.getPath()).toBeUndefined()
           expect(buffer2.getText()).toBe("abc")
+          done()
 
   describe "::getRange()", ->
     it "returns the range of the entire buffer text", ->

@@ -2,14 +2,9 @@ const {Patch} = require('superstring')
 const Range = require('./range')
 const {traversal} = require('./point-helpers')
 
-const NEWLINE_REGEX = /\n/g
-const MULTI_LINE_REGEX_REGEX = /\\s|\\r|\\n|\r|\n|^\[\^|[^\\]\[\^/
+const LF_REGEX = /\n/g
 
 exports.newlineRegex = /\r\n|\n|\r/g
-
-exports.regexIsSingleLine = function (regex) {
-  return !MULTI_LINE_REGEX_REGEX.test(regex.source)
-}
 
 exports.debounce = function debounce (fn, wait) {
   let timestamp, timeout
@@ -78,10 +73,10 @@ exports.normalizePatchChanges = function (changes) {
 exports.extentForText = function (text) {
   let lastLineStartIndex = 0
   let row = 0
-  NEWLINE_REGEX.lastIndex = 0
-  while (NEWLINE_REGEX.exec(text)) {
+  LF_REGEX.lastIndex = 0
+  while (LF_REGEX.exec(text)) {
     row++
-    lastLineStartIndex = NEWLINE_REGEX.lastIndex
+    lastLineStartIndex = LF_REGEX.lastIndex
   }
   return {row, column: text.length - lastLineStartIndex}
 }
