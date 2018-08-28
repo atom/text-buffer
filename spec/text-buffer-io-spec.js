@@ -402,10 +402,13 @@ describe('TextBuffer IO', () => {
     })
 
     describe('when the buffer has no path', () => {
-      it('throws an exception', () => {
+      it('throws an exception', done => {
         buffer2 = new TextBuffer()
         buffer2.setText('hi')
-        expect(() => buffer2.save()).toThrowError()
+        buffer2.save().catch(error => {
+          expect(error.message).toMatch(/Can't save a buffer with no file/)
+          done()
+        })
       })
     })
 
@@ -660,31 +663,6 @@ describe('TextBuffer IO', () => {
 
         expect(buffer2.markPosition(Point(0, 0)).id).toBe(buffer.markPosition(Point(0, 0)).id)
         expect(buffer2.addMarkerLayer().id).toBe(buffer.addMarkerLayer().id)
-        done()
-      })
-
-      it('can restore from a state created with an old version of TextBuffer', async done => {
-        const filePath = temp.openSync('atom').path
-        fs.writeFileSync(filePath, 'abc\ndef\n')
-
-        buffer = await TextBuffer.load(filePath)
-        buffer.append('ghi\n')
-        const state = buffer.serialize()
-
-        // This was the old serialization format
-        delete state.outstandingChanges
-        state.text = buffer.getText()
-        state.digestWhenLastPersisted = buffer.file.getDigestSync()
-
-        buffer2 = await TextBuffer.deserialize(state)
-        expect(buffer2.getText()).toBe(buffer.getText())
-        expect(buffer2.isModified()).toBe(true)
-
-        fs.writeFileSync(filePath, '!')
-        const buffer3 = await TextBuffer.deserialize(state)
-        expect(buffer3.getText()).toBe('!')
-        buffer3.destroy()
-
         done()
       })
     })
