@@ -182,9 +182,13 @@ describe "DisplayMarkerLayer", ->
       displayLayer1 = buffer.addDisplayLayer(tabLength: 2)
       displayLayer2 = buffer.addDisplayLayer(tabLength: 4)
       bufferMarkerLayer = buffer.addMarkerLayer()
+      bufferMarker1 = bufferMarkerLayer.markRange [[2, 1], [2, 2]]
       displayMarkerLayer1 = displayLayer1.getMarkerLayer(bufferMarkerLayer.id)
+      displayMarker1 = displayMarkerLayer1.markBufferRange [[1, 0], [1, 2]]
       displayMarkerLayer2 = displayLayer2.getMarkerLayer(bufferMarkerLayer.id)
+      displayMarker2 = displayMarkerLayer2.markBufferRange [[2, 0], [2, 1]]
       displayMarkerLayer3 = displayLayer2.addMarkerLayer()
+      displayMarker3 = displayMarkerLayer3.markBufferRange [[0, 0], [0, 0]]
 
       displayMarkerLayer1DestroyEventCount = 0
       displayMarkerLayer1.onDidDestroy -> displayMarkerLayer1DestroyEventCount++
@@ -197,21 +201,34 @@ describe "DisplayMarkerLayer", ->
       expect(bufferMarkerLayer.isDestroyed()).toBe(false)
       expect(displayMarkerLayer1.isDestroyed()).toBe(true)
       expect(displayMarkerLayer1DestroyEventCount).toBe(1)
+      expect(bufferMarker1.isDestroyed()).toBe(false)
+      expect(displayMarker1.isDestroyed()).toBe(true)
+      expect(displayMarker2.isDestroyed()).toBe(false)
+      expect(displayMarker3.isDestroyed()).toBe(false)
 
       displayMarkerLayer2.destroy()
       expect(bufferMarkerLayer.isDestroyed()).toBe(false)
       expect(displayMarkerLayer2.isDestroyed()).toBe(true)
       expect(displayMarkerLayer2DestroyEventCount).toBe(1)
+      expect(bufferMarker1.isDestroyed()).toBe(false)
+      expect(displayMarker1.isDestroyed()).toBe(true)
+      expect(displayMarker2.isDestroyed()).toBe(true)
+      expect(displayMarker3.isDestroyed()).toBe(false)
 
       bufferMarkerLayer.destroy()
       expect(bufferMarkerLayer.isDestroyed()).toBe(true)
       expect(displayMarkerLayer1DestroyEventCount).toBe(1)
       expect(displayMarkerLayer2DestroyEventCount).toBe(1)
+      expect(bufferMarker1.isDestroyed()).toBe(true)
+      expect(displayMarker1.isDestroyed()).toBe(true)
+      expect(displayMarker2.isDestroyed()).toBe(true)
+      expect(displayMarker3.isDestroyed()).toBe(false)
 
       displayMarkerLayer3.destroy()
       expect(displayMarkerLayer3.bufferMarkerLayer.isDestroyed()).toBe(true)
       expect(displayMarkerLayer3.isDestroyed()).toBe(true)
       expect(displayMarkerLayer3DestroyEventCount).toBe(1)
+      expect(displayMarker3.isDestroyed()).toBe(true)
 
     it "destroys the layer's markers", ->
       buffer = new TextBuffer()
