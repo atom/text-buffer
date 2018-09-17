@@ -27,7 +27,7 @@ class DisplayMarkerLayer
   destroy: ->
     return if @destroyed
     @destroyed = true
-    @clear()
+    @clear() if @ownsBufferMarkerLayer
     @subscriptions.dispose()
     @bufferMarkerLayer.displayMarkerLayers.delete(this)
     @bufferMarkerLayer.destroy() if @ownsBufferMarkerLayer
