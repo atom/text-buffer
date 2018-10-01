@@ -185,7 +185,7 @@ class TextBuffer {
   //
   // Returns a {Promise} that resolves with a {TextBuffer} instance.
   static async deserialize (params) {
-    if (params.version !== TextBuffer.version) return
+    if (params.version && params.version !== TextBuffer.version) return
 
     delete params.load
 
