@@ -27,7 +27,8 @@ class ScreenLineBuilder {
     this.bufferRow = this.displayLayer.findBoundaryPrecedingBufferRow(this.bufferRow)
     this.screenRow = this.displayLayer.translateBufferPositionWithSpatialIndex(Point(this.bufferRow, 0)).row
 
-    endScreenRow = this.displayLayer.findBoundaryFollowingScreenRow(endScreenRow)
+    let endBufferRow;
+    ([endBufferRow, endScreenRow] = this.displayLayer.findBoundaryFollowingScreenRow(endScreenRow))
 
     let didSeekDecorationIterator = false
     const decorationIterator = this.displayLayer.buffer.languageMode.buildHighlightIterator()
@@ -81,7 +82,7 @@ class ScreenLineBuilder {
 
       if (!didSeekDecorationIterator || this.compareBufferPosition(decorationIterator.getPosition()) > 0) {
         didSeekDecorationIterator = true
-        this.scopeIdsToReopen = decorationIterator.seek(Point(this.bufferRow, this.bufferColumn))
+        this.scopeIdsToReopen = decorationIterator.seek(Point(this.bufferRow, this.bufferColumn), endBufferRow)
       }
 
       // This loop may visit multiple buffer rows if there are folds and
@@ -93,7 +94,7 @@ class ScreenLineBuilder {
           if (this.displayLayer.isSoftWrapHunk(nextHunk)) {
             this.emitSoftWrap(nextHunk)
           } else {
-            this.emitFold(nextHunk, decorationIterator)
+            this.emitFold(nextHunk, decorationIterator, endBufferRow)
           }
 
           hunkIndex++
@@ -223,7 +224,7 @@ class ScreenLineBuilder {
     }
   }
 
-  emitFold (nextHunk, decorationIterator) {
+  emitFold (nextHunk, decorationIterator, endBufferRow) {
     this.emitCloseTag(this.getBuiltInScopeId(this.currentBuiltInClassNameFlags))
     this.currentBuiltInClassNameFlags = 0
 
@@ -237,7 +238,7 @@ class ScreenLineBuilder {
     this.bufferRow = nextHunk.oldEnd.row
     this.bufferColumn = nextHunk.oldEnd.column
 
-    this.scopeIdsToReopen = decorationIterator.seek(Point(this.bufferRow, this.bufferColumn))
+    this.scopeIdsToReopen = decorationIterator.seek(Point(this.bufferRow, this.bufferColumn), endBufferRow)
 
     this.bufferLine = this.displayLayer.buffer.lineForRow(this.bufferRow)
     this.trailingWhitespaceStartColumn = this.displayLayer.findTrailingWhitespaceStartColumn(this.bufferLine)
