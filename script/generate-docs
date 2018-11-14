@@ -1,0 +1,24 @@
+#!/usr/bin/env node
+
+require('coffee-script').register()
+
+const fs = require('fs')
+const path = require('path')
+const tello = require('tello')
+const donna = require('donna')
+const joanna = require('joanna')
+
+const jsFiles = []
+const rootDir = path.join(__dirname, '..')
+const sourceDir = path.join(rootDir, 'src')
+for (const entry of fs.readdirSync(sourceDir)) {
+  if (entry.endsWith('.js')) {
+    jsFiles.push(path.join(sourceDir, entry))
+  }
+}
+
+const jsMetadata = joanna(jsFiles)
+const coffeeMetadata = donna.generateMetadata([rootDir])
+Object.assign(coffeeMetadata[0].files, jsMetadata.files)
+const docs = tello.digest(coffeeMetadata)
+fs.writeFileSync(path.join(rootDir, 'api.json'), JSON.stringify(docs, null, 2))

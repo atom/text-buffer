@@ -4,3 +4,4 @@ lib
 npm-debug.log
 .coffee
 api.json
+package-lock.json
