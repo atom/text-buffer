@@ -1103,7 +1103,7 @@ class DisplayLayer {
     while (true) {
       let bufferPosition = this.translateScreenPositionWithSpatialIndex(Point(screenRow, 0), 'forward')
       if (bufferPosition.column === 0) {
-        return screenRow
+        return [bufferPosition.row, screenRow]
       } else {
         const endOfBufferRow = Point(
           bufferPosition.row,

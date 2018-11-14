@@ -110,15 +110,16 @@ class TestHighlightIterator {
     this.layer = layer
   }
 
-  seek (position) {
+  seek (position, endBufferRow) {
     const {containingStart, boundaries} = this.layer.markerIndex.findBoundariesAfter(position, Number.MAX_SAFE_INTEGER)
     this.boundaries = boundaries
     this.boundaryIndex = 0
+    this.endBufferRow = endBufferRow
     return containingStart
   }
 
   moveToSuccessor () {
-    return this.boundaryIndex++
+    this.boundaryIndex++
   }
 
   getPosition () {
@@ -130,6 +131,7 @@ class TestHighlightIterator {
     const result = []
     const boundary = this.boundaries[this.boundaryIndex]
     if (boundary) {
+      expect(boundary.position.row).not.toBeGreaterThan(this.endBufferRow)
       boundary.ending.forEach((markerId) => {
         if (!boundary.starting.has(markerId)) {
           result.push(markerId)
@@ -143,6 +145,7 @@ class TestHighlightIterator {
     const result = []
     const boundary = this.boundaries[this.boundaryIndex]
     if (boundary) {
+      expect(boundary.position.row).not.toBeGreaterThan(this.endBufferRow)
       boundary.starting.forEach((markerId) => {
         if (!boundary.ending.has(markerId)) {
           result.push(markerId)
