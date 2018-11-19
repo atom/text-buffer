@@ -10,6 +10,7 @@ DefaultHistoryProvider = require '../src/default-history-provider'
 TextBuffer = require '../src/text-buffer'
 SampleText = fs.readFileSync(join(__dirname, 'fixtures', 'sample.js'), 'utf8')
 {buildRandomLines, getRandomBufferRange} = require './helpers/random'
+NullLanguageMode = require '../src/null-language-mode'
 
 describe "TextBuffer", ->
   buffer = null
@@ -63,7 +64,7 @@ describe "TextBuffer", ->
       expect(uniqueBufferIds.size).toBe(bufferIds.length)
 
   describe "::destroy()", ->
-    it "clears the buffer's state", ->
+    it "clears the buffer's state", (done) ->
       filePath = temp.openSync('atom').path
       buffer = new TextBuffer()
       buffer.setPath(filePath)
@@ -74,7 +75,9 @@ describe "TextBuffer", ->
       expect(buffer.getText()).toBe('')
       buffer.undo()
       expect(buffer.getText()).toBe('')
-      expect(-> buffer.save()).toThrowError(/Can't save destroyed buffer/)
+      buffer.save().catch (error) ->
+        expect(error.message).toMatch(/Can't save destroyed buffer/)
+        done()
 
   describe "::setTextInRange(range, text)", ->
     beforeEach ->
@@ -188,7 +191,7 @@ describe "TextBuffer", ->
         expect(buffer.lineForRow(0)).toBe "yellow"
 
         expect(buffer.undo()).toBe true
-        expect(buffer.lineForRow(0)).toBe "hellow"
+        expect(buffer.lineForRow(0)).toBe "hello"
 
       it "still emits marker change events (regression)", ->
         markerLayer = buffer.addMarkerLayer()
@@ -470,6 +473,254 @@ describe "TextBuffer", ->
       undoCount++ while buffer.undo()
       expect(undoCount).toBe 12
       expect(buffer.getText()).toBe '0\n'
+
+  describe "::createMarkerSnapshot", ->
+    markerLayers = null
+
+    beforeEach ->
+      buffer = new TextBuffer
+
+      markerLayers = [
+        buffer.addMarkerLayer(maintainHistory: true, role: "selections")
+        buffer.addMarkerLayer(maintainHistory: true)
+        buffer.addMarkerLayer(maintainHistory: true, role: "selections")
+        buffer.addMarkerLayer(maintainHistory: true)
+      ]
+
+    describe "when selectionsMarkerLayer is not passed", ->
+      it "takes a snapshot of all markerLayers", ->
+        snapshot = buffer.createMarkerSnapshot()
+        markerLayerIdsInSnapshot = Object.keys(snapshot)
+        expect(markerLayerIdsInSnapshot.length).toBe(4)
+        expect(markerLayers[0].id in markerLayerIdsInSnapshot).toBe(true)
+        expect(markerLayers[1].id in markerLayerIdsInSnapshot).toBe(true)
+        expect(markerLayers[2].id in markerLayerIdsInSnapshot).toBe(true)
+        expect(markerLayers[3].id in markerLayerIdsInSnapshot).toBe(true)
+
+    describe "when selectionsMarkerLayer is passed", ->
+      it "skips snapshotting of other 'selection' role marker layers", ->
+        snapshot = buffer.createMarkerSnapshot(markerLayers[0])
+        markerLayerIdsInSnapshot = Object.keys(snapshot)
+        expect(markerLayerIdsInSnapshot.length).toBe(3)
+        expect(markerLayers[0].id in markerLayerIdsInSnapshot).toBe(true)
+        expect(markerLayers[1].id in markerLayerIdsInSnapshot).toBe(true)
+        expect(markerLayers[2].id in markerLayerIdsInSnapshot).toBe(false)
+        expect(markerLayers[3].id in markerLayerIdsInSnapshot).toBe(true)
+
+        snapshot = buffer.createMarkerSnapshot(markerLayers[2])
+        markerLayerIdsInSnapshot = Object.keys(snapshot)
+        expect(markerLayerIdsInSnapshot.length).toBe(3)
+        expect(markerLayers[0].id in markerLayerIdsInSnapshot).toBe(false)
+        expect(markerLayers[1].id in markerLayerIdsInSnapshot).toBe(true)
+        expect(markerLayers[2].id in markerLayerIdsInSnapshot).toBe(true)
+        expect(markerLayers[3].id in markerLayerIdsInSnapshot).toBe(true)
+
+  describe "selective snapshotting and restoration on transact/undo/redo for selections marker layer", ->
+    [markerLayers, marker0, marker1, marker2, textUndo, textRedo, rangesBefore, rangesAfter] = []
+    ensureMarkerLayer = (markerLayer, range) ->
+      markers = markerLayer.findMarkers({})
+      expect(markers.length).toBe(1)
+      expect(markers[0].getRange()).toEqual(range)
+
+    getFirstMarker = (markerLayer) ->
+      markerLayer.findMarkers({})[0]
+
+    beforeEach ->
+      buffer = new TextBuffer(text: "00000000\n11111111\n22222222\n33333333\n")
+
+      markerLayers = [
+        buffer.addMarkerLayer(maintainHistory: true, role: "selections")
+        buffer.addMarkerLayer(maintainHistory: true, role: "selections")
+        buffer.addMarkerLayer(maintainHistory: true, role: "selections")
+      ]
+
+      textUndo = "00000000\n11111111\n22222222\n33333333\n"
+      textRedo = "00000000\n11111111\n22222222\n33333333\n44444444\n"
+
+      rangesBefore = [
+        [[0, 1], [0, 1]]
+        [[0, 2], [0, 2]]
+        [[0, 3], [0, 3]]
+      ]
+      rangesAfter = [
+        [[2, 1], [2, 1]]
+        [[2, 2], [2, 2]]
+        [[2, 3], [2, 3]]
+      ]
+
+      marker0 = markerLayers[0].markRange(rangesBefore[0])
+      marker1 = markerLayers[1].markRange(rangesBefore[1])
+      marker2 = markerLayers[2].markRange(rangesBefore[2])
+
+    it "restores a snapshot from other selections marker layers on undo/redo", ->
+      # Snapshot is taken for markerLayers[0] only, markerLayer[1] and markerLayer[2] are skipped
+      buffer.transact {selectionsMarkerLayer: markerLayers[0]}, ->
+        buffer.append("44444444\n")
+        marker0.setRange(rangesAfter[0])
+        marker1.setRange(rangesAfter[1])
+        marker2.setRange(rangesAfter[2])
+
+      buffer.undo({selectionsMarkerLayer: markerLayers[0]})
+      expect(buffer.getText()).toBe(textUndo)
+
+      ensureMarkerLayer(markerLayers[0], rangesBefore[0])
+      ensureMarkerLayer(markerLayers[1], rangesAfter[1])
+      ensureMarkerLayer(markerLayers[2], rangesAfter[2])
+      expect(getFirstMarker(markerLayers[0])).toBe(marker0)
+      expect(getFirstMarker(markerLayers[1])).toBe(marker1)
+      expect(getFirstMarker(markerLayers[2])).toBe(marker2)
+
+      buffer.redo({selectionsMarkerLayer: markerLayers[0]})
+      expect(buffer.getText()).toBe(textRedo)
+
+      ensureMarkerLayer(markerLayers[0], rangesAfter[0])
+      ensureMarkerLayer(markerLayers[1], rangesAfter[1])
+      ensureMarkerLayer(markerLayers[2], rangesAfter[2])
+      expect(getFirstMarker(markerLayers[0])).toBe(marker0)
+      expect(getFirstMarker(markerLayers[1])).toBe(marker1)
+      expect(getFirstMarker(markerLayers[2])).toBe(marker2)
+
+      buffer.undo({selectionsMarkerLayer: markerLayers[1]})
+      expect(buffer.getText()).toBe(textUndo)
+
+      ensureMarkerLayer(markerLayers[0], rangesAfter[0])
+      ensureMarkerLayer(markerLayers[1], rangesBefore[0])
+      ensureMarkerLayer(markerLayers[2], rangesAfter[2])
+      expect(getFirstMarker(markerLayers[0])).toBe(marker0)
+      expect(getFirstMarker(markerLayers[1])).not.toBe(marker1)
+      expect(getFirstMarker(markerLayers[2])).toBe(marker2)
+      expect(marker1.isDestroyed()).toBe(true)
+
+      buffer.redo({selectionsMarkerLayer: markerLayers[2]})
+      expect(buffer.getText()).toBe(textRedo)
+
+      ensureMarkerLayer(markerLayers[0], rangesAfter[0])
+      ensureMarkerLayer(markerLayers[1], rangesBefore[0])
+      ensureMarkerLayer(markerLayers[2], rangesAfter[0])
+      expect(getFirstMarker(markerLayers[0])).toBe(marker0)
+      expect(getFirstMarker(markerLayers[1])).not.toBe(marker1)
+      expect(getFirstMarker(markerLayers[2])).not.toBe(marker2)
+      expect(marker1.isDestroyed()).toBe(true)
+      expect(marker2.isDestroyed()).toBe(true)
+
+      buffer.undo({selectionsMarkerLayer: markerLayers[2]})
+      expect(buffer.getText()).toBe(textUndo)
+
+      ensureMarkerLayer(markerLayers[0], rangesAfter[0])
+      ensureMarkerLayer(markerLayers[1], rangesBefore[0])
+      ensureMarkerLayer(markerLayers[2], rangesBefore[0])
+      expect(getFirstMarker(markerLayers[0])).toBe(marker0)
+      expect(getFirstMarker(markerLayers[1])).not.toBe(marker1)
+      expect(getFirstMarker(markerLayers[2])).not.toBe(marker2)
+      expect(marker1.isDestroyed()).toBe(true)
+      expect(marker2.isDestroyed()).toBe(true)
+
+    it "can restore a snapshot taken at a destroyed selections marker layer given selectionsMarkerLayer", ->
+      buffer.transact {selectionsMarkerLayer: markerLayers[1]}, ->
+        buffer.append("44444444\n")
+        marker0.setRange(rangesAfter[0])
+        marker1.setRange(rangesAfter[1])
+        marker2.setRange(rangesAfter[2])
+
+      markerLayers[1].destroy()
+      expect(buffer.getMarkerLayer(markerLayers[0].id)).toBeTruthy()
+      expect(buffer.getMarkerLayer(markerLayers[1].id)).toBeFalsy()
+      expect(buffer.getMarkerLayer(markerLayers[2].id)).toBeTruthy()
+      expect(marker0.isDestroyed()).toBe(false)
+      expect(marker1.isDestroyed()).toBe(true)
+      expect(marker2.isDestroyed()).toBe(false)
+
+      buffer.undo({selectionsMarkerLayer: markerLayers[0]})
+      expect(buffer.getText()).toBe(textUndo)
+
+      ensureMarkerLayer(markerLayers[0], rangesBefore[1])
+      ensureMarkerLayer(markerLayers[2], rangesAfter[2])
+      expect(marker0.isDestroyed()).toBe(true)
+      expect(marker2.isDestroyed()).toBe(false)
+
+      buffer.redo({selectionsMarkerLayer: markerLayers[0]})
+      expect(buffer.getText()).toBe(textRedo)
+      ensureMarkerLayer(markerLayers[0], rangesAfter[1])
+      ensureMarkerLayer(markerLayers[2], rangesAfter[2])
+
+      markerLayers[3] = markerLayers[2].copy()
+      ensureMarkerLayer(markerLayers[3], rangesAfter[2])
+      markerLayers[0].destroy()
+      markerLayers[2].destroy()
+      expect(buffer.getMarkerLayer(markerLayers[0].id)).toBeFalsy()
+      expect(buffer.getMarkerLayer(markerLayers[1].id)).toBeFalsy()
+      expect(buffer.getMarkerLayer(markerLayers[2].id)).toBeFalsy()
+      expect(buffer.getMarkerLayer(markerLayers[3].id)).toBeTruthy()
+
+      buffer.undo({selectionsMarkerLayer: markerLayers[3]})
+      expect(buffer.getText()).toBe(textUndo)
+      ensureMarkerLayer(markerLayers[3], rangesBefore[1])
+      buffer.redo({selectionsMarkerLayer: markerLayers[3]})
+      expect(buffer.getText()).toBe(textRedo)
+      ensureMarkerLayer(markerLayers[3], rangesAfter[1])
+
+    it "falls back to normal behavior when the snaphot includes multiple layerSnapshots of selections marker layers", ->
+      # Transact without selectionsMarkerLayer.
+      # Taken snapshot includes layerSnapshot of markerLayer[0], markerLayer[1] and markerLayer[2]
+      buffer.transact ->
+        buffer.append("44444444\n")
+        marker0.setRange(rangesAfter[0])
+        marker1.setRange(rangesAfter[1])
+        marker2.setRange(rangesAfter[2])
+
+      buffer.undo({selectionsMarkerLayer: markerLayers[0]})
+      expect(buffer.getText()).toBe(textUndo)
+
+      ensureMarkerLayer(markerLayers[0], rangesBefore[0])
+      ensureMarkerLayer(markerLayers[1], rangesBefore[1])
+      ensureMarkerLayer(markerLayers[2], rangesBefore[2])
+      expect(getFirstMarker(markerLayers[0])).toBe(marker0)
+      expect(getFirstMarker(markerLayers[1])).toBe(marker1)
+      expect(getFirstMarker(markerLayers[2])).toBe(marker2)
+
+      buffer.redo({selectionsMarkerLayer: markerLayers[0]})
+      expect(buffer.getText()).toBe(textRedo)
+
+      ensureMarkerLayer(markerLayers[0], rangesAfter[0])
+      ensureMarkerLayer(markerLayers[1], rangesAfter[1])
+      ensureMarkerLayer(markerLayers[2], rangesAfter[2])
+      expect(getFirstMarker(markerLayers[0])).toBe(marker0)
+      expect(getFirstMarker(markerLayers[1])).toBe(marker1)
+      expect(getFirstMarker(markerLayers[2])).toBe(marker2)
+
+    describe "selections marker layer's selective snapshotting on createCheckpoint, groupChangesSinceCheckpoint", ->
+      it "skips snapshotting of other marker layers with the same role as the selectionsMarkerLayer", ->
+        eventHandler = jasmine.createSpy('eventHandler')
+
+        args = []
+        spyOn(buffer, 'createMarkerSnapshot').and.callFake (arg) -> args.push(arg)
+
+        checkpoint1 = buffer.createCheckpoint({selectionsMarkerLayer: markerLayers[0]})
+        checkpoint2 = buffer.createCheckpoint()
+        checkpoint3 = buffer.createCheckpoint({selectionsMarkerLayer: markerLayers[2]})
+        checkpoint4 = buffer.createCheckpoint({selectionsMarkerLayer: markerLayers[1]})
+        expect(args).toEqual([
+          markerLayers[0],
+          undefined,
+          markerLayers[2],
+          markerLayers[1],
+        ])
+
+        buffer.groupChangesSinceCheckpoint(checkpoint4, {selectionsMarkerLayer: markerLayers[0]})
+        buffer.groupChangesSinceCheckpoint(checkpoint3, {selectionsMarkerLayer: markerLayers[2]})
+        buffer.groupChangesSinceCheckpoint(checkpoint2)
+        buffer.groupChangesSinceCheckpoint(checkpoint1, {selectionsMarkerLayer: markerLayers[1]})
+        expect(args).toEqual([
+          markerLayers[0],
+          undefined,
+          markerLayers[2],
+          markerLayers[1],
+
+          markerLayers[0],
+          markerLayers[2],
+          undefined,
+          markerLayers[1],
+        ])
 
   describe "transactions", ->
     now = null
@@ -901,6 +1152,69 @@ describe "TextBuffer", ->
       buffer.undo()
       expect(buffer.getText()).toBe "a"
 
+  describe "::groupLastChanges()", ->
+    it "groups the last two changes into a single transaction", ->
+      buffer = new TextBuffer()
+      layer = buffer.addMarkerLayer({maintainHistory: true})
+
+      buffer.append('a')
+
+      # Group two transactions, ensure before/after markers snapshots are preserved
+      marker = layer.markPosition([0, 0])
+      buffer.transact ->
+        buffer.append('b')
+      buffer.createCheckpoint()
+      buffer.transact ->
+        buffer.append('ccc')
+        marker.setHeadPosition([0, 2])
+
+      expect(buffer.groupLastChanges()).toBe(true)
+      buffer.undo()
+      expect(marker.getHeadPosition()).toEqual([0, 0])
+      expect(buffer.getText()).toBe('a')
+      buffer.redo()
+      expect(marker.getHeadPosition()).toEqual([0, 2])
+      buffer.undo()
+
+      # Group two bare changes
+      buffer.transact ->
+        buffer.append('b')
+        buffer.createCheckpoint()
+        buffer.append('c')
+        expect(buffer.groupLastChanges()).toBe(true)
+        buffer.undo()
+        expect(buffer.getText()).toBe('a')
+
+      # Group a transaction with a bare change
+      buffer.transact ->
+        buffer.transact ->
+          buffer.append('b')
+          buffer.append('c')
+        buffer.append('d')
+        expect(buffer.groupLastChanges()).toBe(true)
+        buffer.undo()
+        expect(buffer.getText()).toBe('a')
+
+      # Group a bare change with a transaction
+      buffer.transact ->
+        buffer.append('b')
+        buffer.transact ->
+          buffer.append('c')
+          buffer.append('d')
+        expect(buffer.groupLastChanges()).toBe(true)
+        buffer.undo()
+        expect(buffer.getText()).toBe('a')
+
+      # Can't group past the beginning of an open transaction
+      buffer.transact ->
+        expect(buffer.groupLastChanges()).toBe(false)
+        buffer.append('b')
+        expect(buffer.groupLastChanges()).toBe(false)
+        buffer.append('c')
+        expect(buffer.groupLastChanges()).toBe(true)
+        buffer.undo()
+        expect(buffer.getText()).toBe('a')
+
   describe "::setHistoryProvider(provider)", ->
     it "replaces the currently active history provider with the passed one", ->
       buffer = new TextBuffer({text: ''})
@@ -1094,6 +1408,7 @@ describe "TextBuffer", ->
       bufferA.transact -> bufferA.setTextInRange([[1, 0], [1, 5]], "friend")
       layerA = bufferA.addMarkerLayer(maintainHistory: true, persistent: true)
       layerA.markRange([[0, 6], [0, 8]], reversed: true, foo: 1)
+      layerB = bufferA.addMarkerLayer(maintainHistory: true, persistent: true, role: "selections")
       marker2A = bufferA.markPosition([2, 2], bar: 2)
       bufferA.transact ->
         bufferA.setTextInRange([[1, 0], [1, 0]], "good ")
@@ -1112,6 +1427,10 @@ describe "TextBuffer", ->
         displayLayer3B = bufferB.addDisplayLayer()
         expect(displayLayer3B.id).toBeGreaterThan(displayLayer1A.id)
         expect(displayLayer3B.id).toBeGreaterThan(displayLayer2A.id)
+
+        expect(bufferB.getMarkerLayer(layerB.id).getRole()).toBe "selections"
+        expect(bufferB.selectionsMarkerLayerIds.has(layerB.id)).toBe true
+        expect(bufferB.selectionsMarkerLayerIds.size).toBe 1
 
         bufferA.redo()
         bufferB.redo()
@@ -1234,12 +1553,14 @@ describe "TextBuffer", ->
         expect(bufferB.getId()).toEqual(bufferA.getId())
         done()
 
-    it "doesn't deserialize a state that was serialized with a different buffer version", ->
+    it "doesn't deserialize a state that was serialized with a different buffer version", (done) ->
       bufferA = new TextBuffer()
       serializedBuffer = JSON.parse(JSON.stringify(bufferA.serialize()))
       serializedBuffer.version = 123456789
 
-      expect(TextBuffer.deserialize(serializedBuffer)).toBeUndefined()
+      TextBuffer.deserialize(serializedBuffer).then (bufferB) ->
+        expect(bufferB).toBeUndefined()
+        done()
 
     it "doesn't deserialize a state referencing a file that no longer exists", (done) ->
       tempDir = fs.realpathSync(temp.mkdirSync('text-buffer'))
@@ -1258,18 +1579,24 @@ describe "TextBuffer", ->
       ).then(done, done)
 
     describe "when the serialized buffer was unsaved and had no path", ->
-      it "restores the previous unsaved state of the buffer", ->
+      it "restores the previous unsaved state of the buffer", (done) ->
         buffer = new TextBuffer()
         buffer.setText("abc")
 
         TextBuffer.deserialize(buffer.serialize()).then (buffer2) ->
           expect(buffer2.getPath()).toBeUndefined()
           expect(buffer2.getText()).toBe("abc")
+          done()
 
   describe "::getRange()", ->
     it "returns the range of the entire buffer text", ->
       buffer = new TextBuffer("abc\ndef\nghi")
       expect(buffer.getRange()).toEqual [[0, 0], [2, 3]]
+
+  describe "::getLength()", ->
+    it "returns the lenght of the entire buffer text", ->
+      buffer = new TextBuffer("abc\ndef\nghi")
+      expect(buffer.getLength()).toBe("abc\ndef\nghi".length)
 
   describe "::rangeForRow(row, includeNewline)", ->
     beforeEach ->
@@ -1929,6 +2256,27 @@ describe "TextBuffer", ->
         Range(Point(1, 2), Point(1, 6)),
       ])
 
+  describe "::findAndMarkAllInRangeSync(markerLayer, regex, range, options)", ->
+    it "populates the marker index with the matching ranges", ->
+      buffer = new TextBuffer('abc def\nghi jkl\n')
+      layer = buffer.addMarkerLayer()
+      markers = buffer.findAndMarkAllInRangeSync(layer, /\w+/g, [[0, 1], [1, 6]], {invalidate: 'inside'})
+      expect(markers.map((marker) -> marker.getRange())).toEqual([
+        [[0, 1], [0, 3]],
+        [[0, 4], [0, 7]],
+        [[1, 0], [1, 3]],
+        [[1, 4], [1, 6]]
+      ])
+      expect(markers[0].getInvalidationStrategy()).toBe('inside')
+      expect(markers[0].isExclusive()).toBe(true)
+
+      markers = buffer.findAndMarkAllInRangeSync(layer, /abc/g, [[0, 0], [1, 0]], {invalidate: 'touch'})
+      expect(markers.map((marker) -> marker.getRange())).toEqual([
+        [[0, 0], [0, 3]]
+      ])
+      expect(markers[0].getInvalidationStrategy()).toBe('touch')
+      expect(markers[0].isExclusive()).toBe(false)
+
   describe "::findWordsWithSubsequence and ::findWordsWithSubsequenceInRange", ->
     it 'resolves with all words matching the given query', (done) ->
       buffer = new TextBuffer('banana bandana ban_ana bandaid band bNa\nbanana')
@@ -2255,6 +2603,13 @@ describe "TextBuffer", ->
       buffer.setText('\n')
       expect(buffer.isEmpty()).toBeFalsy()
 
+  describe "::hasAstral()", ->
+    it "returns true for buffers containing surrogate pairs", ->
+      expect(new TextBuffer('hooray 😄').hasAstral()).toBeTruthy()
+
+    it "returns false for buffers that do not contain surrogate pairs", ->
+      expect(new TextBuffer('nope').hasAstral()).toBeFalsy()
+
   describe "::onWillChange(callback)", ->
     it "notifies observers before a transaction, an undo or a redo", ->
       changeCount = 0
@@ -2323,7 +2678,7 @@ describe "TextBuffer", ->
       buffer.transact ->
         buffer.insert([1, 0], "v")
         buffer.insert([1, 1], "x")
-        buffer.setTextInRange([[1, 2], [1, 2]], "y", {undo: 'skip'})
+        buffer.insert([1, 2], "y")
         buffer.insert([2, 3], "zw")
         buffer.delete([[2, 3], [2, 4]])
 
@@ -2346,9 +2701,9 @@ describe "TextBuffer", ->
       buffer.undo()
       assertChangesEqual(textChanges, [
         {
-          oldRange: [[1, 0], [1, 2]],
+          oldRange: [[1, 0], [1, 3]],
           newRange: [[1, 0], [1, 0]],
-          oldText: "vx",
+          oldText: "vxy",
           newText: "",
         },
         {
@@ -2364,9 +2719,9 @@ describe "TextBuffer", ->
       assertChangesEqual(textChanges, [
         {
           oldRange: [[1, 0], [1, 0]],
-          newRange: [[1, 0], [1, 2]],
+          newRange: [[1, 0], [1, 3]],
           oldText: "",
-          newText: "vx",
+          newText: "vxy",
         },
         {
           oldRange: [[2, 3], [2, 3]],
@@ -2423,7 +2778,7 @@ describe "TextBuffer", ->
           buffer.transact ->
             buffer.insert([0, 0], 'b')
             buffer.insert([1, 0], 'c')
-            buffer.setTextInRange([[1, 1], [1, 1]], 'd', {undo: 'skip'})
+            buffer.insert([1, 1], 'd')
         expect(didStopChangingCallback).not.toHaveBeenCalled()
 
         wait delay / 2, ->
@@ -2459,9 +2814,9 @@ describe "TextBuffer", ->
                   newText: "",
                 },
                 {
-                  oldRange: [[1, 0], [1, 1]],
+                  oldRange: [[1, 0], [1, 2]],
                   newRange: [[1, 0], [1, 0]],
-                  oldText: "c",
+                  oldText: "cd",
                   newText: "",
                 },
               ])
@@ -2509,14 +2864,12 @@ describe "TextBuffer", ->
 
       languageMode1 = {
         alive: true,
-        getLanguageName: 'Language 1'
         destroy: -> @alive = false
         onDidChangeHighlighting: -> {dispose: ->}
       }
 
       languageMode2 = {
         alive: true,
-        getLanguageName: 'Language 1'
         destroy: -> @alive = false
         onDidChangeHighlighting: -> {dispose: ->}
       }
@@ -2535,22 +2888,26 @@ describe "TextBuffer", ->
 
     it "notifies ::onDidChangeLanguageMode observers when the language mode changes", ->
       buffer = new TextBuffer()
-      expect(buffer.getLanguageMode().getLanguageName()).toBe('None')
+      expect(buffer.getLanguageMode() instanceof NullLanguageMode).toBe(true)
 
       events = []
-      buffer.onDidChangeLanguageMode (event) -> events.push(event)
+      buffer.onDidChangeLanguageMode (newMode, oldMode) -> events.push({newMode: newMode, oldMode: oldMode})
 
       languageMode = {
-        getLanguageName: -> 'Mylang',
         onDidChangeHighlighting: -> {dispose: ->}
       }
 
       buffer.setLanguageMode(languageMode)
-      expect(events).toEqual([languageMode])
+      expect(buffer.getLanguageMode()).toBe(languageMode)
+      expect(events.length).toBe(1)
+      expect(events[0].newMode).toBe(languageMode)
+      expect(events[0].oldMode instanceof NullLanguageMode).toBe(true)
 
       buffer.setLanguageMode(null)
+      expect(buffer.getLanguageMode() instanceof NullLanguageMode).toBe(true)
       expect(events.length).toBe(2)
-      expect(events[1].getLanguageName()).toBe('None')
+      expect(events[1].newMode).toBe(buffer.getLanguageMode())
+      expect(events[1].oldMode).toBe(languageMode)
 
   describe "line ending support", ->
     beforeEach ->

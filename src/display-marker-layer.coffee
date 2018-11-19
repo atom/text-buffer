@@ -27,7 +27,7 @@ class DisplayMarkerLayer
   destroy: ->
     return if @destroyed
     @destroyed = true
-    @clear()
+    @clear() if @ownsBufferMarkerLayer
     @subscriptions.dispose()
     @bufferMarkerLayer.displayMarkerLayers.delete(this)
     @bufferMarkerLayer.destroy() if @ownsBufferMarkerLayer
@@ -84,7 +84,7 @@ class DisplayMarkerLayer
   # * `callback` A {Function} that will be called with a {TextEditorMarker}
   #   whenever a new marker is created.
   #
-  # You should prefer {onDidUpdate} when synchronous notifications aren't
+  # You should prefer {::onDidUpdate} when synchronous notifications aren't
   # absolutely necessary.
   #
   # Returns a {Disposable}.

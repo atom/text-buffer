@@ -33,61 +33,57 @@ describe('TextBuffer IO', () => {
   })
 
   describe('.load', () => {
-    it('resolves with a buffer containing the given file\'s text', (done) => {
+    it('resolves with a buffer containing the given file\'s text', async done => {
       const filePath = temp.openSync('atom').path
       fs.writeFileSync(filePath, 'abc')
 
-      TextBuffer.load(filePath).then((buf) => {
-        buffer = buf
-        expect(buffer.getText()).toBe('abc')
-        expect(buffer.isModified()).toBe(false)
-        expect(buffer.undo()).toBe(false)
-        expect(buffer.getText()).toBe('abc')
-        done()
-      })
+      buffer = await TextBuffer.load(filePath)
+      expect(buffer.getText()).toBe('abc')
+      expect(buffer.isModified()).toBe(false)
+      expect(buffer.undo()).toBe(false)
+      expect(buffer.getText()).toBe('abc')
+      done()
     })
 
-    it('resolves with an empty buffer if there is no file at the given path', (done) => {
+    it('resolves with an empty buffer if there is no file at the given path', async done => {
       const filePath = 'does-not-exist.txt'
-      TextBuffer.load(filePath).then((buf) => {
-        buffer = buf
-        expect(buffer.getText()).toBe('')
-        expect(buffer.isModified()).toBe(true)
-        expect(buffer.undo()).toBe(false)
-        expect(buffer.getText()).toBe('')
-        done()
-      })
+      buffer = await TextBuffer.load(filePath)
+      expect(buffer.getText()).toBe('')
+      expect(buffer.isModified()).toBe(true)
+      expect(buffer.undo()).toBe(false)
+      expect(buffer.getText()).toBe('')
+      done()
     })
 
-    it('rejects if the given path is a directory', (done) => {
+    it('rejects if the given path is a directory', async done => {
       const dirPath = temp.mkdirSync('atom')
-      TextBuffer.load(dirPath).then(() => {
-        expect('Did not fail with EISDIR').toBeUndefined()
-      }, (err) => {
-        expect(err.code).toBe(process.platform === 'win32' ? 'EACCES' : 'EISDIR')
-      }).then(done, done)
+      try {
+        await TextBuffer.load(dirPath)
+      } catch (error) {
+        expect(error.code).toBe(process.platform === 'win32' ? 'EACCES' : 'EISDIR')
+        done()
+      }
     })
 
-    it('optionally rejects with an ENOENT if there is no file at the given path', (done) => {
+    it('optionally rejects with an ENOENT if there is no file at the given path', async done => {
       const filePath = 'does-not-exist.txt'
-      TextBuffer.load(filePath, {mustExist: true}).then(() => {
-        expect('Did not fail with mustExist: true').toBeUndefined()
-      }, (err) => {
-        expect(err.code).toBe('ENOENT')
-      }).then(done, done)
+      try {
+        await TextBuffer.load(filePath, {mustExist: true})
+      } catch (error) {
+        expect(error.code).toBe('ENOENT')
+        done()
+      }
     })
 
     describe('when a custom File object is given in place of the file path', () => {
-      it('loads the buffer using the file\s createReadStream method', (done) => {
+      it('loads the buffer using the file\'s createReadStream method', async done => {
         const filePath = temp.openSync('atom').path
         fs.writeFileSync(filePath, 'abc\ndef')
 
-        TextBuffer.load(new ReverseCaseFile(filePath)).then((buf) => {
-          buffer = buf
-          expect(buffer.getText()).toBe('ABC\nDEF')
-          expect(buffer.isModified()).toBe(false)
-          done()
-        })
+        buffer = await TextBuffer.load(new ReverseCaseFile(filePath))
+        expect(buffer.getText()).toBe('ABC\nDEF')
+        expect(buffer.isModified()).toBe(false)
+        done()
       })
     })
   })
@@ -130,16 +126,14 @@ describe('TextBuffer IO', () => {
   describe('.reload', () => {
     let filePath
 
-    beforeEach((done) => {
+    beforeEach(async done => {
       filePath = temp.openSync('atom').path
       fs.writeFileSync(filePath, 'abcdefg')
-      TextBuffer.load(filePath).then((result) => {
-        buffer = result
-        done()
-      })
+      buffer = await TextBuffer.load(filePath)
+      done()
     })
 
-    it('it updates the buffer even if it is modified', (done) => {
+    it('it updates the buffer even if it is modified', async done => {
       buffer.delete([[0, 0], [0, 2]])
       expect(buffer.getText()).toBe('cdefg')
 
@@ -151,19 +145,18 @@ describe('TextBuffer IO', () => {
       buffer.onWillReload(() => events.push('will-reload'))
       buffer.onDidReload(() => events.push('did-reload'))
 
-      buffer.reload().then(() => {
-        expect(events).toEqual(['will-reload', 'did-reload'])
-        expect(buffer.getText()).toBe('123abcdefg')
-        expect(marker.getRange()).toEqual(Range(Point(0, 8), Point(0, 9)))
+      await buffer.reload()
+      expect(events).toEqual(['will-reload', 'did-reload'])
+      expect(buffer.getText()).toBe('123abcdefg')
+      expect(marker.getRange()).toEqual(Range(Point(0, 8), Point(0, 9)))
 
-        buffer.undo()
-        expect(buffer.getText()).toBe('cdefg')
-        expect(marker.getRange()).toEqual(Range(Point(0, 3), Point(0, 4)))
-        done()
-      })
+      buffer.undo()
+      expect(buffer.getText()).toBe('cdefg')
+      expect(marker.getRange()).toEqual(Range(Point(0, 3), Point(0, 4)))
+      done()
     })
 
-    it('notifies decoration layers and display layers of the change', (done) => {
+    it('notifies decoration layers and display layers of the change', async done => {
       fs.writeFileSync(filePath, 'abcdefGHIJK', 'utf8')
 
       const events = []
@@ -204,7 +197,7 @@ describe('TextBuffer IO', () => {
       })
     })
 
-    it('clears the contents of the buffer when the file doesn\t exist', (done) => {
+    it('clears the contents of the buffer when the file doesn\t exist', async done => {
       buffer.delete([[0, 0], [0, 2]])
 
       const events = []
@@ -212,29 +205,27 @@ describe('TextBuffer IO', () => {
       buffer.onDidReload(() => events.push('did-reload'))
 
       buffer.setPath('does-not-exist')
-      buffer.reload().then(() => {
-        expect(events).toEqual(['will-reload', 'did-reload'])
-        expect(buffer.getText()).toBe('')
-        expect(buffer.isModified()).toBe(true)
+      await buffer.reload()
+      expect(events).toEqual(['will-reload', 'did-reload'])
+      expect(buffer.getText()).toBe('')
+      expect(buffer.isModified()).toBe(true)
 
-        buffer.undo()
-        expect(buffer.getText()).toBe('cdefg')
-        expect(buffer.isModified()).toBe(true)
-        done()
-      })
+      buffer.undo()
+      expect(buffer.getText()).toBe('cdefg')
+      expect(buffer.isModified()).toBe(true)
+      done()
     })
 
-    it('emits reload events even if nothing has changed', (done) => {
+    it('emits reload events even if nothing has changed', async done => {
       const events = []
       buffer.onWillReload((event) => events.push('will-reload'))
       buffer.onDidReload((event) => events.push('did-reload'))
-      buffer.reload().then(() => {
-        expect(events).toEqual(['will-reload', 'did-reload'])
-        done()
-      })
+      await buffer.reload()
+      expect(events).toEqual(['will-reload', 'did-reload'])
+      done()
     })
 
-    it('gracefully handles edits performed in onDidChange listeners that are called on reload', (done) => {
+    it('gracefully handles edits performed in onDidChange listeners that are called on reload', async done => {
       fs.writeFileSync(filePath, 'abcdXefg', 'utf8')
 
       {
@@ -289,17 +280,16 @@ describe('TextBuffer IO', () => {
       buffer.setPath(filePath)
     })
 
-    it('saves the contents of the buffer to the path', (done) => {
+    it('saves the contents of the buffer to the path', async done => {
       buffer.setText('Buffer contents')
-      buffer.save().then(() => {
-        expect(fs.readFileSync(filePath, 'utf8')).toEqual('Buffer contents')
-        expect(buffer.undo()).toBe(true)
-        expect(buffer.getText()).toBe('')
-        done()
-      })
+      await buffer.save()
+      expect(fs.readFileSync(filePath, 'utf8')).toEqual('Buffer contents')
+      expect(buffer.undo()).toBe(true)
+      expect(buffer.getText()).toBe('')
+      done()
     })
 
-    it('does not emit a change event', (done) => {
+    it('does not emit a change event', async done => {
       buffer.setText('Buffer contents')
       expect(buffer.isModified()).toBe(true)
 
@@ -307,17 +297,16 @@ describe('TextBuffer IO', () => {
       buffer.onWillChange(() => changeEvents.push(['will-change']))
       buffer.onDidChange((event) => changeEvents.push(['did-change', event]))
 
-      buffer.save().then(() => {
-        expect(buffer.isModified()).toBe(false)
+      await buffer.save()
+      expect(buffer.isModified()).toBe(false)
 
-        setTimeout(() => {
-          expect(changeEvents).toEqual([])
-          done()
-        }, 250)
-      })
+      setTimeout(() => {
+        expect(changeEvents).toEqual([])
+        done()
+      }, 250)
     })
 
-    it('does not emit a conflict event due to the save', (done) => {
+    it('does not emit a conflict event due to the save', async done => {
       const events = []
       buffer.onDidConflict((event) => events.push(event))
 
@@ -334,7 +323,7 @@ describe('TextBuffer IO', () => {
       }, buffer.fileChangeDelay))
     })
 
-    it('does not emit a reload event due to the save', (done) => {
+    it('does not emit a reload event due to the save', async done => {
       const events = []
       buffer.onWillReload((event) => events.push(event))
       buffer.onDidReload((event) => events.push(event))
@@ -351,7 +340,7 @@ describe('TextBuffer IO', () => {
       })
     })
 
-    it('notifies ::onWillSave and ::onDidSave observers', (done) => {
+    it('notifies ::onWillSave and ::onDidSave observers', async done => {
       const events = []
       buffer.onWillSave((event) => events.push([
         'will-save',
@@ -365,17 +354,16 @@ describe('TextBuffer IO', () => {
       ]))
 
       buffer.setText('Buffer contents')
-      buffer.save().then(() => {
-        const path = buffer.getPath()
-        expect(events).toEqual([
-          ['will-save', {path}, ''],
-          ['did-save', {path}, 'Buffer contents']
-        ])
-        done()
-      })
+      await buffer.save()
+      const path = buffer.getPath()
+      expect(events).toEqual([
+        ['will-save', {path}, ''],
+        ['did-save', {path}, 'Buffer contents']
+      ])
+      done()
     })
 
-    it('waits for any promises returned by ::onWillSave observers', (done) => {
+    it('waits for any promises returned by ::onWillSave observers', async done => {
       buffer.onWillSave(() => new Promise((resolve) => {
         setTimeout(() => {
           buffer.append(' - updated')
@@ -384,14 +372,13 @@ describe('TextBuffer IO', () => {
       }))
 
       buffer.setText('Buffer contents')
-      buffer.save().then(() => {
-        expect(fs.readFileSync(filePath, 'utf8')).toBe('Buffer contents - updated')
-        done()
-      })
+      await buffer.save()
+      expect(fs.readFileSync(filePath, 'utf8')).toBe('Buffer contents - updated')
+      done()
     })
 
     describe('when the buffer is destroyed before the save completes', () => {
-      it('saves the current contents of the buffer to the path', (done) => {
+      it('saves the current contents of the buffer to the path', done => {
         buffer.setText('hello\n')
         buffer.save().then(() => {
           expect(buffer.getText()).toBe('')
@@ -403,29 +390,30 @@ describe('TextBuffer IO', () => {
     })
 
     describe('when a conflict is created', () => {
-      beforeEach((done) => {
+      beforeEach(async done => {
         buffer.setText('a')
-        buffer.save().then(() => {
-          buffer.setText('ab')
-          buffer.onDidConflict(done)
-          fs.writeFileSync(buffer.getPath(), 'c')
-        })
+        await buffer.save()
+        buffer.setText('ab')
+        buffer.onDidConflict(done)
+        fs.writeFileSync(buffer.getPath(), 'c')
       })
 
-      it('no longer reports being in conflict when the buffer is saved again', (done) => {
+      it('no longer reports being in conflict when the buffer is saved again', async done => {
         expect(buffer.isInConflict()).toBe(true)
-        buffer.save().then(() => {
-          expect(buffer.isInConflict()).toBe(false)
-          done()
-        })
+        await buffer.save()
+        expect(buffer.isInConflict()).toBe(false)
+        done()
       })
     })
 
     describe('when the buffer has no path', () => {
-      it('throws an exception', () => {
+      it('throws an exception', done => {
         buffer2 = new TextBuffer()
         buffer2.setText('hi')
-        expect(() => buffer2.save()).toThrowError()
+        buffer2.save().catch(error => {
+          expect(error.message).toMatch(/Can't save a buffer with no file/)
+          done()
+        })
       })
     })
 
@@ -436,16 +424,15 @@ describe('TextBuffer IO', () => {
         buffer.setFile(new ReverseCaseFile(filePath))
       })
 
-      it('saves the contents of the buffer to the given file', (done) => {
+      it('saves the contents of the buffer to the given file', async done => {
         buffer.setText('abc DEF ghi JKL\n'.repeat(10 * 1024))
-        buffer.save().then(() => {
-          expect(fs.readFileSync(filePath, 'utf8')).toBe('ABC def GHI jkl\n'.repeat(10 * 1024))
-          expect(buffer.isModified()).toBe(false)
-          done()
-        })
+        await buffer.save()
+        expect(fs.readFileSync(filePath, 'utf8')).toBe('ABC def GHI jkl\n'.repeat(10 * 1024))
+        expect(buffer.isModified()).toBe(false)
+        done()
       })
 
-      it('does not emit a conflict event due to the save', (done) => {
+      it('does not emit a conflict event due to the save', async done => {
         const events = []
         buffer.onDidConflict((event) => events.push(event))
 
@@ -471,27 +458,26 @@ describe('TextBuffer IO', () => {
 
         spyOn(NativeTextBuffer.prototype, 'save').and.callFake(function (destination, encoding) {
           if (destination === filePath) {
-            return Promise.reject({code: 'EACCES', message: 'Permission denied'})
+            return Promise.reject(Object.assign(new Error('Permission denied'), {code: 'EACCES'}))
           }
 
           return save.call(this, destination, encoding)
         })
       })
 
-      it('requests escalated privileges to save the file', (done) => {
+      it('requests escalated privileges to save the file', async done => {
         spyOn(fsAdmin, 'createWriteStream').and.callFake(() => fs.createWriteStream(filePath))
 
         buffer.setText('Buffer contents\n'.repeat(100))
 
-        buffer.save().then(() => {
-          expect(fs.readFileSync(filePath, 'utf8')).toEqual(buffer.getText())
-          expect(fsAdmin.createWriteStream).toHaveBeenCalled()
-          expect(buffer.outstandingSaveCount).toBe(0)
-          done()
-        })
+        await buffer.save()
+        expect(fs.readFileSync(filePath, 'utf8')).toEqual(buffer.getText())
+        expect(fsAdmin.createWriteStream).toHaveBeenCalled()
+        expect(buffer.outstandingSaveCount).toBe(0)
+        done()
       })
 
-      it('rejects if writing to the file fails', (done) => {
+      it('rejects if writing to the file fails', async done => {
         const stream = new Writable({
           write (chunk, encoding, callback) {
             process.nextTick(() => callback(new Error('Could not write to stream')))
@@ -515,143 +501,122 @@ describe('TextBuffer IO', () => {
   describe('.saveAs', () => {
     let filePath
 
-    beforeEach((done) => {
+    beforeEach(async done => {
       filePath = temp.openSync('atom').path
       fs.writeFileSync(filePath, 'a')
-      TextBuffer.load(filePath).then((result) => {
-        buffer = result
-        done()
-      })
+      buffer = await TextBuffer.load(filePath)
+      done()
     })
 
-    it('saves the contents of the buffer to the new path', (done) => {
+    it('saves the contents of the buffer to the new path', async done => {
       const didChangePathHandler = jasmine.createSpy('didChangePathHandler')
       buffer.onDidChangePath(didChangePathHandler)
 
       const newPath = temp.openSync('atom').path
       buffer.setText('b')
-      buffer.saveAs(newPath).then(() => {
-        expect(fs.readFileSync(newPath, 'utf8')).toEqual('b')
-        expect(didChangePathHandler).toHaveBeenCalledWith(newPath)
-        done()
-      })
+      await buffer.saveAs(newPath)
+      expect(fs.readFileSync(newPath, 'utf8')).toEqual('b')
+      expect(didChangePathHandler).toHaveBeenCalledWith(newPath)
+      done()
     })
 
-    it('can save to a file in a non-existent directory', (done) => {
+    it('can save to a file in a non-existent directory', async done => {
       const directory = temp.mkdirSync('atom')
       const newFilePath = path.join(directory, 'a', 'b', 'c', 'new-file')
 
-      buffer.saveAs(newFilePath).then(() => {
-        expect(fs.readFileSync(newFilePath, 'utf8')).toBe(buffer.getText())
-        expect(buffer.getPath()).toBe(newFilePath)
-        done()
-      })
+      await buffer.saveAs(newFilePath)
+      expect(fs.readFileSync(newFilePath, 'utf8')).toBe(buffer.getText())
+      expect(buffer.getPath()).toBe(newFilePath)
+      done()
     })
 
-    it('stops listening for changes to the old path and starts listening for changes to the new path', (done) => {
+    it('stops listening for changes to the old path and starts listening for changes to the new path', async done => {
       const didChangeHandler = jasmine.createSpy('didChangeHandler')
       buffer.onDidChange(didChangeHandler)
 
       const newPath = temp.openSync('atom').path
-      buffer.saveAs(newPath)
-        .then(() => {
-          expect(didChangeHandler).not.toHaveBeenCalled()
-          fs.writeFileSync(filePath, 'does not trigger a buffer change')
-          return timeoutPromise(100)
-        })
-        .then(() => {
-          expect(didChangeHandler).not.toHaveBeenCalled()
-          expect(buffer.getText()).toBe('a')
-        })
-        .then(() => {
-          fs.writeFileSync(newPath, 'does trigger a buffer change')
-          return timeoutPromise(400)
-        })
-        .then(() => {
-          expect(didChangeHandler).toHaveBeenCalled()
-          expect(buffer.getText()).toBe('does trigger a buffer change')
-          done()
-        })
+      await buffer.saveAs(newPath)
+      expect(didChangeHandler).not.toHaveBeenCalled()
+
+      fs.writeFileSync(filePath, 'does not trigger a buffer change')
+      await timeoutPromise(100)
+      expect(didChangeHandler).not.toHaveBeenCalled()
+      expect(buffer.getText()).toBe('a')
+
+      fs.writeFileSync(newPath, 'does trigger a buffer change')
+      await timeoutPromise(400)
+
+      expect(didChangeHandler).toHaveBeenCalled()
+      expect(buffer.getText()).toBe('does trigger a buffer change')
+      done()
     })
   })
 
   describe('.isModified', () => {
-    beforeEach((done) => {
+    beforeEach(async done => {
       const filePath = temp.openSync('atom').path
       fs.writeFileSync(filePath, '')
-      TextBuffer.load(filePath).then((result) => {
-        buffer = result
-        done()
-      })
+      buffer = await TextBuffer.load(filePath)
+      done()
     })
 
     describe('when the buffer is changed', () => {
-      it('reports the modified status changing to true or false', (done) => {
+      it('reports the modified status changing to true or false', async done => {
         const modifiedStatusChanges = []
         buffer.onDidChangeModified((status) => modifiedStatusChanges.push(status))
         expect(buffer.isModified()).toBeFalsy()
 
         buffer.insert([0, 0], 'hi')
         expect(buffer.isModified()).toBe(true)
+        await stopChangingPromise()
+        expect(modifiedStatusChanges).toEqual([true])
 
-        stopChangingPromise()
-          .then(() => {
-            expect(modifiedStatusChanges).toEqual([true])
+        buffer.insert([0, 2], 'ho')
+        expect(buffer.isModified()).toBe(true)
+        await stopChangingPromise()
+        expect(modifiedStatusChanges).toEqual([true])
 
-            buffer.insert([0, 2], 'ho')
-            expect(buffer.isModified()).toBe(true)
-            return stopChangingPromise()
-          })
-          .then(() => {
-            expect(modifiedStatusChanges).toEqual([true])
-
-            buffer.undo()
-            buffer.undo()
-            expect(buffer.isModified()).toBe(false)
-            return stopChangingPromise()
-          })
-          .then(() => {
-            expect(modifiedStatusChanges).toEqual([true, false])
-            done()
-          })
+        buffer.undo()
+        buffer.undo()
+        expect(buffer.isModified()).toBe(false)
+        await stopChangingPromise()
+        expect(modifiedStatusChanges).toEqual([true, false])
+        done()
       })
     })
 
     describe('when the buffer is saved', () => {
-      it('reports the modified status changing to false', (done) => {
+      it('reports the modified status changing to false', async done => {
         buffer.insert([0, 0], 'hi')
         expect(buffer.isModified()).toBe(true)
 
         const modifiedStatusChanges = []
         buffer.onDidChangeModified((status) => modifiedStatusChanges.push(status))
 
-        buffer.save().then(() => {
-          expect(buffer.isModified()).toBe(false)
-          stopChangingPromise().then(() => {
-            expect(modifiedStatusChanges).toEqual([false])
-            done()
-          })
-        })
+        await buffer.save()
+        expect(buffer.isModified()).toBe(false)
+        await stopChangingPromise()
+        expect(modifiedStatusChanges).toEqual([false])
+        done()
       })
     })
 
     describe('when the buffer is reloaded', () => {
-      it('reports the modified status changing to false', (done) => {
+      it('reports the modified status changing to false', done => {
         const modifiedStatusChanges = []
         buffer.onDidChangeModified((status) => modifiedStatusChanges.push(status))
 
         buffer.insert([0, 0], 'hi')
 
-        const subscription = buffer.onDidChangeModified(() => {
+        const subscription = buffer.onDidChangeModified(async () => {
           expect(buffer.isModified()).toBe(true)
           expect(modifiedStatusChanges).toEqual([true])
           subscription.dispose()
 
-          buffer.reload().then(() => {
-            expect(buffer.isModified()).toBe(false)
-            expect(modifiedStatusChanges).toEqual([true, false])
-            done()
-          })
+          await buffer.reload()
+          expect(buffer.isModified()).toBe(false)
+          expect(modifiedStatusChanges).toEqual([true, false])
+          done()
         })
       })
     })
@@ -663,12 +628,11 @@ describe('TextBuffer IO', () => {
       expect(buffer2.isModified()).toBeTruthy()
     })
 
-    it('returns true for an empty buffer with a path', (done) => {
+    it('returns true for an empty buffer with a path', async done => {
       const filePath = path.join(temp.mkdirSync(), 'file-to-delete')
-      TextBuffer.load(filePath).then((buffer) => {
-        expect(buffer.isModified()).toBe(true)
-        done()
-      })
+      buffer = await TextBuffer.load(filePath)
+      expect(buffer.isModified()).toBe(true)
+      done()
     })
 
     it('returns true for a non-empty buffer with no path', () => {
@@ -685,114 +649,75 @@ describe('TextBuffer IO', () => {
 
   describe('.serialize and .deserialize', () => {
     describe('when the disk contents have not changed since serialization', () => {
-      it('restores the previous unsaved state of the buffer, along with its markers and history', (done) => {
+      it('restores the previous unsaved state of the buffer, along with its markers and history', async done => {
         const filePath = temp.openSync('atom').path
         fs.writeFileSync(filePath, 'abc\ndef\n')
 
-        TextBuffer.load(filePath).then((result) => {
-          buffer = result
-          buffer.append('ghi\n')
-          const markerLayer = buffer.addMarkerLayer({persistent: true})
-          const marker = markerLayer.markRange(Range(Point(1, 2), Point(2, 1)))
+        buffer = await TextBuffer.load(filePath)
+        buffer.append('ghi\n')
+        const markerLayer = buffer.addMarkerLayer({persistent: true})
+        const marker = markerLayer.markRange(Range(Point(1, 2), Point(2, 1)))
 
-          TextBuffer.deserialize(buffer.serialize()).then((buf2) => {
-            buffer2 = buf2
-            const markerLayer2 = buffer2.getMarkerLayer(markerLayer.id)
-            const marker2 = markerLayer2.getMarker(marker.id)
-            expect(buffer2.getText()).toBe('abc\ndef\nghi\n')
-            expect(marker2.getRange()).toEqual(Range(Point(1, 2), Point(2, 1)))
-            expect(buffer2.undo()).toBe(true)
-            expect(buffer2.getText()).toBe('abc\ndef\n')
+        buffer2 = await TextBuffer.deserialize(buffer.serialize())
+        const markerLayer2 = buffer2.getMarkerLayer(markerLayer.id)
+        const marker2 = markerLayer2.getMarker(marker.id)
+        expect(buffer2.getText()).toBe('abc\ndef\nghi\n')
+        expect(marker2.getRange()).toEqual(Range(Point(1, 2), Point(2, 1)))
+        expect(buffer2.undo()).toBe(true)
+        expect(buffer2.getText()).toBe('abc\ndef\n')
 
-            expect(buffer2.markPosition(Point(0, 0)).id).toBe(buffer.markPosition(Point(0, 0)).id)
-            expect(buffer2.addMarkerLayer().id).toBe(buffer.addMarkerLayer().id)
-            done()
-          })
-        })
-      })
-
-      it('can restore from a state created with an old version of TextBuffer', (done) => {
-        const filePath = temp.openSync('atom').path
-        fs.writeFileSync(filePath, 'abc\ndef\n')
-
-        TextBuffer.load(filePath).then((buf) => {
-          buffer = buf
-          buffer.append('ghi\n')
-          const state = buffer.serialize()
-
-          // This was the old serialization format
-          delete state.outstandingChanges
-          state.text = buffer.getText()
-
-          TextBuffer.deserialize(state).then((buf2) => {
-            buffer2 = buf2
-            expect(buffer2.getText()).toBe(buffer.getText())
-            expect(buffer2.isModified()).toBe(true)
-            done()
-          })
-        })
-      })
-    })
-
-    describe('when the disk contents have changed since serialization', () => {
-      it('loads the disk contents instead of the previous unsaved state', (done) => {
-        const filePath = temp.openSync('atom').path
-        fs.writeFileSync(filePath, 'abc\ndef\n')
-        TextBuffer.load(filePath).then((buf) => {
-          buffer = buf
-          buffer.append('ghi\n')
-
-          fs.writeFileSync(filePath, 'DISK CHANGE')
-
-          TextBuffer.deserialize(buffer.serialize()).then((buf2) => {
-            buffer2 = buf2
-            expect(buffer2.getPath()).toBe(buffer.getPath())
-            expect(buffer2.getText()).toBe('DISK CHANGE')
-            expect(buffer2.isModified()).toBe(false)
-            expect(buffer2.undo()).toBe(false)
-            expect(buffer2.getText()).toBe('DISK CHANGE')
-            done()
-          })
-        })
-      })
-    })
-
-    it('serializes the encoding', (done) => {
-      const filePath = path.join(__dirname, 'fixtures', 'win1251.txt')
-      TextBuffer.load(filePath, {encoding: 'WINDOWS-1251'}).then((buf) => {
-        buffer = buf
-        TextBuffer.deserialize(buffer.serialize()).then((buf2) => {
-          buffer2 = buf2
-          expect(buffer2.getEncoding()).toBe('WINDOWS-1251')
-          expect(buffer2.getText()).toBe('тест 1234 абвгдеёжз')
-          done()
-        })
-      })
-    })
-  })
-
-  describe('encoding support', () => {
-    it('allows the encoding to be set on creation', (done) => {
-      const filePath = path.join(__dirname, 'fixtures', 'win1251.txt')
-      TextBuffer.load(filePath, {encoding: 'WINDOWS-1251'}).then((buf) => {
-        buffer = buf
-        expect(buffer.getEncoding()).toBe('WINDOWS-1251')
-        expect(buffer.getText()).toBe('тест 1234 абвгдеёжз')
+        expect(buffer2.markPosition(Point(0, 0)).id).toBe(buffer.markPosition(Point(0, 0)).id)
+        expect(buffer2.addMarkerLayer().id).toBe(buffer.addMarkerLayer().id)
         done()
       })
     })
 
+    describe('when the disk contents have changed since serialization', () => {
+      it('loads the disk contents instead of the previous unsaved state', async done => {
+        const filePath = temp.openSync('atom').path
+        fs.writeFileSync(filePath, 'abc\ndef\n')
+
+        buffer = await TextBuffer.load(filePath)
+        buffer.append('ghi\n')
+        fs.writeFileSync(filePath, 'DISK CHANGE')
+        buffer2 = await TextBuffer.deserialize(buffer.serialize())
+        expect(buffer2.getPath()).toBe(buffer.getPath())
+        expect(buffer2.getText()).toBe('DISK CHANGE')
+        expect(buffer2.isModified()).toBe(false)
+        expect(buffer2.undo()).toBe(false)
+        expect(buffer2.getText()).toBe('DISK CHANGE')
+        done()
+      })
+    })
+
+    it('serializes the encoding', async done => {
+      const filePath = path.join(__dirname, 'fixtures', 'win1251.txt')
+      buffer = await TextBuffer.load(filePath, {encoding: 'WINDOWS-1251'})
+      buffer2 = await TextBuffer.deserialize(buffer.serialize())
+      expect(buffer2.getEncoding()).toBe('WINDOWS-1251')
+      expect(buffer2.getText()).toBe('тест 1234 абвгдеёжз')
+      done()
+    })
+  })
+
+  describe('encoding support', () => {
+    it('allows the encoding to be set on creation', async done => {
+      const filePath = path.join(__dirname, 'fixtures', 'win1251.txt')
+      buffer = await TextBuffer.load(filePath, {encoding: 'WINDOWS-1251'})
+      expect(buffer.getEncoding()).toBe('WINDOWS-1251')
+      expect(buffer.getText()).toBe('тест 1234 абвгдеёжз')
+      done()
+    })
+
     describe('when the buffer is modified', () => {
       describe('when the encoding of the buffer is changed', () => {
-        beforeEach((done) => {
+        beforeEach(async done => {
           const filePath = path.join(__dirname, 'fixtures', 'win1251.txt')
-          TextBuffer.load(filePath).then((result) => {
-            buffer = result
-            done()
-          })
+          buffer = await TextBuffer.load(filePath)
+          done()
         })
 
-        it('does not reload the contents from the disk', (done) => {
+        it('does not reload the contents from the disk', done => {
           buffer.setText('ch ch changes')
           buffer.setEncoding('win1251')
           setTimeout(() => {
@@ -805,15 +730,13 @@ describe('TextBuffer IO', () => {
 
     describe('when the buffer is unmodified', () => {
       describe('when the encoding of the buffer is changed', () => {
-        beforeEach((done) => {
+        beforeEach(async done => {
           const filePath = path.join(__dirname, 'fixtures', 'win1251.txt')
-          TextBuffer.load(filePath).then((result) => {
-            buffer = result
-            done()
-          })
+          buffer = await TextBuffer.load(filePath)
+          done()
         })
 
-        beforeEach((done) => {
+        beforeEach(async done => {
           expect(buffer.getEncoding()).toBe('utf8')
           expect(buffer.getText()).not.toBe('тест 1234 абвгдеёжз')
 
@@ -828,39 +751,34 @@ describe('TextBuffer IO', () => {
       })
     })
 
-    it('emits an event when the encoding changes', (done) => {
+    it('emits an event when the encoding changes', async done => {
       const filePath = path.join(__dirname, 'fixtures', 'win1251.txt')
       const encodingChanges = []
 
-      TextBuffer.load(filePath).then((result) => {
-        buffer = result
-        buffer.onDidChangeEncoding((encoding) => encodingChanges.push(encoding))
-        buffer.setEncoding('WINDOWS-1251')
-        expect(encodingChanges).toEqual(['WINDOWS-1251'])
+      buffer = await TextBuffer.load(filePath)
+      buffer.onDidChangeEncoding((encoding) => encodingChanges.push(encoding))
+      buffer.setEncoding('WINDOWS-1251')
+      expect(encodingChanges).toEqual(['WINDOWS-1251'])
 
-        buffer.setEncoding('WINDOWS-1251')
-        expect(encodingChanges).toEqual(['WINDOWS-1251'])
+      buffer.setEncoding('WINDOWS-1251')
+      expect(encodingChanges).toEqual(['WINDOWS-1251'])
 
-        buffer2 = new TextBuffer()
-        buffer2.onDidChangeEncoding((encoding) => encodingChanges.push(encoding))
-        buffer2.setEncoding('WINDOWS-1251')
-        expect(encodingChanges).toEqual(['WINDOWS-1251', 'WINDOWS-1251'])
+      buffer2 = new TextBuffer()
+      buffer2.onDidChangeEncoding((encoding) => encodingChanges.push(encoding))
+      buffer2.setEncoding('WINDOWS-1251')
+      expect(encodingChanges).toEqual(['WINDOWS-1251', 'WINDOWS-1251'])
 
-        buffer2.setEncoding('WINDOWS-1251')
-        expect(encodingChanges).toEqual(['WINDOWS-1251', 'WINDOWS-1251'])
-
-        done()
-      })
+      buffer2.setEncoding('WINDOWS-1251')
+      expect(encodingChanges).toEqual(['WINDOWS-1251', 'WINDOWS-1251'])
+      done()
     })
 
     describe('when a buffer\'s encoding is changed', () => {
-      beforeEach((done) => {
+      beforeEach(async done => {
         const filePath = path.join(__dirname, 'fixtures', 'win1251.txt')
-        TextBuffer.load(filePath).then((result) => {
-          buffer = result
-          buffer.onDidChange(done)
-          buffer.setEncoding('WINDOWS-1251')
-        })
+        buffer = await TextBuffer.load(filePath)
+        buffer.onDidChange(done)
+        buffer.setEncoding('WINDOWS-1251')
       })
 
       it('does not push the encoding change onto the undo stack', () => {
@@ -873,16 +791,14 @@ describe('TextBuffer IO', () => {
   describe('when the file changes on disk', () => {
     let filePath
 
-    beforeEach((done) => {
+    beforeEach(async done => {
       filePath = temp.openSync('atom').path
       fs.writeFileSync(filePath, 'abcde')
-      TextBuffer.load(filePath).then((result) => {
-        buffer = result
-        done()
-      })
+      buffer = await TextBuffer.load(filePath)
+      done()
     })
 
-    it('emits a conflict event if the buffer is modified', (done) => {
+    it('emits a conflict event if the buffer is modified', async done => {
       buffer.append('f')
       expect(buffer.getText()).toBe('abcdef')
       expect(buffer.isModified()).toBe(true)
@@ -898,7 +814,7 @@ describe('TextBuffer IO', () => {
       })
     })
 
-    it('emits a conflict event if the buffer is modified and backed by a custom file', (done) => {
+    it('emits a conflict event if the buffer is modified and backed by a custom file', async done => {
       const file = new ReverseCaseFile(filePath)
       buffer.setFile(file)
 
@@ -917,7 +833,7 @@ describe('TextBuffer IO', () => {
       })
     })
 
-    it('updates the buffer and its markers and notifies change observers if the buffer is unmodified', (done) => {
+    it('updates the buffer and its markers and notifies change observers if the buffer is unmodified', async done => {
       expect(buffer.getText()).toEqual('abcde')
 
       const newTextSuffix = '!'.repeat(1024)
@@ -984,7 +900,7 @@ describe('TextBuffer IO', () => {
       })
     })
 
-    it('passes the smallest possible change event to onDidChange listeners', (done) => {
+    it('passes the smallest possible change event to onDidChange listeners', async done => {
       fs.writeFileSync(buffer.getPath(), 'abc de ')
 
       const events = []
@@ -1026,7 +942,7 @@ describe('TextBuffer IO', () => {
       })
     })
 
-    it('does nothing when the file is rewritten with the same contents', (done) => {
+    it('does nothing when the file is rewritten with the same contents', async done => {
       const events = []
       buffer.onWillReload((event) => events.push(event))
       buffer.onDidReload((event) => events.push(event))
@@ -1045,7 +961,7 @@ describe('TextBuffer IO', () => {
       })
     })
 
-    it('does not fire duplicate change events when multiple changes happen on disk', (done) => {
+    it('does not fire duplicate change events when multiple changes happen on disk', async done => {
       const changeEvents = []
       buffer.onWillChange(() => changeEvents.push('will-change'))
       buffer.onDidChange((event) => changeEvents.push('did-change'))
@@ -1091,18 +1007,16 @@ describe('TextBuffer IO', () => {
   describe('when the file is deleted', () => {
     let filePath, closeDeletedFileTabs
 
-    beforeEach((done) => {
+    beforeEach(async done => {
       filePath = path.join(temp.mkdirSync(), 'file-to-delete')
       fs.writeFileSync(filePath, 'delete me')
-      TextBuffer.load(filePath, {shouldDestroyOnFileDelete: () => closeDeletedFileTabs}).then((result) => {
-        buffer = result
-        filePath = buffer.getPath() // symlinks may have been converted
-        done()
-      })
+      buffer = await TextBuffer.load(filePath, {shouldDestroyOnFileDelete: () => closeDeletedFileTabs})
+      filePath = buffer.getPath() // symlinks may have been converted
+      done()
     })
 
     describe('when the file is modified', () => {
-      beforeEach((done) => {
+      beforeEach(async done => {
         buffer.setText('I WAS MODIFIED')
         expect(buffer.isModified()).toBeTruthy()
         buffer.file.onDidDelete(() => done())
@@ -1125,7 +1039,7 @@ describe('TextBuffer IO', () => {
           closeDeletedFileTabs = true
         })
 
-        it('destroys the buffer', (done) => {
+        it('destroys the buffer', async done => {
           buffer.onDidDestroy(() => done())
           expect(buffer.isDestroyed()).toBeFalsy()
           expect(buffer.isModified()).toBeFalsy()
@@ -1138,7 +1052,7 @@ describe('TextBuffer IO', () => {
           closeDeletedFileTabs = false
         })
 
-        it('retains its path and reports the buffer as modified', (done) => {
+        it('retains its path and reports the buffer as modified', async done => {
           fs.removeSync(filePath)
           buffer.file.onDidDelete(() => {
             expect(buffer.getPath()).toBe(filePath)
@@ -1150,22 +1064,21 @@ describe('TextBuffer IO', () => {
     })
 
     describe('when the file is deleted', () => {
-      it('notifies all onDidDelete listeners ', (done) => {
+      it('notifies all onDidDelete listeners ', async done => {
         buffer.onDidDelete(() => done())
         fs.removeSync(filePath)
       })
     })
 
-    it('resumes watching of the file when it is re-saved', (done) => {
-      buffer.save().then(() => {
-        expect(fs.existsSync(buffer.getPath())).toBeTruthy()
-        expect(buffer.isInConflict()).toBeFalsy()
+    it('resumes watching of the file when it is re-saved', async done => {
+      await buffer.save()
+      expect(fs.existsSync(buffer.getPath())).toBeTruthy()
+      expect(buffer.isInConflict()).toBeFalsy()
 
-        fs.writeFileSync(filePath, 'moo')
-        buffer.onDidChange(() => {
-          expect(buffer.getText()).toBe('moo')
-          done()
-        })
+      fs.writeFileSync(filePath, 'moo')
+      buffer.onDidChange(() => {
+        expect(buffer.getText()).toBe('moo')
+        done()
       })
     })
   })
@@ -1208,7 +1121,7 @@ class ReverseCaseFile {
 }
 
 function reverseCase (buffer, encoding) {
-  const result = new Buffer(buffer.length)
+  const result = Buffer.alloc(buffer.length)
   for (let i = 0, n = buffer.length; i < n; i++) {
     const character = String.fromCharCode(buffer[i])
     result[i] = (character === character.toLowerCase()

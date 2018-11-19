@@ -1,14 +1,14 @@
 {
   "name": "text-buffer",
-  "version": "13.9.0",
+  "version": "13.14.12",
   "description": "A container for large mutable strings with annotated regions",
   "main": "./lib/text-buffer",
   "scripts": {
-    "prepublish": "npm run clean && npm run compile && npm run lint && npm run atomdoc",
-    "atomdoc": "grunt shell:update-atomdoc atomdoc",
-    "clean": "grunt clean",
-    "compile": "coffee --no-header --output lib --compile src && cp src/*.js lib/",
-    "lint": "coffeelint -r src spec && eslint src spec",
+    "prepublish": "npm run clean && npm run compile && npm run lint && npm run docs",
+    "docs": "node script/generate-docs",
+    "clean": "rimraf lib api.json",
+    "compile": "coffee --no-header --output lib --compile src && cpy src/*.js lib/",
+    "lint": "coffeelint -r src spec && standard src/*.js spec/*.js",
     "test": "node script/test",
     "ci": "npm run compile && npm run lint && npm run test && npm run bench",
     "bench": "node benchmarks/index"
@@ -27,22 +27,19 @@
     "coffee-cache": "^0.2.0",
     "coffee-script": "^1.10.0",
     "coffeelint": "1.16.0",
+    "cpy-cli": "^1.0.1",
     "dedent": "^0.6.0",
-    "electron": "1.6",
-    "eslint": "2.2.0",
-    "eslint-config-standard": "5.1.0",
-    "eslint-plugin-promise": "^1.0.8",
-    "eslint-plugin-standard": "1.3.1",
-    "grunt": "^0.4.5",
-    "grunt-atomdoc": "^1.0.1",
-    "grunt-cli": "^0.1.13",
-    "grunt-shell": "^1.1.2",
+    "donna": "^1.0.16",
+    "electron": "^1.7.11",
     "jasmine": "^2.4.1",
     "jasmine-core": "^2.4.1",
+    "joanna": "0.0.11",
     "json-diff": "^0.3.1",
     "random-seed": "^0.2.0",
     "regression": "^1.2.1",
     "rimraf": "~2.2.2",
+    "standard": "^10.0.3",
+    "tello": "^1.0.7",
     "temp": "^0.8.3",
     "yargs": "^6.5.0"
   },
@@ -57,7 +54,19 @@
     "mkdirp": "^0.5.1",
     "pathwatcher": "8.0.1",
     "serializable": "^1.0.3",
-    "superstring": "^2.2.12",
+    "superstring": "2.3.4",
     "underscore-plus": "^1.0.0"
+  },
+  "standard": {
+    "env": {
+      "atomtest": true,
+      "browser": true,
+      "jasmine": true,
+      "node": true
+    },
+    "globals": [
+      "atom",
+      "snapshotResult"
+    ]
   }
 }

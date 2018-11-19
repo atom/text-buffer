@@ -263,7 +263,7 @@ class Range
   # range.
   #
   # * `otherRange` A {Range} or range-compatible {Array}
-  # * `exclusive` A boolean value including that the containment should be exclusive of
+  # * `exclusive` (optional) {Boolean} including that the containment should be exclusive of
   #   endpoints. Defaults to false.
   containsRange: (otherRange, exclusive) ->
     {start, end} = @constructor.fromObject(otherRange)
@@ -273,7 +273,7 @@ class Range
   # point.
   #
   # * `point` A {Point} or point-compatible {Array}
-  # * `exclusive` A boolean value including that the containment should be exclusive of
+  # * `exclusive` (optional) {Boolean} including that the containment should be exclusive of
   #   endpoints. Defaults to false.
   containsPoint: (point, exclusive) ->
     point = Point.fromObject(point)

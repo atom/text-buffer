@@ -6,6 +6,7 @@ const Range = require('../src/range')
 const {buildRandomLines, getRandomBufferRange} = require('./helpers/random')
 const SAMPLE_TEXT = require('./helpers/sample-text')
 const TestLanguageMode = require('./helpers/test-language-mode')
+const {Emitter} = require('event-kit')
 
 const EOL_INVISIBLE = '¬'
 const CR_INVISIBLE = '¤'
@@ -2045,6 +2046,48 @@ describe('DisplayLayer', () => {
         }
       ])
     })
+
+    describe('when the language mode emits `onDidChangeHighlighting` events inside `buildHighlightIterator`', () => {
+      it('maintains a stable set of screen line ids unless the buffer changes (regression)', () => {
+        const buffer = new TextBuffer({
+          text: 'abc\ndefg'
+        })
+
+        buffer.setLanguageMode({
+          emitter: new Emitter(),
+
+          bufferDidChange () {
+            this.didChange = true
+          },
+
+          onDidChangeHighlighting (callback) {
+            return this.emitter.on('did-change-highlighting', callback)
+          },
+
+          buildHighlightIterator () {
+            if (this.didChange) {
+              this.emitter.emit('did-change-highlighting', Range(Point(0, 0), Point(0, 0)))
+              this.didChange = false
+            }
+
+            return {
+              seek () { return [] },
+              getOpenScopeIds () { return [] },
+              getCloseScopeIds () { return [] },
+              getPosition () { return Point.INFINITY }
+            }
+          }
+        })
+
+        const displayLayer = buffer.addDisplayLayer()
+        displayLayer.getScreenLines()
+
+        buffer.insert([1, 4], 'h')
+        const screenLineIds1 = displayLayer.getScreenLines().map(l => l.id)
+        const screenLineIds2 = displayLayer.getScreenLines().map(l => l.id)
+        expect(screenLineIds2).toEqual(screenLineIds1)
+      })
+    })
   })
 
   describe('position translation', () => {
@@ -2167,6 +2210,23 @@ describe('DisplayLayer', () => {
       expect(displayLayer.translateBufferPosition([1, 8], {
         clipDirection: 'forward'
       })).toEqual([0, 8])
+    })
+
+    it('clips to the closest tab stop when translating a screen position that is in the middle of a hard tab', () => {
+      const buffer = new TextBuffer({text: '\t\t\t'})
+      const displayLayer = buffer.addDisplayLayer({tabLength: 4})
+
+      expect(displayLayer.translateScreenPosition([0, 0])).toEqual([0, 0])
+      expect(displayLayer.translateScreenPosition([0, 1])).toEqual([0, 0])
+      expect(displayLayer.translateScreenPosition([0, 2])).toEqual([0, 0])
+      expect(displayLayer.translateScreenPosition([0, 3])).toEqual([0, 1])
+      expect(displayLayer.translateScreenPosition([0, 4])).toEqual([0, 1])
+
+      expect(displayLayer.translateScreenPosition([0, 8])).toEqual([0, 2])
+      expect(displayLayer.translateScreenPosition([0, 9])).toEqual([0, 2])
+      expect(displayLayer.translateScreenPosition([0, 10])).toEqual([0, 2])
+      expect(displayLayer.translateScreenPosition([0, 11])).toEqual([0, 3])
+      expect(displayLayer.translateScreenPosition([0, 12])).toEqual([0, 3])
     })
   })
 

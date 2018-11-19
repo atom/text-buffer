@@ -58,7 +58,7 @@ class Marker
 
   @delegatesMethods 'containsPoint', 'containsRange', 'intersectsRow', toMethod: 'getRange'
 
-  constructor: (@id, @layer, range, params) ->
+  constructor: (@id, @layer, range, params, exclusivitySet = false) ->
     {@tailed, @reversed, @valid, @invalidate, @exclusive, @properties} = params
     @emitter = new Emitter
     @tailed ?= true
@@ -68,7 +68,7 @@ class Marker
     @properties ?= {}
     @hasChangeObservers = false
     Object.freeze(@properties)
-    @layer.setMarkerIsExclusive(@id, @isExclusive())
+    @layer.setMarkerIsExclusive(@id, @isExclusive()) unless exclusivitySet
 
   ###
   Section: Event Subscription
@@ -280,7 +280,7 @@ class Marker
   #
   # * `params` {Object}
   copy: (options={}) ->
-    snapshot = @getSnapshot(null)
+    snapshot = @getSnapshot()
     options = Marker.extractParams(options)
     @layer.createMarker(@getRange(), extend(
       {}
@@ -382,8 +382,10 @@ class Marker
     @layer.markerUpdated() if updated and not suppressMarkerLayerUpdateEvents
     updated
 
-  getSnapshot: (range) ->
-    Object.freeze({range, @properties, @reversed, @tailed, @valid, @invalidate, @exclusive})
+  getSnapshot: (range, includeMarker=true) ->
+    snapshot = {range, @properties, @reversed, @tailed, @valid, @invalidate, @exclusive}
+    snapshot.marker = this if includeMarker
+    Object.freeze(snapshot)
 
   toString: ->
     "[Marker #{@id}, #{@getRange()}]"

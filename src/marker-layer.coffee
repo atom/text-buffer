@@ -34,6 +34,8 @@ class MarkerLayer
   constructor: (@delegate, @id, options) ->
     @maintainHistory = options?.maintainHistory ? false
     @destroyInvalidatedMarkers = options?.destroyInvalidatedMarkers ? false
+    @role = options?.role
+    @delegate.registerSelectionsMarkerLayer(this) if @role is "selections"
     @persistent = options?.persistent ? false
     @emitter = new Emitter
     @index = new MarkerIndex
@@ -47,7 +49,7 @@ class MarkerLayer
   # Public: Create a copy of this layer with markers in the same state and
   # locations.
   copy: ->
-    copy = @delegate.addMarkerLayer({@maintainHistory})
+    copy = @delegate.addMarkerLayer({@maintainHistory, @role})
     for markerId, marker of @markersById
       snapshot = marker.getSnapshot(null)
       copy.createMarker(marker.getRange(), marker.getSnapshot())
@@ -154,6 +156,12 @@ class MarkerLayer
       result.push(marker)
     result.sort (a, b) -> a.compare(b)
 
+  # Public: Get the role of the marker layer e.g. `atom.selection`.
+  #
+  # Returns a {String}.
+  getRole: ->
+    @role
+
   ###
   Section: Marker creation
   ###
@@ -251,7 +259,7 @@ class MarkerLayer
   # * `callback` A {Function} that will be called with a {Marker} whenever a
   #   new marker is created.
   #
-  # You should prefer {onDidUpdate} when synchronous notifications aren't
+  # You should prefer {::onDidUpdate} when synchronous notifications aren't
   # absolutely necessary.
   #
   # Returns a {Disposable}.
@@ -279,7 +287,7 @@ class MarkerLayer
         else
           marker.valid = false
 
-  restoreFromSnapshot: (snapshots) ->
+  restoreFromSnapshot: (snapshots, alwaysCreate) ->
     return unless snapshots?
 
     snapshotIds = Object.keys(snapshots)
@@ -287,10 +295,22 @@ class MarkerLayer
 
     for id in snapshotIds
       snapshot = snapshots[id]
+      if alwaysCreate
+        @createMarker(snapshot.range, snapshot, true)
+        continue
+
       if marker = @markersById[id]
         marker.update(marker.getRange(), snapshot, true, true)
       else
-        newMarker = @createMarker(snapshot.range, snapshot, true)
+        {marker} = snapshot
+        if marker
+          @markersById[marker.id] = marker
+          {range} = snapshot
+          @index.insert(marker.id, range.start, range.end)
+          marker.update(marker.getRange(), snapshot, true, true)
+          @emitter.emit 'did-create-marker', marker if @emitCreateMarkerEvents
+        else
+          newMarker = @createMarker(snapshot.range, snapshot, true)
 
     for id in existingMarkerIds
       if (marker = @markersById[id]) and (not snapshots[id]?)
@@ -301,7 +321,7 @@ class MarkerLayer
     ranges = @index.dump()
     for id in Object.keys(@markersById)
       marker = @markersById[id]
-      result[id] = marker.getSnapshot(Range.fromObject(ranges[id]), false)
+      result[id] = marker.getSnapshot(Range.fromObject(ranges[id]))
     result
 
   emitChangeEvents: (snapshot) ->
@@ -314,13 +334,17 @@ class MarkerLayer
     markersById = {}
     for id in Object.keys(@markersById)
       marker = @markersById[id]
-      markersById[id] = marker.getSnapshot(Range.fromObject(ranges[id]), false)
-    {@id, @maintainHistory, @persistent, markersById, version: SerializationVersion}
+      snapshot = marker.getSnapshot(Range.fromObject(ranges[id]), false)
+      markersById[id] = snapshot
+
+    {@id, @maintainHistory, @role, @persistent, markersById, version: SerializationVersion}
 
   deserialize: (state) ->
     return unless state.version is SerializationVersion
     @id = state.id
     @maintainHistory = state.maintainHistory
+    @role = state.role
+    @delegate.registerSelectionsMarkerLayer(this) if @role is "selections"
     @persistent = state.persistent
     for id, markerState of state.markersById
       range = Range.fromObject(markerState.range)

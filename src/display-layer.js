@@ -283,7 +283,7 @@ class DisplayLayer {
     bufferPosition = this.buffer.clipPosition(bufferPosition)
     this.populateSpatialIndexIfNeeded(bufferPosition.row + 1, Infinity)
 
-    const clipDirection = options && options.clipDirection || 'closest'
+    const clipDirection = (options && options.clipDirection) || 'closest'
     const columnDelta = this.getClipColumnDelta(bufferPosition, clipDirection)
     if (columnDelta !== 0) {
       bufferPosition = Point(bufferPosition.row, bufferPosition.column + columnDelta)
@@ -338,7 +338,7 @@ class DisplayLayer {
   translateScreenPosition (screenPosition, options) {
     screenPosition = Point.fromObject(screenPosition)
     Point.assertValid(screenPosition)
-    const clipDirection = options && options.clipDirection || 'closest'
+    const clipDirection = (options && options.clipDirection) || 'closest'
     const skipSoftWrapIndentation = options && options.skipSoftWrapIndentation
     this.populateSpatialIndexIfNeeded(this.buffer.getLineCount(), screenPosition.row + 1)
     screenPosition = this.constrainScreenPosition(screenPosition, clipDirection)
@@ -368,8 +368,8 @@ class DisplayLayer {
     if (hunk) {
       if (compare(screenPosition, hunk.newEnd) < 0) {
         if (this.isSoftWrapHunk(hunk)) {
-          if (clipDirection === 'backward' && !skipSoftWrapIndentation ||
-              clipDirection === 'closest' && isEqual(hunk.newStart, screenPosition)) {
+          if ((clipDirection === 'backward' && !skipSoftWrapIndentation) ||
+              (clipDirection === 'closest' && isEqual(hunk.newStart, screenPosition))) {
             return this.translateScreenPositionWithSpatialIndex(traverse(hunk.newStart, Point(0, -1)), clipDirection, skipSoftWrapIndentation)
           } else {
             return hunk.oldStart
@@ -517,10 +517,10 @@ class DisplayLayer {
           } else if (clipDirection === 'forward') {
             return Point(targetScreenPosition.row, unexpandedScreenColumn + 1)
           } else {
-            if (targetScreenPosition.column - expandedScreenColumn > nextTabStopColumn - targetScreenPosition.column) {
-              return Point(targetScreenPosition.row, unexpandedScreenColumn)
-            } else {
+            if (targetScreenPosition.column > Math.ceil((nextTabStopColumn + expandedScreenColumn) / 2)) {
               return Point(targetScreenPosition.row, unexpandedScreenColumn + 1)
+            } else {
+              return Point(targetScreenPosition.row, unexpandedScreenColumn)
             }
           }
         }
@@ -1107,7 +1107,7 @@ class DisplayLayer {
     while (true) {
       let bufferPosition = this.translateScreenPositionWithSpatialIndex(Point(screenRow, 0), 'forward')
       if (bufferPosition.column === 0) {
-        return screenRow
+        return [bufferPosition.row, screenRow]
       } else {
         const endOfBufferRow = Point(
           bufferPosition.row,
