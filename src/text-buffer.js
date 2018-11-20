@@ -2350,7 +2350,9 @@ class TextBuffer {
         const compactedChanges = patchFromChanges(this.changesSinceLastDidChangeTextEvent).getChanges()
         this.changesSinceLastDidChangeTextEvent.length = 0
         if (compactedChanges.length > 0) {
-          this.emitter.emit('did-change-text', new ChangeEvent(this, compactedChanges))
+          const changeEvent = new ChangeEvent(this, compactedChanges)
+          this.languageMode.bufferDidFinishTransaction(changeEvent)
+          this.emitter.emit('did-change-text', changeEvent)
         }
         this.debouncedEmitDidStopChangingEvent()
         this._emittedWillChangeEvent = false

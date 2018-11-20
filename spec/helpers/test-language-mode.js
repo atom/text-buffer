@@ -50,6 +50,8 @@ class TestLanguageMode {
     this.insertRandomDecorations(oldRange, newRange)
   }
 
+  bufferDidFinishTransaction () {}
+
   emitHighlightingChangeEvent (range) {
     this.emitter.emit('did-change-highlighting', range)
   }
