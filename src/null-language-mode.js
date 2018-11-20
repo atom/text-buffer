@@ -6,6 +6,7 @@ const EMPTY = []
 module.exports =
 class NullLanguageMode {
   bufferDidChange () {}
+  bufferDidFinishTransaction () {}
   buildHighlightIterator () { return new NullHighlightIterator() }
   onDidChangeHighlighting () { return new Disposable(() => {}) }
   getLanguageId () { return null }

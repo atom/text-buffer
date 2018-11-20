@@ -106,6 +106,7 @@ describe "TextBuffer", ->
         events = []
         languageMode = {
           bufferDidChange: (e) -> events.push({source: 'language-mode', event: e}),
+          bufferDidFinishTransaction: ->,
           onDidChangeHighlighting: -> {dispose: ->}
         }
         displayLayer1 = buffer.addDisplayLayer()

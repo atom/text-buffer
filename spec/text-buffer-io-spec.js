@@ -165,6 +165,8 @@ describe('TextBuffer IO', () => {
           events.push(['decoration-layer', {oldRange, newRange, oldText, newText}])
         },
 
+        bufferDidFinishTransaction () {},
+
         onDidChangeHighlighting () {
           return {dispose () {}}
         }
