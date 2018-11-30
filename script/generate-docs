@@ -8,10 +8,11 @@ const tello = require('tello')
 const donna = require('donna')
 const joanna = require('joanna')
 
-const jsFiles = []
 const rootDir = path.join(__dirname, '..')
-const sourceDir = path.join(rootDir, 'src')
-for (const entry of fs.readdirSync(sourceDir)) {
+
+const sourceDir = 'src'
+const jsFiles = []
+for (const entry of fs.readdirSync('src')) {
   if (entry.endsWith('.js')) {
     jsFiles.push(path.join(sourceDir, entry))
   }
