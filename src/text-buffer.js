@@ -1921,7 +1921,8 @@ class TextBuffer {
       try {
         await this.buffer.save(destination, this.getEncoding())
       } catch (error) {
-        if (error.code === 'EACCES' && destination === filePath && process.platform === 'darwin') {
+        const canEscalate = process.platform === 'darwin' || process.platform === 'linux'
+        if (error.code === 'EACCES' && destination === filePath && canEscalate) {
           const fsAdmin = require('fs-admin')
           try {
             await this.buffer.save(fsAdmin.createWriteStream(filePath), this.getEncoding())
