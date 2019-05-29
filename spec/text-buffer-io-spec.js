@@ -448,7 +448,7 @@ describe('TextBuffer IO', () => {
     })
 
     describe('when a permission error occurs', () => {
-      if (process.platform !== 'darwin') return
+      if (process.platform === 'win32') return
 
       beforeEach(() => {
         const save = NativeTextBuffer.prototype.save
