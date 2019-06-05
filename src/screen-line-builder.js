@@ -27,8 +27,7 @@ class ScreenLineBuilder {
     this.bufferRow = this.displayLayer.findBoundaryPrecedingBufferRow(this.bufferRow)
     this.screenRow = this.displayLayer.translateBufferPositionWithSpatialIndex(Point(this.bufferRow, 0)).row
 
-    let endBufferRow;
-    ([endBufferRow, endScreenRow] = this.displayLayer.findBoundaryFollowingScreenRow(endScreenRow))
+    const endBufferRow = this.displayLayer.translateScreenPositionWithSpatialIndex(Point(endScreenRow, Infinity)).row
 
     let didSeekDecorationIterator = false
     const decorationIterator = this.displayLayer.buffer.languageMode.buildHighlightIterator()
@@ -55,10 +54,12 @@ class ScreenLineBuilder {
           if (nextHunk.newStart.row === this.screenRow) {
             if (nextHunk.newEnd.row > nextHunk.newStart.row) {
               this.screenRow++
+              this.bufferColumn = nextHunk.oldEnd.column
               hunkIndex++
               continue screenRowLoop
             } else {
               this.bufferRow = nextHunk.oldEnd.row
+              this.bufferColumn = nextHunk.oldEnd.column
             }
           }
 
@@ -85,6 +86,12 @@ class ScreenLineBuilder {
         this.scopeIdsToReopen = decorationIterator.seek(Point(this.bufferRow, this.bufferColumn), endBufferRow)
       }
 
+      var prevCachedScreenLine = this.displayLayer.cachedScreenLines[this.screenRow - 1]
+      if (prevCachedScreenLine && prevCachedScreenLine.softWrapIndent >= 0) {
+        this.inLeadingWhitespace = false
+        if (prevCachedScreenLine.softWrapIndent > 0) this.emitIndentWhitespace(prevCachedScreenLine.softWrapIndent)
+      }
+
       // This loop may visit multiple buffer rows if there are folds and
       // multiple screen rows if there are soft wraps.
       while (this.bufferColumn <= this.bufferLine.length) {
@@ -93,6 +100,9 @@ class ScreenLineBuilder {
         while (nextHunk && nextHunk.oldStart.row === this.bufferRow && nextHunk.oldStart.column === this.bufferColumn) {
           if (this.displayLayer.isSoftWrapHunk(nextHunk)) {
             this.emitSoftWrap(nextHunk)
+            if (this.screenRow === endScreenRow) {
+              break screenRowLoop
+            }
           } else {
             this.emitFold(nextHunk, decorationIterator, endBufferRow)
           }
@@ -248,7 +258,7 @@ class ScreenLineBuilder {
     this.emitCloseTag(this.getBuiltInScopeId(this.currentBuiltInClassNameFlags))
     this.currentBuiltInClassNameFlags = 0
     this.closeContainingScopes()
-    this.emitNewline()
+    this.emitNewline(nextHunk.newEnd.column)
     this.emitIndentWhitespace(nextHunk.newEnd.column)
   }
 
@@ -280,11 +290,12 @@ class ScreenLineBuilder {
     this.bufferColumn = 0
   }
 
-  emitNewline () {
+  emitNewline (softWrapIndent = -1) {
     const screenLine = {
       id: nextScreenLineId++,
       lineText: this.currentScreenLineText,
-      tags: this.currentScreenLineTags
+      tags: this.currentScreenLineTags,
+      softWrapIndent
     }
     this.pushScreenLine(screenLine)
     this.displayLayer.cachedScreenLines[this.screenRow] = screenLine
