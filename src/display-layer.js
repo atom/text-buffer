@@ -542,12 +542,11 @@ class DisplayLayer {
   }
 
   getClipColumnDelta (bufferPosition, clipDirection) {
-    var {row: bufferRow, column: bufferColumn} = bufferPosition
-    var bufferLine = this.buffer.lineForRow(bufferRow)
+    var {row, column} = bufferPosition
 
     // Treat paired unicode characters as atomic...
-    var previousCharacter = bufferLine[bufferColumn - 1]
-    var character = bufferLine[bufferColumn]
+    var character = this.buffer.getCharacterAtPosition(bufferPosition)
+    var previousCharacter = this.buffer.getCharacterAtPosition([row, column - 1])
     if (previousCharacter && character && isCharacterPair(previousCharacter, character)) {
       if (clipDirection === 'closest' || clipDirection === 'backward') {
         return -1
@@ -560,27 +559,27 @@ class DisplayLayer {
 
     if (!this.atomicSoftTabs) return 0
 
-    if (bufferColumn * this.ratioForCharacter(' ') > this.softWrapColumn) {
+    if (column * this.ratioForCharacter(' ') > this.softWrapColumn) {
       return 0
     }
 
-    for (let column = bufferColumn; column >= 0; column--) {
-      if (bufferLine[column] !== ' ') return 0
+    for (let position = {row, column}; position.column >= 0; position.column--) {
+      if (this.buffer.getCharacterAtPosition(position) !== ' ') return 0
     }
 
-    var previousTabStop = bufferColumn - (bufferColumn % this.tabLength)
-    if (bufferColumn === previousTabStop) return 0
+    var previousTabStop = column - (column % this.tabLength)
+    if (column === previousTabStop) return 0
     var nextTabStop = previousTabStop + this.tabLength
 
     // If there is a non-whitespace character before the next tab stop,
     // don't this whitespace as a soft tab
-    for (let column = bufferColumn; column < nextTabStop; column++) {
-      if (bufferLine[column] !== ' ') return 0
+    for (let position = {row, column}; position.column < nextTabStop; position.column++) {
+      if (this.buffer.getCharacterAtPosition(position) !== ' ') return 0
     }
 
     var clippedColumn
     if (clipDirection === 'closest') {
-      if (bufferColumn - previousTabStop > this.tabLength / 2) {
+      if (column - previousTabStop > this.tabLength / 2) {
         clippedColumn = nextTabStop
       } else {
         clippedColumn = previousTabStop
@@ -591,7 +590,7 @@ class DisplayLayer {
       clippedColumn = nextTabStop
     }
 
-    return clippedColumn - bufferColumn
+    return clippedColumn - column
   }
 
   getText (startRow, endRow) {
