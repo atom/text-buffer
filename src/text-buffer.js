@@ -657,6 +657,10 @@ class TextBuffer {
     return this.cachedText
   }
 
+  getCharacterAtPosition (position) {
+    return this.buffer.getCharacterAtPosition(Point.fromObject(position))
+  }
+
   // Public: Get the text in a range.
   //
   // * `range` A {Range}
