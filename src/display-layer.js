@@ -702,15 +702,15 @@ class DisplayLayer {
     return length
   }
 
-  findTrailingWhitespaceStartColumn (lineText) {
-    let column
-    for (column = lineText.length; column >= 0; column--) {
-      const previousCharacter = lineText[column - 1]
+  findTrailingWhitespaceStartColumn (bufferRow) {
+    let position
+    for (position = {row: bufferRow, column: this.buffer.lineLengthForRow(bufferRow) - 1}; position.column >= 0; position.column--) {
+      const previousCharacter = this.buffer.getCharacterAtPosition(position)
       if (previousCharacter !== ' ' && previousCharacter !== '\t') {
         break
       }
     }
-    return column
+    return position.column + 1
   }
 
   registerBuiltInScope (flags, className) {

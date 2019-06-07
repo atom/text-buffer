@@ -23,9 +23,14 @@ class ScreenLineBuilder {
     this.requestedEndScreenRow = endScreenRow
     this.displayLayer.populateSpatialIndexIfNeeded(this.displayLayer.buffer.getLineCount(), endScreenRow)
 
-    this.bufferRow = this.displayLayer.translateScreenPositionWithSpatialIndex(Point(startScreenRow, 0)).row
-    this.bufferRow = this.displayLayer.findBoundaryPrecedingBufferRow(this.bufferRow)
-    this.screenRow = this.displayLayer.translateBufferPositionWithSpatialIndex(Point(this.bufferRow, 0)).row
+    this.bufferPosition = {
+      row: this.displayLayer.findBoundaryPrecedingBufferRow(
+        this.displayLayer.translateScreenPositionWithSpatialIndex(Point(startScreenRow, 0)).row
+      ),
+      column: 0
+    }
+
+    this.screenRow = this.displayLayer.translateBufferPositionWithSpatialIndex(Point(this.bufferPosition.row, 0)).row
 
     const endBufferRow = this.displayLayer.translateScreenPositionWithSpatialIndex(Point(endScreenRow, Infinity)).row
 
@@ -37,7 +42,7 @@ class ScreenLineBuilder {
     this.containingScopeIds = []
     this.scopeIdsToReopen = []
     this.screenLines = []
-    this.bufferColumn = 0
+    this.bufferPosition.column = 0
     this.beginLine()
 
     // Loop through all characters spanning the given screen row range, building
@@ -54,12 +59,12 @@ class ScreenLineBuilder {
           if (nextHunk.newStart.row === this.screenRow) {
             if (nextHunk.newEnd.row > nextHunk.newStart.row) {
               this.screenRow++
-              this.bufferColumn = nextHunk.oldEnd.column
+              this.bufferPosition.column = nextHunk.oldEnd.column
               hunkIndex++
               continue screenRowLoop
             } else {
-              this.bufferRow = nextHunk.oldEnd.row
-              this.bufferColumn = nextHunk.oldEnd.column
+              this.bufferPosition.row = nextHunk.oldEnd.row
+              this.bufferPosition.column = nextHunk.oldEnd.column
             }
           }
 
@@ -68,22 +73,23 @@ class ScreenLineBuilder {
         }
 
         this.screenRow++
-        this.bufferRow++
         this.screenColumn = 0
-        this.bufferColumn = 0
+        this.bufferPosition.row++
+        this.bufferPosition.column = 0
         continue
       }
 
       this.currentBuiltInClassNameFlags = 0
-      this.bufferLine = this.displayLayer.buffer.lineForRow(this.bufferRow)
-      if (this.bufferLine == null) break
-      this.trailingWhitespaceStartColumn = this.displayLayer.findTrailingWhitespaceStartColumn(this.bufferLine)
+      this.bufferLineLength = this.displayLayer.buffer.lineLengthForRow(this.bufferPosition.row)
+
+      if (this.bufferPosition.row > this.displayLayer.buffer.getLastRow()) break
+      this.trailingWhitespaceStartColumn = this.displayLayer.findTrailingWhitespaceStartColumn(this.bufferPosition.row)
       this.inLeadingWhitespace = true
       this.inTrailingWhitespace = false
 
       if (!didSeekDecorationIterator || this.compareBufferPosition(decorationIterator.getPosition()) > 0) {
         didSeekDecorationIterator = true
-        this.scopeIdsToReopen = decorationIterator.seek(Point(this.bufferRow, this.bufferColumn), endBufferRow)
+        this.scopeIdsToReopen = decorationIterator.seek(this.bufferPosition, endBufferRow)
       }
 
       var prevCachedScreenLine = this.displayLayer.cachedScreenLines[this.screenRow - 1]
@@ -94,10 +100,10 @@ class ScreenLineBuilder {
 
       // This loop may visit multiple buffer rows if there are folds and
       // multiple screen rows if there are soft wraps.
-      while (this.bufferColumn <= this.bufferLine.length) {
+      while (this.bufferPosition.column <= this.bufferLineLength) {
         // Handle folds or soft wraps at the current position.
         var nextHunk = hunks[hunkIndex]
-        while (nextHunk && nextHunk.oldStart.row === this.bufferRow && nextHunk.oldStart.column === this.bufferColumn) {
+        while (nextHunk && nextHunk.oldStart.row === this.bufferPosition.row && nextHunk.oldStart.column === this.bufferPosition.column) {
           if (this.displayLayer.isSoftWrapHunk(nextHunk)) {
             this.emitSoftWrap(nextHunk)
             if (this.screenRow === endScreenRow) {
@@ -111,8 +117,8 @@ class ScreenLineBuilder {
           nextHunk = hunks[hunkIndex]
         }
 
-        var nextCharacter = this.bufferLine[this.bufferColumn]
-        if (this.bufferColumn >= this.trailingWhitespaceStartColumn) {
+        var nextCharacter = this.displayLayer.buffer.getCharacterAtPosition(this.bufferPosition)
+        if (this.bufferPosition.column >= this.trailingWhitespaceStartColumn) {
           this.inTrailingWhitespace = true
           this.inLeadingWhitespace = false
         } else if (nextCharacter !== ' ' && nextCharacter !== '\t') {
@@ -131,7 +137,7 @@ class ScreenLineBuilder {
         this.emitDecorationBoundaries(decorationIterator)
 
         // Are we at the end of the line?
-        if (this.bufferColumn === this.bufferLine.length) {
+        if (this.bufferPosition.column === this.bufferLineLength) {
           this.emitLineEnding()
           break
         }
@@ -150,7 +156,7 @@ class ScreenLineBuilder {
         } else {
           this.emitText(nextCharacter)
         }
-        this.bufferColumn++
+        this.bufferPosition.column++
       }
     }
 
@@ -245,13 +251,13 @@ class ScreenLineBuilder {
     this.emitText(this.displayLayer.foldCharacter)
     this.emitCloseTag(this.getBuiltInScopeId(FOLD))
 
-    this.bufferRow = nextHunk.oldEnd.row
-    this.bufferColumn = nextHunk.oldEnd.column
+    this.bufferPosition.row = nextHunk.oldEnd.row
+    this.bufferPosition.column = nextHunk.oldEnd.column
 
-    this.scopeIdsToReopen = decorationIterator.seek(Point(this.bufferRow, this.bufferColumn), endBufferRow)
+    this.scopeIdsToReopen = decorationIterator.seek(this.bufferPosition, endBufferRow)
 
-    this.bufferLine = this.displayLayer.buffer.lineForRow(this.bufferRow)
-    this.trailingWhitespaceStartColumn = this.displayLayer.findTrailingWhitespaceStartColumn(this.bufferLine)
+    this.bufferLineLength = this.displayLayer.buffer.lineLengthForRow(this.bufferPosition.row)
+    this.trailingWhitespaceStartColumn = this.displayLayer.findTrailingWhitespaceStartColumn(this.bufferPosition.row)
   }
 
   emitSoftWrap (nextHunk) {
@@ -265,18 +271,18 @@ class ScreenLineBuilder {
   emitLineEnding () {
     this.emitCloseTag(this.getBuiltInScopeId(this.currentBuiltInClassNameFlags))
 
-    let lineEnding = this.displayLayer.buffer.lineEndingForRow(this.bufferRow)
+    let lineEnding = this.displayLayer.buffer.lineEndingForRow(this.bufferPosition.row)
     const eolInvisible = this.displayLayer.eolInvisibles[lineEnding]
     if (eolInvisible) {
       let eolFlags = INVISIBLE_CHARACTER | LINE_ENDING
-      if (this.bufferLine.length === 0 && this.displayLayer.showIndentGuides) eolFlags |= INDENT_GUIDE
+      if (this.bufferLineLength === 0 && this.displayLayer.showIndentGuides) eolFlags |= INDENT_GUIDE
       this.emitOpenTag(this.getBuiltInScopeId(eolFlags))
       this.emitText(eolInvisible, false)
       this.emitCloseTag(this.getBuiltInScopeId(eolFlags))
     }
 
-    if (this.bufferLine.length === 0 && this.displayLayer.showIndentGuides) {
-      let whitespaceLength = this.displayLayer.leadingWhitespaceLengthForSurroundingLines(this.bufferRow)
+    if (this.bufferLineLength === 0 && this.displayLayer.showIndentGuides) {
+      let whitespaceLength = this.displayLayer.leadingWhitespaceLengthForSurroundingLines(this.bufferPosition.row)
       this.emitIndentWhitespace(whitespaceLength)
     }
 
@@ -286,8 +292,8 @@ class ScreenLineBuilder {
     // the caller
     if (this.currentScreenLineTags.length === 0) this.currentScreenLineTags.push(0)
     this.emitNewline()
-    this.bufferRow++
-    this.bufferColumn = 0
+    this.bufferPosition.row++
+    this.bufferPosition.column = 0
   }
 
   emitNewline (softWrapIndent = -1) {
@@ -417,7 +423,7 @@ class ScreenLineBuilder {
   }
 
   compareBufferPosition (position) {
-    const rowComparison = this.bufferRow - position.row
-    return rowComparison === 0 ? (this.bufferColumn - position.column) : rowComparison
+    const rowComparison = this.bufferPosition.row - position.row
+    return rowComparison === 0 ? (this.bufferPosition.column - position.column) : rowComparison
   }
 }
