@@ -52,7 +52,7 @@
     "fs-plus": "^3.0.0",
     "grim": "^2.0.2",
     "mkdirp": "^0.5.1",
-    "pathwatcher": "8.0.2",
+    "pathwatcher": "^8.1.0",
     "serializable": "^1.0.3",
     "superstring": "2.4.0",
     "underscore-plus": "^1.0.0"
