@@ -1,4 +1,4 @@
-const {remote} = require('electron')
+const { remote } = require('electron')
 
 const path = require('path')
 const Command = require('jasmine/lib/command.js')

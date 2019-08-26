@@ -1,12 +1,12 @@
 const fs = require('fs-plus')
 const path = require('path')
-const {Writable, Transform} = require('stream')
+const { Writable, Transform } = require('stream')
 const temp = require('temp')
-const {Disposable} = require('event-kit')
+const { Disposable } = require('event-kit')
 const Point = require('../src/point')
 const Range = require('../src/range')
 const TextBuffer = require('../src/text-buffer')
-const {TextBuffer: NativeTextBuffer} = require('superstring')
+const { TextBuffer: NativeTextBuffer } = require('superstring')
 const fsAdmin = require('fs-admin')
 const pathwatcher = require('pathwatcher')
 
@@ -64,7 +64,7 @@ describe('TextBuffer IO', () => {
     it('optionally rejects with an ENOENT if there is no file at the given path', async done => {
       const filePath = 'does-not-exist.txt'
       try {
-        await TextBuffer.load(filePath, {mustExist: true})
+        await TextBuffer.load(filePath, { mustExist: true })
       } catch (error) {
         expect(error.code).toBe('ENOENT')
         done()
@@ -111,7 +111,7 @@ describe('TextBuffer IO', () => {
 
     it('optionally throws ENOENT if there is no file at the given path', () => {
       try {
-        TextBuffer.loadSync('/does-not-exist.txt', {mustExist: true})
+        TextBuffer.loadSync('/does-not-exist.txt', { mustExist: true })
         expect('Did not fail with mustExist: true').toBeUndefined()
       } catch (e) {
         expect(e.code).toBe('ENOENT')
@@ -161,14 +161,14 @@ describe('TextBuffer IO', () => {
       displayLayer.onDidChange((event) => events.push(['display-layer', event]))
 
       buffer.setLanguageMode({
-        bufferDidChange ({oldRange, newRange, oldText, newText}) {
-          events.push(['decoration-layer', {oldRange, newRange, oldText, newText}])
+        bufferDidChange ({ oldRange, newRange, oldText, newText }) {
+          events.push(['decoration-layer', { oldRange, newRange, oldText, newText }])
         },
 
         bufferDidFinishTransaction () {},
 
         onDidChangeHighlighting () {
-          return {dispose () {}}
+          return { dispose () {} }
         }
       })
 
@@ -243,7 +243,7 @@ describe('TextBuffer IO', () => {
       }
 
       {
-        const subscription = buffer.onDidStopChanging(({changes}) => {
+        const subscription = buffer.onDidStopChanging(({ changes }) => {
           subscription.dispose()
 
           expect(changes.length).toBe(1)
@@ -354,8 +354,8 @@ describe('TextBuffer IO', () => {
       await buffer.save()
       const path = buffer.getPath()
       expect(events).toEqual([
-        ['will-save', {path}, ''],
-        ['did-save', {path}, 'Buffer contents']
+        ['will-save', { path }, ''],
+        ['did-save', { path }, 'Buffer contents']
       ])
       done()
     })
@@ -455,7 +455,7 @@ describe('TextBuffer IO', () => {
 
         spyOn(NativeTextBuffer.prototype, 'save').and.callFake(function (destination, encoding) {
           if (destination === filePath) {
-            return Promise.reject(Object.assign(new Error('Permission denied'), {code: 'EACCES'}))
+            return Promise.reject(Object.assign(new Error('Permission denied'), { code: 'EACCES' }))
           }
 
           return save.call(this, destination, encoding)
@@ -633,7 +633,7 @@ describe('TextBuffer IO', () => {
     })
 
     it('returns true for a non-empty buffer with no path', () => {
-      buffer2 = new TextBuffer({text: 'something'})
+      buffer2 = new TextBuffer({ text: 'something' })
       expect(buffer2.isModified()).toBeTruthy()
 
       buffer2.append('a')
@@ -652,7 +652,7 @@ describe('TextBuffer IO', () => {
 
         buffer = await TextBuffer.load(filePath)
         buffer.append('ghi\n')
-        const markerLayer = buffer.addMarkerLayer({persistent: true})
+        const markerLayer = buffer.addMarkerLayer({ persistent: true })
         const marker = markerLayer.markRange(Range(Point(1, 2), Point(2, 1)))
 
         buffer2 = await TextBuffer.deserialize(buffer.serialize())
@@ -689,7 +689,7 @@ describe('TextBuffer IO', () => {
 
     it('serializes the encoding', async done => {
       const filePath = path.join(__dirname, 'fixtures', 'win1251.txt')
-      buffer = await TextBuffer.load(filePath, {encoding: 'WINDOWS-1251'})
+      buffer = await TextBuffer.load(filePath, { encoding: 'WINDOWS-1251' })
       buffer2 = await TextBuffer.deserialize(buffer.serialize())
       expect(buffer2.getEncoding()).toBe('WINDOWS-1251')
       expect(buffer2.getText()).toBe('тест 1234 абвгдеёжз')
@@ -700,7 +700,7 @@ describe('TextBuffer IO', () => {
   describe('encoding support', () => {
     it('allows the encoding to be set on creation', async done => {
       const filePath = path.join(__dirname, 'fixtures', 'win1251.txt')
-      buffer = await TextBuffer.load(filePath, {encoding: 'WINDOWS-1251'})
+      buffer = await TextBuffer.load(filePath, { encoding: 'WINDOWS-1251' })
       expect(buffer.getEncoding()).toBe('WINDOWS-1251')
       expect(buffer.getText()).toBe('тест 1234 абвгдеёжз')
       done()
@@ -1007,7 +1007,7 @@ describe('TextBuffer IO', () => {
     beforeEach(async done => {
       filePath = path.join(temp.mkdirSync(), 'file-to-delete')
       fs.writeFileSync(filePath, 'delete me')
-      buffer = await TextBuffer.load(filePath, {shouldDestroyOnFileDelete: () => closeDeletedFileTabs})
+      buffer = await TextBuffer.load(filePath, { shouldDestroyOnFileDelete: () => closeDeletedFileTabs })
       filePath = buffer.getPath() // symlinks may have been converted
       done()
     })

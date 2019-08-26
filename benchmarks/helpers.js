@@ -1,15 +1,15 @@
 const WORDS = require('../spec/helpers/words')
 const Random = require('random-seed')
 const random = new Random(Date.now())
-const {Point, Range} = require('..')
+const { Point, Range } = require('..')
 
 exports.getRandomText = function (sizeInKB) {
   const goalLength = Math.round(sizeInKB * 1024)
 
   let length = 0
-  let lines = []
+  const lines = []
   let currentLine = ''
-  let lastLineStartIndex = 0
+  // const lastLineStartIndex = 0
   let goalLineLength = random(100)
 
   for (;;) {
@@ -22,7 +22,7 @@ exports.getRandomText = function (sizeInKB) {
       goalLineLength = random(100)
     }
 
-    let choice = random(10)
+    const choice = random(10)
     if (choice < 2) {
       length++
       currentLine += '\t'
@@ -34,7 +34,7 @@ exports.getRandomText = function (sizeInKB) {
         length++
         currentLine += ' '
       }
-      word = WORDS[random(WORDS.length)]
+      const word = WORDS[random(WORDS.length)]
       length += word.length
       currentLine += word
     }

@@ -1,8 +1,8 @@
-const {MarkerIndex} = require('superstring')
-const {Emitter} = require('event-kit')
+const { MarkerIndex } = require('superstring')
+const { Emitter } = require('event-kit')
 const Point = require('../../src/point')
 const Range = require('../../src/range')
-const {MAX_BUILT_IN_SCOPE_ID} = require('../../src/constants')
+const { MAX_BUILT_IN_SCOPE_ID } = require('../../src/constants')
 
 module.exports =
 class TestLanguageMode {
@@ -24,7 +24,7 @@ class TestLanguageMode {
       })
     }
 
-    for (let value of decorations) {
+    for (const value of decorations) {
       const className = value[0]
       const [rangeStart, rangeEnd] = Array.from(value[1])
       const markerId = this.getNextMarkerId()
@@ -41,9 +41,9 @@ class TestLanguageMode {
     return this.emitter.on('did-change-highlighting', fn)
   }
 
-  bufferDidChange ({oldRange, newRange}) {
+  bufferDidChange ({ oldRange, newRange }) {
     this.invalidatedRanges.push(Range.fromObject(newRange))
-    const {inside, overlap} = this.markerIndex.splice(oldRange.start, oldRange.getExtent(), newRange.getExtent())
+    const { inside, overlap } = this.markerIndex.splice(oldRange.start, oldRange.getExtent(), newRange.getExtent())
     overlap.forEach((id) => this.invalidatedRanges.push(Range.fromObject(this.markerIndex.getRange(id))))
     inside.forEach((id) => this.invalidatedRanges.push(Range.fromObject(this.markerIndex.getRange(id))))
 
@@ -113,7 +113,7 @@ class TestHighlightIterator {
   }
 
   seek (position, endBufferRow) {
-    const {containingStart, boundaries} = this.layer.markerIndex.findBoundariesAfter(position, Number.MAX_SAFE_INTEGER)
+    const { containingStart, boundaries } = this.layer.markerIndex.findBoundariesAfter(position, Number.MAX_SAFE_INTEGER)
     this.boundaries = boundaries
     this.boundaryIndex = 0
     this.endBufferRow = endBufferRow

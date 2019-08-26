@@ -1,6 +1,6 @@
-const {Patch} = require('superstring')
+const { Patch } = require('superstring')
 const Range = require('./range')
-const {traversal} = require('./point-helpers')
+const { traversal } = require('./point-helpers')
 
 const LF_REGEX = /\n/g
 
@@ -52,7 +52,7 @@ exports.spliceArray = function (array, start, removedCount, insertedItems = []) 
 exports.patchFromChanges = function (changes) {
   const patch = new Patch()
   for (let i = 0; i < changes.length; i++) {
-    const {oldStart, oldEnd, oldText, newStart, newEnd, newText} = changes[i]
+    const { oldStart, oldEnd, oldText, newStart, newEnd, newText } = changes[i]
     const oldExtent = traversal(oldEnd, oldStart)
     const newExtent = traversal(newEnd, newStart)
     patch.splice(newStart, oldExtent, newExtent, oldText, newText)
@@ -78,7 +78,7 @@ exports.extentForText = function (text) {
     row++
     lastLineStartIndex = LF_REGEX.lastIndex
   }
-  return {row, column: text.length - lastLineStartIndex}
+  return { row, column: text.length - lastLineStartIndex }
 }
 
 class TextChange {

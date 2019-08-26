@@ -3,10 +3,10 @@ const dedent = require('dedent')
 const TextBuffer = require('../src/text-buffer')
 const Point = require('../src/point')
 const Range = require('../src/range')
-const {buildRandomLines, getRandomBufferRange} = require('./helpers/random')
+const { buildRandomLines, getRandomBufferRange } = require('./helpers/random')
 const SAMPLE_TEXT = require('./helpers/sample-text')
 const TestLanguageMode = require('./helpers/test-language-mode')
-const {Emitter} = require('event-kit')
+const { Emitter } = require('event-kit')
 
 const EOL_INVISIBLE = '¬'
 const CR_INVISIBLE = '¤'
@@ -55,21 +55,21 @@ describe('DisplayLayer', () => {
 
   describe('reset()', () => {
     it('updates the screen lines to reflect the new parameters', () => {
-      const buffer = new TextBuffer({text: 'abc def\nghi jkl\nmno pqr'})
+      const buffer = new TextBuffer({ text: 'abc def\nghi jkl\nmno pqr' })
       const displayLayer = buffer.addDisplayLayer({})
       expect(displayLayer.translateScreenPosition(Point(1, 3))).toEqual(Point(1, 3))
 
-      displayLayer.reset({softWrapColumn: 4})
+      displayLayer.reset({ softWrapColumn: 4 })
       expect(displayLayer.translateScreenPosition(Point(1, 3))).toEqual(Point(0, 7))
     })
 
     it('resets the rightmost screen position', () => {
-      const buffer = new TextBuffer({text: 'abc def\nghi jkl\nmnopqrst'})
-      const displayLayer = buffer.addDisplayLayer({softWrapColumn: 5})
+      const buffer = new TextBuffer({ text: 'abc def\nghi jkl\nmnopqrst' })
+      const displayLayer = buffer.addDisplayLayer({ softWrapColumn: 5 })
       expect(displayLayer.getApproximateRightmostScreenPosition()).toEqual(Point(0, 0))
       expect(displayLayer.getRightmostScreenPosition()).toEqual(Point(4, 5))
 
-      displayLayer.reset({softWrapColumn: 4})
+      displayLayer.reset({ softWrapColumn: 4 })
       expect(displayLayer.getApproximateRightmostScreenPosition()).toEqual(Point(0, 0))
       expect(displayLayer.getRightmostScreenPosition()).toEqual(Point(0, 4))
     })
@@ -77,7 +77,7 @@ describe('DisplayLayer', () => {
 
   describe('destroy', function () {
     it('does not throw exceptions when queried after destruction', function () {
-      const buffer = new TextBuffer({text: 'hi'})
+      const buffer = new TextBuffer({ text: 'hi' })
 
       const displayLayer = buffer.addDisplayLayer({})
 
@@ -102,18 +102,18 @@ describe('DisplayLayer', () => {
       expect(displayLayer.getText()).toBe('    a   bc  def g\nh       i')
 
       expectTokenBoundaries(displayLayer, [
-        {text: '    ', close: [], open: ['hard-tab leading-whitespace']},
-        {text: 'a', close: ['hard-tab leading-whitespace'], open: []},
-        {text: '   ', close: [], open: ['hard-tab']},
-        {text: 'bc', close: ['hard-tab'], open: []},
-        {text: '  ', close: [], open: ['hard-tab']},
-        {text: 'def', close: ['hard-tab'], open: []},
-        {text: ' ', close: [], open: ['hard-tab']},
-        {text: 'g', close: ['hard-tab'], open: []},
-        {text: 'h', close: [], open: []},
-        {text: '   ', close: [], open: ['hard-tab']},
-        {text: '    ', close: ['hard-tab'], open: ['hard-tab']},
-        {text: 'i', close: ['hard-tab'], open: []}
+        { text: '    ', close: [], open: ['hard-tab leading-whitespace'] },
+        { text: 'a', close: ['hard-tab leading-whitespace'], open: [] },
+        { text: '   ', close: [], open: ['hard-tab'] },
+        { text: 'bc', close: ['hard-tab'], open: [] },
+        { text: '  ', close: [], open: ['hard-tab'] },
+        { text: 'def', close: ['hard-tab'], open: [] },
+        { text: ' ', close: [], open: ['hard-tab'] },
+        { text: 'g', close: ['hard-tab'], open: [] },
+        { text: 'h', close: [], open: [] },
+        { text: '   ', close: [], open: ['hard-tab'] },
+        { text: '    ', close: ['hard-tab'], open: ['hard-tab'] },
+        { text: 'i', close: ['hard-tab'], open: [] }
       ])
 
       expectPositionTranslations(displayLayer, [
@@ -507,7 +507,7 @@ describe('DisplayLayer', () => {
       foldsMarkerLayer.markRange([[2, 2], [3, 1]])
       foldsMarkerLayer.markRange([[3, 2], [4, 1]])
       foldsMarkerLayer.markRange([[4, 2], [5, 1]])
-      const displayLayer = buffer.addDisplayLayer({foldsMarkerLayer})
+      const displayLayer = buffer.addDisplayLayer({ foldsMarkerLayer })
 
       expect(displayLayer.indexedBufferRowCount).toBe(0)
       displayLayer.foldBufferRange([[0, 2], [1, 1]])
@@ -523,7 +523,7 @@ describe('DisplayLayer', () => {
       foldsMarkerLayer.markRange([[2, 1], [3, 2]])
       foldsMarkerLayer.markRange([[3, 1], [4, 2]])
       foldsMarkerLayer.markRange([[4, 2], [5, 1]])
-      const displayLayer = buffer.addDisplayLayer({foldsMarkerLayer})
+      const displayLayer = buffer.addDisplayLayer({ foldsMarkerLayer })
 
       expect(displayLayer.indexedBufferRowCount).toBe(0)
       displayLayer.foldBufferRange([[0, 2], [1, 1]])
@@ -534,7 +534,7 @@ describe('DisplayLayer', () => {
       const now = Date.now()
 
       for (let i = 0; i < 100; i++) {
-        let seed = now + i
+        const seed = now + i
 
         try {
           const random = new Random(seed)
@@ -550,7 +550,7 @@ describe('DisplayLayer', () => {
             foldsMarkerLayer.markRange(getRandomBufferRange(random, buffer))
           }
 
-          const displayLayer = buffer.addDisplayLayer({foldsMarkerLayer})
+          const displayLayer = buffer.addDisplayLayer({ foldsMarkerLayer })
 
           const randomRange = getRandomBufferRange(random, buffer)
 
@@ -578,7 +578,7 @@ describe('DisplayLayer', () => {
       })
       const displayLayer = buffer.addDisplayLayer({
         tabLength: 4,
-        invisibles: {eol: '¬'},
+        invisibles: { eol: '¬' },
         softWrapColumn: 10
       })
       displayLayer.foldBufferRange([[0, 16], [1, 4]])
@@ -683,14 +683,14 @@ describe('DisplayLayer', () => {
 
     it('takes into account character ratios when determining the wrap boundary', () => {
       const ratiosByCharacter = {
-        'ㅅ': 1.3,
-        'ㅘ': 1.3,
-        'ｶ': 0.5,
-        'ﾕ': 0.5,
-        'あ': 2,
-        '繁': 2,
-        '體': 2,
-        '字': 2,
+        ㅅ: 1.3,
+        ㅘ: 1.3,
+        ｶ: 0.5,
+        ﾕ: 0.5,
+        あ: 2,
+        繁: 2,
+        體: 2,
+        字: 2,
         ' ': 4
       }
 
@@ -919,7 +919,7 @@ describe('DisplayLayer', () => {
 
     it('translates points correctly on soft-wrapped lines', () => {
       {
-        const buffer = new TextBuffer({text: '   abc defgh'})
+        const buffer = new TextBuffer({ text: '   abc defgh' })
         const displayLayer = buffer.addDisplayLayer({
           softWrapColumn: 8,
           softWrapHangingIndent: 2
@@ -959,18 +959,18 @@ describe('DisplayLayer', () => {
 
       {
         // Translating in the middle of an atomic soft tab that has been soft-wrapped.
-        const buffer = new TextBuffer({text: '    '})
-        const displayLayer = buffer.addDisplayLayer({tabLength: 2, softWrapColumn: 3})
+        const buffer = new TextBuffer({ text: '    ' })
+        const displayLayer = buffer.addDisplayLayer({ tabLength: 2, softWrapColumn: 3 })
 
         expect(displayLayer.getText()).toBe('   \n ')
 
-        expect(displayLayer.translateBufferPosition([0, 3], {clipDirection: 'backward'})).toEqual([0, 2])
-        expect(displayLayer.translateBufferPosition([0, 3], {clipDirection: 'closest'})).toEqual([0, 2])
-        expect(displayLayer.translateBufferPosition([0, 3], {clipDirection: 'forward'})).toEqual([1, 1])
+        expect(displayLayer.translateBufferPosition([0, 3], { clipDirection: 'backward' })).toEqual([0, 2])
+        expect(displayLayer.translateBufferPosition([0, 3], { clipDirection: 'closest' })).toEqual([0, 2])
+        expect(displayLayer.translateBufferPosition([0, 3], { clipDirection: 'forward' })).toEqual([1, 1])
 
-        expect(displayLayer.translateScreenPosition([1, 0], {clipDirection: 'backward'})).toEqual([0, 2])
-        expect(displayLayer.translateScreenPosition([1, 0], {clipDirection: 'closest'})).toEqual([0, 2])
-        expect(displayLayer.translateScreenPosition([1, 0], {clipDirection: 'forward'})).toEqual([0, 4])
+        expect(displayLayer.translateScreenPosition([1, 0], { clipDirection: 'backward' })).toEqual([0, 2])
+        expect(displayLayer.translateScreenPosition([1, 0], { clipDirection: 'closest' })).toEqual([0, 2])
+        expect(displayLayer.translateScreenPosition([1, 0], { clipDirection: 'forward' })).toEqual([0, 4])
       }
     })
 
@@ -1074,7 +1074,7 @@ describe('DisplayLayer', () => {
         text: 'abcdef\nghijkl'
       })
 
-      let displayLayer = buffer.addDisplayLayer({
+      const displayLayer = buffer.addDisplayLayer({
         softWrapColumn: 4
       })
       displayLayer.foldBufferRange([[0, 3], [1, 3]])
@@ -1086,7 +1086,7 @@ describe('DisplayLayer', () => {
         text: '  abcdef\nghijk\nlmnop'
       })
 
-      let displayLayer = buffer.addDisplayLayer({
+      const displayLayer = buffer.addDisplayLayer({
         softWrapColumn: 6
       })
       displayLayer.foldBufferRange([[0, 5], [1, 1]])
@@ -1665,48 +1665,48 @@ describe('DisplayLayer', () => {
       )
 
       expectTokenBoundaries(displayLayer, [
-        {text: '¬', close: [], open: ['invisible-character eol indent-guide']},
-        {text: '   ', close: ['invisible-character eol indent-guide'], open: []},
-        {text: '    ', close: [], open: ['indent-guide']},
-        {text: '  ', close: ['indent-guide'], open: ['indent-guide']},
-        {text: '', close: ['indent-guide'], open: []},
-        {text: '¬', close: [], open: ['invisible-character eol indent-guide']},
-        {text: '   ', close: ['invisible-character eol indent-guide'], open: []},
-        {text: '    ', close: [], open: ['indent-guide']},
-        {text: '  ', close: ['indent-guide'], open: ['indent-guide']},
-        {text: '', close: ['indent-guide'], open: []},
-        {text: '    ', close: [], open: ['leading-whitespace indent-guide']},
-        {text: '    ', close: ['leading-whitespace indent-guide'], open: ['leading-whitespace indent-guide']},
-        {text: '  ', close: ['leading-whitespace indent-guide'], open: ['leading-whitespace indent-guide']},
-        {text: 'a', close: ['leading-whitespace indent-guide'], open: []},
-        {text: '¬', close: [], open: ['invisible-character eol']},
-        {text: '', close: ['invisible-character eol'], open: []},
-        {text: '¬', close: [], open: ['invisible-character eol indent-guide']},
-        {text: '   ', close: ['invisible-character eol indent-guide'], open: []},
-        {text: '    ', close: [], open: ['indent-guide']},
-        {text: '  ', close: ['indent-guide'], open: ['indent-guide']},
-        {text: '', close: ['indent-guide'], open: []},
-        {text: '    ', close: [], open: ['hard-tab leading-whitespace indent-guide']},
-        {text: ' ', close: ['hard-tab leading-whitespace indent-guide'], open: ['leading-whitespace indent-guide']},
-        {text: '   ', close: ['leading-whitespace indent-guide'], open: ['hard-tab leading-whitespace']},
-        {text: ' ', close: ['hard-tab leading-whitespace'], open: ['leading-whitespace indent-guide']},
-        {text: 'b', close: ['leading-whitespace indent-guide'], open: []},
-        {text: '¬', close: [], open: ['invisible-character eol']},
-        {text: '', close: ['invisible-character eol'], open: []},
-        {text: '¬', close: [], open: ['invisible-character eol indent-guide']},
-        {text: '   ', close: ['invisible-character eol indent-guide'], open: []},
-        {text: '    ', close: [], open: ['indent-guide']},
-        {text: ' ', close: ['indent-guide'], open: ['indent-guide']},
-        {text: '', close: ['indent-guide'], open: []},
-        {text: '¬', close: [], open: ['invisible-character eol indent-guide']},
-        {text: '   ', close: ['invisible-character eol indent-guide'], open: []},
-        {text: '    ', close: [], open: ['indent-guide']},
-        {text: ' ', close: ['indent-guide'], open: ['indent-guide']},
-        {text: '', close: ['indent-guide'], open: []},
-        {text: '    ', close: [], open: ['indent-guide']},
-        {text: '    ', close: ['indent-guide'], open: ['indent-guide']},
-        {text: ' ', close: ['indent-guide'], open: ['indent-guide']},
-        {text: '', close: ['indent-guide'], open: []}
+        { text: '¬', close: [], open: ['invisible-character eol indent-guide'] },
+        { text: '   ', close: ['invisible-character eol indent-guide'], open: [] },
+        { text: '    ', close: [], open: ['indent-guide'] },
+        { text: '  ', close: ['indent-guide'], open: ['indent-guide'] },
+        { text: '', close: ['indent-guide'], open: [] },
+        { text: '¬', close: [], open: ['invisible-character eol indent-guide'] },
+        { text: '   ', close: ['invisible-character eol indent-guide'], open: [] },
+        { text: '    ', close: [], open: ['indent-guide'] },
+        { text: '  ', close: ['indent-guide'], open: ['indent-guide'] },
+        { text: '', close: ['indent-guide'], open: [] },
+        { text: '    ', close: [], open: ['leading-whitespace indent-guide'] },
+        { text: '    ', close: ['leading-whitespace indent-guide'], open: ['leading-whitespace indent-guide'] },
+        { text: '  ', close: ['leading-whitespace indent-guide'], open: ['leading-whitespace indent-guide'] },
+        { text: 'a', close: ['leading-whitespace indent-guide'], open: [] },
+        { text: '¬', close: [], open: ['invisible-character eol'] },
+        { text: '', close: ['invisible-character eol'], open: [] },
+        { text: '¬', close: [], open: ['invisible-character eol indent-guide'] },
+        { text: '   ', close: ['invisible-character eol indent-guide'], open: [] },
+        { text: '    ', close: [], open: ['indent-guide'] },
+        { text: '  ', close: ['indent-guide'], open: ['indent-guide'] },
+        { text: '', close: ['indent-guide'], open: [] },
+        { text: '    ', close: [], open: ['hard-tab leading-whitespace indent-guide'] },
+        { text: ' ', close: ['hard-tab leading-whitespace indent-guide'], open: ['leading-whitespace indent-guide'] },
+        { text: '   ', close: ['leading-whitespace indent-guide'], open: ['hard-tab leading-whitespace'] },
+        { text: ' ', close: ['hard-tab leading-whitespace'], open: ['leading-whitespace indent-guide'] },
+        { text: 'b', close: ['leading-whitespace indent-guide'], open: [] },
+        { text: '¬', close: [], open: ['invisible-character eol'] },
+        { text: '', close: ['invisible-character eol'], open: [] },
+        { text: '¬', close: [], open: ['invisible-character eol indent-guide'] },
+        { text: '   ', close: ['invisible-character eol indent-guide'], open: [] },
+        { text: '    ', close: [], open: ['indent-guide'] },
+        { text: ' ', close: ['indent-guide'], open: ['indent-guide'] },
+        { text: '', close: ['indent-guide'], open: [] },
+        { text: '¬', close: [], open: ['invisible-character eol indent-guide'] },
+        { text: '   ', close: ['invisible-character eol indent-guide'], open: [] },
+        { text: '    ', close: [], open: ['indent-guide'] },
+        { text: ' ', close: ['indent-guide'], open: ['indent-guide'] },
+        { text: '', close: ['indent-guide'], open: [] },
+        { text: '    ', close: [], open: ['indent-guide'] },
+        { text: '    ', close: ['indent-guide'], open: ['indent-guide'] },
+        { text: ' ', close: ['indent-guide'], open: ['indent-guide'] },
+        { text: '', close: ['indent-guide'], open: [] }
       ])
 
       expect(displayLayer.clipScreenPosition([0, 0], {
@@ -1787,15 +1787,15 @@ describe('DisplayLayer', () => {
       expect(JSON.stringify(displayLayer.getText())).toBe(JSON.stringify('a\n\nb\n  c\n  \n  '))
 
       expectTokenBoundaries(displayLayer, [
-        {text: 'a', close: [], open: []},
-        {text: '', close: [], open: []},
-        {text: 'b', close: [], open: []},
-        {text: '  ', close: [], open: ['leading-whitespace indent-guide']},
-        {text: 'c', close: ['leading-whitespace indent-guide'], open: []},
-        {text: '  ', close: [], open: ['indent-guide']},
-        {text: '', close: ['indent-guide'], open: []},
-        {text: '  ', close: [], open: ['indent-guide']},
-        {text: '', close: ['indent-guide'], open: []}
+        { text: 'a', close: [], open: [] },
+        { text: '', close: [], open: [] },
+        { text: 'b', close: [], open: [] },
+        { text: '  ', close: [], open: ['leading-whitespace indent-guide'] },
+        { text: 'c', close: ['leading-whitespace indent-guide'], open: [] },
+        { text: '  ', close: [], open: ['indent-guide'] },
+        { text: '', close: ['indent-guide'], open: [] },
+        { text: '  ', close: [], open: ['indent-guide'] },
+        { text: '', close: ['indent-guide'], open: [] }
       ])
     })
   })
@@ -1817,35 +1817,35 @@ describe('DisplayLayer', () => {
       ]))
 
       expectTokenBoundaries(displayLayer, [
-        {text: 'a', close: [], open: []},
-        {text: 'b', close: [], open: ['aa']},
-        {text: 'c', close: [], open: ['ab']},
-        {text: 'd', close: [], open: ['ac']},
-        {text: 'e', close: ['ac', 'ab', 'aa'], open: ['ab', 'ac']},
-        {text: '', close: ['ac', 'ab'], open: []},
-        {text: 'fg', close: [], open: ['ab', 'ac']},
-        {text: 'h', close: ['ac', 'ab'], open: []},
-        {text: 'ij', close: [], open: ['ad']},
-        {text: '', close: ['ad'], open: []},
-        {text: 'klm', close: [], open: []},
-        {text: 'no', close: [], open: ['ae']},
-        {text: '', close: ['ae'], open: []}
+        { text: 'a', close: [], open: [] },
+        { text: 'b', close: [], open: ['aa'] },
+        { text: 'c', close: [], open: ['ab'] },
+        { text: 'd', close: [], open: ['ac'] },
+        { text: 'e', close: ['ac', 'ab', 'aa'], open: ['ab', 'ac'] },
+        { text: '', close: ['ac', 'ab'], open: [] },
+        { text: 'fg', close: [], open: ['ab', 'ac'] },
+        { text: 'h', close: ['ac', 'ab'], open: [] },
+        { text: 'ij', close: [], open: ['ad'] },
+        { text: '', close: ['ad'], open: [] },
+        { text: 'klm', close: [], open: [] },
+        { text: 'no', close: [], open: ['ae'] },
+        { text: '', close: ['ae'], open: [] }
       ])
     })
 
     it('includes indent guides and EOL characters within containing decoration tags', function () {
       const buffer = new TextBuffer({
         text: [
-          '',   // empty line with no indent guide
+          '', // empty line with no indent guide
           '1',
           '  ', // whitespace-only line
-          ''    // empty line with an indent guide
+          '' // empty line with an indent guide
         ].join('\n')
       })
 
       const displayLayer = buffer.addDisplayLayer({
         showIndentGuides: true,
-        invisibles: {eol: '¬'}
+        invisibles: { eol: '¬' }
       })
 
       expect(displayLayer.getText().split('\n')).toEqual([
@@ -1860,16 +1860,16 @@ describe('DisplayLayer', () => {
       ]))
 
       expectTokenBoundaries(displayLayer, [
-        {text: '¬', close: [], open: ['a', 'invisible-character eol indent-guide']},
-        {text: '', close: ['invisible-character eol indent-guide', 'a'], open: []},
-        {text: '1', close: [], open: ['a']},
-        {text: '¬', close: [], open: ['invisible-character eol']},
-        {text: '', close: ['invisible-character eol', 'a'], open: []},
-        {text: '  ', close: [], open: ['a', 'trailing-whitespace indent-guide']},
-        {text: '¬', close: ['trailing-whitespace indent-guide'], open: ['invisible-character eol']},
-        {text: '', close: ['invisible-character eol', 'a'], open: []},
-        {text: '  ', close: [], open: ['a', 'indent-guide']},
-        {text: '', close: ['indent-guide', 'a'], open: []}
+        { text: '¬', close: [], open: ['a', 'invisible-character eol indent-guide'] },
+        { text: '', close: ['invisible-character eol indent-guide', 'a'], open: [] },
+        { text: '1', close: [], open: ['a'] },
+        { text: '¬', close: [], open: ['invisible-character eol'] },
+        { text: '', close: ['invisible-character eol', 'a'], open: [] },
+        { text: '  ', close: [], open: ['a', 'trailing-whitespace indent-guide'] },
+        { text: '¬', close: ['trailing-whitespace indent-guide'], open: ['invisible-character eol'] },
+        { text: '', close: ['invisible-character eol', 'a'], open: [] },
+        { text: '  ', close: [], open: ['a', 'indent-guide'] },
+        { text: '', close: ['indent-guide', 'a'], open: [] }
       ])
     })
 
@@ -1976,7 +1976,7 @@ describe('DisplayLayer', () => {
         },
 
         onDidChangeHighlighting () {
-          return {dispose () {}}
+          return { dispose () {} }
         }
       })
 
@@ -2215,8 +2215,8 @@ describe('DisplayLayer', () => {
     })
 
     it('clips to the closest tab stop when translating a screen position that is in the middle of a hard tab', () => {
-      const buffer = new TextBuffer({text: '\t\t\t'})
-      const displayLayer = buffer.addDisplayLayer({tabLength: 4})
+      const buffer = new TextBuffer({ text: '\t\t\t' })
+      const displayLayer = buffer.addDisplayLayer({ tabLength: 4 })
 
       expect(displayLayer.translateScreenPosition([0, 0])).toEqual([0, 0])
       expect(displayLayer.translateScreenPosition([0, 1])).toEqual([0, 0])
@@ -2238,7 +2238,7 @@ describe('DisplayLayer', () => {
         text: 'abc\ndef\nghi\njkl\nmno'
       })
 
-      const displayLayer = buffer.addDisplayLayer({tabLength: 4})
+      const displayLayer = buffer.addDisplayLayer({ tabLength: 4 })
 
       const events = []
       displayLayer.onDidChange((changes) => events.push(...changes))
@@ -2288,7 +2288,7 @@ describe('DisplayLayer', () => {
         text: 'abc\ndef\nghi\njkl\nmno'
       })
 
-      const displayLayer = buffer.addDisplayLayer({tabLength: 4})
+      const displayLayer = buffer.addDisplayLayer({ tabLength: 4 })
 
       const events = []
       displayLayer.onDidChange((changes) => events.push(changes))
@@ -2446,8 +2446,8 @@ describe('DisplayLayer', () => {
 
   describe('.bufferRowsForScreenRows(startRow, endRow)', () => {
     it('returns an array containing the buffer rows for the given screen row range', () => {
-      const buffer = new TextBuffer({text: 'abcde\nfghij\nklmno\npqrst\nuvwxyz'})
-      const displayLayer = buffer.addDisplayLayer({softWrapColumn: 4})
+      const buffer = new TextBuffer({ text: 'abcde\nfghij\nklmno\npqrst\nuvwxyz' })
+      const displayLayer = buffer.addDisplayLayer({ softWrapColumn: 4 })
       const fold1 = displayLayer.foldBufferRange([[0, 1], [1, 1]]) // eslint-disable-line no-unused-vars
       const fold2 = displayLayer.foldBufferRange([[2, 2], [3, 2]])
       const fold3 = displayLayer.foldBufferRange([[3, 3], [3, 4]]) // eslint-disable-line no-unused-vars
@@ -2481,7 +2481,7 @@ describe('DisplayLayer', () => {
     const now = Date.now()
 
     for (let i = 0; i < 200; i++) {
-      let seed = now + i
+      const seed = now + i
 
       try {
         const random = new Random(seed)
@@ -2549,7 +2549,7 @@ describe('DisplayLayer', () => {
             performRandomChange(random, displayLayer)
           } else {
             const softWrapColumn = random(2) ? random.intBetween(5, 80) : null
-            displayLayer.reset({softWrapColumn})
+            displayLayer.reset({ softWrapColumn })
           }
 
           if (!hasComputedAllScreenRows(displayLayer)) {
@@ -2676,7 +2676,7 @@ function verifyLineLengths (displayLayer) {
   const rowCount = getComputedScreenLineCount(displayLayer)
   const screenLines = displayLayer.getScreenLines(0, rowCount)
   for (let row = 0; row < rowCount; row++) {
-    let text = screenLines[row].lineText.replace(LINE_ENDING_INVISIBLES_REGEXP, '')
+    const text = screenLines[row].lineText.replace(LINE_ENDING_INVISIBLES_REGEXP, '')
     expect(displayLayer.lineLengthForScreenRow(row)).toBe(text.length)
   }
 }
@@ -2685,7 +2685,7 @@ function verifyTokenConsistency (displayLayer) {
   const containingTags = []
 
   for (const tokens of getTokenBoundaries(displayLayer, 0, getComputedScreenLineCount(displayLayer))) {
-    for (const {closeTags, openTags} of tokens) {
+    for (const { closeTags, openTags } of tokens) {
       for (const tag of closeTags) {
         const mostRecentOpenTag = containingTags.pop()
         expect(mostRecentOpenTag).toBe(tag)
@@ -2781,11 +2781,11 @@ function expectPositionTranslations (displayLayer, tranlations) {
     } else {
       const bufferPosition = bufferPositions
       expect(displayLayer.translateScreenPosition(screenPosition)).toEqual(bufferPosition, `translateScreenPosition(Point${screenPosition})`)
-      expect(displayLayer.translateScreenPosition(screenPosition, {clipDirection: 'forward'})).toEqual(bufferPosition, `translateScreenPosition(Point${screenPosition}, {clipDirection: 'forward'})`)
-      expect(displayLayer.translateScreenPosition(screenPosition, {clipDirection: 'backward'})).toEqual(bufferPosition, `translateScreenPosition(Point${screenPosition}, {clipDirection: 'backward'})`)
+      expect(displayLayer.translateScreenPosition(screenPosition, { clipDirection: 'forward' })).toEqual(bufferPosition, `translateScreenPosition(Point${screenPosition}, {clipDirection: 'forward'})`)
+      expect(displayLayer.translateScreenPosition(screenPosition, { clipDirection: 'backward' })).toEqual(bufferPosition, `translateScreenPosition(Point${screenPosition}, {clipDirection: 'backward'})`)
       expect(displayLayer.translateBufferPosition(bufferPosition)).toEqual(screenPosition, `translateScreenPosition(Point${bufferPosition})`)
-      expect(displayLayer.translateBufferPosition(bufferPosition, {clipDirection: 'forward'})).toEqual(screenPosition, `translateScreenPosition(Point${bufferPosition}, {clipDirection: 'forward'})`)
-      expect(displayLayer.translateBufferPosition(bufferPosition, {clipDirection: 'backward'})).toEqual(screenPosition, `translateScreenPosition(Point${bufferPosition}, {clipDirection: 'backward'})`)
+      expect(displayLayer.translateBufferPosition(bufferPosition, { clipDirection: 'forward' })).toEqual(screenPosition, `translateScreenPosition(Point${bufferPosition}, {clipDirection: 'forward'})`)
+      expect(displayLayer.translateBufferPosition(bufferPosition, { clipDirection: 'backward' })).toEqual(screenPosition, `translateScreenPosition(Point${bufferPosition}, {clipDirection: 'backward'})`)
     }
   }
 }
@@ -2801,7 +2801,7 @@ function expectTokenBoundaries (displayLayer, expectedTokens) {
         throw new Error('There are more tokens than expected.')
       }
 
-      const {text, open, close} = expectedTokens.shift()
+      const { text, open, close } = expectedTokens.shift()
 
       expect(token.text).toEqual(
         text,
@@ -2829,7 +2829,7 @@ const getTokens = function (displayLayer, startRow = 0, endRow = displayLayer.ge
 
   for (const line of getTokenBoundaries(displayLayer, startRow, endRow)) {
     const tokenLine = []
-    for (const {closeTags, openTags, text} of line) {
+    for (const { closeTags, openTags, text } of line) {
       for (let i = 0; i < closeTags.length; i++) {
         containingTags.pop()
       }
@@ -2851,7 +2851,7 @@ const getTokens = function (displayLayer, startRow = 0, endRow = displayLayer.ge
 function getTokenBoundaries (displayLayer, startRow = 0, endRow = displayLayer.getScreenLineCount()) {
   const tokenLines = []
 
-  for (const {lineText, tags} of displayLayer.getScreenLines(startRow, endRow)) {
+  for (const { lineText, tags } of displayLayer.getScreenLines(startRow, endRow)) {
     const tokens = []
     let startIndex = 0
     let closeTags = []
@@ -2890,7 +2890,7 @@ function getTokenBoundaries (displayLayer, startRow = 0, endRow = displayLayer.g
 }
 
 function updateTokenLines (tokenLines, displayLayer, changes) {
-  for (const {oldRange, newRange} of changes || []) {
+  for (const { oldRange, newRange } of changes || []) {
     const newTokenLines = getTokens(displayLayer, newRange.start.row, newRange.end.row)
     tokenLines.splice(newRange.start.row, oldRange.end.row - oldRange.start.row, ...newTokenLines)
   }
@@ -2900,7 +2900,7 @@ function logTokens (displayLayer) { // eslint-disable-line
   let s = 'expectTokenBoundaries(displayLayer, [\n'
 
   for (const tokens of getTokenBoundaries(displayLayer)) {
-    for (const {text, closeTags, openTags} of tokens) {
+    for (const { text, closeTags, openTags } of tokens) {
       s += ("  {text: '" + (text) + "', close: " + (JSON.stringify(closeTags)) + ', open: ' + (JSON.stringify(openTags)) + '},\n')
     }
   }
