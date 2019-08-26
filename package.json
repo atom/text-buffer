@@ -54,7 +54,7 @@
     "rimraf": "~3.0.0",
     "serializable": "^1.0.3",
     "standard": "^14.0.2",
-    "superstring": "git+https://git@github.com/atom/superstring.git#master",
+    "superstring": "git+https://git@github.com/atom/superstring.git#59c92f",
     "underscore-plus": "^1.7.0"
   },
   "standard": {
