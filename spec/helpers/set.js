@@ -24,9 +24,9 @@ Set.prototype.jasmineToString = function () { // eslint-disable-line no-extend-n
   return result + '}'
 }
 
-let toEqualSet = (expectedItems, customMessage) => {
+const toEqualSet = (expectedItems, customMessage) => {
   let pass = true
-  let expectedSet = new Set(expectedItems)
+  const expectedSet = new Set(expectedItems)
   if (customMessage == null) {
     customMessage = ''
   }
@@ -52,12 +52,12 @@ let toEqualSet = (expectedItems, customMessage) => {
   return pass
 }
 
-let formatSet = (set) => {
+const formatSet = (set) => {
   return '(' + (setToArray(set).join(' ')) + ')'
 }
 
-let setToArray = (set) => {
-  let items = []
+const setToArray = (set) => {
+  const items = []
   set.forEach((item) => {
     return items.push(item)
   })
@@ -76,4 +76,4 @@ let setToArray = (set) => {
 //     })
 // }
 
-module.exports = {toEqualSet, formatSet}
+module.exports = { toEqualSet, formatSet }

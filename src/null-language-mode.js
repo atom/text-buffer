@@ -1,4 +1,4 @@
-const {Disposable} = require('event-kit')
+const { Disposable } = require('event-kit')
 const Point = require('./point')
 
 const EMPTY = []

@@ -1,13 +1,13 @@
-const {Patch} = require('superstring')
-const {Emitter} = require('event-kit')
+const { Patch } = require('superstring')
+const { Emitter } = require('event-kit')
 const Point = require('./point')
 const Range = require('./range')
 const DisplayMarkerLayer = require('./display-marker-layer')
-const {traverse, traversal, compare, max, isEqual} = require('./point-helpers')
+const { traverse, traversal, compare, max, isEqual } = require('./point-helpers')
 const isCharacterPair = require('./is-character-pair')
 const ScreenLineBuilder = require('./screen-line-builder')
-const {spliceArray} = require('./helpers')
-const {MAX_BUILT_IN_SCOPE_ID} = require('./constants')
+const { spliceArray } = require('./helpers')
+const { MAX_BUILT_IN_SCOPE_ID } = require('./constants')
 
 module.exports =
 class DisplayLayer {
@@ -54,7 +54,7 @@ class DisplayLayer {
       this.rightmostScreenPosition = params.rightmostScreenPosition
       this.indexedBufferRowCount = params.indexedBufferRowCount
     } else {
-      this.spatialIndex = new Patch({mergeAdjacentHunks: false})
+      this.spatialIndex = new Patch({ mergeAdjacentHunks: false })
       this.tabCounts = []
       this.screenLineLengths = []
       this.rightmostScreenPosition = Point(0, 0)
@@ -66,7 +66,7 @@ class DisplayLayer {
 
   static deserialize (buffer, params) {
     const foldsMarkerLayer = buffer.getMarkerLayer(params.foldsMarkerLayerId)
-    return new DisplayLayer(params.id, buffer, {foldsMarkerLayer})
+    return new DisplayLayer(params.id, buffer, { foldsMarkerLayer })
   }
 
   serialize () {
@@ -194,11 +194,11 @@ class DisplayLayer {
 
   foldBufferRange (bufferRange) {
     bufferRange = Range.fromObject(bufferRange)
-    const containingFoldMarkers = this.foldsMarkerLayer.findMarkers({containsRange: bufferRange})
+    const containingFoldMarkers = this.foldsMarkerLayer.findMarkers({ containsRange: bufferRange })
     if (containingFoldMarkers.length === 0) {
       this.populateSpatialIndexIfNeeded(bufferRange.end.row + 1, Infinity)
     }
-    const foldId = this.foldsMarkerLayer.markRange(bufferRange, {invalidate: 'overlap', exclusive: true}).id
+    const foldId = this.foldsMarkerLayer.markRange(bufferRange, { invalidate: 'overlap', exclusive: true }).id
     if (containingFoldMarkers.length === 0) {
       const foldStartRow = bufferRange.start.row
       const foldEndRow = bufferRange.end.row + 1
@@ -299,7 +299,7 @@ class DisplayLayer {
   }
 
   translateBufferPositionWithSpatialIndex (bufferPosition, clipDirection) {
-    let hunk = this.spatialIndex.changeForOldPosition(bufferPosition)
+    const hunk = this.spatialIndex.changeForOldPosition(bufferPosition)
     if (hunk) {
       if (compare(bufferPosition, hunk.oldEnd) < 0) {
         if (compare(hunk.oldStart, bufferPosition) === 0) {
@@ -364,7 +364,7 @@ class DisplayLayer {
   }
 
   translateScreenPositionWithSpatialIndex (screenPosition, clipDirection, skipSoftWrapIndentation) {
-    let hunk = this.spatialIndex.changeForNewPosition(screenPosition)
+    const hunk = this.spatialIndex.changeForNewPosition(screenPosition)
     if (hunk) {
       if (compare(screenPosition, hunk.newEnd) < 0) {
         if (this.isSoftWrapHunk(hunk)) {
@@ -401,7 +401,7 @@ class DisplayLayer {
   }
 
   constrainScreenPosition (screenPosition, clipDirection) {
-    let {row, column} = screenPosition
+    const { row, column } = screenPosition
 
     if (row < 0) {
       return new Point(0, 0)
@@ -434,7 +434,7 @@ class DisplayLayer {
     let hunkIndex = 0
     let unexpandedScreenColumn = 0
     let expandedScreenColumn = 0
-    let {row: bufferRow, column: bufferColumn} = this.translateScreenPositionWithSpatialIndex(screenRowStart)
+    let { row: bufferRow, column: bufferColumn } = this.translateScreenPositionWithSpatialIndex(screenRowStart)
     let bufferLine = this.buffer.lineForRow(bufferRow)
 
     while (tabCount > 0) {
@@ -442,14 +442,14 @@ class DisplayLayer {
         break
       }
 
-      let nextHunk = hunks[hunkIndex]
+      const nextHunk = hunks[hunkIndex]
       if (nextHunk && nextHunk.oldStart.row === bufferRow && nextHunk.oldStart.column === bufferColumn) {
         if (this.isSoftWrapHunk(nextHunk)) {
           if (hunkIndex !== 0) throw new Error('Unexpected soft wrap hunk')
           unexpandedScreenColumn = hunks[0].newEnd.column
           expandedScreenColumn = unexpandedScreenColumn
         } else {
-          ({row: bufferRow, column: bufferColumn} = nextHunk.oldEnd)
+          ({ row: bufferRow, column: bufferColumn } = nextHunk.oldEnd)
           bufferLine = this.buffer.lineForRow(bufferRow)
           unexpandedScreenColumn++
           expandedScreenColumn++
@@ -485,7 +485,7 @@ class DisplayLayer {
     let hunkIndex = 0
     let unexpandedScreenColumn = 0
     let expandedScreenColumn = 0
-    let {row: bufferRow, column: bufferColumn} = this.translateScreenPositionWithSpatialIndex(screenRowStart)
+    let { row: bufferRow, column: bufferColumn } = this.translateScreenPositionWithSpatialIndex(screenRowStart)
     let bufferLine = this.buffer.lineForRow(bufferRow)
 
     while (tabCount > 0) {
@@ -493,14 +493,14 @@ class DisplayLayer {
         break
       }
 
-      let nextHunk = hunks[hunkIndex]
+      const nextHunk = hunks[hunkIndex]
       if (nextHunk && nextHunk.oldStart.row === bufferRow && nextHunk.oldStart.column === bufferColumn) {
         if (this.isSoftWrapHunk(nextHunk)) {
           if (hunkIndex !== 0) throw new Error('Unexpected soft wrap hunk')
           unexpandedScreenColumn = Math.min(targetScreenPosition.column, nextHunk.newEnd.column)
           expandedScreenColumn = unexpandedScreenColumn
         } else {
-          ({row: bufferRow, column: bufferColumn} = nextHunk.oldEnd)
+          ({ row: bufferRow, column: bufferColumn } = nextHunk.oldEnd)
           bufferLine = this.buffer.lineForRow(bufferRow)
           unexpandedScreenColumn++
           expandedScreenColumn++
@@ -542,7 +542,7 @@ class DisplayLayer {
   }
 
   getClipColumnDelta (bufferPosition, clipDirection) {
-    var {row, column} = bufferPosition
+    var { row, column } = bufferPosition
 
     // Treat paired unicode characters as atomic...
     var character = this.buffer.getCharacterAtPosition(bufferPosition)
@@ -563,7 +563,7 @@ class DisplayLayer {
       return 0
     }
 
-    for (let position = {row, column}; position.column >= 0; position.column--) {
+    for (let position = { row, column }; position.column >= 0; position.column--) {
       if (this.buffer.getCharacterAtPosition(position) !== ' ') return 0
     }
 
@@ -573,7 +573,7 @@ class DisplayLayer {
 
     // If there is a non-whitespace character before the next tab stop,
     // don't this whitespace as a soft tab
-    for (let position = {row, column}; position.column < nextTabStop; position.column++) {
+    for (let position = { row, column }; position.column < nextTabStop; position.column++) {
       if (this.buffer.getCharacterAtPosition(position) !== ' ') return 0
     }
 
@@ -704,7 +704,7 @@ class DisplayLayer {
 
   findTrailingWhitespaceStartColumn (bufferRow) {
     let position
-    for (position = {row: bufferRow, column: this.buffer.lineLengthForRow(bufferRow) - 1}; position.column >= 0; position.column--) {
+    for (position = { row: bufferRow, column: this.buffer.lineLengthForRow(bufferRow) - 1 }; position.column >= 0; position.column--) {
       const previousCharacter = this.buffer.getCharacterAtPosition(position)
       if (previousCharacter !== ' ' && previousCharacter !== '\t') {
         break
@@ -779,7 +779,7 @@ class DisplayLayer {
     this.populateSpatialIndexIfNeeded(endRow + 1, Infinity)
   }
 
-  bufferDidChange ({oldRange, newRange}) {
+  bufferDidChange ({ oldRange, newRange }) {
     let startRow = oldRange.start.row
     let oldEndRow = oldRange.end.row
     let newEndRow = newRange.end.row
@@ -803,7 +803,7 @@ class DisplayLayer {
     this.didChange(this.updateSpatialIndex(startRow, oldEndRow + 1, newEndRow + 1, Infinity))
   }
 
-  didChange ({start, oldExtent, newExtent}) {
+  didChange ({ start, oldExtent, newExtent }) {
     this.changesSinceLastEvent.splice(start, oldExtent, newExtent)
     if (this.buffer.transactCallDepth === 0) this.emitDeferredChangeEvents()
   }
@@ -832,12 +832,12 @@ class DisplayLayer {
     oldEndBufferRow = this.findBoundaryFollowingBufferRow(oldEndBufferRow)
     newEndBufferRow += (oldEndBufferRow - originalOldEndBufferRow)
 
-    const startScreenRow = this.translateBufferPositionWithSpatialIndex({row: startBufferRow, column: 0}, 'backward').row
-    const oldEndScreenRow = this.translateBufferPositionWithSpatialIndex({row: oldEndBufferRow, column: 0}, 'backward').row
+    const startScreenRow = this.translateBufferPositionWithSpatialIndex({ row: startBufferRow, column: 0 }, 'backward').row
+    const oldEndScreenRow = this.translateBufferPositionWithSpatialIndex({ row: oldEndBufferRow, column: 0 }, 'backward').row
     this.spatialIndex.spliceOld(
-      {row: startBufferRow, column: 0},
-      {row: oldEndBufferRow - startBufferRow, column: 0},
-      {row: newEndBufferRow - startBufferRow, column: 0}
+      { row: startBufferRow, column: 0 },
+      { row: oldEndBufferRow - startBufferRow, column: 0 },
+      { row: newEndBufferRow - startBufferRow, column: 0 }
     )
 
     const folds = this.computeFoldsInBufferRowRange(startBufferRow, newEndBufferRow)
@@ -845,7 +845,7 @@ class DisplayLayer {
     const insertedScreenLineLengths = []
     const insertedTabCounts = []
     const currentScreenLineTabColumns = []
-    let rightmostInsertedScreenPosition = Point(0, -1)
+    const rightmostInsertedScreenPosition = Point(0, -1)
     let bufferRow = startBufferRow
     let screenRow = startScreenRow
     let bufferColumn = 0
@@ -963,9 +963,9 @@ class DisplayLayer {
         // and jump to the end of the fold.
         if (foldEnd) {
           this.spatialIndex.splice(
-            {row: screenRow, column: unexpandedScreenColumn},
-            traversal(foldEnd, {row: bufferRow, column: bufferColumn}),
-            {row: 0, column: 1}
+            { row: screenRow, column: unexpandedScreenColumn },
+            traversal(foldEnd, { row: bufferRow, column: bufferColumn }),
+            { row: 0, column: 1 }
           )
           unexpandedScreenColumn++
           expandedScreenColumn++
@@ -1073,8 +1073,8 @@ class DisplayLayer {
   findBoundaryPrecedingBufferRow (bufferRow) {
     while (true) {
       if (bufferRow === 0) return 0
-      let screenPosition = this.translateBufferPositionWithSpatialIndex(Point(bufferRow, 0), 'backward')
-      let bufferPosition = this.translateScreenPositionWithSpatialIndex(Point(screenPosition.row, 0), 'backward', false)
+      const screenPosition = this.translateBufferPositionWithSpatialIndex(Point(bufferRow, 0), 'backward')
+      const bufferPosition = this.translateScreenPositionWithSpatialIndex(Point(screenPosition.row, 0), 'backward', false)
       if (screenPosition.column === 0 && bufferPosition.column === 0) {
         return bufferPosition.row
       } else {
@@ -1085,7 +1085,7 @@ class DisplayLayer {
 
   findBoundaryFollowingBufferRow (bufferRow) {
     while (true) {
-      let screenPosition = this.translateBufferPositionWithSpatialIndex(Point(bufferRow, 0), 'forward')
+      const screenPosition = this.translateBufferPositionWithSpatialIndex(Point(bufferRow, 0), 'forward')
       if (screenPosition.column === 0) {
         return bufferRow
       } else {
@@ -1100,7 +1100,7 @@ class DisplayLayer {
 
   findBoundaryFollowingScreenRow (screenRow) {
     while (true) {
-      let bufferPosition = this.translateScreenPositionWithSpatialIndex(Point(screenRow, 0), 'forward')
+      const bufferPosition = this.translateScreenPositionWithSpatialIndex(Point(screenRow, 0), 'forward')
       if (bufferPosition.column === 0) {
         return [bufferPosition.row, screenRow]
       } else {
@@ -1169,11 +1169,11 @@ class DisplayLayer {
 
   setParams (params) {
     let paramsChanged = false
-    if (params.hasOwnProperty('tabLength') && params.tabLength !== this.tabLength) {
+    if (Object.prototype.hasOwnProperty.call(params, 'tabLength') && params.tabLength !== this.tabLength) {
       paramsChanged = true
       this.tabLength = params.tabLength
     }
-    if (params.hasOwnProperty('invisibles') && !invisiblesEqual(params.invisibles, this.invisibles)) {
+    if (Object.prototype.hasOwnProperty.call(params, 'invisibles') && !invisiblesEqual(params.invisibles, this.invisibles)) {
       paramsChanged = true
       this.invisibles = params.invisibles
       this.eolInvisibles = {
@@ -1182,12 +1182,12 @@ class DisplayLayer {
         '\r\n': this.invisibles.cr + this.invisibles.eol
       }
     }
-    if (params.hasOwnProperty('showIndentGuides') && params.showIndentGuides !== this.showIndentGuides) {
+    if (Object.prototype.hasOwnProperty.call(params, 'showIndentGuides') && params.showIndentGuides !== this.showIndentGuides) {
       paramsChanged = true
       this.showIndentGuides = params.showIndentGuides
     }
-    if (params.hasOwnProperty('softWrapColumn')) {
-      let softWrapColumn = params.softWrapColumn != null
+    if (Object.prototype.hasOwnProperty.call(params, 'softWrapColumn')) {
+      const softWrapColumn = params.softWrapColumn != null
         ? Math.max(1, params.softWrapColumn)
         : Infinity
       if (softWrapColumn !== this.softWrapColumn) {
@@ -1195,23 +1195,23 @@ class DisplayLayer {
         this.softWrapColumn = softWrapColumn
       }
     }
-    if (params.hasOwnProperty('softWrapHangingIndent') && params.softWrapHangingIndent !== this.softWrapHangingIndent) {
+    if (Object.prototype.hasOwnProperty.call(params, 'softWrapHangingIndent') && params.softWrapHangingIndent !== this.softWrapHangingIndent) {
       paramsChanged = true
       this.softWrapHangingIndent = params.softWrapHangingIndent
     }
-    if (params.hasOwnProperty('ratioForCharacter') && params.ratioForCharacter !== this.ratioForCharacter) {
+    if (Object.prototype.hasOwnProperty.call(params, 'ratioForCharacter') && params.ratioForCharacter !== this.ratioForCharacter) {
       paramsChanged = true
       this.ratioForCharacter = params.ratioForCharacter
     }
-    if (params.hasOwnProperty('isWrapBoundary') && params.isWrapBoundary !== this.isWrapBoundary) {
+    if (Object.prototype.hasOwnProperty.call(params, 'isWrapBoundary') && params.isWrapBoundary !== this.isWrapBoundary) {
       paramsChanged = true
       this.isWrapBoundary = params.isWrapBoundary
     }
-    if (params.hasOwnProperty('foldCharacter') && params.foldCharacter !== this.foldCharacter) {
+    if (Object.prototype.hasOwnProperty.call(params, 'foldCharacter') && params.foldCharacter !== this.foldCharacter) {
       paramsChanged = true
       this.foldCharacter = params.foldCharacter
     }
-    if (params.hasOwnProperty('atomicSoftTabs') && params.atomicSoftTabs !== this.atomicSoftTabs) {
+    if (Object.prototype.hasOwnProperty.call(params, 'atomicSoftTabs') && params.atomicSoftTabs !== this.atomicSoftTabs) {
       paramsChanged = true
       this.atomicSoftTabs = params.atomicSoftTabs
     }
@@ -1224,10 +1224,10 @@ class DisplayLayer {
 }
 
 function invisiblesEqual (left, right) {
-  let leftKeys = Object.keys(left)
-  let rightKeys = Object.keys(right)
+  const leftKeys = Object.keys(left)
+  const rightKeys = Object.keys(right)
   if (leftKeys.length !== rightKeys.length) return false
-  for (let key of leftKeys) {
+  for (const key of leftKeys) {
     if (left[key] !== right[key]) return false
   }
   return true

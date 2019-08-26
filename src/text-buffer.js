@@ -1,5 +1,5 @@
-const {Emitter, CompositeDisposable} = require('event-kit')
-const {File} = require('pathwatcher')
+const { Emitter, CompositeDisposable } = require('event-kit')
+const { File } = require('pathwatcher')
 const diff = require('diff')
 const _ = require('underscore-plus')
 const path = require('path')
@@ -14,8 +14,8 @@ const NullLanguageMode = require('./null-language-mode')
 const Marker = require('./marker')
 const MarkerLayer = require('./marker-layer')
 const DisplayLayer = require('./display-layer')
-const {spliceArray, newlineRegex, patchFromChanges, normalizePatchChanges, extentForText, debounce} = require('./helpers')
-const {traverse, traversal} = require('./point-helpers')
+const { spliceArray, newlineRegex, patchFromChanges, normalizePatchChanges, extentForText, debounce } = require('./helpers')
+const { traverse, traversal } = require('./point-helpers')
 const Grim = require('grim')
 
 // Extended: A mutable text container with undo/redo support and the ability to
@@ -119,7 +119,7 @@ class TextBuffer {
           'The `load` option to the TextBuffer constructor is deprecated. ' +
           'Get a loaded buffer using TextBuffer.load(filePath) instead.'
         )
-        this.load({internal: true})
+        this.load({ internal: true })
       }
     }
   }
@@ -147,7 +147,7 @@ class TextBuffer {
       buffer.setFile(source)
     }
     return buffer
-      .load({clearHistory: true, internal: true, mustExist: params && params.mustExist})
+      .load({ clearHistory: true, internal: true, mustExist: params && params.mustExist })
       .then(() => buffer)
       .catch(err => {
         buffer.destroy()
@@ -170,7 +170,7 @@ class TextBuffer {
     const buffer = new TextBuffer(params)
     buffer.setPath(filePath)
     try {
-      buffer.loadSync({internal: true, mustExist: params && params.mustExist})
+      buffer.loadSync({ internal: true, mustExist: params && params.mustExist })
     } catch (e) {
       buffer.destroy()
       throw e
@@ -600,7 +600,7 @@ class TextBuffer {
       }
       this.emitter.emit('did-change-encoding', encoding)
       if (!this.isModified()) {
-        this.load({clearHistory: true, internal: true})
+        this.load({ clearHistory: true, internal: true })
       }
     } else {
       this.emitter.emit('did-change-encoding', encoding)
@@ -777,7 +777,7 @@ class TextBuffer {
   //
   // Returns a {Range} spanning the new buffer contents.
   setText (text) {
-    return this.setTextInRange(this.getRange(), text, {normalizeLineEndings: false})
+    return this.setTextInRange(this.getRange(), text, { normalizeLineEndings: false })
   }
 
   // Public: Replace the current buffer contents by applying a diff based on the
@@ -803,9 +803,9 @@ class TextBuffer {
       const currentPosition = [0, 0]
 
       const lineDiff = diff.diffLines(currentText, text)
-      const changeOptions = {normalizeLineEndings: false}
+      const changeOptions = { normalizeLineEndings: false }
 
-      for (let change of lineDiff) {
+      for (const change of lineDiff) {
         const lineCount = change.count
         currentPosition[0] = row
         currentPosition[1] = column
@@ -840,14 +840,14 @@ class TextBuffer {
   // Returns the {Range} of the inserted text.
   setTextInRange (range, newText, options) {
     let normalizeLineEndings, undo
-    if (options) ({normalizeLineEndings, undo} = options)
+    if (options) ({ normalizeLineEndings, undo } = options)
     if (normalizeLineEndings == null) normalizeLineEndings = true
     if (undo != null) {
       Grim.deprecate('The `undo` option is deprecated. Call groupLastChanges() on the TextBuffer afterward instead.')
     }
 
     if (this.transactCallDepth === 0) {
-      const newRange = this.transact(() => this.setTextInRange(range, newText, {normalizeLineEndings}))
+      const newRange = this.transact(() => this.setTextInRange(range, newText, { normalizeLineEndings }))
       if (undo === 'skip') this.groupLastChanges()
       return newRange
     }
@@ -909,7 +909,7 @@ class TextBuffer {
 
   // Applies a change to the buffer based on its old range and new text.
   applyChange (change, pushToHistory = false) {
-    const {newStart, newEnd, oldStart, oldEnd, oldText, newText} = change
+    const { newStart, newEnd, oldStart, oldEnd, oldText, newText } = change
 
     const oldExtent = traversal(oldEnd, oldStart)
     const oldRange = Range(newStart, traverse(newStart, oldExtent))
@@ -927,7 +927,7 @@ class TextBuffer {
       }
     }
 
-    const changeEvent = {oldRange, newRange, oldText, newText}
+    const changeEvent = { oldRange, newRange, oldText, newText }
     for (const id in this.displayLayers) {
       const displayLayer = this.displayLayers[id]
       displayLayer.bufferWillChange(changeEvent)
@@ -1304,7 +1304,7 @@ class TextBuffer {
       fn = options
       groupingInterval = 0
     } else if (typeof options === 'object') {
-      ({groupingInterval, selectionsMarkerLayer} = options)
+      ({ groupingInterval, selectionsMarkerLayer } = options)
       if (groupingInterval == null) { groupingInterval = 0 }
     } else {
       groupingInterval = options
@@ -1319,7 +1319,7 @@ class TextBuffer {
       this.transactCallDepth++
       result = fn()
     } catch (exception) {
-      this.revertToCheckpoint(checkpointBefore, {deleteCheckpoint: true})
+      this.revertToCheckpoint(checkpointBefore, { deleteCheckpoint: true })
       if (!(exception instanceof TransactionAbortedError)) throw exception
       return
     } finally {
@@ -1360,7 +1360,7 @@ class TextBuffer {
   //
   // Returns a checkpoint id value.
   createCheckpoint (options) {
-    return this.historyProvider.createCheckpoint({markers: this.createMarkerSnapshot(options != null ? options.selectionsMarkerLayer : undefined), isBarrier: false})
+    return this.historyProvider.createCheckpoint({ markers: this.createMarkerSnapshot(options != null ? options.selectionsMarkerLayer : undefined), isBarrier: false })
   }
 
   // Public: Revert the buffer to the state it was in when the given
@@ -1608,7 +1608,7 @@ class TextBuffer {
     let replacements = 0
 
     this.transact(() => {
-      return this.scan(regex, function ({matchText, replace}) {
+      return this.scan(regex, function ({ matchText, replace }) {
         replace(matchText.replace(regex, replacementText))
         return replacements++
       })
@@ -1859,7 +1859,7 @@ class TextBuffer {
   clipPosition (position, options) {
     position = Point.fromObject(position)
     Point.assertValid(position)
-    const {row, column} = position
+    const { row, column } = position
     if (row < 0) {
       return this.getFirstPosition()
     } else if (row > this.getLastRow()) {
@@ -1920,7 +1920,7 @@ class TextBuffer {
         destination = file.createWriteStream()
       }
 
-      await this.emitter.emitAsync('will-save', {path: filePath})
+      await this.emitter.emitAsync('will-save', { path: filePath })
 
       try {
         await this.buffer.save(destination, this.getEncoding())
@@ -1946,7 +1946,7 @@ class TextBuffer {
     this.digestWhenLastPersisted = this.buffer.baseTextDigest()
     this.loaded = true
     this.emitModifiedStatusChanged(false)
-    this.emitter.emit('did-save', {path: filePath})
+    this.emitter.emit('did-save', { path: filePath })
     return this
   }
 
@@ -1954,7 +1954,7 @@ class TextBuffer {
   //
   // Returns a {Promise} that resolves when the load is complete.
   reload () {
-    return this.load({discardChanges: true, internal: true})
+    return this.load({ discardChanges: true, internal: true })
   }
 
   /*
@@ -1974,7 +1974,7 @@ class TextBuffer {
 
   setDisplayLayers (displayLayers) {
     this.displayLayers = displayLayers
-     // Used for deserialization
+    // Used for deserialization
   }
 
   /*
@@ -2019,7 +2019,7 @@ class TextBuffer {
         const displayLayer = this.displayLayers[id]
         displayLayer.bufferDidChangeLanguageMode(languageMode)
       }
-      this.emitter.emit('did-change-language-mode', {newMode: this.languageMode, oldMode: oldLanguageMode})
+      this.emitter.emit('did-change-language-mode', { newMode: this.languageMode, oldMode: oldLanguageMode })
     }
   }
 
@@ -2033,7 +2033,7 @@ class TextBuffer {
   //
   // Returns a {Disposable} that can be used to stop the callback from being called.
   onDidChangeLanguageMode (callback) {
-    return this.emitter.on('did-change-language-mode', ({newMode, oldMode}) => callback(newMode, oldMode))
+    return this.emitter.on('did-change-language-mode', ({ newMode, oldMode }) => callback(newMode, oldMode))
   }
 
   /*
@@ -2104,7 +2104,7 @@ class TextBuffer {
           if (this.loadCount > loadCount) return false
           if (patch) {
             if (patch.getChangeCount() > 0) {
-              checkpoint = this.historyProvider.createCheckpoint({markers: this.createMarkerSnapshot(), isBarrier: true})
+              checkpoint = this.historyProvider.createCheckpoint({ markers: this.createMarkerSnapshot(), isBarrier: true })
               this.emitter.emit('will-reload')
               return this.emitWillChangeEvent()
             } else if (options && options.discardChanges) {
@@ -2253,7 +2253,7 @@ class TextBuffer {
             this.emitter.emit('did-conflict')
           }
         } else {
-          return this.load({internal: true})
+          return this.load({ internal: true })
         }
       }, this.fileChangeDelay)))
     }
@@ -2383,7 +2383,7 @@ class TextBuffer {
       patchFromChanges(this.changesSinceLastStoppedChangingEvent).getChanges()
     ))
     this.changesSinceLastStoppedChangingEvent.length = 0
-    this.emitter.emit('did-stop-changing', {changes: compactedChanges})
+    this.emitter.emit('did-stop-changing', { changes: compactedChanges })
     this.emitModifiedStatusChanged(modifiedStatus)
   }
 
@@ -2493,7 +2493,7 @@ class ChangeEvent {
     this.changes = Object.freeze(normalizePatchChanges(changes))
 
     const start = changes[0].oldStart
-    const {oldEnd, newEnd} = changes[changes.length - 1]
+    const { oldEnd, newEnd } = changes[changes.length - 1]
     this.oldRange = new Range(start, oldEnd).freeze()
     this.newRange = new Range(start, newEnd).freeze()
 

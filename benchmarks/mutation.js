@@ -1,11 +1,11 @@
 const helpers = require('./helpers')
 const TextBuffer = require('..')
 
-let text = helpers.getRandomText(100)
-let buffer = new TextBuffer({text})
-let displayLayer = buffer.addDisplayLayer({})
+const text = helpers.getRandomText(100)
+const buffer = new TextBuffer({ text })
+// const displayLayer = buffer.addDisplayLayer({})
 
-let t0 = Date.now()
+const t0 = Date.now()
 
 for (let i = 0; i < 1000; i++) {
   buffer.setTextInRange(
@@ -14,7 +14,7 @@ for (let i = 0; i < 1000; i++) {
   )
 }
 
-let t1 = Date.now()
+const t1 = Date.now()
 
 console.log('Mutation')
 console.log('------------')

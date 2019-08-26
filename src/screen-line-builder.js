@@ -271,7 +271,7 @@ class ScreenLineBuilder {
   emitLineEnding () {
     this.emitCloseTag(this.getBuiltInScopeId(this.currentBuiltInClassNameFlags))
 
-    let lineEnding = this.displayLayer.buffer.lineEndingForRow(this.bufferPosition.row)
+    const lineEnding = this.displayLayer.buffer.lineEndingForRow(this.bufferPosition.row)
     const eolInvisible = this.displayLayer.eolInvisibles[lineEnding]
     if (eolInvisible) {
       let eolFlags = INVISIBLE_CHARACTER | LINE_ENDING
@@ -282,7 +282,7 @@ class ScreenLineBuilder {
     }
 
     if (this.bufferLineLength === 0 && this.displayLayer.showIndentGuides) {
-      let whitespaceLength = this.displayLayer.leadingWhitespaceLengthForSurroundingLines(this.bufferPosition.row)
+      const whitespaceLength = this.displayLayer.leadingWhitespaceLengthForSurroundingLines(this.bufferPosition.row)
       this.emitIndentWhitespace(whitespaceLength)
     }
 
