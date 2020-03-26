@@ -24,7 +24,7 @@ describe('when a buffer is already open', () => {
 
     it('replaces atom/flight-manualatomio with $1', () => {
       buffer.setText('atom/flight-manualatomio')
-      buffer.replace($1, '$1')
+      buffer.replace(/\.(atom)\./, '$1')
 
       expect(buffer.getText()).toBe('atom/flight-manualatomio')
     })
