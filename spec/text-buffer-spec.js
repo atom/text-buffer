@@ -13,8 +13,8 @@ describe('when a buffer is already open', () => {
     expect(buffer.getText()).toBe('bar(x)')
   })
 
-  describe('should properly replace regex literals', () => {
-    it('replaces tstat_fvars()->curr_setpoint[HEAT_EN] = new_tptr->heat_limit; with tstat_set_curr_setpoint(HEAT_EN, new_tptr->heat_limit);', () => {
+  describe('Texts should be replaced properly with strings containing literals when using the regex option', () => {
+    it('replaces tstat_fvars()->curr_setpoint[HEAT_EN] with tstat_set_curr_setpoint($1, $2);', () => {
       buffer.setPath(filePath)
       buffer.setText('tstat_fvars()->curr_setpoint[HEAT_EN] = new_tptr->heat_limit;')
       buffer.replace(/tstat_fvars\(\)->curr_setpoint\[(.+?)\] = (.+?);/, 'tstat_set_curr_setpoint($1, $2);')
@@ -22,9 +22,9 @@ describe('when a buffer is already open', () => {
       expect(buffer.getText()).toBe('tstat_set_curr_setpoint(HEAT_EN, new_tptr->heat_limit);')
     })
 
-    it('replaces atom/flight-manual.atom.io with atom/flight-manualatomio', () => {
-      buffer.setText('atom/flight-manual.atom.io')
-      buffer.replace(/\.(atom)\./, '$1')
+    it('replaces atom/flight-manualatomio with $1', () => {
+      buffer.setText('atom/flight-manualatomio')
+      buffer.replace($1, '$1')
 
       expect(buffer.getText()).toBe('atom/flight-manualatomio')
     })
