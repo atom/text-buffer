@@ -1608,7 +1608,9 @@ class TextBuffer {
     let replacements = 0
 
     this.transact(() => {
-      return this.scan(regex, function ({replace}) {
+      return this.scan(regex, function ({matchText, replace}) {
+        const text = matchText.replace(regex, replacementText)
+        replacementText = text === matchText ? replacementText : text
         replace(replacementText)
         return replacements++
       })
