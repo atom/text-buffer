@@ -30,7 +30,7 @@
     "cpy-cli": "^1.0.1",
     "dedent": "^0.6.0",
     "donna": "^1.0.16",
-    "electron": "^1.7.11",
+    "electron": "^6",
     "jasmine": "^2.4.1",
     "jasmine-core": "^2.4.1",
     "joanna": "0.0.11",
