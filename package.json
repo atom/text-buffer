@@ -47,7 +47,7 @@
     "delegato": "^1.0.0",
     "diff": "^2.2.1",
     "emissary": "^1.0.0",
-    "event-kit": "^2.4.0",
+    "event-kit": "^2.5.3",
     "fs-admin": "^0.15.0",
     "fs-plus": "^3.1.1",
     "grim": "^2.0.3",
