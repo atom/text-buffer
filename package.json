@@ -55,7 +55,7 @@
     "pathwatcher": "^8.1.0",
     "serializable": "^1.0.3",
     "superstring": "^2.4.2",
-    "underscore-plus": "^1.0.0"
+    "underscore-plus": "^1.7.0"
   },
   "standard": {
     "env": {
