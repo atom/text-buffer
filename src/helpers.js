@@ -44,14 +44,14 @@ exports.spliceArray = function (array, start, removedCount, insertedItems = []) 
     array.length = newLength
   }
 
-  for (let i = 0; i < insertedItems.length; i++) {
+  for (let i = 0, len = insertedItems.length; i < len; i++) {
     array[start + i] = insertedItems[i]
   }
 }
 
 exports.patchFromChanges = function (changes) {
   const patch = new Patch()
-  for (let i = 0; i < changes.length; i++) {
+  for (let i = 0, len = changes.length; i < len; i++) {
     const {oldStart, oldEnd, oldText, newStart, newEnd, newText} = changes[i]
     const oldExtent = traversal(oldEnd, oldStart)
     const newExtent = traversal(newEnd, newStart)
