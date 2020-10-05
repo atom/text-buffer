@@ -45,7 +45,7 @@
   },
   "dependencies": {
     "delegato": "^1.0.0",
-    "diff": "^2.2.1",
+    "diff": "^4.0.2",
     "emissary": "^1.0.0",
     "event-kit": "^2.4.0",
     "fs-admin": "^0.12.0",
