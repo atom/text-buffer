@@ -1927,31 +1927,29 @@ class TextBuffer {
       try {
         await this.buffer.save(destination, this.getEncoding())
       } catch (error) {
+        if (error.code !== 'EACCES' || destination !== filePath) throw error
+
         const isMacOrLinux = process.platform === 'darwin' || process.platform === 'linux'
         const isWindows = process.platform === 'win32'
-        if (error.code === 'EACCES' && destination === filePath) {
-          if (isMacOrLinux) {
-            const fsAdmin = require('fs-admin')
-            try {
-              await this.buffer.save(fsAdmin.createWriteStream(filePath), this.getEncoding())
-            } catch (_) {
-              throw error
-            }
-          } else if (isWindows) {
-            const winattr = require('winattr')
-            const attrs = winattr.getSync(filePath)
-            if (!attrs.hidden) throw error
-
-            try {
-              winattr.setSync(filePath, { hidden: false })
-              await this.buffer.save(filePath, this.getEncoding())
-              winattr.setSync(filePath, { hidden: true })
-            } catch (_) {
-              throw error
-            }
+        if (isMacOrLinux) {
+          const fsAdmin = require('fs-admin')
+          try {
+            await this.buffer.save(fsAdmin.createWriteStream(filePath), this.getEncoding())
+          } catch (_) {
+            throw error
           }
-        } else {
-          throw error
+        } else if (isWindows) {
+          const winattr = require('winattr')
+          const attrs = winattr.getSync(filePath)
+          if (!attrs.hidden) throw error
+
+          try {
+            winattr.setSync(filePath, { hidden: false })
+            await this.buffer.save(filePath, this.getEncoding())
+            winattr.setSync(filePath, { hidden: true })
+          } catch (_) {
+            throw error
+          }
         }
       }
     } finally {
