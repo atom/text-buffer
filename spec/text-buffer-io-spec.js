@@ -9,6 +9,7 @@ const TextBuffer = require('../src/text-buffer')
 const {TextBuffer: NativeTextBuffer} = require('superstring')
 const fsAdmin = require('fs-admin')
 const pathwatcher = require('pathwatcher')
+const winattr = require('winattr')
 
 process.on('unhandledRejection', console.error)
 
@@ -447,7 +448,7 @@ describe('TextBuffer IO', () => {
       })
     })
 
-    describe('when a permission error occurs', () => {
+    describe('when a permission error occurs (not Windows)', () => {
       if (process.platform === 'win32') return
 
       beforeEach(() => {
@@ -491,6 +492,21 @@ describe('TextBuffer IO', () => {
           expect(buffer.outstandingSaveCount).toBe(0)
           done()
         })
+      })
+    })
+
+    describe('when a permission error occurs (Windows)', () => {
+      if (process.platform !== 'win32') return
+
+      it('can bypass hidden files', async done => {
+        winattr.setSync(filePath, { hidden: true })
+
+        buffer.setText('I just wrote to a hidden file in Windows!')
+        await buffer.save()
+
+        expect(fs.readFileSync(filePath, 'utf8')).toBe('I just wrote to a hidden file in Windows!')
+        expect(winattr.getSync(filePath).hidden).toBe(true)
+        done()
       })
     })
   })
