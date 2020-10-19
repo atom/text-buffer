@@ -1929,16 +1929,8 @@ class TextBuffer {
       } catch (error) {
         if (error.code !== 'EACCES' || destination !== filePath) throw error
 
-        const isMacOrLinux = process.platform === 'darwin' || process.platform === 'linux'
         const isWindows = process.platform === 'win32'
-        if (isMacOrLinux) {
-          const fsAdmin = require('fs-admin')
-          try {
-            await this.buffer.save(fsAdmin.createWriteStream(filePath), this.getEncoding())
-          } catch (_) {
-            throw error
-          }
-        } else if (isWindows) {
+        if (isWindows) {
           const winattr = getPromisifiedWinattr()
           const attrs = await winattr.get(filePath)
           if (!attrs.hidden) throw error
@@ -1947,6 +1939,13 @@ class TextBuffer {
             await winattr.set(filePath, { hidden: false })
             await this.buffer.save(filePath, this.getEncoding())
             await winattr.set(filePath, { hidden: true })
+          } catch (_) {
+            throw error
+          }
+        } else {
+          const fsAdmin = require('fs-admin')
+          try {
+            await this.buffer.save(fsAdmin.createWriteStream(filePath), this.getEncoding())
           } catch (_) {
             throw error
           }
