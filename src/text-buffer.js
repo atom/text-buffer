@@ -1923,16 +1923,28 @@ class TextBuffer {
       try {
         await this.buffer.save(destination, this.getEncoding())
       } catch (error) {
-        const canEscalate = process.platform === 'darwin' || process.platform === 'linux'
-        if (error.code === 'EACCES' && destination === filePath && canEscalate) {
+        if (error.code !== 'EACCES' || destination !== filePath) throw error
+
+        const isWindows = process.platform === 'win32'
+        if (isWindows) {
+          const winattr = getPromisifiedWinattr()
+          const attrs = await winattr.get(filePath)
+          if (!attrs.hidden) throw error
+
+          try {
+            await winattr.set(filePath, { hidden: false })
+            await this.buffer.save(filePath, this.getEncoding())
+            await winattr.set(filePath, { hidden: true })
+          } catch (_) {
+            throw error
+          }
+        } else {
           const fsAdmin = require('fs-admin')
           try {
             await this.buffer.save(fsAdmin.createWriteStream(filePath), this.getEncoding())
           } catch (_) {
             throw error
           }
-        } else {
-          throw error
         }
       }
     } finally {
@@ -2595,6 +2607,20 @@ class SearchCallbackArgument {
   stop () {
     this.stopped = true
   }
+}
+
+let _winattr = null
+const getPromisifiedWinattr = function () {
+  if (_winattr === null) {
+    const { promisify } = require('util')
+    const winattr = require('winattr')
+    _winattr = {
+      set: promisify(winattr.set),
+      get: promisify(winattr.get)
+    }
+  }
+
+  return _winattr
 }
 
 module.exports = TextBuffer
