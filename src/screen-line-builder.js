@@ -89,7 +89,7 @@ class ScreenLineBuilder {
 
       if (!didSeekDecorationIterator || this.compareBufferPosition(decorationIterator.getPosition()) > 0) {
         didSeekDecorationIterator = true
-        this.scopeIdsToReopen = decorationIterator.seek(this.bufferPosition, endBufferRow)
+        this.scopeIdsToReopen = decorationIterator.seek(this.bufferPosition, endBufferRow) || []
       }
 
       var prevCachedScreenLine = this.displayLayer.cachedScreenLines[this.screenRow - 1]
