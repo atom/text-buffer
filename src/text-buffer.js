@@ -1912,11 +1912,7 @@ class TextBuffer {
     try {
       let destination
       if (file instanceof File) {
-        await new Promise((resolve, reject) => {
-          mkdirp(path.dirname(filePath), error => {
-            error ? reject(error) : resolve()
-          })
-        })
+        await mkdirp(path.dirname(filePath))
         destination = filePath
       } else {
         destination = file.createWriteStream()
