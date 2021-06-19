@@ -645,7 +645,7 @@ class DisplayLayer {
     let lastScreenRow = startRow
     let lastBufferRow = this.translateScreenPositionWithSpatialIndex(startPosition).row
     const hunks = this.spatialIndex.getChangesInNewRange(startPosition, Point(endRow, 0))
-    for (let i = 0; i < hunks.length; i++) {
+    for (let i = 0, len = hunks.length; i < len; i++) {
       const hunk = hunks[i]
       while (lastScreenRow <= hunk.newStart.row) {
         bufferRows.push(lastBufferRow)
@@ -689,7 +689,7 @@ class DisplayLayer {
 
   leadingWhitespaceLengthForNonEmptyLine (line) {
     let length = 0
-    for (let i = 0; i < line.length; i++) {
+    for (let i = 0, len = line.length; i < len; i++) {
       const character = line[i]
       if (character === ' ') {
         length++
@@ -935,7 +935,7 @@ class DisplayLayer {
           let unexpandedScreenColumnAfterLastTab = indentLength
           let expandedScreenColumnAfterLastTab = indentLength
           let tabCountPrecedingWrap = 0
-          for (let i = 0; i < currentScreenLineTabColumns.length; i++) {
+          for (let i = 0, len = currentScreenLineTabColumns.length; i < len; i++) {
             const tabColumn = currentScreenLineTabColumns[i]
             if (tabColumn < unexpandedWrapColumn) {
               tabCountPrecedingWrap++
@@ -1140,12 +1140,13 @@ class DisplayLayer {
       }
     }
 
-    for (let i = 0; i < foldMarkers.length; i++) {
+    const foldMarkersLength = foldMarkers.length
+    for (let i = 0; i < foldMarkersLength; i++) {
       const foldStart = foldMarkers[i].getStartPosition()
       let foldEnd = foldMarkers[i].getEndPosition()
 
       // Merge overlapping folds
-      while (i < foldMarkers.length - 1) {
+      while (i < foldMarkersLength - 1) {
         const nextFoldMarker = foldMarkers[i + 1]
         if (compare(nextFoldMarker.getStartPosition(), foldEnd) < 0) {
           if (compare(foldEnd, nextFoldMarker.getEndPosition()) < 0) {
