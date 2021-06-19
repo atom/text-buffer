@@ -4,6 +4,12 @@ describe "Range", ->
   beforeEach ->
     jasmine.addCustomEqualityTester(require("underscore-plus").isEqual)
 
+  describe "::fromObject() when object is falsy", ->
+    it "should not throw", ->
+      expect(-> Range.fromObject(null)).not.toThrow()
+    it "should get default values", ->
+      expect(Range.fromObject(null).toString()).toBe "[(0, 0) - (0, 0)]"
+
   describe "::intersectsWith(other, [exclusive])", ->
     intersectsWith = (range1, range2, exclusive) ->
       range1 = Range.fromObject(range1)
