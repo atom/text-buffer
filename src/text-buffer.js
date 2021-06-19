@@ -1931,7 +1931,7 @@ class TextBuffer {
 
         const isWindows = process.platform === 'win32'
         if (isWindows) {
-          const winattr = getPromisifiedWinattr()
+          const winattr = require('winattr')
           const attrs = await winattr.get(filePath)
           if (!attrs.hidden) throw error
 
@@ -2611,20 +2611,6 @@ class SearchCallbackArgument {
   stop () {
     this.stopped = true
   }
-}
-
-let _winattr = null
-const getPromisifiedWinattr = function () {
-  if (_winattr === null) {
-    const { promisify } = require('util')
-    const winattr = require('winattr')
-    _winattr = {
-      set: promisify(winattr.set),
-      get: promisify(winattr.get)
-    }
-  }
-
-  return _winattr
 }
 
 module.exports = TextBuffer
