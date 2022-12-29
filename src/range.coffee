@@ -39,7 +39,7 @@ class Range
   #   that are already ranges.
   #
   # Returns: A {Range} based on the given object.
-  @fromObject: (object, copy) ->
+  @fromObject: (object = {}, copy) ->
     if Array.isArray(object)
       new this(object[0], object[1])
     else if object instanceof this
